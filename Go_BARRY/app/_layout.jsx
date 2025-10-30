@@ -1,19 +1,16 @@
 import { Stack } from 'expo-router';
-import { ConvexProvider, ConvexReactClient } from 'convex/react';
-import { SupervisorProvider } from '../components/hooks/useSupervisorSession';
-
-const convex = new ConvexReactClient('https://standing-octopus-908.convex.cloud');
+import { SupervisorProvider } from '../components/hooks/useSupervisorSessionOptimized';
 
 export default function RootLayout() {
   return (
-    <ConvexProvider client={convex}>
-      <SupervisorProvider>
-        <Stack
-          screenOptions={{
-            headerShown: false,
-          }}
-        />
-      </SupervisorProvider>
-    </ConvexProvider>
+    <SupervisorProvider>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          animationEnabled: true,
+          cardStyle: { backgroundColor: 'white' }
+        }}
+      />
+    </SupervisorProvider>
   );
 }

@@ -1,0 +1,3 @@
+INSERT INTO `user_preferences` (`id`, `supervisor_id`, `theme`, `font_size`, `view_density`, `animations_enabled`, `default_dashboard`, `auto_refresh_interval`, `show_activity_feed`, `map_view`, `show_traffic_layer`, `filter_my_depot`, `hide_resolved`, `highlight_priority`, `notifications_enabled`, `notification_email`, `notification_push`, `sound_alerts`, `desktop_notifications`, `quiet_hours_start`, `quiet_hours_end`, `offline_mode`, `custom_settings`, `created_at`, `updated_at`) VALUES
+  ('b2c8109c-bb81-405b-8a11-1254c60320cf', 'c4b16cef-02d7-427f-a185-93f197bf34fd', 'dark', 'medium', 'comfortable', 1, 'breakdown-guide', 60, 1, 'roadmap', 1, 0, 1, 1, 1, 1, 0, 0, 0, NULL, NULL, 0, '{}', '2025-10-05 10:50:27', '2025-10-05 10:50:27');
+

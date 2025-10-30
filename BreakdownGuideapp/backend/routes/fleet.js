@@ -1,5 +1,14 @@
+/**
+ * Fleet Management Routes - MySQL Version
+ *
+ * Migrated from Supabase to MySQL
+ * Handles vehicle fleet management, search, filtering, and statistics
+ *
+ * @migrated 2025-10-16
+ */
+
 import express from 'express';
-import { supabase } from '../server.js';
+import { from, query, buildSearchCondition, paginate } from '../utils/queryHelpers.js';
 
 const router = express.Router();
 
@@ -7,42 +16,122 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     const { search, depot, type, page = 1, limit = 100 } = req.query;
-    const offset = (page - 1) * limit;
+    const { limit: pageLimit, offset } = paginate(page, limit);
 
-    let query = supabase
-      .from('fleet_vehicles')
+    // Build base query
+    let queryBuilder = from('fleet_vehicles')
       .select('*')
-      .order('fleet_number');
+      .order('fleet_number', 'ASC');
 
-    // Apply search filter
+    // Apply search filter (fleet_number, registration, or depot)
     if (search) {
-      query = query.or(`fleet_number.ilike.%${search}%,registration.ilike.%${search}%,depot.ilike.%${search}%`);
+      const searchConditions = [];
+      const searchParams = [];
+
+      searchConditions.push('fleet_number LIKE ?');
+      searchParams.push(`%${search}%`);
+
+      searchConditions.push('registration LIKE ?');
+      searchParams.push(`%${search}%`);
+
+      searchConditions.push('depot LIKE ?');
+      searchParams.push(`%${search}%`);
+
+      // Build custom query with OR conditions
+      let sql = `SELECT * FROM fleet_vehicles WHERE (${searchConditions.join(' OR ')})`;
+      const params = [...searchParams];
+
+      // Apply depot filter
+      if (depot) {
+        sql += ' AND depot = ?';
+        params.push(depot);
+      }
+
+      // Apply type filter
+      if (type) {
+        sql += ' AND type = ?';
+        params.push(type);
+      }
+
+      // Add order, limit, offset
+      sql += ' ORDER BY fleet_number ASC LIMIT ? OFFSET ?';
+      params.push(pageLimit, offset);
+
+      const data = await query(sql, params);
+
+      // Get total count for pagination
+      let countSql = `SELECT COUNT(*) as total FROM fleet_vehicles WHERE (${searchConditions.join(' OR ')})`;
+      const countParams = [...searchParams];
+
+      if (depot) {
+        countSql += ' AND depot = ?';
+        countParams.push(depot);
+      }
+
+      if (type) {
+        countSql += ' AND type = ?';
+        countParams.push(type);
+      }
+
+      const countResult = await query(countSql, countParams);
+      const total = countResult[0]?.total || 0;
+
+      return res.json({
+        data,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: total,
+          pages: Math.ceil(total / limit)
+        }
+      });
     }
 
-    // Apply depot filter
+    // No search - use query builder
     if (depot) {
-      query = query.eq('depot', depot);
+      queryBuilder = queryBuilder.eq('depot', depot);
     }
 
-    // Apply vehicle type filter
     if (type) {
-      query = query.eq('type', type);
+      queryBuilder = queryBuilder.eq('type', type);
     }
 
     // Apply pagination
-    query = query.range(offset, offset + limit - 1);
+    queryBuilder = queryBuilder.limit(pageLimit).offset(offset);
 
-    const { data, error, count } = await query;
+    const { data, error } = await queryBuilder.execute();
 
     if (error) throw error;
+
+    // Get total count
+    let countSql = 'SELECT COUNT(*) as total FROM fleet_vehicles';
+    const countParams = [];
+    const countConditions = [];
+
+    if (depot) {
+      countConditions.push('depot = ?');
+      countParams.push(depot);
+    }
+
+    if (type) {
+      countConditions.push('type = ?');
+      countParams.push(type);
+    }
+
+    if (countConditions.length > 0) {
+      countSql += ' WHERE ' + countConditions.join(' AND ');
+    }
+
+    const countResult = await query(countSql, countParams);
+    const total = countResult[0]?.total || 0;
 
     res.json({
       data,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
-        total: count,
-        pages: Math.ceil(count / limit)
+        total: total,
+        pages: Math.ceil(total / limit)
       }
     });
   } catch (error) {
@@ -55,42 +144,122 @@ router.get('/', async (req, res) => {
 router.get('/vehicles', async (req, res) => {
   try {
     const { search, depot, type, page = 1, limit = 100 } = req.query;
-    const offset = (page - 1) * limit;
+    const { limit: pageLimit, offset } = paginate(page, limit);
 
-    let query = supabase
-      .from('fleet_vehicles')
+    // Build base query
+    let queryBuilder = from('fleet_vehicles')
       .select('*')
-      .order('fleet_number');
+      .order('fleet_number', 'ASC');
 
-    // Apply search filter
+    // Apply search filter (fleet_number, registration, or depot)
     if (search) {
-      query = query.or(`fleet_number.ilike.%${search}%,registration.ilike.%${search}%,depot.ilike.%${search}%`);
+      const searchConditions = [];
+      const searchParams = [];
+
+      searchConditions.push('fleet_number LIKE ?');
+      searchParams.push(`%${search}%`);
+
+      searchConditions.push('registration LIKE ?');
+      searchParams.push(`%${search}%`);
+
+      searchConditions.push('depot LIKE ?');
+      searchParams.push(`%${search}%`);
+
+      // Build custom query with OR conditions
+      let sql = `SELECT * FROM fleet_vehicles WHERE (${searchConditions.join(' OR ')})`;
+      const params = [...searchParams];
+
+      // Apply depot filter
+      if (depot) {
+        sql += ' AND depot = ?';
+        params.push(depot);
+      }
+
+      // Apply type filter
+      if (type) {
+        sql += ' AND type = ?';
+        params.push(type);
+      }
+
+      // Add order, limit, offset
+      sql += ' ORDER BY fleet_number ASC LIMIT ? OFFSET ?';
+      params.push(pageLimit, offset);
+
+      const data = await query(sql, params);
+
+      // Get total count for pagination
+      let countSql = `SELECT COUNT(*) as total FROM fleet_vehicles WHERE (${searchConditions.join(' OR ')})`;
+      const countParams = [...searchParams];
+
+      if (depot) {
+        countSql += ' AND depot = ?';
+        countParams.push(depot);
+      }
+
+      if (type) {
+        countSql += ' AND type = ?';
+        countParams.push(type);
+      }
+
+      const countResult = await query(countSql, countParams);
+      const total = countResult[0]?.total || 0;
+
+      return res.json({
+        data,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: total,
+          pages: Math.ceil(total / limit)
+        }
+      });
     }
 
-    // Apply depot filter
+    // No search - use query builder
     if (depot) {
-      query = query.eq('depot', depot);
+      queryBuilder = queryBuilder.eq('depot', depot);
     }
 
-    // Apply vehicle type filter
     if (type) {
-      query = query.eq('type', type);
+      queryBuilder = queryBuilder.eq('type', type);
     }
 
     // Apply pagination
-    query = query.range(offset, offset + limit - 1);
+    queryBuilder = queryBuilder.limit(pageLimit).offset(offset);
 
-    const { data, error, count } = await query;
+    const { data, error } = await queryBuilder.execute();
 
     if (error) throw error;
+
+    // Get total count
+    let countSql = 'SELECT COUNT(*) as total FROM fleet_vehicles';
+    const countParams = [];
+    const countConditions = [];
+
+    if (depot) {
+      countConditions.push('depot = ?');
+      countParams.push(depot);
+    }
+
+    if (type) {
+      countConditions.push('type = ?');
+      countParams.push(type);
+    }
+
+    if (countConditions.length > 0) {
+      countSql += ' WHERE ' + countConditions.join(' AND ');
+    }
+
+    const countResult = await query(countSql, countParams);
+    const total = countResult[0]?.total || 0;
 
     res.json({
       data,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
-        total: count,
-        pages: Math.ceil(count / limit)
+        total: total,
+        pages: Math.ceil(total / limit)
       }
     });
   } catch (error) {
@@ -103,15 +272,18 @@ router.get('/vehicles', async (req, res) => {
 router.get('/search/:term', async (req, res) => {
   try {
     const searchTerm = req.params.term;
-    
-    const { data, error } = await supabase
-      .from('fleet_vehicles')
-      .select('*')
-      .or(`fleet_number.ilike.%${searchTerm}%,registration.ilike.%${searchTerm}%`)
-      .order('fleet_number')
-      .limit(20);
 
-    if (error) throw error;
+    // Search in fleet_number and registration with LIKE
+    const sql = `
+      SELECT *
+      FROM fleet_vehicles
+      WHERE fleet_number LIKE ? OR registration LIKE ?
+      ORDER BY fleet_number ASC
+      LIMIT 20
+    `;
+
+    const params = [`%${searchTerm}%`, `%${searchTerm}%`];
+    const data = await query(sql, params);
 
     res.json(data);
   } catch (error) {
@@ -120,11 +292,10 @@ router.get('/search/:term', async (req, res) => {
   }
 });
 
-// GET /api/fleet/vehicle/:fleetNumber - Get specific vehicle by fleet number  
+// GET /api/fleet/vehicle/:fleetNumber - Get specific vehicle by fleet number
 router.get('/vehicle/:fleetNumber', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('fleet_vehicles')
+    const { data, error } = await from('fleet_vehicles')
       .select('*')
       .eq('fleet_number', req.params.fleetNumber)
       .single();
@@ -145,8 +316,7 @@ router.get('/vehicle/:fleetNumber', async (req, res) => {
 // GET /api/fleet/:fleetNumber - Get specific vehicle by fleet number
 router.get('/:fleetNumber', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('fleet_vehicles')
+    const { data, error } = await from('fleet_vehicles')
       .select('*')
       .eq('fleet_number', req.params.fleetNumber)
       .single();
@@ -167,15 +337,17 @@ router.get('/:fleetNumber', async (req, res) => {
 // GET /api/fleet/depots/list - Get list of all depots
 router.get('/depots/list', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('fleet_vehicles')
-      .select('depot')
-      .not('depot', 'is', null);
+    const sql = `
+      SELECT DISTINCT depot
+      FROM fleet_vehicles
+      WHERE depot IS NOT NULL
+      ORDER BY depot ASC
+    `;
 
-    if (error) throw error;
+    const data = await query(sql);
 
-    // Get unique depots
-    const depots = [...new Set(data.map(vehicle => vehicle.depot))].sort();
+    // Extract depot names from result set
+    const depots = data.map(row => row.depot);
 
     res.json(depots);
   } catch (error) {
@@ -187,15 +359,17 @@ router.get('/depots/list', async (req, res) => {
 // GET /api/fleet/types/list - Get list of vehicle types
 router.get('/types/list', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('fleet_vehicles')
-      .select('type')
-      .not('type', 'is', null);
+    const sql = `
+      SELECT DISTINCT type
+      FROM fleet_vehicles
+      WHERE type IS NOT NULL
+      ORDER BY type ASC
+    `;
 
-    if (error) throw error;
+    const data = await query(sql);
 
-    // Get unique vehicle types
-    const types = [...new Set(data.map(vehicle => vehicle.type))].sort();
+    // Extract type names from result set
+    const types = data.map(row => row.type);
 
     res.json(types);
   } catch (error) {
@@ -207,11 +381,8 @@ router.get('/types/list', async (req, res) => {
 // GET /api/fleet/stats/summary - Get fleet statistics
 router.get('/stats/summary', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('fleet_vehicles')
-      .select('depot, type, status');
-
-    if (error) throw error;
+    const sql = 'SELECT depot, type, status FROM fleet_vehicles';
+    const data = await query(sql);
 
     const stats = {
       total_vehicles: data.length,
@@ -251,14 +422,31 @@ router.get('/stats/summary', async (req, res) => {
 // PUT /api/fleet/:fleetNumber - Update vehicle information
 router.put('/:fleetNumber', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('fleet_vehicles')
-      .update({
-        ...req.body,
-        updated_at: new Date().toISOString()
-      })
-      .eq('fleet_number', req.params.fleetNumber)
-      .select()
+    const fleetNumber = req.params.fleetNumber;
+    const updateData = {
+      ...req.body,
+      updated_at: new Date()
+    };
+
+    // Remove fleet_number and id from update data if present
+    delete updateData.fleet_number;
+    delete updateData.id;
+
+    // Build update query
+    const keys = Object.keys(updateData);
+    const sql = `
+      UPDATE fleet_vehicles
+      SET ${keys.map(k => `${k} = ?`).join(', ')}
+      WHERE fleet_number = ?
+    `;
+
+    const params = [...keys.map(k => updateData[k]), fleetNumber];
+    await query(sql, params);
+
+    // Fetch updated record
+    const { data, error } = await from('fleet_vehicles')
+      .select('*')
+      .eq('fleet_number', fleetNumber)
       .single();
 
     if (error) throw error;
@@ -277,16 +465,26 @@ router.put('/:fleetNumber', async (req, res) => {
 // PATCH /api/fleet/:fleetNumber/status - Update vehicle status
 router.patch('/:fleetNumber/status', async (req, res) => {
   try {
+    const fleetNumber = req.params.fleetNumber;
     const { status } = req.body;
-    
-    const { data, error } = await supabase
-      .from('fleet_vehicles')
-      .update({ 
-        status,
-        updated_at: new Date().toISOString()
-      })
-      .eq('fleet_number', req.params.fleetNumber)
-      .select()
+
+    if (!status) {
+      return res.status(400).json({ error: 'Status is required' });
+    }
+
+    const sql = `
+      UPDATE fleet_vehicles
+      SET status = ?, updated_at = ?
+      WHERE fleet_number = ?
+    `;
+
+    const params = [status, new Date(), fleetNumber];
+    await query(sql, params);
+
+    // Fetch updated record
+    const { data, error } = await from('fleet_vehicles')
+      .select('*')
+      .eq('fleet_number', fleetNumber)
       .single();
 
     if (error) throw error;

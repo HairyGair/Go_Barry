@@ -1,0 +1,69 @@
+=============================================================================
+SUPABASE TO CPANEL MIGRATION REPORT
+=============================================================================
+
+Generated: 2025-10-14T18:49:57.515Z
+Format: MYSQL
+Limit per table: None (all records)
+Dry run: No
+
+-----------------------------------------------------------------------------
+EXPORT SUMMARY
+-----------------------------------------------------------------------------
+
+✅ supervisors                          14 records
+✅ breakdowns                           32 records
+✅ engineers                             5 records
+✅ wizard_progress                       0 records
+✅ fleet_vehicles                        1 records
+✅ user_preferences                      1 records
+✅ notification_preferences              0 records
+✅ activities                           63 records
+
+Total tables processed: 8
+Successful exports: 8
+Failed exports: 0
+Total records exported: 116
+
+-----------------------------------------------------------------------------
+NEXT STEPS
+-----------------------------------------------------------------------------
+
+1. Review the generated SQL file before importing:
+   /Users/anthony/Go BARRY App/BreakdownGuideapp/backend/scripts/migrations/migration-data-*.sql
+
+2. Backup your existing cPanel database:
+   - Use phpMyAdmin Export or mysqldump
+
+3. Create tables in cPanel database (if not exist):
+   - Use the schema from Supabase or create-schema.sql
+
+4. Import the data:
+   - phpMyAdmin: Import tab → Choose file → Go
+   - MySQL CLI: mysql -u user -p database < migration-data-*.sql
+   - PostgreSQL: psql -U user -d database -f migration-data-*.sql
+
+5. Verify the import:
+   - Check record counts match this report
+   - Test application functionality
+   - Verify foreign key relationships
+
+-----------------------------------------------------------------------------
+WARNINGS AND RECOMMENDATIONS
+-----------------------------------------------------------------------------
+
+✅ Always test import on staging database first
+✅ Keep JSON backup for reference
+✅ Monitor cPanel disk space during import
+✅ Update application .env with new database credentials
+
+-----------------------------------------------------------------------------
+SUPPORT
+-----------------------------------------------------------------------------
+
+For issues or questions:
+- Review MIGRATION_GUIDE.md in the root directory
+- Check cPanel error logs if import fails
+- Contact database administrator
+
+=============================================================================

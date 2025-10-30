@@ -30,7 +30,7 @@ const SDCDebugger = () => {
 
       // 3. Check API connectivity
       try {
-        const apiUrl = import.meta?.env?.VITE_API_URL || 'https://breakdown-guide.onrender.com';
+        const apiUrl = import.meta?.env?.VITE_API_URL || 'https://breakdowns.gobarry.co.uk/api';
         const response = await fetch(`${apiUrl}/api/health`, { 
           method: 'GET',
           timeout: 5000 

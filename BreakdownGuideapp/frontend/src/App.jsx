@@ -1,3 +1,19 @@
+/**
+ * Go BARRY Breakdown Management System - Main Application
+ *
+ * Copyright © 2025 Anthony Gair. All Rights Reserved.
+ *
+ * This software is proprietary and confidential. Unauthorized copying,
+ * distribution, modification, or use is strictly prohibited.
+ *
+ * Licensed exclusively to Go North East for internal breakdown management.
+ * See LICENSE.md for full terms and conditions.
+ *
+ * @author Anthony Gair
+ * @version 2.0.0
+ * @license Proprietary
+ */
+
 import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom'
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import './App.css'
@@ -24,12 +40,14 @@ import { DashboardRouter } from './dashboards'
 
 // Import HomePage and LoginPage components
 import HomePage from './components/HomePage.jsx'
-import LoginPage from './components/LoginPage.jsx'
+import MySQLLoginPage from './components/MySQLLoginPage.jsx'
 
 // Import NotificationPanel
 import NotificationPanel from './components/NotificationPanel.jsx'
 // Import Settings Page
 import SettingsPage from './components/SettingsPage.jsx'
+// Import DutySelectionModal
+import DutySelectionModal from './components/DutySelectionModal.jsx'
 // Import dashboard data fetcher
 import { fetchDashboardData } from './utils/fetchDashboardData.js'
 
@@ -168,6 +186,12 @@ const Navigation = ({ hide = false, activeBreakdowns = 0 }) => {
               </ul>
               <div className="nav-user-section">
                 <span className="nav-time">{formatTime()}</span>
+                {currentUser?.current_duty && (
+                  <span className="nav-duty-badge" title={`Current duty shift: ${currentUser.current_duty}`}>
+                    <span className="duty-icon">🕐</span>
+                    <span className="duty-text">{currentUser.current_duty}</span>
+                  </span>
+                )}
                 <button
                   className="nav-notification-btn"
                   title="Notifications"
@@ -224,9 +248,11 @@ const Navigation = ({ hide = false, activeBreakdowns = 0 }) => {
 
 // Main App Component - Now uses AuthContext
 const AppContent = () => {
-  const { isAuthenticated, isLoading: authLoading } = useAuth()
+  const { isAuthenticated, isLoading: authLoading, currentUser, refreshSession } = useAuth()
   const [isOnline, setIsOnline] = useState(navigator.onLine)
   const [activeBreakdowns, setActiveBreakdowns] = useState(0)
+  const [showDutyModal, setShowDutyModal] = useState(false)
+  const [dutyModalShown, setDutyModalShown] = useState(false)
   const location = useLocation()
   
   // Online/Offline monitoring
@@ -270,6 +296,27 @@ const AppContent = () => {
   const handleStatsChange = useCallback((count) => {
     setActiveBreakdowns(count)
   }, [])
+
+  // Show duty modal after login if no duty set
+  useEffect(() => {
+    if (isAuthenticated && currentUser && !currentUser.current_duty && !dutyModalShown) {
+      setShowDutyModal(true)
+      setDutyModalShown(true)
+    }
+  }, [isAuthenticated, currentUser, dutyModalShown])
+
+  // Handle duty selection
+  const handleDutySelected = useCallback(async (duty, shiftInfo) => {
+    setShowDutyModal(false)
+    // Refresh session to get updated duty info
+    await refreshSession()
+    console.log('✅ Duty set:', duty)
+  }, [refreshSession])
+
+  const handleDutySkip = useCallback(() => {
+    setShowDutyModal(false)
+    console.log('ℹ️ User skipped duty selection')
+  }, [])
   
   if (authLoading) {
     return (
@@ -312,13 +359,17 @@ const AppContent = () => {
 
       <main className={`main-container ${hideNav ? 'no-nav' : ''} ${useModernHeader && !hideNav ? 'with-modern-header' : ''}`}>
         <Routes>
-          <Route path="/login" element={<LoginPage />} />
+          <Route path="/login" element={<MySQLLoginPage />} />
           <Route
             path="/"
             element={
-              <HomePage
-                onStatsChange={handleStatsChange}
-              />
+              isAuthenticated ? (
+                <ProtectedRoute>
+                  <HomePage onStatsChange={handleStatsChange} />
+                </ProtectedRoute>
+              ) : (
+                <Navigate to="/login" replace />
+              )
             }
           />
           <Route
@@ -393,6 +444,13 @@ const AppContent = () => {
           />
         </Routes>
       </main>
+
+      {showDutyModal && (
+        <DutySelectionModal
+          onDutySelected={handleDutySelected}
+          onSkip={handleDutySkip}
+        />
+      )}
     </div>
   )
 }

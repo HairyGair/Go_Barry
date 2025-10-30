@@ -3,7 +3,7 @@ import * as Icons from '../common/icons.jsx';
 import constants from '../common/constants.js';
 
 // Wheelchair Ramp Wizard Component
-// Follows SDC Engineering Issues Guide - Section 23 (Ramp Stuck Out)
+// Follows operational safety procedures - Section 23 (Ramp Stuck Out)
 // Enhanced to include manual retraction risk assessment requirements
 
 const WheelchairRampWizard = ({ currentStep, responses, updateResponse, onNext, onPrevious, onComplete }) => {
@@ -16,7 +16,7 @@ const WheelchairRampWizard = ({ currentStep, responses, updateResponse, onNext, 
                 <div className="bg-white rounded-lg shadow-sm p-6">
                     <div className="mb-6">
                         <h2 className="text-xl font-semibold text-gray-900 mb-2">♿ Wheelchair Ramp Assessment</h2>
-                        <p className="text-gray-600">Following SDC guidance for wheelchair ramp systems - ensuring safe operation and compliance with disability access requirements.</p>
+                        <p className="text-gray-600">Following standard operational safety checks guidance for wheelchair ramp systems - ensuring safe operation and compliance with disability access requirements.</p>
                     </div>
                     
                     <div className="bg-blue-50 border-l-4 border-blue-600 p-6 mb-6">
@@ -163,13 +163,13 @@ const WheelchairRampWizard = ({ currentStep, responses, updateResponse, onNext, 
             );
 
         case 2:
-            // Step 2: Vehicle Reset and Manual Retraction Assessment (following SDC guide)
+            // Step 2: Vehicle Reset and Manual Retraction Assessment (following standard operational procedures)
             if (responses.issue_type === 'ramp_stuck_out') {
                 return (
                     <div className="bg-white rounded-lg shadow-sm p-6">
                         <div className="mb-6">
                             <h2 className="text-xl font-semibold text-gray-900 mb-2">🔧 Ramp Stuck Out - Initial Troubleshooting</h2>
-                            <p className="text-gray-600">Following SDC procedures for stuck ramp resolution.</p>
+                            <p className="text-gray-600">Following standard operational safety checks procedures for stuck ramp resolution.</p>
                         </div>
                         
                         <div className="bg-orange-50 border-l-4 border-orange-600 p-6 mb-6">
@@ -185,7 +185,7 @@ const WheelchairRampWizard = ({ currentStep, responses, updateResponse, onNext, 
                         <div className="space-y-6">
                             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                                 <h3 className="font-semibold text-blue-900 mb-3">Step 1: Reset the Vehicle</h3>
-                                <p className="text-blue-700 text-sm mb-4">First, attempt a system reset as per SDC guidance.</p>
+                                <p className="text-blue-700 text-sm mb-4">First, attempt a system reset as per standard operational guidance.</p>
                                 <div className="bg-white rounded p-4">
                                     <h4 className="font-semibold text-blue-800 mb-2">Reset Procedure:</h4>
                                     <ol className="list-decimal list-inside space-y-1 text-blue-700">
@@ -456,7 +456,7 @@ const WheelchairRampWizard = ({ currentStep, responses, updateResponse, onNext, 
             }
 
         case 3:
-            // Decision based on SDC guide logic
+            // Decision based on operational safety procedures
             const needsImmediateStop = 
                 (responses.issue_type === 'ramp_stuck_out' && responses.risk_assessed !== 'yes') ||
                 (responses.issue_type === 'ramp_stuck_out' && responses.manual_attempt === 'failed') ||
@@ -476,7 +476,7 @@ const WheelchairRampWizard = ({ currentStep, responses, updateResponse, onNext, 
                 <div className="bg-white rounded-lg shadow-sm p-6">
                     <div className="mb-6">
                         <h2 className="text-xl font-semibold text-gray-900 mb-2">📋 Wheelchair Ramp Decision</h2>
-                        <p className="text-gray-600">Based on SDC guidance, here is the required action:</p>
+                        <p className="text-gray-600">Based on recognised industry best practice guidance, here is the required action:</p>
                     </div>
 
                     <div className="space-y-6">

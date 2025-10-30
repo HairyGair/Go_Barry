@@ -1,7 +1,6 @@
 // Comprehensive Security Service for Go North East Breakdown Management System
 // Handles password validation, session security, and suspicious activity detection
-
-import { supabase } from './supabase-client.js'
+// Supabase removed - now uses backend MySQL API
 
 // Security configuration
 export const SECURITY_CONFIG = {

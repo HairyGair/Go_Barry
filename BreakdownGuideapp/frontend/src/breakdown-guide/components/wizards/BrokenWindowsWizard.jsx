@@ -4,7 +4,7 @@ import constants from '../common/constants.js';
 
 // Broken Windows Wizard Component - SAFETY CRITICAL VISION
 // Uses icons and constants from common components
-// Follows SDC Engineering Issues Guide - Broken Windows Section (Page 6)
+// Follows operational safety procedures - Broken Windows Section (Page 6)
 
 const BrokenWindowsWizard = ({ currentStep, responses, updateResponse, onNext, onPrevious, onComplete }) => {
     // Get icons from imported Icons
@@ -25,7 +25,7 @@ const BrokenWindowsWizard = ({ currentStep, responses, updateResponse, onNext, o
     
     const handleCompleteAssessment = () => {
         let finalDecision = 'CONTINUE';
-        let notes = 'Broken windows assessment completed per SDC Guide. ';
+        let notes = 'Broken windows assessment completed per standard operational procedures. ';
         
         const mustStop = responses.driver_fit === 'no' || 
                         responses.passengers_unharmed === 'no' ||
@@ -83,7 +83,7 @@ const BrokenWindowsWizard = ({ currentStep, responses, updateResponse, onNext, o
                             <AlertTriangle className="w-8 h-8 text-red-400" />
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">🪟 BROKEN WINDOWS - SAFETY ASSESSMENT</h2>
-                        <p className="text-gray-300">Following SDC Engineering Issues Guide procedure for broken windows evaluation.</p>
+                        <p className="text-gray-300">Following standard operational safety checks procedure for broken windows evaluation.</p>
                     </div>
                     
                     <div className="bg-red-500/30 backdrop-blur-sm rounded-lg p-6 border border-red-400/50">
@@ -223,7 +223,7 @@ const BrokenWindowsWizard = ({ currentStep, responses, updateResponse, onNext, o
                                 <div className="flex-1">
                                     <h3 className="text-xl font-bold text-red-200 mb-3">🚨 IMMEDIATE ACTION REQUIRED</h3>
                                     <div className="text-red-300/90 space-y-2">
-                                        <p className="font-semibold">Critical safety situation - follow SDC procedures immediately</p>
+                                        <p className="font-semibold">Critical safety situation - follow standard operational procedures immediately</p>
                                         <div className="bg-white/10 backdrop-blur-sm rounded p-4 mt-4">
                                             <h4 className="font-semibold text-red-200 mb-2">Mandatory SDC Actions:</h4>
                                             <ul className="list-disc list-inside space-y-1 text-red-300/90 text-sm">

@@ -1,6 +1,6 @@
 /**
- * SDC Guide Compliant Diagnostic Flows - PART 2
- * Continuing with exact SDC Guide text for remaining diagnostics
+ * Industry Best-Practice Compliant Diagnostic Flows - PART 2
+ * Continuing with operational best practice guidelines for remaining diagnostics
  */
 
 // Add to existing diagnosticFlows object
@@ -409,4 +409,4 @@ if (typeof diagnosticFlows !== 'undefined') {
     window.diagnosticFlows = additionalFlows;
 }
 
-console.log('SDC Guide Part 2 diagnostic flows loaded - Exact text compliance maintained');
+console.log('Industry best-practice diagnostic flows loaded - Exact text compliance maintained');

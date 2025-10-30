@@ -3,7 +3,7 @@ import * as Icons from '../common/icons.jsx';
 import constants from '../common/constants.js';
 
 // Interior/Exterior Damage Wizard Component
-// Follows SDC Engineering Issues Guide - Section 16 (pages 29-30)
+// Follows operational safety procedures - Section 16 (pages 29-30)
 
 const InteriorExteriorDamageWizard = ({ currentStep, responses, updateResponse, onNext, onPrevious, onComplete }) => {
     // Get icons from global scope
@@ -18,13 +18,13 @@ const InteriorExteriorDamageWizard = ({ currentStep, responses, updateResponse, 
                             <AlertTriangle className="w-8 h-8 text-orange-400" />
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">🔨 Interior/Exterior Damage Assessment</h2>
-                        <p className="text-gray-300">Following SDC guidance for vehicle damage assessment - prioritizing safety and operational requirements.</p>
+                        <p className="text-gray-300">Following standard operational safety checks guidance for vehicle damage assessment - prioritizing safety and operational requirements.</p>
                     </div>
                     
                     <div className="bg-red-500/20 backdrop-blur-sm rounded-lg p-6 border border-red-400/30">
                         <h3 className="text-lg font-semibold text-red-200 mb-4">⚠️ Safety Priority</h3>
                         <p className="text-red-300/80 text-sm leading-relaxed">
-                            Any damage that affects vehicle control, passenger safety, or creates risk of detachment must be addressed immediately following SDC procedures.
+                            Any damage that affects vehicle control, passenger safety, or creates risk of detachment must be addressed immediately following standard operational procedures.
                         </p>
                     </div>
 
@@ -244,7 +244,7 @@ const InteriorExteriorDamageWizard = ({ currentStep, responses, updateResponse, 
                             <Eye className="w-8 h-8 text-blue-400" />
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">🔍 Detailed Safety Assessment</h2>
-                        <p className="text-gray-300">Evaluate the specific safety implications of the reported damage following SDC criteria.</p>
+                        <p className="text-gray-300">Evaluate the specific safety implications of the reported damage following operational safety criteria.</p>
                     </div>
                     
                     <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/20">
@@ -476,7 +476,7 @@ const InteriorExteriorDamageWizard = ({ currentStep, responses, updateResponse, 
             );
 
         case 3:
-            // SDC Decision Logic based on page 29-30
+            // Operational safety decision logic based on page 29-30
             const isRegistrationPlate = responses.damage_type === 'registration_plate';
             const affectsControl = responses.affects_control === 'yes';
             const highRisk = responses.detachment_risk === 'high' || responses.detachment_risk === 'injury';
@@ -522,8 +522,8 @@ const InteriorExteriorDamageWizard = ({ currentStep, responses, updateResponse, 
                                 <AlertCircle className="w-8 h-8 text-orange-400" />
                             }
                         </div>
-                        <h2 className="text-2xl font-bold text-white mb-2">📋 SDC Assessment Decision</h2>
-                        <p className="text-gray-300">Based on SDC procedures for interior/exterior damage assessment:</p>
+                        <h2 className="text-2xl font-bold text-white mb-2">📋 Operational Safety Assessment Decision</h2>
+                        <p className="text-gray-300">Based on recognised industry best practice procedures for interior/exterior damage assessment:</p>
                     </div>
 
                     <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/20">
@@ -650,7 +650,7 @@ const InteriorExteriorDamageWizard = ({ currentStep, responses, updateResponse, 
                             <CheckCircle className="w-8 h-8 text-green-400" />
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">📊 Assessment Complete</h2>
-                        <p className="text-gray-300">Interior/exterior damage assessment completed following SDC Engineering Issues Guide procedures.</p>
+                        <p className="text-gray-300">Interior/exterior damage assessment completed following operational safety procedures procedures.</p>
                     </div>
                     
                     <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/20">
@@ -697,7 +697,7 @@ const InteriorExteriorDamageWizard = ({ currentStep, responses, updateResponse, 
                             <div>
                                 <h4 className="font-semibold text-green-200 mb-2">Assessment Complete</h4>
                                 <p className="text-sm text-green-300/90">
-                                    Damage assessment has been completed following SDC procedures. Follow the safety decision provided and ensure all required documentation is completed.
+                                    Damage assessment has been completed following standard operational procedures. Follow the safety decision provided and ensure all required documentation is completed.
                                 </p>
                             </div>
                         </div>

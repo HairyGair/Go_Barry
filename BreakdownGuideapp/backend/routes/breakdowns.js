@@ -1,10 +1,28 @@
+/**
+ * Go BARRY Breakdown Management System
+ *
+ * Copyright © 2025 Anthony Gair. All Rights Reserved.
+ *
+ * This software is proprietary and confidential. Unauthorized copying,
+ * distribution, modification, or use is strictly prohibited.
+ *
+ * @author Anthony Gair
+ * @license Proprietary
+ */
+
 import express from 'express';
-import { supabase } from '../server.js';
+import { from, query, insert, update } from '../utils/queryHelpers.js';
 import breakdownIdGenerator from '../services/breakdownIdGenerator.js';
 import { activityLogger } from '../services/activityLogger.js';
 import webSocketHandler from './webSocketHandler.js';
 
 const router = express.Router();
+
+// Helper function to format datetime for MySQL
+// Converts ISO 8601 (2025-10-28T22:29:52.324Z) to MySQL format (2025-10-28 22:29:52)
+const toMySQLDatetime = (date = new Date()) => {
+  return date.toISOString().slice(0, 19).replace('T', ' ');
+};
 
 // Helper function to transform breakdown data for frontend compatibility
 // Maps database field names to expected frontend field names
@@ -29,29 +47,144 @@ const transformBreakdownsArray = (breakdowns) => {
   return breakdowns.map(transformBreakdownForFrontend);
 };
 
+// Helper function to detect and broadcast critical patterns
+const detectAndBroadcastCriticalPatterns = async (breakdown, issueCategory, fleetNumber, depot) => {
+  try {
+    const last24Hours = new Date();
+    last24Hours.setHours(last24Hours.getHours() - 24);
+
+    // Pattern 1: Same defect type on 5+ vehicles in 24 hours
+    if (issueCategory && issueCategory !== 'Unknown') {
+      const { data: sameDefectBreakdowns, error: defectError } = await from('breakdowns')
+        .select('fleet_no, issue_category')
+        .eq('issue_category', issueCategory)
+        .gte('created_at', last24Hours.toISOString())
+        .execute();
+
+      if (!defectError && sameDefectBreakdowns && sameDefectBreakdowns.length >= 5) {
+        const uniqueVehicles = [...new Set(sameDefectBreakdowns.map(b => b.fleet_no).filter(f => f && f !== 'TBC'))];
+
+        if (uniqueVehicles.length >= 5) {
+          webSocketHandler.broadcastCriticalPattern({
+            message: `${issueCategory} affecting ${uniqueVehicles.length} vehicles in last 24 hours - potential fleet-wide issue`,
+            priority: 'critical',
+            affectedVehicles: uniqueVehicles.slice(0, 10),
+            defectType: issueCategory,
+            count: uniqueVehicles.length,
+            timeframe: '24h'
+          });
+          console.log(`🚨 Critical pattern detected: ${issueCategory} on ${uniqueVehicles.length} vehicles`);
+        }
+      }
+    }
+
+    // Pattern 2: Same vehicle experiencing issues 3+ times in 24 hours
+    if (fleetNumber && fleetNumber !== 'TBC') {
+      const { data: vehicleBreakdowns, error: vehicleError } = await from('breakdowns')
+        .select('breakdown_id, issue_category, created_at')
+        .eq('fleet_no', fleetNumber)
+        .gte('created_at', last24Hours.toISOString())
+        .execute();
+
+      if (!vehicleError && vehicleBreakdowns && vehicleBreakdowns.length >= 3) {
+        webSocketHandler.broadcastCriticalPattern({
+          message: `Vehicle ${fleetNumber} has ${vehicleBreakdowns.length} breakdowns in last 24 hours - immediate maintenance required`,
+          priority: 'high',
+          affectedVehicles: [fleetNumber],
+          defectCount: vehicleBreakdowns.length,
+          timeframe: '24h',
+          defects: vehicleBreakdowns.map(b => b.issue_category)
+        });
+        console.log(`🚨 Critical pattern detected: Vehicle ${fleetNumber} with ${vehicleBreakdowns.length} breakdowns`);
+      }
+    }
+
+    // Pattern 3: Depot defect rate spike (>25% increase from previous 24h period)
+    if (depot && depot !== 'Unknown') {
+      const previous48to24Hours = new Date(last24Hours);
+      previous48to24Hours.setHours(previous48to24Hours.getHours() - 24);
+
+      // Get current period count
+      const currentPeriodSQL = `SELECT COUNT(*) as count FROM breakdowns
+        WHERE depot = ? AND created_at >= ?`;
+      const currentPeriodResult = await query(currentPeriodSQL, [depot, last24Hours.toISOString()]);
+      const currentCount = currentPeriodResult[0]?.count || 0;
+
+      // Get previous period count
+      const previousPeriodSQL = `SELECT COUNT(*) as count FROM breakdowns
+        WHERE depot = ? AND created_at >= ? AND created_at < ?`;
+      const previousPeriodResult = await query(previousPeriodSQL, [
+        depot,
+        previous48to24Hours.toISOString(),
+        last24Hours.toISOString()
+      ]);
+      const previousCount = previousPeriodResult[0]?.count || 0;
+
+      if (previousCount > 0) {
+        const increasePercent = ((currentCount - previousCount) / previousCount) * 100;
+
+        if (increasePercent > 25 && currentCount >= 5) {
+          webSocketHandler.broadcastCriticalPattern({
+            message: `${depot} depot defect rate spike: ${increasePercent.toFixed(0)}% increase (${currentCount} vs ${previousCount})`,
+            priority: 'high',
+            depot: depot,
+            currentCount,
+            previousCount,
+            increasePercent: Math.round(increasePercent),
+            timeframe: '24h'
+          });
+          console.log(`🚨 Critical pattern detected: ${depot} defect rate spike ${increasePercent.toFixed(0)}%`);
+        }
+      }
+    }
+
+  } catch (error) {
+    console.error('Error in pattern detection:', error);
+    // Silently fail - don't throw
+  }
+};
+
 // GET /api/breakdowns - Get all breakdowns with pagination
 router.get('/', async (req, res) => {
   try {
     const { page = 1, limit = 50, status, depot } = req.query;
     const offset = (page - 1) * limit;
 
-    let query = supabase
-      .from('breakdowns')
+    // Build query
+    let queryBuilder = from('breakdowns')
       .select('*')
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+      .order('created_at', 'DESC')
+      .limit(parseInt(limit))
+      .offset(offset);
 
     if (status) {
-      query = query.eq('status', status);
+      queryBuilder = queryBuilder.eq('status', status);
     }
 
     if (depot) {
-      query = query.eq('depot', depot);
+      queryBuilder = queryBuilder.eq('depot', depot);
     }
 
-    const { data, error, count } = await query;
+    const { data, error } = await queryBuilder.execute();
 
     if (error) throw error;
+
+    // Get total count for pagination
+    let countSQL = 'SELECT COUNT(*) as count FROM breakdowns WHERE 1=1';
+    const countParams = [];
+
+    if (status) {
+      countSQL += ' AND status = ?';
+      countParams.push(status);
+    }
+
+    if (depot) {
+      countSQL += ' AND depot = ?';
+      countParams.push(depot);
+    }
+
+    const countResult = await query(countSQL, countParams);
+    const count = countResult[0]?.count || 0;
 
     // Transform breakdowns for frontend compatibility
     const transformedData = transformBreakdownsArray(data);
@@ -74,11 +207,11 @@ router.get('/', async (req, res) => {
 // GET /api/breakdowns/active - Get active breakdowns
 router.get('/active', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('breakdowns')
+    const { data, error } = await from('breakdowns')
       .select('*')
       .in('status', ['active', 'pending', 'in_progress'])
-      .order('created_at', { ascending: false });
+      .order('created_at', 'DESC')
+      .execute();
 
     if (error) throw error;
 
@@ -95,12 +228,11 @@ router.get('/active', async (req, res) => {
 // GET /api/breakdowns/live - Get active breakdowns for dashboards
 router.get('/live', async (req, res) => {
   try {
-    // Query from breakdowns table only (joins will be added once foreign keys are set up)
     // Get all breakdowns, then filter in JavaScript for more reliable results
-    const { data: allBreakdowns, error } = await supabase
-      .from('breakdowns')
+    const { data: allBreakdowns, error } = await from('breakdowns')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('created_at', 'DESC')
+      .execute();
 
     if (error) throw error;
 
@@ -130,7 +262,13 @@ router.get('/live', async (req, res) => {
         durationText = `${remainingMinutes}m`;
       }
 
-      // Vehicle and supervisor data will come from the breakdown record itself
+      // Extract data from wizard_assessment_data if main columns are empty/null
+      const wizardData = b.wizard_assessment_data || {};
+
+      // Supervisor info - prioritize main columns, fallback to wizard_assessment_data
+      const supervisorName = b.supervisor_name || wizardData.supervisorName || wizardData.supervisor_name || null;
+      const supervisorBadge = b.supervisor_badge || wizardData.supervisorBadge || wizardData.supervisor_badge || null;
+      const depot = b.depot || wizardData.depot || null;
 
       // Determine priority level and status color
       const priorityLevel = b.priority_level || (
@@ -145,7 +283,7 @@ router.get('/live', async (req, res) => {
       );
 
       const cardTitle = b.card_title ||
-        `${b.fleet_no || 'Unknown'} - ${b.issue_category || 'Assessment Required'}`;
+        `${b.fleet_no || 'TBC'} - ${b.issue_category || 'Assessment Required'}`;
 
       return {
         // Core identifiers
@@ -153,14 +291,17 @@ router.get('/live', async (req, res) => {
         id: b.breakdown_id,
 
         // Vehicle information
-        fleet_no: b.fleet_no,
-        fleet_number: b.fleet_no,
+        fleet_no: b.fleet_no || 'TBC',
+        fleet_number: b.fleet_no || 'TBC',
         registration: b.registration,
-        depot_id: b.depot,
+        depot_id: depot,
+        depot: depot,
 
         // Location and issue information
         location: b.location_description || b.location || 'Location TBC',
-        issue_type: b.issue_category,
+        location_description: b.location_description || b.location || 'Location TBC',
+        issue_type: b.issue_category || 'Assessment Required',
+        issue_category: b.issue_category || 'Assessment Required',
         issue_description: b.description,
 
         // Status and severity
@@ -184,9 +325,9 @@ router.get('/live', async (req, res) => {
         is_priority: priorityLevel <= 2 || b.secured_mileage,
         priority_level: priorityLevel,
 
-        // Supervisor information
-        supervisor_badge: b.supervisor_badge,
-        supervisor_name: b.supervisor_name,
+        // Supervisor information - use extracted values
+        supervisor_badge: supervisorBadge,
+        supervisor_name: supervisorName,
 
         // Dashboard card information
         card_title: cardTitle,
@@ -195,6 +336,9 @@ router.get('/live', async (req, res) => {
 
         // Operational flags
         secured_mileage: b.secured_mileage || false,
+
+        // Wizard assessment data (for frontend to access additional context)
+        wizard_assessment_data: b.wizard_assessment_data || null,
 
         // Legacy compatibility fields
         driver_name: b.driver_name,
@@ -250,10 +394,10 @@ router.get('/stats', async (req, res) => {
         startDate.setHours(0, 0, 0, 0);
     }
 
-    const { data, error } = await supabase
-      .from('breakdowns')
+    const { data, error } = await from('breakdowns')
       .select('status')
-      .gte('created_at', startDate.toISOString());
+      .gte('created_at', startDate.toISOString())
+      .execute();
 
     if (error) throw error;
 
@@ -275,8 +419,7 @@ router.get('/stats', async (req, res) => {
 // GET /api/breakdowns/:id - Get specific breakdown
 router.get('/:id', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('breakdowns')
+    const { data, error } = await from('breakdowns')
       .select('*')
       .eq('id', req.params.id)
       .single();
@@ -302,18 +445,20 @@ router.post('/', async (req, res) => {
   try {
     // Generate unique breakdown ID with daily counter
     const idResult = await breakdownIdGenerator.generateId();
-    
+
     const breakdownData = {
       ...req.body,
       breakdown_id: idResult.id,
-      created_at: new Date().toISOString(),
+      created_at: toMySQLDatetime(),
       status: req.body.status || 'received'
     };
 
-    const { data, error } = await supabase
-      .from('breakdowns')
-      .insert(breakdownData)
-      .select()
+    const insertResult = await insert('breakdowns', breakdownData);
+
+    // Fetch the created breakdown
+    const { data, error } = await from('breakdowns')
+      .select('*')
+      .eq('id', insertResult.insertId)
       .single();
 
     if (error) throw error;
@@ -340,13 +485,26 @@ router.post('/', async (req, res) => {
     // Transform breakdown for frontend compatibility
     const transformedData = transformBreakdownForFrontend(data);
 
+    // Check for critical patterns and broadcast to defect intelligence
+    try {
+      await detectAndBroadcastCriticalPatterns(
+        data,
+        data.issue_category,
+        data.fleet_no,
+        data.depot
+      );
+    } catch (patternError) {
+      console.error('⚠️ Failed to detect critical patterns:', patternError);
+      // Don't fail the main request if pattern detection fails
+    }
+
     res.status(201).json({
       ...transformedData,
       breakdown_id: idResult.id
     });
   } catch (error) {
     console.error('Error creating breakdown:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to create breakdown',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
@@ -356,14 +514,17 @@ router.post('/', async (req, res) => {
 // PUT /api/breakdowns/:id - Update breakdown
 router.put('/:id', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('breakdowns')
-      .update({
-        ...req.body,
-        updated_at: new Date().toISOString()
-      })
+    const updateData = {
+      ...req.body,
+      updated_at: toMySQLDatetime()
+    };
+
+    await update('breakdowns', { id: req.params.id }, updateData);
+
+    // Fetch the updated breakdown
+    const { data, error } = await from('breakdowns')
+      .select('*')
       .eq('id', req.params.id)
-      .select()
       .single();
 
     if (error) throw error;
@@ -387,14 +548,15 @@ router.patch('/:id/status', async (req, res) => {
   try {
     const { status } = req.body;
 
-    const { data, error } = await supabase
-      .from('breakdowns')
-      .update({
-        status,
-        updated_at: new Date().toISOString()
-      })
+    await update('breakdowns', { id: req.params.id }, {
+      status,
+      updated_at: toMySQLDatetime()
+    });
+
+    // Fetch the updated breakdown
+    const { data, error } = await from('breakdowns')
+      .select('*')
       .eq('id', req.params.id)
-      .select()
       .single();
 
     if (error) throw error;
@@ -438,10 +600,10 @@ router.get('/stats/summary', async (req, res) => {
         startDate.setHours(0, 0, 0, 0);
     }
 
-    const { data, error } = await supabase
-      .from('breakdowns')
+    const { data, error } = await from('breakdowns')
       .select('status')
-      .gte('created_at', startDate.toISOString());
+      .gte('created_at', startDate.toISOString())
+      .execute();
 
     if (error) throw error;
 
@@ -465,7 +627,7 @@ router.get('/id-generator/status', async (req, res) => {
   try {
     const status = breakdownIdGenerator.getStatus();
     const statistics = await breakdownIdGenerator.getStatistics();
-    
+
     res.json({
       generator: status,
       statistics: statistics,
@@ -481,18 +643,20 @@ router.get('/id-generator/status', async (req, res) => {
 router.get('/id-generator/next', async (req, res) => {
   try {
     const year = new Date().getFullYear();
-    const { count } = await supabase
-      .from('breakdowns')
-      .select('*', { count: 'exact', head: true })
-      .gte('created_at', `${year}-01-01T00:00:00.000Z`)
-      .lt('created_at', `${year + 1}-01-01T00:00:00.000Z`);
-    
-    const nextNumber = (count || 0) + 1;
+    const countSQL = `SELECT COUNT(*) as count FROM breakdowns
+      WHERE created_at >= ? AND created_at < ?`;
+    const countResult = await query(countSQL, [
+      `${year}-01-01T00:00:00.000Z`,
+      `${year + 1}-01-01T00:00:00.000Z`
+    ]);
+
+    const count = countResult[0]?.count || 0;
+    const nextNumber = count + 1;
     const nextId = `BD-${year}-${nextNumber.toString().padStart(5, '0')}`;
-    
+
     res.json({
       next_id: nextId,
-      current_count: count || 0,
+      current_count: count,
       next_sequence: nextNumber,
       year: year,
       timestamp: new Date().toISOString()
@@ -507,25 +671,24 @@ router.get('/id-generator/next', async (req, res) => {
 router.post('/id-generator/validate', async (req, res) => {
   try {
     const { breakdown_id } = req.body;
-    
+
     if (!breakdown_id) {
       return res.status(400).json({ error: 'breakdown_id is required' });
     }
-    
+
     const validation = breakdownIdGenerator.validateId(breakdown_id);
-    
+
     // Check if ID already exists in database
     let exists = false;
     if (validation.valid) {
-      const { data } = await supabase
-        .from('breakdowns')
+      const { data } = await from('breakdowns')
         .select('breakdown_id')
         .eq('breakdown_id', breakdown_id)
         .single();
-      
+
       exists = !!data;
     }
-    
+
     res.json({
       ...validation,
       exists_in_database: exists,
@@ -544,16 +707,17 @@ router.put('/:id/resolve', async (req, res) => {
     const { resolution_notes, resolving_supervisor, returned_to_service } = req.body;
 
     // Update the breakdown using breakdown_id
-    const { data, error } = await supabase
-      .from('breakdowns')
-      .update({
-        status: 'cleared',
-        cleared_at: new Date().toISOString(),
-        resolution_notes,
-        updated_at: new Date().toISOString()
-      })
+    await update('breakdowns', { breakdown_id: id }, {
+      status: 'cleared',
+      cleared_at: toMySQLDatetime(),
+      resolution_notes,
+      updated_at: toMySQLDatetime()
+    });
+
+    // Fetch the updated breakdown
+    const { data, error } = await from('breakdowns')
+      .select('*')
       .eq('breakdown_id', id)
-      .select()
       .single();
 
     if (error) throw error;
@@ -566,20 +730,21 @@ router.put('/:id/resolve', async (req, res) => {
     }
 
     // Create an event log
-    const { error: eventError } = await supabase
-      .from('breakdown_events')
-      .insert({
+    try {
+      await insert('breakdown_events', {
         breakdown_id: data.id,
         event_type: 'resolved',
-        event_data: {
+        event_data: JSON.stringify({
           resolution_notes,
           resolving_supervisor,
           returned_to_service,
           resolved_at: new Date().toISOString()
-        }
+        }),
+        created_at: toMySQLDatetime()
       });
-
-    if (eventError) console.error('Error creating event:', eventError);
+    } catch (eventError) {
+      console.error('Error creating event:', eventError);
+    }
 
     // Transform breakdown for frontend compatibility
     const transformedData = transformBreakdownForFrontend(data);
@@ -611,15 +776,16 @@ router.post('/:id/dispatch', async (req, res) => {
     } = req.body;
 
     // Update breakdown status to dispatched
-    const { data: breakdown, error: updateError } = await supabase
-      .from('breakdowns')
-      .update({
-        status: 'dispatched',
-        dispatched_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
+    await update('breakdowns', { breakdown_id: id }, {
+      status: 'dispatched',
+      dispatched_at: toMySQLDatetime(),
+      updated_at: toMySQLDatetime()
+    });
+
+    // Fetch the updated breakdown
+    const { data: breakdown, error: updateError } = await from('breakdowns')
+      .select('*')
       .eq('breakdown_id', id)
-      .select()
       .single();
 
     if (updateError) throw updateError;
@@ -632,22 +798,23 @@ router.post('/:id/dispatch', async (req, res) => {
     }
 
     // Create event log for dispatch
-    const { error: eventError } = await supabase
-      .from('breakdown_events')
-      .insert({
+    try {
+      await insert('breakdown_events', {
         breakdown_id: breakdown.id,
         event_type: 'engineer_dispatched',
-        event_data: {
+        event_data: JSON.stringify({
           engineer_id,
           engineer_name,
           estimated_arrival_minutes,
           dispatch_notes,
           dispatching_supervisor,
-          dispatched_at: new Date().toISOString()
-        }
+          dispatched_at: toMySQLDatetime()
+        }),
+        created_at: toMySQLDatetime()
       });
-
-    if (eventError) console.error('Error creating dispatch event:', eventError);
+    } catch (eventError) {
+      console.error('Error creating dispatch event:', eventError);
+    }
 
     // Calculate ETA
     const eta = new Date();
@@ -685,8 +852,7 @@ router.get('/:id/activities', async (req, res) => {
     const { limit = 50, offset = 0 } = req.query;
 
     // First get the breakdown to verify it exists
-    const { data: breakdown, error: breakdownError } = await supabase
-      .from('breakdowns')
+    const { data: breakdown, error: breakdownError } = await from('breakdowns')
       .select('id, breakdown_id')
       .eq('breakdown_id', id)
       .single();
@@ -699,12 +865,13 @@ router.get('/:id/activities', async (req, res) => {
     }
 
     // Get all events for this breakdown
-    const { data: events, error: eventsError } = await supabase
-      .from('breakdown_events')
+    const { data: events, error: eventsError } = await from('breakdown_events')
       .select('*')
       .eq('breakdown_id', breakdown.id)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+      .order('created_at', 'DESC')
+      .limit(parseInt(limit))
+      .offset(parseInt(offset))
+      .execute();
 
     if (eventsError) throw eventsError;
 
@@ -714,7 +881,7 @@ router.get('/:id/activities', async (req, res) => {
       type: event.event_type,
       timestamp: event.created_at,
       description: formatEventDescription(event),
-      data: event.event_data,
+      data: typeof event.event_data === 'string' ? JSON.parse(event.event_data) : event.event_data,
       user: event.event_data?.supervisor_name || event.event_data?.dispatching_supervisor || 'System'
     }));
 
@@ -746,8 +913,7 @@ router.post('/:id/activities', async (req, res) => {
     } = req.body;
 
     // Verify breakdown exists
-    const { data: breakdown, error: breakdownError } = await supabase
-      .from('breakdowns')
+    const { data: breakdown, error: breakdownError } = await from('breakdowns')
       .select('id, breakdown_id')
       .eq('breakdown_id', id)
       .single();
@@ -760,19 +926,24 @@ router.post('/:id/activities', async (req, res) => {
     }
 
     // Create activity event
-    const { data: event, error: eventError } = await supabase
-      .from('breakdown_events')
-      .insert({
-        breakdown_id: breakdown.id,
-        event_type: activity_type || 'comment',
-        event_data: {
-          description,
-          user_name,
-          metadata,
-          created_at: new Date().toISOString()
-        }
-      })
-      .select()
+    const eventData = {
+      description,
+      user_name,
+      metadata,
+      created_at: toMySQLDatetime()
+    };
+
+    const insertResult = await insert('breakdown_events', {
+      breakdown_id: breakdown.id,
+      event_type: activity_type || 'comment',
+      event_data: JSON.stringify(eventData),
+      created_at: toMySQLDatetime()
+    });
+
+    // Fetch the created event
+    const { data: event, error: eventError } = await from('breakdown_events')
+      .select('*')
+      .eq('id', insertResult.insertId)
       .single();
 
     if (eventError) throw eventError;
@@ -785,7 +956,7 @@ router.post('/:id/activities', async (req, res) => {
         timestamp: event.created_at,
         description,
         user: user_name,
-        data: event.event_data
+        data: eventData
       },
       message: 'Activity added successfully'
     });
@@ -800,7 +971,9 @@ router.post('/:id/activities', async (req, res) => {
 
 // Helper function to format event descriptions
 function formatEventDescription(event) {
-  const data = event.event_data || {};
+  const data = typeof event.event_data === 'string'
+    ? JSON.parse(event.event_data)
+    : (event.event_data || {});
 
   switch (event.event_type) {
     case 'wizard_assessment_completed':
@@ -869,8 +1042,37 @@ router.post('/from-wizard', async (req, res) => {
       priority_level = 3,
       engineering_required = false,
       replacement_vehicle_required = false,
-      secured_mileage = false
+      secured_mileage = false,
+      not_in_service = false
     } = req.body;
+
+    // Check for duplicate submissions (same vehicle + supervisor within last 10 seconds)
+    const tenSecondsAgo = new Date();
+    tenSecondsAgo.setSeconds(tenSecondsAgo.getSeconds() - 10);
+
+    const { data: recentBreakdowns, error: duplicateCheckError } = await from('breakdowns')
+      .select('breakdown_id, created_at')
+      .eq('fleet_no', fleet_number)
+      .eq('supervisor_badge', supervisor_badge)
+      .eq('wizard_type', wizard_type)
+      .gte('created_at', tenSecondsAgo.toISOString())
+      .order('created_at', 'DESC')
+      .limit(1)
+      .execute();
+
+    if (!duplicateCheckError && recentBreakdowns && recentBreakdowns.length > 0) {
+      const existingBreakdown = recentBreakdowns[0];
+      console.log(`⚠️ Duplicate submission detected! Returning existing breakdown: ${existingBreakdown.breakdown_id}`);
+
+      // Return the existing breakdown instead of creating a duplicate
+      return res.json({
+        success: true,
+        breakdown: existingBreakdown,
+        breakdown_id: existingBreakdown.breakdown_id,
+        message: 'Breakdown already exists (duplicate prevented)',
+        isDuplicate: true
+      });
+    }
 
     // Generate unique breakdown ID
     const idResult = await breakdownIdGenerator.generateId();
@@ -900,7 +1102,7 @@ router.post('/from-wizard', async (req, res) => {
       wizard_decision: wizard_decision,
       wizard_type: wizard_type,
       secured_mileage: secured_mileage || false,  // Store in database column for Control Room Display
-      wizard_assessment_data: {
+      wizard_assessment_data: JSON.stringify({
         ...wizard_assessment_data,
         // Store additional fields in JSONB since columns don't exist yet
         vehicle_type,
@@ -911,10 +1113,11 @@ router.post('/from-wizard', async (req, res) => {
         priority_level: determinedPriority,
         engineering_required,
         replacement_vehicle_required,
-        location_coords
-      },
+        location_coords,
+        not_in_service: not_in_service || false  // Store if vehicle was not in service (light running/dead run)
+      }),
       breakdown_source: 'wizard',
-      created_at: new Date().toISOString()
+      created_at: toMySQLDatetime()
     };
 
     // Add coordinates if provided
@@ -925,32 +1128,32 @@ router.post('/from-wizard', async (req, res) => {
 
     console.log('🔍 Attempting to insert breakdown data:', JSON.stringify(breakdownData, null, 2));
 
-    const { data, error } = await supabase
-      .from('breakdowns')
-      .insert(breakdownData)
-      .select()
+    const insertResult = await insert('breakdowns', breakdownData);
+
+    // Fetch the created breakdown
+    const { data, error } = await from('breakdowns')
+      .select('*')
+      .eq('id', insertResult.insertId)
       .single();
 
     if (error) {
-      console.error('❌ Database insert error:', error);
-      console.error('❌ Error details:', JSON.stringify(error, null, 2));
+      console.error('❌ Database fetch error:', error);
       throw error;
     }
 
     // Create initial event log
-    await supabase
-      .from('breakdown_events')
-      .insert({
-        breakdown_id: data.id,
-        event_type: 'wizard_assessment_completed',
-        event_data: {
-          wizard_type,
-          wizard_decision,
-          assessment_data: wizard_assessment_data,
-          supervisor_badge,
-          supervisor_name
-        }
-      });
+    await insert('breakdown_events', {
+      breakdown_id: data.id,
+      event_type: 'wizard_assessment_completed',
+      event_data: JSON.stringify({
+        wizard_type,
+        wizard_decision,
+        assessment_data: wizard_assessment_data,
+        supervisor_badge,
+        supervisor_name
+      }),
+      created_at: toMySQLDatetime()
+    });
 
     // Log activity to the unified activity feed with location
     // Use wizard completion activity for wizard assessments
@@ -1008,6 +1211,14 @@ router.post('/from-wizard', async (req, res) => {
       // Don't fail the main request if broadcast fails
     }
 
+    // Check for critical patterns and broadcast to defect intelligence
+    try {
+      await detectAndBroadcastCriticalPatterns(data, issue_category, fleet_number, depot);
+    } catch (patternError) {
+      console.error('⚠️ Failed to detect critical patterns:', patternError);
+      // Don't fail the main request if pattern detection fails
+    }
+
     res.status(201).json({
       success: true,
       breakdown_id: transformedData.breakdown_id,
@@ -1045,25 +1256,24 @@ router.get('/dashboard/cards', async (req, res) => {
         visibilityField = 'visible_on_sdc';
     }
 
-    const { data: cards, error } = await supabase
-      .from('breakdown_dashboard_cards')
-      .select(`
-        *,
-        breakdowns!breakdown_id (
-          breakdown_id,
-          status,
-          severity,
-          created_at,
-          updated_at,
-          wizard_type,
-          wizard_decision
-        )
-      `)
-      .eq(visibilityField, true)
-      .order('priority_level', { ascending: true })
-      .order('created_at', { ascending: false });
+    // Get breakdown dashboard cards with JOIN to breakdowns table
+    const cardsSQL = `
+      SELECT
+        c.*,
+        b.breakdown_id as b_breakdown_id,
+        b.status as b_status,
+        b.severity as b_severity,
+        b.created_at as b_created_at,
+        b.updated_at as b_updated_at,
+        b.wizard_type as b_wizard_type,
+        b.wizard_decision as b_wizard_decision
+      FROM breakdown_dashboard_cards c
+      LEFT JOIN breakdowns b ON c.breakdown_id = b.breakdown_id
+      WHERE c.${visibilityField} = 1
+      ORDER BY c.priority_level ASC, c.created_at DESC
+    `;
 
-    if (error) throw error;
+    const cards = await query(cardsSQL);
 
     // Format cards for dashboard consumption
     const formattedCards = cards.map(card => ({
@@ -1090,9 +1300,9 @@ router.get('/dashboard/cards', async (req, res) => {
       service_resumed: card.service_resumed,
 
       // Breakdown data
-      breakdown_status: card.breakdowns?.status,
-      wizard_type: card.breakdowns?.wizard_type,
-      wizard_decision: card.breakdowns?.wizard_decision,
+      breakdown_status: card.b_status,
+      wizard_type: card.b_wizard_type,
+      wizard_decision: card.b_wizard_decision,
 
       // Metadata
       last_refreshed: card.last_refreshed_at,
@@ -1121,17 +1331,18 @@ router.get('/dashboard/cards', async (req, res) => {
 router.post('/:breakdown_id/update-card', async (req, res) => {
   try {
     const { breakdown_id } = req.params;
-    const cardUpdates = req.body;
+    const cardUpdates = {
+      ...req.body,
+      last_refreshed_at: toMySQLDatetime(),
+      updated_at: toMySQLDatetime()
+    };
 
-    const { data, error } = await supabase
-      .from('breakdown_dashboard_cards')
-      .update({
-        ...cardUpdates,
-        last_refreshed_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
+    await update('breakdown_dashboard_cards', { breakdown_id }, cardUpdates);
+
+    // Fetch the updated card
+    const { data, error } = await from('breakdown_dashboard_cards')
+      .select('*')
       .eq('breakdown_id', breakdown_id)
-      .select()
       .single();
 
     if (error) throw error;
@@ -1181,8 +1392,7 @@ router.post('/resolve', async (req, res) => {
     console.log(`✅ Resolving breakdown ${breakdown_id}`);
 
     // Verify breakdown exists
-    const { data: currentBreakdown, error: fetchError } = await supabase
-      .from('breakdowns')
+    const { data: currentBreakdown, error: fetchError } = await from('breakdowns')
       .select('*')
       .eq('breakdown_id', breakdown_id)
       .single();
@@ -1211,27 +1421,27 @@ router.post('/resolve', async (req, res) => {
     const resolvingUser = resolved_by || supervisor_badge || req.supervisor?.name || 'System';
 
     // Update breakdown status to resolved
-    // Note: Only updating fields that exist in the database schema
-    const { data: breakdown, error: updateError } = await supabase
-      .from('breakdowns')
-      .update({
-        status: 'resolved',
-        resolved_at: resolvedAt,
-        resolved_by: resolvingUser,
-        resolution_notes: resolution_notes || '',
-        resolution_type: resolution_type || 'fixed',
-        returned_to_service: returned_to_service
-      })
+    await update('breakdowns', { breakdown_id }, {
+      status: 'resolved',
+      resolved_at: resolvedAt,
+      resolved_by: resolvingUser,
+      resolution_notes: resolution_notes || '',
+      resolution_type: resolution_type || 'fixed',
+      returned_to_service: returned_to_service
+    });
+
+    // Fetch updated breakdown
+    const { data: breakdown, error: updateError } = await from('breakdowns')
+      .select('*')
       .eq('breakdown_id', breakdown_id)
-      .select()
       .single();
 
     if (updateError) {
-      console.error('Error updating breakdown resolution:', updateError);
+      console.error('Error fetching updated breakdown:', updateError);
       return res.status(500).json({
         success: false,
-        error: 'Failed to update breakdown resolution',
-        code: 'UPDATE_ERROR'
+        error: 'Failed to fetch updated breakdown',
+        code: 'FETCH_ERROR'
       });
     }
 

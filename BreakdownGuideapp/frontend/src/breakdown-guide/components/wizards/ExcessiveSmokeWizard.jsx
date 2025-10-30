@@ -7,7 +7,7 @@ const ExcessiveSmokeWizard = ({ currentStep, responses, updateResponse, onNext, 
     
     const handleCompleteAssessment = () => {
         let finalDecision = 'CONTINUE';
-        let notes = 'Excessive smoke assessment completed per SDC Guide. ';
+        let notes = 'Excessive smoke assessment completed per standard operational procedures. ';
         
         const smokeType = responses[1];
         const visibilityAffected = responses[2];

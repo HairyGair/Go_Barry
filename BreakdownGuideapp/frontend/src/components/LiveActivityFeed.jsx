@@ -327,9 +327,15 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
       };
     }
 
+    // Check if activity is resolved - don't show "Location Unknown" for resolved items
+    const isResolved = activity.type === 'breakdown_resolved' ||
+                      activity.type === 'BREAKDOWN_RESOLVED' ||
+                      activity.status === 'resolved' ||
+                      activity.decision === 'resolved';
+
     return {
       isCoordinates: false,
-      displayText: location || 'Location Unknown'
+      displayText: location || (isResolved ? null : 'Location Unknown')
     };
   }, []);
 
@@ -666,12 +672,31 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
                           {formatTimeAgo(primaryActivity.timestamp || primaryActivity.created_at)}
                         </span>
 
-                        {/* Show route depot or activity depot */}
-                        {(primaryActivity.enrichedRoute?.depot || primaryActivity.depot) && (
-                          <span className="activity-depot">
-                            • {primaryActivity.enrichedRoute?.depot || primaryActivity.depot}
-                          </span>
-                        )}
+                        {/* Show depot or date/time if depot is missing */}
+                        {(() => {
+                          const depot = primaryActivity.enrichedRoute?.depot || primaryActivity.depot;
+                          if (depot && depot !== 'Unknown') {
+                            return (
+                              <span className="activity-depot">
+                                • {depot}
+                              </span>
+                            );
+                          } else {
+                            // Show date and time instead of depot
+                            const timestamp = new Date(primaryActivity.timestamp || primaryActivity.created_at);
+                            const dateTime = timestamp.toLocaleString('en-GB', {
+                              day: '2-digit',
+                              month: 'short',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            });
+                            return (
+                              <span className="activity-datetime">
+                                • {dateTime}
+                              </span>
+                            );
+                          }
+                        })()}
 
                         {/* Bus number for grouped activities */}
                         {group.busNumber && (

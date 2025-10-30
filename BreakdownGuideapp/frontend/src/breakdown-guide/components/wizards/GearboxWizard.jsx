@@ -8,7 +8,7 @@ function GearboxWizard({ currentStep, responses, updateResponse, onNext, onPrevi
   
   const handleCompleteAssessment = () => {
     let finalDecision = 'CONTINUE';
-    let notes = 'Gearbox temperature assessment completed per SDC Guide. ';
+    let notes = 'Gearbox temperature assessment completed per standard operational procedures. ';
     
     const recommendation = getRecommendation();
     

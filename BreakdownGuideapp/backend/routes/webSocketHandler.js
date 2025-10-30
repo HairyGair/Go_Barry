@@ -1,6 +1,8 @@
 /**
  * WebSocket Handler for Real-time Breakdown Updates
  * Manages WebSocket connections and broadcasts real-time updates to SDC Dashboard
+ *
+ * MIGRATED TO MYSQL - Replaced Supabase real-time subscriptions with MySQL queries
  */
 
 import dotenv from 'dotenv';
@@ -8,19 +10,15 @@ import { WebSocketServer } from 'ws';
 import { readFileSync, existsSync, watchFile } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { createClient } from '@supabase/supabase-js';
+import { from, query } from '../utils/queryHelpers.js';
 import { activityLogger } from '../services/activityLogger.js';
+import { verifyToken } from '../middleware/authMiddleware.js';
 
 // Load environment variables
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-
-// Supabase client for authentication
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
-const supabase = supabaseUrl && supabaseAnonKey ? createClient(supabaseUrl, supabaseAnonKey) : null;
 
 // Data file paths
 const BREAKDOWN_COUNTER_PATH = join(__dirname, '../data/breakdown-counter.json');
@@ -37,21 +35,22 @@ class WebSocketHandler {
   // Initialize WebSocket server
   initialize(server) {
     console.log('🔌 Initializing WebSocket server for real-time breakdown updates');
-    
-    this.wss = new WebSocketServer({ 
+
+    this.wss = new WebSocketServer({
       server,
       path: '/ws',
-      clientTracking: true 
+      clientTracking: true
     });
 
     this.wss.on('connection', (ws, request) => {
       this.handleConnection(ws, request);
     });
 
-    // Set up file watchers for real-time updates
-    this.setupFileWatchers();
+    // DISABLED: File watchers can trigger WebAssembly issues on shared hosting
+    // File watchers are not critical for API functionality
+    // this.setupFileWatchers();
 
-    console.log('✅ WebSocket server initialized');
+    console.log('✅ WebSocket server initialized (file watchers disabled for shared hosting)');
   }
 
   // Handle new WebSocket connection
@@ -71,9 +70,9 @@ class WebSocketHandler {
     let user = null;
     let supervisor = null;
 
-    // Protected channels require authentication (control-room is public for wall displays)
+    // Protected channels require authentication (control-room and defect-intelligence are public)
     const protectedChannels = ['sdc-dashboard', 'breakdowns', 'assessment-progress'];
-    const publicChannels = ['control-room'];
+    const publicChannels = ['control-room', 'defect-intelligence'];
 
     if (protectedChannels.includes(channel)) {
       if (!token) {
@@ -88,23 +87,12 @@ class WebSocketHandler {
           return;
       }
 
-      // Verify token with Supabase
+      // Verify token with MySQL (replaced Supabase auth)
       try {
-        if (!supabase) {
-          console.error('❌ Supabase client not initialized');
-          ws.send(JSON.stringify({
-            type: 'error',
-            error: 'Authentication service unavailable',
-            code: 'WS_AUTH_SERVICE_ERROR',
-            timestamp: new Date().toISOString()
-          }));
-          ws.close();
-          return;
-        }
+        // Verify JWT token using middleware helper
+        const decoded = await verifyToken(token);
 
-        const { data: userData, error: authError } = await supabase.auth.getUser(token);
-
-        if (authError || !userData) {
+        if (!decoded || !decoded.email) {
           console.warn(`❌ Invalid WebSocket authentication token for channel: ${channel}`);
 
           // Log security event
@@ -114,7 +102,7 @@ class WebSocketHandler {
             channel: channel,
             ip: request.socket.remoteAddress,
             userAgent: request.headers['user-agent'],
-            error: authError?.message || 'Invalid token'
+            error: 'Invalid token'
           };
           console.log('🔒 Security Alert:', JSON.stringify(securityEvent, null, 2));
 
@@ -129,15 +117,14 @@ class WebSocketHandler {
         }
 
         user = {
-          id: userData.user.id,
-          email: userData.user.email,
-          role: userData.user.user_metadata?.role || 'user'
+          id: decoded.id,
+          email: decoded.email,
+          role: decoded.role || 'user'
         };
 
-        // Check supervisor privileges for SDC dashboard
+        // Check supervisor privileges for SDC dashboard - MySQL query
         if (channel === 'sdc-dashboard') {
-          const { data: supervisorData, error: supervisorError } = await supabase
-            .from('supervisors')
+          const { data: supervisorData, error: supervisorError } = await from('supervisors')
             .select('id, email, name, role, depot')
             .eq('email', user.email.toLowerCase())
             .single();
@@ -237,7 +224,7 @@ class WebSocketHandler {
     try {
       const message = JSON.parse(data);
       const client = this.clients.get(clientId);
-      
+
       if (!client) return;
 
       // Update last activity
@@ -354,7 +341,7 @@ class WebSocketHandler {
 
     let sentCount = 0;
     const clients = this.channels.get(channel);
-    
+
     clients.forEach(clientId => {
       if (this.sendToClient(clientId, data)) {
         sentCount++;
@@ -426,18 +413,19 @@ class WebSocketHandler {
   }
 
   // Send initial breakdown data to new client
+  // MIGRATED: Fetches from MySQL instead of Supabase
   async sendInitialBreakdownData(clientId) {
     try {
-      // Load current breakdown data
+      // Load current breakdown data from JSON file
       const breakdownData = JSON.parse(readFileSync(BREAKDOWN_COUNTER_PATH, 'utf8'));
 
-      // Fetch recent activities from database
+      // Fetch recent activities from MySQL database
       const recentActivities = await activityLogger.getRecentActivities(10);
 
       const initialData = {
         type: 'initial_data',
         breakdowns: breakdownData.breakdowns || [],
-        recent_activities: recentActivities || [],
+        recent_activities: recentActivities?.activities || [],
         timestamp: new Date().toISOString()
       };
 
@@ -451,7 +439,7 @@ class WebSocketHandler {
   // Send status update to client
   sendStatusUpdate(clientId) {
     const stats = this.getConnectionStats();
-    
+
     this.sendToClient(clientId, {
       type: 'status_update',
       stats,
@@ -512,10 +500,161 @@ class WebSocketHandler {
     });
   }
 
+  // =====================================================
+  // DEFECT INTELLIGENCE BROADCAST METHODS
+  // =====================================================
+
+  /**
+   * Broadcast to defect intelligence channel
+   * Helper method for all defect-related events
+   */
+  broadcastToChannel(channel, message) {
+    try {
+      const sentCount = this.broadcast(channel, message);
+      console.log(`📡 Broadcasted ${message.type} to ${channel}: ${sentCount} clients`);
+      return sentCount;
+    } catch (error) {
+      console.error(`❌ Failed to broadcast to ${channel}:`, error);
+      return 0;
+    }
+  }
+
+  /**
+   * Broadcast when a vehicle shows repeat defects
+   * @param {Object} vehicleData - Vehicle with repeat defect information
+   */
+  broadcastRepeatDefect(vehicleData) {
+    const message = {
+      type: 'NEW_REPEAT_DEFECT',
+      data: {
+        fleetNumber: vehicleData.fleetNumber,
+        defectCount: vehicleData.defectCount,
+        severity: vehicleData.averageSeverityScore || 'medium',
+        depot: vehicleData.depot || 'Unknown',
+        defects: vehicleData.defects || [],
+        registration: vehicleData.registration || null,
+        vehicleType: vehicleData.vehicleType || 'Unknown',
+        unresolvedCount: vehicleData.unresolvedCount || 0
+      },
+      priority: vehicleData.defectCount >= 5 ? 'critical' : vehicleData.defectCount >= 3 ? 'high' : 'medium',
+      timestamp: new Date().toISOString()
+    };
+
+    return this.broadcastToChannel('defect-intelligence', message);
+  }
+
+  /**
+   * Broadcast trending issue updates
+   * @param {Object} trendData - Trending defect information
+   */
+  broadcastTrendUpdate(trendData) {
+    const message = {
+      type: 'TREND_UPDATE',
+      data: {
+        defectType: trendData.defectType,
+        count: trendData.currentCount,
+        trend: trendData.trend, // 'rising' | 'falling' | 'stable'
+        changePercent: trendData.changePercent,
+        previousCount: trendData.previousCount,
+        affectedModels: trendData.affectedModels || []
+      },
+      priority: trendData.priority || 'normal',
+      timestamp: new Date().toISOString()
+    };
+
+    return this.broadcastToChannel('defect-intelligence', message);
+  }
+
+  /**
+   * Broadcast critical pattern detection
+   * @param {Object} patternData - Critical pattern information
+   */
+  broadcastCriticalPattern(patternData) {
+    const message = {
+      type: 'CRITICAL_PATTERN',
+      data: patternData,
+      message: patternData.message || 'Critical defect pattern detected',
+      priority: patternData.priority || 'critical',
+      affectedVehicles: patternData.affectedVehicles || [],
+      timestamp: new Date().toISOString()
+    };
+
+    return this.broadcastToChannel('defect-intelligence', message);
+  }
+
+  /**
+   * Broadcast depot statistics changes
+   * @param {Object} depotData - Depot defect statistics
+   */
+  broadcastDepotStats(depotData) {
+    const message = {
+      type: 'DEPOT_STATS_UPDATE',
+      data: {
+        depotName: depotData.name || depotData.depotName,
+        defectCount: depotData.defectCount,
+        defectRate: depotData.defectRate,
+        trend: depotData.trend,
+        topIssue: depotData.topIssue,
+        topIssueCount: depotData.topIssueCount,
+        vehicleCount: depotData.vehicleCount,
+        averageSeverity: depotData.averageSeverity
+      },
+      priority: depotData.trend === 'rising' && depotData.defectRate > 15 ? 'high' : 'medium',
+      timestamp: new Date().toISOString()
+    };
+
+    return this.broadcastToChannel('defect-intelligence', message);
+  }
+
+  /**
+   * Broadcast predictive maintenance alerts
+   * @param {Object} alertData - Predictive maintenance alert information
+   */
+  broadcastPredictiveAlert(alertData) {
+    const message = {
+      type: 'PREDICTIVE_ALERT',
+      data: {
+        alertType: alertData.type,
+        message: alertData.message,
+        vehicles: alertData.vehicles || [],
+        defectType: alertData.defectType,
+        affectedCount: alertData.affectedCount,
+        recommendation: alertData.recommendation,
+        estimatedCost: alertData.estimatedCost
+      },
+      priority: alertData.priority || 'medium',
+      timestamp: new Date().toISOString()
+    };
+
+    return this.broadcastToChannel('defect-intelligence', message);
+  }
+
+  /**
+   * Broadcast defect escalation event
+   * @param {Object} escalationData - Escalation information
+   */
+  broadcastDefectEscalation(escalationData) {
+    const message = {
+      type: 'DEFECT_ESCALATED',
+      data: {
+        vehicleId: escalationData.vehicleId,
+        defectCount: escalationData.defects?.length || 0,
+        recipient: escalationData.recipient,
+        priority: escalationData.priority,
+        escalatedBy: escalationData.escalatedBy,
+        message: escalationData.message
+      },
+      priority: escalationData.priority === 'critical' ? 'critical' : 'high',
+      timestamp: new Date().toISOString()
+    };
+
+    return this.broadcastToChannel('defect-intelligence', message);
+  }
+
   // Cleanup
   cleanup() {
     console.log('🧹 Cleaning up WebSocket connections');
-    
+
     // Close all client connections
     this.clients.forEach((client, clientId) => {
       client.ws.close();

@@ -5,7 +5,7 @@ import { supervisorBreakdownLogger } from '../../supervisorBreakdownLogger.js';
 
 // Road Traffic Incidents Wizard Component - Critical Incident Management
 // Uses icons and constants from common components
-// Follows SDC Engineering Issues Guide v1.3 - Road Traffic Incidents Section (Pages 4-5)
+// Follows operational safety procedures v1.3 - Road Traffic Incidents Section (Pages 4-5)
 // Integrated with Tranzaura defect tracking system
 
 const RoadTrafficIncidentsWizard = ({ currentStep, responses, updateResponse, onNext, onPrevious, onComplete, onWizardSelect }) => {

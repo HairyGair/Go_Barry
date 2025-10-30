@@ -2,7 +2,7 @@
  * Google Reverse Geocoding Service
  * Converts GPS coordinates to real street addresses and place names
  *
- * @author Claude Code
+ * @author Anthony Gair
  * @version 1.0.0
  */
 

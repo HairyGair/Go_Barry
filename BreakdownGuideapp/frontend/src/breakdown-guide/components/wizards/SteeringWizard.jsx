@@ -1,6 +1,6 @@
 // Steering Wizard Component - Safety-Critical Steering System Assessment
 // Uses icons and constants from common components
-// Follows SDC Engineering Issues Guide v1.3 - Steering Section (Page 8)
+// Follows operational safety procedures v1.3 - Steering Section (Page 8)
 // DVSA Compliance: Categorisation of Vehicle Defects
 
 import React, { useState, useEffect } from 'react';
@@ -261,7 +261,7 @@ const SteeringWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                             <Shield className="w-8 h-8 text-red-400" />
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">🚗 Steering System Safety Assessment</h2>
-                        <p className="text-gray-300">Critical safety evaluation following SDC Engineering Issues Guide - ensuring steering system control and directional stability.</p>
+                        <p className="text-gray-300">Critical safety evaluation following operational safety procedures - ensuring steering system control and directional stability.</p>
                     </div>
                     
                     <div className="bg-red-500/20 backdrop-blur-sm rounded-lg p-6 border border-red-400/30">
@@ -501,7 +501,7 @@ const SteeringWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                             
                             <div className="space-y-4">
                                 <div className="bg-black/30 rounded-lg p-4">
-                                    <h3 className="font-semibold text-red-200 mb-2">SDC Engineering Guide - Section 8:</h3>
+                                    <h3 className="font-semibold text-red-200 mb-2">Operational safety procedures - Section 8:</h3>
                                     <p className="text-red-300 text-sm leading-relaxed">
                                         "If any of the following occur, advise the driver to switch off the vehicle and await engineering attendance"
                                     </p>

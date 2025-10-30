@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Script to analyze location data in breakdowns database
+ * Script to analyse location data in breakdowns database
  * Examines location formats and coordinate availability
  */
 

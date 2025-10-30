@@ -193,7 +193,7 @@ const SupervisorLoginWithContext = ({ className = '', variant = 'standalone', on
             // Use apiConfig for consistent backend URL
             const apiUrl = process.env.NODE_ENV === 'development'
                 ? 'http://localhost:3001'
-                : 'https://breakdown-guide.onrender.com';
+                : 'https://breakdowns.gobarry.co.uk/api';
 
             const response = await fetch(`${apiUrl}/api/auth/supervisor-signup`, {
                 method: 'POST',
@@ -1316,6 +1316,13 @@ const SupervisorLoginWithContext = ({ className = '', variant = 'standalone', on
                     display: flex;
                     align-items: center;
                     gap: 6px;
+                }
+
+                .field-hint {
+                    color: #718096;
+                    font-size: 12px;
+                    margin: 4px 0 0 0;
+                    font-style: italic;
                 }
 
                 .general-error {

@@ -2,12 +2,16 @@ import React, { useState } from 'react';
 import JobDetailsModal from './JobDetailsModal';
 import StatusUpdatePanel from './StatusUpdatePanel';
 import ResolutionDialog from './ResolutionDialog';
+import AssessmentDetail from './AssessmentDetail';
+import ContactActions from './ContactActions';
+import VehicleHistory from './VehicleHistory';
+import NavigationButton from './NavigationButton';
+import DepotContactBadge from '../../components/DepotContactBadge';
 import { apiClient } from '../../services/api-client';
+import { createAssessmentSummary, getServiceImpact } from './utils/assessmentParser';
 
 const EngineeringCardEnhanced = ({
   breakdown,
-  engineerBadge,
-  engineerName,
   onJobAccepted,
   onStatusUpdated,
   onJobCompleted,
@@ -18,8 +22,11 @@ const EngineeringCardEnhanced = ({
   const [showResolutionDialog, setShowResolutionDialog] = useState(false);
   const [accepting, setAccepting] = useState(false);
 
-  const isAssigned = breakdown.engineer_id !== null;
-  const isMyJob = breakdown.engineer_badge === engineerBadge;
+  // Check if engineer has been dispatched (simplified - no individual tracking)
+  const isDispatched = breakdown.status === 'dispatched' ||
+                       breakdown.status === 'on_site' ||
+                       breakdown.status === 'in_progress' ||
+                       breakdown.engineer_dispatched_at !== null;
 
   // Calculate elapsed time
   const created = new Date(breakdown.created_at);
@@ -29,42 +36,39 @@ const EngineeringCardEnhanced = ({
   // Determine SLA status
   const slaStatus = elapsedMinutes > 90 ? 'critical' : elapsedMinutes > 60 ? 'warning' : 'normal';
 
+  // Get assessment summary and service impact
+  const assessmentSummary = createAssessmentSummary(breakdown);
+  const serviceImpact = getServiceImpact(breakdown);
+
   // Check if priority route
-  const priorityRoutes = ['X10', 'X21', '21', '56', '1'];
-  const isPriority = priorityRoutes.some(route => breakdown.location?.includes(route));
+  const isPriority = serviceImpact.level === 'CRITICAL' || serviceImpact.level === 'HIGH';
 
-  // Handle accept job
-  const handleAcceptJob = async () => {
-    if (!engineerBadge) {
-      alert('Engineer badge not set');
-      return;
-    }
-
-    const eta = prompt('Enter estimated arrival time (minutes):', '15');
-    if (!eta) return;
+  // Handle dispatch engineer (simplified - no individual tracking)
+  const handleDispatchEngineer = async () => {
+    const eta = prompt('Estimated arrival time (minutes):', '30');
+    if (eta === null) return; // User cancelled
 
     setAccepting(true);
     try {
-      const response = await apiClient.post('/api/engineering/accept-job', {
+      const response = await apiClient.post('/api/engineering/assign', {
         breakdown_id: breakdown.breakdown_id,
-        engineer_badge: engineerBadge,
-        engineer_name: engineerName || 'Engineer',
-        eta_minutes: parseInt(eta)
+        estimated_arrival_minutes: parseInt(eta) || null,
+        assigned_by: 'Engineering Manager'
       });
 
       if (response.success) {
         if (onJobAccepted) {
-          onJobAccepted(response.breakdown);
+          onJobAccepted(response.dispatch);
         }
         if (onRefresh) {
           onRefresh();
         }
       } else {
-        alert('Failed to accept job: ' + (response.error || 'Unknown error'));
+        alert('Failed to dispatch engineer: ' + (response.error || 'Unknown error'));
       }
     } catch (error) {
-      console.error('Error accepting job:', error);
-      alert('Failed to accept job');
+      console.error('Error dispatching engineer:', error);
+      alert('Failed to dispatch engineer');
     } finally {
       setAccepting(false);
     }
@@ -115,24 +119,65 @@ const EngineeringCardEnhanced = ({
 
           {/* Badges */}
           <div className="badge-row">
-            {isPriority && <span className="badge badge-priority">⚠️ PRIORITY ROUTE</span>}
+            {serviceImpact.level === 'CRITICAL' && (
+              <span className="badge badge-impact-critical">
+                🚨 CRITICAL SERVICE IMPACT
+              </span>
+            )}
+            {serviceImpact.level === 'HIGH' && (
+              <span className="badge badge-impact-high">
+                ⚠️ HIGH SERVICE IMPACT
+              </span>
+            )}
             <span className="badge badge-depot">{breakdown.depot || 'Unknown Depot'}</span>
+            <DepotContactBadge
+              fleetNumber={breakdown.fleet_number}
+              depot={breakdown.depot}
+              size="small"
+              showDepotName={false}
+              variant="inline"
+            />
             <span className={`badge badge-severity ${(breakdown.severity || breakdown.wizard_decision || '').toLowerCase()}`}>
               {breakdown.severity || breakdown.wizard_decision || 'Unknown'}
             </span>
+            {assessmentSummary.safety.hasConcerns && (
+              <span className="badge badge-safety">
+                🚨 {assessmentSummary.safety.criticalCount} SAFETY CONCERN{assessmentSummary.safety.criticalCount > 1 ? 'S' : ''}
+              </span>
+            )}
+            {breakdown.wizard_assessment_data?.not_in_service && (
+              <span className="badge badge-not-in-service">
+                🔵 NOT IN SERVICE (Light Running)
+              </span>
+            )}
           </div>
+
+          {/* Service Impact Details */}
+          {serviceImpact.factors.length > 0 && (
+            <div className="impact-factors">
+              {serviceImpact.factors.map((factor, idx) => (
+                <span key={idx} className="impact-factor">• {factor}</span>
+              ))}
+            </div>
+          )}
         </div>
+
+        {/* Vehicle History */}
+        <VehicleHistory fleetNo={breakdown.fleet_no} compact={true} />
 
         {/* Location & Issue */}
         <div className="card-body">
+          {/* Navigation */}
+          <NavigationButton breakdown={breakdown} variant="inline" />
+
           <div className="info-row">
-            <div className="info-item">
-              <span className="info-label">Location:</span>
-              <span className="info-value">{breakdown.location || 'Unknown'}</span>
-            </div>
             <div className="info-item">
               <span className="info-label">Issue:</span>
               <span className="info-value">{breakdown.issue_category || 'General'}</span>
+            </div>
+            <div className="info-item">
+              <span className="info-label">Depot:</span>
+              <span className="info-value">{breakdown.depot || 'Unknown'}</span>
             </div>
           </div>
 
@@ -149,29 +194,63 @@ const EngineeringCardEnhanced = ({
             </div>
           </div>
 
-          {/* Engineer Assignment */}
-          {isAssigned && (
+          {/* Engineer Dispatch Status */}
+          {isDispatched && (
             <div className="engineer-info">
               <div className="engineer-icon">🔧</div>
               <div className="engineer-details">
-                <div className="engineer-name">{breakdown.engineer_name}</div>
-                <div className="engineer-badge-number">{breakdown.engineer_badge}</div>
+                <div className="engineer-name">Engineer Dispatched</div>
+                <div className="engineer-dispatch-time">
+                  Dispatched: {formatTime(breakdown.engineer_dispatched_at || breakdown.dispatched_at)}
+                </div>
                 {breakdown.engineer_eta_minutes && (
                   <div className="engineer-eta">ETA: {breakdown.engineer_eta_minutes} min</div>
                 )}
+                {breakdown.engineer_on_site_at && (
+                  <div className="engineer-status-text">✓ Arrived on site</div>
+                )}
+                {breakdown.engineer_fixing_at && (
+                  <div className="engineer-status-text">🔧 Repair in progress</div>
+                )}
               </div>
-              {isMyJob && <span className="my-job-badge">MY JOB</span>}
+            </div>
+          )}
+
+          {/* Assessment Summary */}
+          {assessmentSummary.symptoms.length > 0 && (
+            <div className="assessment-summary">
+              <div className="summary-header">
+                <span className="summary-icon">🔍</span>
+                <span className="summary-title">Assessment Summary</span>
+              </div>
+              <ul className="symptoms-quick-list">
+                {assessmentSummary.symptoms.slice(0, 3).map((symptom, idx) => (
+                  <li key={idx}>{symptom}</li>
+                ))}
+              </ul>
+              {assessmentSummary.suggestedSkills.length > 0 && (
+                <div className="suggested-skills">
+                  <strong>Suggested Skills:</strong>{' '}
+                  {assessmentSummary.suggestedSkills.join(', ')}
+                </div>
+              )}
             </div>
           )}
         </div>
 
+        {/* Full Assessment Detail (Collapsible) */}
+        <AssessmentDetail breakdown={breakdown} compact={true} />
+
+        {/* Contact Actions */}
+        <ContactActions breakdown={breakdown} />
+
         {/* Timeline/Progress */}
-        {isAssigned && (
+        {isDispatched && (
           <div className="progress-section">
             <div className="progress-steps">
-              <ProgressStep label="Accepted" active={!!breakdown.engineer_accepted_at} />
+              <ProgressStep label="Dispatched" active={!!breakdown.engineer_dispatched_at} />
               <ProgressStep label="On Site" active={!!breakdown.engineer_on_site_at} />
-              <ProgressStep label="Fixing" active={!!breakdown.engineer_fixing_at} />
+              <ProgressStep label="Working" active={!!breakdown.engineer_fixing_at} />
               <ProgressStep label="Complete" active={!!breakdown.engineer_completed_at} />
             </div>
           </div>
@@ -179,50 +258,39 @@ const EngineeringCardEnhanced = ({
 
         {/* Actions */}
         <div className="card-actions">
-          {!isAssigned ? (
+          {!isDispatched ? (
             <>
               <button
                 className="action-btn primary"
-                onClick={handleAcceptJob}
+                onClick={handleDispatchEngineer}
                 disabled={accepting}
               >
-                {accepting ? 'Accepting...' : '✓ Accept Job'}
+                {accepting ? 'Dispatching...' : '🚗 Dispatch Engineer'}
               </button>
               <button
                 className="action-btn secondary"
                 onClick={() => setShowDetailsModal(true)}
               >
-                📋 View Details
+                📋 Full Details
               </button>
             </>
-          ) : isMyJob ? (
+          ) : (
             <>
-              <button
-                className="action-btn primary"
-                onClick={handleQuickStatusUpdate}
-              >
-                📍 Update Status
-              </button>
               <button
                 className="action-btn secondary"
                 onClick={() => setShowDetailsModal(true)}
               >
                 📋 Details
               </button>
-              <button
-                className="action-btn success"
-                onClick={() => setShowResolutionDialog(true)}
-              >
-                ✅ Complete
-              </button>
+              {breakdown.status !== 'resolved' && breakdown.status !== 'cleared' && (
+                <button
+                  className="action-btn success"
+                  onClick={() => setShowResolutionDialog(true)}
+                >
+                  ✅ Mark Complete
+                </button>
+              )}
             </>
-          ) : (
-            <button
-              className="action-btn secondary full-width"
-              onClick={() => setShowDetailsModal(true)}
-            >
-              📋 View Details
-            </button>
           )}
         </div>
 
@@ -362,6 +430,55 @@ const EngineeringCardEnhanced = ({
             color: #10b981;
           }
 
+          .badge-impact-critical {
+            background: rgba(239, 68, 68, 0.3);
+            color: #fee;
+            border: 1px solid rgba(239, 68, 68, 0.6);
+            animation: pulse-badge 2s infinite;
+          }
+
+          @keyframes pulse-badge {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+          }
+
+          .badge-impact-high {
+            background: rgba(245, 158, 11, 0.3);
+            color: #fff;
+            border: 1px solid rgba(245, 158, 11, 0.6);
+          }
+
+          .badge-safety {
+            background: rgba(239, 68, 68, 0.3);
+            color: #fee;
+            border: 1px solid rgba(239, 68, 68, 0.6);
+            font-weight: 700;
+          }
+
+          .badge-not-in-service {
+            background: rgba(59, 130, 246, 0.3);
+            color: #93c5fd;
+            border: 1px solid rgba(59, 130, 246, 0.6);
+            font-weight: 600;
+          }
+
+          .impact-factors {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+          }
+
+          .impact-factor {
+            font-size: 11px;
+            color: #f59e0b;
+            background: rgba(245, 158, 11, 0.1);
+            padding: 3px 8px;
+            border-radius: 4px;
+          }
+
           .card-body {
             padding: 16px;
           }
@@ -454,10 +571,18 @@ const EngineeringCardEnhanced = ({
             font-size: 14px;
           }
 
-          .engineer-badge-number {
+          .engineer-dispatch-time {
             color: #64b5f6;
             font-size: 12px;
             font-family: monospace;
+            margin-top: 4px;
+          }
+
+          .engineer-status-text {
+            color: #10b981;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 4px;
           }
 
           .engineer-eta {
@@ -473,6 +598,56 @@ const EngineeringCardEnhanced = ({
             border-radius: 6px;
             font-size: 11px;
             font-weight: 700;
+          }
+
+          .assessment-summary {
+            margin-top: 12px;
+            padding: 12px;
+            background: rgba(100, 181, 246, 0.08);
+            border-radius: 8px;
+            border-left: 3px solid #64b5f6;
+          }
+
+          .summary-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+          }
+
+          .summary-icon {
+            font-size: 16px;
+          }
+
+          .summary-title {
+            color: #64b5f6;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+
+          .symptoms-quick-list {
+            margin: 0 0 8px 0;
+            padding-left: 20px;
+            color: #e0e0e0;
+            font-size: 12px;
+            line-height: 1.6;
+          }
+
+          .symptoms-quick-list li {
+            margin-bottom: 4px;
+          }
+
+          .suggested-skills {
+            font-size: 11px;
+            color: #999;
+            padding-top: 8px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+          }
+
+          .suggested-skills strong {
+            color: #64b5f6;
           }
 
           .progress-section {
@@ -564,7 +739,6 @@ const EngineeringCardEnhanced = ({
           <div className="modal-container" onClick={e => e.stopPropagation()}>
             <StatusUpdatePanel
               breakdown={breakdown}
-              engineerBadge={engineerBadge}
               onStatusUpdated={handleStatusUpdated}
               onClose={() => setShowStatusPanel(false)}
             />
@@ -577,8 +751,6 @@ const EngineeringCardEnhanced = ({
           <div className="modal-container large" onClick={e => e.stopPropagation()}>
             <ResolutionDialog
               breakdown={breakdown}
-              engineerBadge={engineerBadge}
-              engineerName={engineerName}
               onResolved={handleJobResolved}
               onClose={() => setShowResolutionDialog(false)}
             />
@@ -676,6 +848,26 @@ function formatStatus(status) {
     'resolved': 'Resolved'
   };
   return statusMap[status] || status;
+}
+
+// Helper function to format time
+function formatTime(timestamp) {
+  if (!timestamp) return 'Unknown';
+
+  const date = new Date(timestamp);
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+
+  if (diffMins < 1) {
+    return 'Just now';
+  } else if (diffMins < 60) {
+    return `${diffMins} min ago`;
+  } else {
+    const hours = Math.floor(diffMins / 60);
+    const mins = diffMins % 60;
+    return `${hours}h ${mins}m ago`;
+  }
 }
 
 export default EngineeringCardEnhanced;

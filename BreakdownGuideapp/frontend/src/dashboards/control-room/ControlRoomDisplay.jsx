@@ -1,4 +1,16 @@
 /**
+ * Go BARRY Breakdown Management System
+ *
+ * Copyright © 2025 Anthony Gair. All Rights Reserved.
+ *
+ * This software is proprietary and confidential. Unauthorized copying,
+ * distribution, modification, or use is strictly prohibited.
+ *
+ * @author Anthony Gair
+ * @license Proprietary
+ */
+
+/**
  * Control Room Display
  * Large screen display for monitoring active breakdowns in real-time
  *
@@ -38,6 +50,43 @@ const ControlRoomDisplay = () => {
 
   // Google Maps API key
   const GOOGLE_MAPS_API_KEY = 'AIzaSyBhBN_kVOnIRTKXYhzrDwpr8kvb0Uy0IY8';
+
+  // Depot coordinates fallback for known locations
+  const DEPOT_COORDINATES = {
+    'consett depot': { lat: 54.8607, lng: -1.8316, name: 'Consett Depot' },
+    'consett': { lat: 54.8607, lng: -1.8316, name: 'Consett Depot' },
+    'riverside depot': { lat: 54.9486, lng: -1.5781, name: 'Riverside Depot' },
+    'riverside': { lat: 54.9486, lng: -1.5781, name: 'Riverside Depot' },
+    'washington depot': { lat: 54.9000, lng: -1.5200, name: 'Washington Depot' },
+    'washington': { lat: 54.9000, lng: -1.5200, name: 'Washington Depot' },
+    'deptford depot': { lat: 54.9133, lng: -1.4267, name: 'Deptford Depot' },
+    'deptford': { lat: 54.9133, lng: -1.4267, name: 'Deptford Depot' },
+    'percy main depot': { lat: 55.0089, lng: -1.4461, name: 'Percy Main Depot' },
+    'percy main': { lat: 55.0089, lng: -1.4461, name: 'Percy Main Depot' },
+    'hexham depot': { lat: 54.9697, lng: -2.1006, name: 'Hexham Depot' },
+    'hexham': { lat: 54.9697, lng: -2.1006, name: 'Hexham Depot' }
+  };
+
+  // Try to extract coordinates from depot name
+  const getDepotCoordinates = (locationText) => {
+    if (!locationText) return null;
+
+    const normalizedLocation = locationText.toLowerCase().trim();
+
+    // Direct lookup
+    if (DEPOT_COORDINATES[normalizedLocation]) {
+      return DEPOT_COORDINATES[normalizedLocation];
+    }
+
+    // Partial match (e.g., "at Consett Depot" or "near Riverside")
+    for (const [key, coords] of Object.entries(DEPOT_COORDINATES)) {
+      if (normalizedLocation.includes(key)) {
+        return coords;
+      }
+    }
+
+    return null;
+  };
 
   // Reverse geocode coordinates to place name
   const reverseGeocode = async (lat, lng) => {
@@ -138,7 +187,7 @@ const ControlRoomDisplay = () => {
   useEffect(() => {
     const fetchFleetDatabase = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://breakdown-guide.onrender.com'}/api/public/fleet`)
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://breakdowns.gobarry.co.uk/api'}/api/public/fleet`)
           .then(res => res.json());
         if (response.success && response.fleet) {
           setFleetDatabase(response.fleet);
@@ -232,7 +281,7 @@ const ControlRoomDisplay = () => {
   const fetchBreakdowns = useCallback(async () => {
     try {
       // Use public endpoint - no authentication required for Control Room Display
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://breakdown-guide.onrender.com'}/api/public/breakdowns/live`)
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://breakdowns.gobarry.co.uk/api'}/api/public/breakdowns/live`)
         .then(res => res.json());
 
       if (response.success && Array.isArray(response.breakdowns)) {
@@ -613,6 +662,8 @@ const ControlRoomDisplay = () => {
                          currentBreakdown.lng ||
                          currentBreakdown.lon || null;
 
+                let coordinateSource = 'gps'; // Track source of coordinates
+
                 // Parse location_coordinates JSON if available
                 if (!lat && !lng && currentBreakdown.location_coordinates) {
                   try {
@@ -639,6 +690,23 @@ const ControlRoomDisplay = () => {
                   if (coordMatch) {
                     lat = parseFloat(coordMatch[1]);
                     lng = parseFloat(coordMatch[2]);
+                  }
+                }
+
+                // FALLBACK: Try depot coordinates if no GPS coordinates found
+                if (!lat && !lng) {
+                  const location = currentBreakdown.location ||
+                                  currentBreakdown.location_description ||
+                                  currentBreakdown.breakdown_location ||
+                                  currentBreakdown.depot ||
+                                  currentBreakdown.supervisor_depot;
+
+                  const depotCoords = getDepotCoordinates(location);
+                  if (depotCoords) {
+                    lat = depotCoords.lat;
+                    lng = depotCoords.lng;
+                    coordinateSource = 'depot';
+                    console.log(`Using depot coordinates for ${location}:`, depotCoords);
                   }
                 }
 

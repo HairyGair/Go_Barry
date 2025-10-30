@@ -1,7 +1,7 @@
 /**
- * Complete SDC Guide Compliant Diagnostic Flows
+ * Complete Industry Best-Practice Compliant Diagnostic Flows
  * All categories with interactive wizards - Version 1.3
- * EXACT text from SDC Guide - NO modifications allowed
+ * Operational best practice guidelines - NO modifications allowed
  */
 
 const diagnosticFlows = {
@@ -17,7 +17,7 @@ const diagnosticFlows = {
             {
                 type: 'info',
                 title: 'SAFETY CRITICAL - Brake Information',
-                content: `CRITICAL BRAKE SAFETY INFORMATION FROM SDC GUIDE:
+                content: `CRITICAL SAFETY INFORMATION:
 
 WHY BRAKES ARE SAFETY CRITICAL:
 Brake system failures present extreme danger to passengers, drivers, and the public. Brake failures can result in loss of vehicle control, collisions, and serious injury or death.
@@ -32,8 +32,8 @@ Continuing service with known brake defects could result in PG9 prohibition noti
             },
             {
                 type: 'info',
-                title: 'SDC Guide - Exact Text Reference',
-                content: `SDC GUIDE PAGE 7 - BRAKES SECTION (EXACT TEXT):
+                title: 'Industry Best Practice Guidelines Reference',
+                content: `OPERATIONAL SAFETY PROCEDURES - BRAKES SECTION:
 
 "If any of the following occur, advise the driver to switch off the vehicle and await engineering attendance:
 
@@ -45,8 +45,8 @@ Continuing service with known brake defects could result in PG9 prohibition noti
 • Red ABS/EBS light is illuminated."
 
 COMPLIANCE NOTE:
-This is the exact criteria from the official SDC Guide that must be followed without exception. These symptoms indicate potential brake system failure. Failure to follow these criteria could result in safety incidents and regulatory action.`,
-                warning: 'These criteria must be followed exactly as written in the SDC Guide.',
+This is the exact criteria from the official operational safety procedures that must be followed. These symptoms indicate potential brake system failure. Failure to follow these criteria could result in safety incidents and regulatory action.`,
+                warning: 'These criteria must be followed exactly as written in operational procedures.',
                 nextStep: 2
             },
             {
@@ -89,7 +89,7 @@ Vehicle brake systems use hydraulic pressure to apply brake pads to rotors. Any 
             {
                 type: 'question',
                 title: 'Critical Brake Symptoms Assessment',
-                content: 'Based on the driver\'s responses to your questions, assess if ANY of the critical SDC Guide symptoms are present:',
+                content: 'Based on the driver\'s responses to your questions, assess if ANY of the critical operational safety symptoms are present:',
                 options: [
                     {
                         text: 'CRITICAL FAILURE - Brake pedal sinks to floor OR braking is delayed/ineffective',
@@ -361,8 +361,8 @@ Vehicle brake systems use hydraulic pressure to apply brake pads to rotors. Any 
                 type: 'decision',
                 id: 'abs-assessment',
                 title: 'ABS Light Assessment',
-                content: 'Determine the color and behavior of the ABS light.',
-                question: 'What color is the ABS light?',
+                content: 'Determine the colour and behaviour of the ABS light.',
+                question: 'What colour is the ABS light?',
                 choices: [
                     {
                         text: 'RED ABS Light',

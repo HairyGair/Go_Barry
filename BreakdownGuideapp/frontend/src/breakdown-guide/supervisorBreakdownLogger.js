@@ -18,7 +18,7 @@
 // Enhanced Breakdown Logger with Supervisor Tracking
 // Logs every assessment action with complete supervisor details
 
-const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://breakdown-guide.onrender.com';
+const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://breakdowns.gobarry.co.uk/api';
 const LOG_STORAGE_KEY = 'breakdown_assessment_logs';
 const PENDING_SYNC_KEY = 'pending_breakdown_sync';
 
@@ -223,27 +223,55 @@ class SupervisorBreakdownLogger {
             priority_level: data.decision === 'STOP' ? 1 : data.decision === 'AMBER' ? 2 : 3,
             engineering_required: data.decision === 'STOP',
             replacement_vehicle_required: data.decision === 'STOP',
-            secured_mileage: this.currentBreakdown.securedMileage || false
+            secured_mileage: this.currentBreakdown.securedMileage || false,
+            not_in_service: this.currentBreakdown.notInService || false
         };
 
         console.log('🚀 Sending wizard completion data to dashboard:', wizardData);
         console.log('🔗 Backend URL:', BACKEND_URL);
 
         try {
-            // Get Supabase token for authentication
-            const { supabase } = await import('../services/supabase-client.js');
-            const { data: { session } } = await supabase.auth.getSession();
-            const token = session?.access_token;
+            // Get JWT token from multiple possible sources
+            let token = null;
+
+            // Check supervisor session (direct access_token)
+            if (this.supervisor?.access_token) {
+                token = this.supervisor.access_token;
+            }
+            // Check supervisor session (nested in supabaseSession - legacy)
+            else if (this.supervisor?.supabaseSession?.access_token) {
+                token = this.supervisor.supabaseSession.access_token;
+            }
+            // Check localStorage for backend auth session
+            else {
+                try {
+                    const gobarrySession = localStorage.getItem('gobarry_session');
+                    if (gobarrySession) {
+                        const session = JSON.parse(gobarrySession);
+                        token = session.access_token;
+                    }
+                } catch (e) {
+                    console.warn('Failed to parse gobarry_session:', e);
+                }
+            }
+
+            // Fallback to common token storage keys
+            if (!token) {
+                token = localStorage.getItem('auth_token') ||
+                       sessionStorage.getItem('supervisor_token');
+            }
 
             const headers = {
                 'Content-Type': 'application/json',
             };
 
+            // Add Authorization header if token exists
             if (token) {
                 headers['Authorization'] = `Bearer ${token}`;
-                console.log('🔐 Adding authentication token to request');
+                console.log('🔐 Sending request with JWT token');
             } else {
-                console.warn('⚠️ No authentication token available');
+                console.warn('⚠️ No JWT token found - request may be rejected by backend');
+                console.warn('🔍 Checked sources: supervisor.access_token, supervisor.supabaseSession.access_token, gobarry_session, auth_token, supervisor_token');
             }
 
             const response = await fetch(`${BACKEND_URL}/api/breakdowns/from-wizard`, {

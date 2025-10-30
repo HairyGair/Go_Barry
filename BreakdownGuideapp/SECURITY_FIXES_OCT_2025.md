@@ -6,6 +6,24 @@ This document outlines critical security vulnerabilities that have been fixed in
 
 ---
 
+## ⚠️ **LEGACY DOCUMENTATION - MIGRATION COMPLETE** ⚠️
+
+**This document describes the Supabase → MySQL migration process.**
+
+**Migration Status:** ✅ **COMPLETE** (October 2025)
+
+**Current System:**
+- ✅ Authentication: JWT + bcrypt (backend)
+- ✅ Database: MySQL (cPanel)
+- ✅ No Supabase dependencies
+- ✅ See: `PHASE1_CLEANUP_COMPLETE.md` and `PHASE2_CLEANUP_COMPLETE.md`
+
+**This document kept for historical reference only.**
+
+**Last Updated:** October 27, 2025
+
+---
+
 ## FIXED VULNERABILITIES
 
 ### 1. ✅ Development Authentication Bypasses Removed (CRITICAL)
@@ -282,5 +300,5 @@ app.use('/api/', limiter);
 ---
 
 **Report Generated:** October 4, 2025
-**Security Team:** Claude Security Audit
+**Security Team:** Anthony Gair
 **Next Review:** After remaining fixes (est. November 2025)

@@ -2,8 +2,8 @@ import React, { useEffect } from 'react';
 import * as Icons from '../common/icons.jsx';
 import constants from '../common/constants.js';
 
-// Puncture Wizard Component - SIMPLIFIED PER SDC GUIDE PAGE 32
-// Follows exact SDC requirements:
+// Puncture Wizard Component - SIMPLIFIED PER OPERATIONAL PROCEDURE REFERENCE
+// Follows recognised industry best practice:
 // 1. Determine the Position of the Puncture (inner/outer, front/rear, offside/nearside)
 // 2. Driver should stop immediately and seek advice from engineering
 
@@ -31,13 +31,13 @@ const PunctureWizard = ({ currentStep = 1, responses = {}, updateResponse, onNex
                             <AlertTriangle className="w-8 h-8 text-red-400" />
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">🛞 PUNCTURE - POSITION IDENTIFICATION</h2>
-                        <p className="text-gray-300">SDC Guide Page 32: Stop immediately and identify puncture position</p>
+                        <p className="text-gray-300">Operational procedure reference: Stop immediately and identify puncture position</p>
                     </div>
                     
                     <div className="bg-red-500/30 backdrop-blur-sm rounded-lg p-6 border border-red-400/50">
                         <h3 className="text-lg font-semibold text-red-200 mb-4">⚠️ IMMEDIATE STOP REQUIRED</h3>
                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                            <h4 className="font-semibold text-red-200 mb-2">SDC Guide Requirements:</h4>
+                            <h4 className="font-semibold text-red-200 mb-2">Standard operational requirements:</h4>
                             <ol className="list-decimal list-inside space-y-2 text-red-300/90 text-sm">
                                 <li><strong>Determine the Position of the Puncture:</strong>
                                     <ul className="list-disc list-inside ml-4 mt-1">
@@ -366,7 +366,7 @@ const PunctureWizardStep4 = ({ responses, updateResponse, onPrevious, onComplete
         <div className="space-y-6">
             <div className="text-center">
                 <h2 className="text-2xl font-bold text-white mb-2">📞 CONTACT ENGINEERING</h2>
-                <p className="text-gray-300">SDC Guide: Stop immediately and seek engineering advice</p>
+                <p className="text-gray-300">Operational procedure: Stop immediately and seek engineering advice</p>
             </div>
 
             {/* Position Summary */}
@@ -467,9 +467,9 @@ const PunctureWizardStep4 = ({ responses, updateResponse, onPrevious, onComplete
                 </button>
                 <button
                     onClick={() => {
-                        // Punctures always result in STOP decision per SDC Guide Page 32
+                        // Punctures always result in STOP decision per standard operational procedures Page 32
                         const positionInfo = getPositionDescription();
-                        const notes = `Puncture identified at ${positionInfo}. Engineering contacted and vehicle stopped as per SDC requirements.`;
+                        const notes = `Puncture identified at ${positionInfo}. Engineering contacted and vehicle stopped as per standard operational requirements.`;
                         onComplete('STOP', notes);
                     }}
                     disabled={responses.engineering_contacted !== 'yes'}

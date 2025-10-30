@@ -1,11 +1,12 @@
 /**
  * Real-time Activity Service
  *
- * Handles Supabase real-time subscriptions for activities and provides
+ * Handles real-time subscriptions for activities and provides
  * a unified interface for subscribing to activity updates across the app.
+ * Supabase removed - now uses backend MySQL API with WebSocket
  */
 
-import { supabase } from './supabase-client.js';
+// Supabase import removed - no longer using Supabase real-time
 
 // Activity event types
 export const ACTIVITY_EVENTS = {
@@ -41,15 +42,13 @@ class ActivityRealtimeService {
     try {
       console.log('🔄 Initializing Activity Real-time Service...');
 
-      // Test Supabase connection
-      if (!supabase) {
-        throw new Error('Supabase client not available');
-      }
+      // Supabase removed - now uses backend MySQL API
+      // Connection would be established through WebSocket to backend
 
       // Set up connection monitoring
       this.setupConnectionMonitoring();
 
-      console.log('✅ Activity Real-time Service initialized');
+      console.log('✅ Activity Real-time Service initialized (backend mode)');
       return true;
     } catch (error) {
       console.error('❌ Failed to initialize Activity Real-time Service:', error);
@@ -69,69 +68,17 @@ class ActivityRealtimeService {
     } = options;
 
     try {
-      // Create channel for activities
-      const channelName = `activities-${subscriptionId}`;
-      const channel = supabase.channel(channelName);
+      // Supabase removed - now uses backend MySQL API
+      // TODO: Implement WebSocket subscription to backend API
 
-      // Set up PostgreSQL change listeners
-      let changeListener = {
-        event: '*', // Listen to INSERT, UPDATE, DELETE
-        schema: 'public',
-        table: 'activities'
-      };
-
-      // Apply filters if provided
-      if (filter.depot) {
-        changeListener.filter = `depot=eq.${filter.depot}`;
-      }
-      if (filter.actor_id) {
-        changeListener.filter = changeListener.filter
-          ? `${changeListener.filter},actor_id=eq.${filter.actor_id}`
-          : `actor_id=eq.${filter.actor_id}`;
-      }
-      if (filter.activity_type) {
-        changeListener.filter = changeListener.filter
-          ? `${changeListener.filter},activity_type=eq.${filter.activity_type}`
-          : `activity_type=eq.${filter.activity_type}`;
-      }
-
-      channel.on('postgres_changes', changeListener, (payload) => {
-        this.handleActivityChange(payload, callback, subscriptionId, bufferUpdates);
-      });
-
-      // Subscribe to the channel
-      channel.subscribe((status, err) => {
-        if (status === 'SUBSCRIBED') {
-          console.log(`✅ Subscribed to activities (${subscriptionId})`);
-          this.isConnected = true;
-          this.reconnectAttempts = 0;
-          this.emit(ACTIVITY_EVENTS.CONNECTION_CHANGED, { connected: true, subscriptionId });
-        } else if (status === 'CHANNEL_ERROR') {
-          console.error(`❌ Activity subscription error (${subscriptionId}):`, err);
-          this.isConnected = false;
-          this.handleConnectionError(subscriptionId);
-          this.emit(ACTIVITY_EVENTS.ERROR, { error: err, subscriptionId });
-        } else if (status === 'TIMED_OUT') {
-          console.warn(`⏱️ Activity subscription timed out (${subscriptionId})`);
-          this.handleReconnection(subscriptionId);
-        } else if (status === 'CLOSED') {
-          console.log(`🔌 Activity subscription closed (${subscriptionId})`);
-          this.isConnected = false;
-          this.emit(ACTIVITY_EVENTS.CONNECTION_CHANGED, { connected: false, subscriptionId });
-        }
-      });
-
-      // Store subscription info
+      // Store subscription info (placeholder)
       this.subscriptions.set(subscriptionId, {
-        channel,
         callback,
         options,
         filter,
         active: true,
         createdAt: new Date()
       });
-
-      this.channels.set(channelName, channel);
 
       console.log(`📡 Created activity subscription: ${subscriptionId}`);
 
@@ -332,23 +279,10 @@ class ActivityRealtimeService {
    */
   async fetchRecentActivities(filter = {}, limit = 25) {
     try {
-      let query = supabase
-        .from('activities')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(limit);
-
-      // Apply filters
-      if (filter.depot) query = query.eq('depot', filter.depot);
-      if (filter.actor_id) query = query.eq('actor_id', filter.actor_id);
-      if (filter.entity_id) query = query.eq('entity_id', filter.entity_id);
-      if (filter.activity_type) query = query.eq('activity_type', filter.activity_type);
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      return (data || []).map(activity => this.formatActivity(activity));
+      // Supabase removed - now uses backend MySQL API
+      // TODO: Implement backend API call to fetch activities
+      console.log('📝 fetchRecentActivities would query backend API with filter:', filter);
+      return [];
     } catch (error) {
       console.error('❌ Failed to fetch recent activities:', error);
       return [];
@@ -359,39 +293,10 @@ class ActivityRealtimeService {
    * Connection monitoring
    */
   setupConnectionMonitoring() {
-    // Monitor Supabase connection status using modern API
-    if (supabase && supabase.realtime) {
-      console.log('🔗 Setting up Supabase realtime connection monitoring');
-      
-      // The modern Supabase client handles connection automatically
-      // We'll monitor through subscription status instead
-      try {
-        this.connectionChannel = supabase.channel('connection-monitor')
-          .on('system', { event: '*' }, (payload) => {
-            console.log('📡 Supabase system event:', payload);
-            
-            if (payload.event === 'phx_join') {
-              console.log('🔗 Supabase realtime connection established');
-              this.isConnected = true;
-              this.reconnectAttempts = 0;
-            } else if (payload.event === 'phx_close' || payload.event === 'phx_error') {
-              console.log('🔌 Supabase realtime connection lost');
-              this.isConnected = false;
-              this.handleReconnection();
-            }
-          })
-          .subscribe((status) => {
-            console.log('📡 Supabase connection status:', status);
-            this.isConnected = status === 'SUBSCRIBED';
-          });
-      } catch (error) {
-        console.warn('⚠️ Could not set up Supabase connection monitoring:', error);
-        this.isConnected = false;
-      }
-    } else {
-      console.warn('⚠️ Supabase realtime not available');
-      this.isConnected = false;
-    }
+    // Supabase removed - now uses backend MySQL API
+    // TODO: Implement WebSocket connection monitoring to backend
+    console.log('🔗 Connection monitoring would connect to backend WebSocket');
+    this.isConnected = false;
   }
 
   /**

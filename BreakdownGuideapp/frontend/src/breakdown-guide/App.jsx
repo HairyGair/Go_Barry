@@ -15,7 +15,7 @@
  * For licensing enquiries, contact: anthony@gobarry.co.uk
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 
 // Import styles
@@ -30,7 +30,7 @@ import AppHeader from '../shared/AppHeader.jsx';
 // Import supervisorBreakdownLogger and authentication
 import { supervisorBreakdownLogger } from './supervisorBreakdownLogger.js';
 import enhancedAuthService from '../services/enhanced-auth-service.js';
-import SupabaseLogin from './components/SupabaseLogin.jsx';
+import SupervisorLogin from './components/SupervisorLogin.jsx';  // MySQL backend authentication
 import assessmentBroadcaster from '../services/assessmentBroadcaster.js';
 
 // Import components
@@ -136,6 +136,8 @@ const App = () => {
     const [responses, setResponses] = useState({});
     const [assessmentId, setAssessmentId] = useState(null);
     const [assessmentStartTime, setAssessmentStartTime] = useState(null);
+    const [isSubmitting, setIsSubmitting] = useState(false); // Prevent double submission
+    const submissionRef = useRef(false); // Synchronous guard for double-submission
     
     // Fleet selection state
     const [showFleetModal, setShowFleetModal] = useState(false);
@@ -259,6 +261,8 @@ const App = () => {
             setCurrentWizard(pendingWizardType);
             setCurrentStep(1);
             setAssessmentStartTime(new Date().toISOString());
+            setIsSubmitting(false); // Reset submission flag for new wizard
+            submissionRef.current = false; // Reset ref guard
         }
     };
     
@@ -290,6 +294,7 @@ const App = () => {
                                 route: selectedRoute,
                                 routeName: routeName
                             }}
+                            isSubmitting={isSubmitting}
                             onPrint={() => {
                                 console.log('🖨️ Print button clicked');
                                 window.print();
@@ -303,6 +308,20 @@ const App = () => {
                                 }
                             }}
                             onComplete={async () => {
+                                // Synchronous double-submission guard (ref-based, immediate)
+                                if (submissionRef.current) {
+                                    console.log('⚠️ Assessment already submitting (ref guard), ignoring duplicate call');
+                                    return;
+                                }
+                                submissionRef.current = true; // Set immediately before any await
+
+                                // Also check state-based guard for UI updates
+                                if (isSubmitting) {
+                                    console.log('⚠️ Assessment already submitting (state guard), ignoring duplicate call');
+                                    submissionRef.current = false;
+                                    return;
+                                }
+
                                 try {
                                     console.log('🔥 AssessmentSummary onComplete called - Starting completion process...');
                                     console.log('🔍 Current state:', {
@@ -326,6 +345,9 @@ const App = () => {
                                         alert('Error: No vehicle selected. Please restart the assessment and select a vehicle.');
                                         return;
                                     }
+
+                                    // Mark as submitting
+                                    setIsSubmitting(true);
 
                                     // 🎯 COMPREHENSIVE DATA CAPTURE - Capture ALL breakdown data before backend submission
                                     const timestamp = Date.now();
@@ -517,9 +539,14 @@ const App = () => {
                                 setAssessmentDecision(null);
                                 setAssessmentNotes('');
                                 setBreakdownLocation(null);
+                                setIsSubmitting(false); // Reset submission flag
+                                submissionRef.current = false; // Reset ref guard
                                 } catch (error) {
                                     console.error('❌ Critical error in onComplete:', error);
                                     alert(`Error completing assessment: ${error.message}`);
+                                    // Reset guards on error so user can retry
+                                    submissionRef.current = false;
+                                    setIsSubmitting(false);
                                 }
                             }}
                         />
@@ -608,91 +635,16 @@ const App = () => {
                             setAssessmentNotes(finalNotes);
                             setShowSummary(true);
                             console.log('🎯 State updates called - React will re-render');
+                            console.log('ℹ️ User must click "Complete Assessment" button to submit');
 
-                            // 🚀 AUTO-SUBMIT: Automatically submit to backend without requiring button click
-                            console.log('🚀 Auto-submitting assessment to backend...');
-                            setTimeout(async () => {
-                                try {
-                                    console.log('🔥 Starting auto-submission process...');
-                                    console.log('🔍 Current state:', {
-                                        assessmentId,
-                                        selectedVehicle,
-                                        finalDecision,
-                                        breakdownLocation,
-                                        selectedRoute,
-                                        routeName
-                                    });
-
-                                    if (!selectedVehicle || !selectedVehicle.fleetNumber) {
-                                        console.error('❌ No vehicle selected or missing fleet number!');
-                                        console.log('🔍 Current selectedVehicle state:', selectedVehicle);
-                                        return;
-                                    }
-
-                                    // Generate breakdown ID
-                                    const timestamp = Date.now();
-                                    const breakdownId = assessmentId || `BD-${timestamp}`;
-
-                                    // Prepare data for backend submission
-                                    const wizardData = {
-                                        breakdownId: assessmentId,
-                                        decision: finalDecision,
-                                        notes: finalNotes,
-                                        wizardType: wizards[currentWizard]?.title || currentWizard,
-                                        issueCategory: currentWizard,
-                                        fleet_number: selectedVehicle?.fleetNumber,
-                                        route: selectedRoute,
-                                        routeName: routeName,
-                                        assessmentData: {
-                                            responses: responses,
-                                            route: selectedRoute,
-                                            routeName: routeName,
-                                            steps: Object.entries(responses).map(([key, value]) => ({
-                                                question: key,
-                                                answer: value
-                                            }))
-                                        },
-                                        description: `${wizards[currentWizard]?.title || currentWizard} assessment completed with decision: ${finalDecision}${selectedRoute ? ` on route ${selectedRoute}` : ''}`
-                                    };
-
-                                    console.log('🚀 Submitting wizard data to backend:', wizardData);
-
-                                    const result = await supervisorBreakdownLogger.completeAssessment(wizardData);
-
-                                    if (result && result.success) {
-                                        console.log('✅ Auto-submission successful!', result);
-
-                                        // Trigger activity feed refresh
-                                        if (window.homepageDataManager) {
-                                            console.log('🔄 Triggering activity feed refresh...');
-                                            window.homepageDataManager.fetchData();
-                                        }
-
-                                        // Redirect to SDC dashboard with highlighting
-                                        const { navigationService } = await import('../services/navigationService.js');
-                                        const highlightBreakdownId = result.breakdown?.breakdown_id || result.breakdown_id || breakdownId;
-
-                                        navigationService.handleBreakdownGuideCompletion({
-                                            breakdownId: highlightBreakdownId,
-                                            decision: finalDecision,
-                                            wizardType: wizards[currentWizard]?.title || currentWizard,
-                                            supervisorBadge: supervisorSession?.supervisorId || supervisorSession?.badge,
-                                            returnUrl: null
-                                        });
-
-                                        console.log(`🎯 Redirecting to SDC Dashboard with highlight: ${highlightBreakdownId}`);
-                                    } else {
-                                        console.warn('⚠️ Auto-submission returned non-success result:', result);
-                                    }
-                                } catch (error) {
-                                    console.error('❌ Auto-submission failed:', error);
-                                }
-                            }, 1000); // Submit after 1 second to allow summary to render
+                            // AUTO-SUBMIT REMOVED: Was causing duplicate submissions
+                            // User will manually click "Complete Assessment" button instead
+                            // This eliminates the race condition between auto-submit and manual submit
                         }}
                         onCancel={() => {
                             // Broadcast cancellation
                             assessmentBroadcaster.cancelAssessment();
-                            
+
                             setCurrentWizard(null);
                             setAssessmentId(null);
                             setResponses({});
@@ -704,6 +656,8 @@ const App = () => {
                             setBreakdownLocation(null); // Clear location
                             setSelectedRoute(''); // Clear route
                             setRouteName(''); // Clear route name
+                            setIsSubmitting(false); // Reset submission flag
+                            submissionRef.current = false; // Reset ref guard
                             supervisorBreakdownLogger.currentBreakdown = null; // Clear current breakdown
                         }}
                     />
@@ -846,7 +800,7 @@ const App = () => {
     // Show login screen if not authenticated
     if (!supervisorSession) {
         return (
-            <SupabaseLogin
+            <SupervisorLogin
                 onLoginSuccess={(session) => {
                     console.log('Login successful:', session);
                     setSupervisorSession(session);

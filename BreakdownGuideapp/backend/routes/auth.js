@@ -1,32 +1,73 @@
+/**
+ * Go BARRY Breakdown Management System
+ *
+ * Copyright © 2025 Anthony Gair. All Rights Reserved.
+ *
+ * This software is proprietary and confidential. Unauthorized copying,
+ * distribution, modification, or use is strictly prohibited.
+ *
+ * @author Anthony Gair
+ * @license Proprietary
+ */
+
 import express from 'express';
 import dotenv from 'dotenv';
-import { createClient } from '@supabase/supabase-js';
-import { authenticateAdmin } from '../middleware/authMiddleware.js';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import { from, insert, update, remove } from '../utils/queryHelpers.js';
+import { authenticateAdmin, rateLimitLogin, clearLoginAttempts, verifyToken } from '../middleware/authMiddleware.js';
+import { activityLogger, ACTIVITY_TYPES, ACTOR_TYPES, SEVERITY_LEVELS } from '../services/activityLogger.js';
+import dutyManager from '../services/dutyManager.js';
 
 // Load environment variables
 dotenv.config();
 
-// Initialize Supabase client - fail fast if credentials missing
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+// JWT configuration
+const JWT_SECRET = process.env.JWT_SECRET || process.env.SUPABASE_JWT_SECRET;
+const JWT_EXPIRATION = process.env.JWT_EXPIRATION || '24h';
+const BCRYPT_SALT_ROUNDS = 10;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-    console.error('❌ FATAL: Missing Supabase credentials in auth.js');
-    process.exit(1);
+if (!JWT_SECRET) {
+  console.error('❌ FATAL: Missing JWT_SECRET in auth.js');
+  console.error('   Set JWT_SECRET environment variable');
+  process.exit(1);
 }
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 const router = express.Router();
 
-// GET /api/auth/supervisors - Get all supervisors
+/**
+ * Generate JWT token for authenticated user
+ * @param {Object} supervisor - Supervisor object from database
+ * @returns {string} JWT token
+ */
+function generateToken(supervisor) {
+  const payload = {
+    sub: supervisor.id,
+    id: supervisor.id,
+    user_id: supervisor.id,
+    email: supervisor.email,
+    name: supervisor.name,
+    role: supervisor.role || 'supervisor',
+    depot: supervisor.depot,
+    badge_number: supervisor.badge_number,
+    aud: 'authenticated',
+    iat: Math.floor(Date.now() / 1000)
+  };
+
+  return jwt.sign(payload, JWT_SECRET, {
+    expiresIn: JWT_EXPIRATION
+  });
+}
+
+// GET /api/auth/supervisors - Get all active supervisors
 router.get('/supervisors', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('supervisors')
-      .select('id, name, email, role, depot, is_active')
+    const { data, error } = await from('supervisors')
+      .select('id, name, email, role, depot, is_active, badge_number')
       .eq('is_active', true)
-      .order('name');
+      .order('name', 'ASC')
+      .execute();
 
     if (error) throw error;
 
@@ -39,6 +80,7 @@ router.get('/supervisors', async (req, res) => {
       email: supervisor.email,
       role: supervisor.role || 'supervisor',
       depot: supervisor.depot,
+      badge_number: supervisor.badge_number,
       is_active: supervisor.is_active
     }));
 
@@ -52,9 +94,8 @@ router.get('/supervisors', async (req, res) => {
 // GET /api/auth/user/:id - Get specific user
 router.get('/user/:id', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
+    const { data, error } = await from('supervisors')
+      .select('id, name, email, role, depot, is_active, badge_number')
       .eq('id', req.params.id)
       .single();
 
@@ -64,21 +105,28 @@ router.get('/user/:id', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json(data);
+    res.json({
+      id: data.id,
+      username: data.name,
+      full_name: data.name,
+      email: data.email,
+      role: data.role,
+      depot: data.depot,
+      badge_number: data.badge_number,
+      is_active: data.is_active
+    });
   } catch (error) {
     console.error('Error fetching user:', error);
     res.status(500).json({ error: 'Failed to fetch user' });
   }
 });
 
-// GET /api/auth/supervisor/:username - Get supervisor by username  
+// GET /api/auth/supervisor/:username - Get supervisor by username
 router.get('/supervisor/:username', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('users')
+    const { data, error } = await from('supervisors')
       .select('*')
-      .eq('username', req.params.username)
-      .eq('role', 'supervisor')
+      .eq('name', req.params.username)
       .single();
 
     if (error) throw error;
@@ -94,9 +142,8 @@ router.get('/supervisor/:username', async (req, res) => {
   }
 });
 
-
 // POST /api/auth/supervisor-signup - Existing supervisor account activation
-router.post('/supervisor-signup', async (req, res) => {
+router.post('/supervisor-signup', rateLimitLogin, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -128,8 +175,7 @@ router.post('/supervisor-signup', async (req, res) => {
     }
 
     // Check if supervisor exists in our database
-    const { data: existingSupervisor, error: checkError } = await supabase
-      .from('supervisors')
+    const { data: existingSupervisor, error: checkError } = await from('supervisors')
       .select('*')
       .eq('email', email.toLowerCase())
       .eq('is_active', true)
@@ -143,64 +189,34 @@ router.post('/supervisor-signup', async (req, res) => {
       });
     }
 
-    // Check if already linked to an auth user
-    if (existingSupervisor.auth_user_id) {
-      console.log(`❌ Signup failed: Supervisor already has auth account`);
+    // Check if already has a password (already activated)
+    if (existingSupervisor.password_hash) {
+      console.log(`❌ Signup failed: Supervisor already has password`);
       return res.status(409).json({
         error: 'Account already activated. Please use the login page.',
         code: 'ACCOUNT_EXISTS'
       });
     }
 
-    // Create admin client with service key for user creation
-    const supabaseAdmin = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_KEY, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    });
+    // Hash the password
+    const passwordHash = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
 
-    // Create Supabase Auth user using admin API
-    const { data: authData, error: signUpError } = await supabaseAdmin.auth.admin.createUser({
-      email: email.toLowerCase(),
-      password: password,
-      email_confirm: true, // Auto-confirm email for internal users
-      user_metadata: {
-        name: existingSupervisor.name,
-        depot: existingSupervisor.depot,
-        role: existingSupervisor.role || 'supervisor',
-        badge_number: existingSupervisor.badge_number
-      }
-    });
-
-    if (signUpError) {
-      console.error('❌ Failed to create auth user:', signUpError);
-      return res.status(500).json({
-        error: 'Failed to create authentication account. Please try again.',
-        code: 'AUTH_CREATE_FAILED',
-        details: signUpError.message
-      });
-    }
-
-    // Link the auth user to the supervisor record
-    const { error: updateError } = await supabase
-      .from('supervisors')
-      .update({
-        auth_user_id: authData.user.id,
+    // Update supervisor with password hash
+    try {
+      await update('supervisors', {
+        password_hash: passwordHash,
         signup_date: new Date().toISOString(),
         pending_approval: false,
         approved_date: new Date().toISOString(),
         updated_at: new Date().toISOString()
-      })
-      .eq('id', existingSupervisor.id);
-
-    if (updateError) {
-      console.error('❌ Failed to link supervisor to auth user:', updateError);
-      // Try to delete the auth user we just created
-      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      }, {
+        id: existingSupervisor.id
+      });
+    } catch (updateError) {
+      console.error('❌ Failed to activate supervisor account:', updateError);
       return res.status(500).json({
         error: 'Failed to complete account setup. Please try again.',
-        code: 'LINK_FAILED'
+        code: 'ACTIVATION_FAILED'
       });
     }
 
@@ -229,10 +245,10 @@ router.post('/supervisor-signup', async (req, res) => {
   }
 });
 
-// POST /api/auth/login - Supabase authentication login
-router.post('/login', async (req, res) => {
+// POST /api/auth/login - MySQL + JWT authentication login
+router.post('/login', rateLimitLogin, async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, duty } = req.body;
 
     // Validate required fields
     if (!email || !password) {
@@ -242,65 +258,133 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Attempt Supabase authentication
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: email.toLowerCase().trim(),
-      password: password
-    });
+    // Validate duty if provided
+    if (duty && !dutyManager.DUTY_SHIFTS[duty]) {
+      return res.status(400).json({
+        error: 'Invalid duty selected',
+        code: 'INVALID_DUTY'
+      });
+    }
 
-    if (error || !data.user) {
-      // Log failed attempt with generic response
+    // Fetch supervisor by email
+    const { data: supervisor, error: supervisorError } = await from('supervisors')
+      .select('*')
+      .eq('email', email.toLowerCase().trim())
+      .single();
+
+    if (supervisorError || !supervisor) {
       console.warn(`Failed login attempt for email: ${email}`);
-
       return res.status(401).json({
         error: 'Invalid credentials. Please check your email and password.',
         code: 'AUTH_FAILED'
       });
     }
 
-    // Check if user is authorized supervisor
-    const { data: supervisor, error: supervisorError } = await supabase
-      .from('supervisors')
-      .select('*')
-      .eq('email', email.toLowerCase())
-      .single();
+    // Check if supervisor has a password hash
+    if (!supervisor.password_hash) {
+      console.warn(`Login attempt for unactivated account: ${email}`);
+      return res.status(401).json({
+        error: 'Account not activated. Please complete signup first.',
+        code: 'ACCOUNT_NOT_ACTIVATED'
+      });
+    }
 
-    if (supervisorError || !supervisor) {
-      // User authenticated with Supabase but not authorized in our system
-      console.warn(`Unauthorized authenticated user: ${email}`);
+    // Verify password
+    const passwordMatch = await bcrypt.compare(password, supervisor.password_hash);
 
-      // Sign them out of Supabase
-      await supabase.auth.signOut();
-
+    if (!passwordMatch) {
+      console.warn(`Failed login attempt (wrong password) for email: ${email}`);
       return res.status(401).json({
         error: 'Invalid credentials. Please check your email and password.',
         code: 'AUTH_FAILED'
       });
+    }
+
+    // Check if supervisor is active
+    if (!supervisor.is_active) {
+      console.warn(`Login attempt for inactive account: ${email}`);
+      return res.status(403).json({
+        error: 'Account is inactive. Please contact your administrator.',
+        code: 'ACCOUNT_INACTIVE'
+      });
+    }
+
+    // Generate JWT token
+    const token = generateToken(supervisor);
+
+    // Calculate expiration timestamp
+    const expiresIn = 24 * 60 * 60; // 24 hours in seconds
+    const expiresAt = Math.floor(Date.now() / 1000) + expiresIn;
+
+    // Start shift if duty provided
+    let shiftInfo = null;
+    if (duty) {
+      try {
+        shiftInfo = await dutyManager.startShift({
+          supervisorId: supervisor.id,
+          supervisorName: supervisor.name,
+          supervisorBadge: supervisor.badge_number,
+          duty
+        });
+        console.log(`✅ Shift started: ${supervisor.name} on ${duty} (ends at ${shiftInfo.shiftEnd.toLocaleTimeString()})`);
+      } catch (shiftError) {
+        console.error('Error starting shift:', shiftError);
+        // Don't fail login if shift start fails
+      }
     }
 
     // Successful authentication
     const sessionData = {
-      user_id: data.user.id,
+      user_id: supervisor.id,
       supervisorId: supervisor.id,
       username: supervisor.name,
       full_name: supervisor.name,
       name: supervisor.name,
       email: supervisor.email,
       depot: supervisor.depot,
-      role: supervisor.role,
+      role: supervisor.role || 'supervisor',
+      badge_number: supervisor.badge_number,
+      current_duty: duty || supervisor.current_duty || null,
+      duty_end_time: shiftInfo ? shiftInfo.shiftEnd.toISOString() : null,
       login_time: new Date().toISOString(),
-      access_token: data.session.access_token,
-      refresh_token: data.session.refresh_token,
-      expires_at: data.session.expires_at
+      access_token: token,
+      expires_at: expiresAt
     };
 
+    // Clear rate limit on successful login
+    req.clearLoginAttempts = true;
+
     // Log successful authentication
-    console.log(`✅ Successful login: ${supervisor.name} (${supervisor.email})`);
+    console.log(`✅ Successful login: ${supervisor.name} (${supervisor.email})${duty ? ` - ${duty}` : ''}`);
+
+    // Log login activity to Activity Feed
+    await activityLogger.logActivity({
+      activityType: ACTIVITY_TYPES.USER_LOGIN,
+      action: duty ? `logged in and started ${duty}` : 'logged in',
+      actorType: ACTOR_TYPES.SUPERVISOR,
+      actorId: supervisor.badge_number || supervisor.id,
+      actorName: supervisor.name,
+      depot: supervisor.depot,
+      severity: SEVERITY_LEVELS.INFO,
+      source: 'authentication',
+      metadata: {
+        email: supervisor.email,
+        role: supervisor.role,
+        duty: duty || null,
+        shiftEnd: shiftInfo ? shiftInfo.shiftEnd.toISOString() : null,
+        loginTime: sessionData.login_time
+      }
+    });
 
     res.json({
       success: true,
       user: sessionData,
-      session: data.session,
+      session: {
+        access_token: token,
+        expires_at: expiresAt,
+        expires_in: expiresIn,
+        token_type: 'Bearer'
+      },
       message: 'Login successful'
     });
   } catch (error) {
@@ -312,8 +396,8 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// POST /api/auth/signup - Supervisor signup endpoint
-router.post('/signup', async (req, res) => {
+// POST /api/auth/signup - New supervisor signup endpoint
+router.post('/signup', rateLimitLogin, async (req, res) => {
   try {
     const { email, password, fullName, badgeNumber, depot, role = 'supervisor' } = req.body;
 
@@ -343,106 +427,64 @@ router.post('/signup', async (req, res) => {
       });
     }
 
-    // Check if supervisor already exists in supervisors table
-    const { data: existingSupervisor, error: checkError } = await supabase
-      .from('supervisors')
-      .select('email, badge_number')
-      .or(`email.eq.${email.toLowerCase()},badge_number.eq.${badgeNumber.toUpperCase()}`);
-
-    if (checkError && checkError.code !== 'PGRST116') {
-      // PGRST116 means no rows found, which is expected for new users
-      console.error('Error checking existing supervisor:', checkError);
-      return res.status(500).json({
-        error: 'Failed to validate signup data. Please try again.',
-        code: 'VALIDATION_ERROR'
+    // Validate password strength
+    if (password.length < 8) {
+      return res.status(400).json({
+        error: 'Password must be at least 8 characters long',
+        code: 'WEAK_PASSWORD'
       });
     }
 
-    if (existingSupervisor && existingSupervisor.length > 0) {
-      const existing = existingSupervisor[0];
-      if (existing.email === email.toLowerCase()) {
-        return res.status(409).json({
-          error: 'An account with this email address already exists',
-          code: 'EMAIL_EXISTS'
-        });
-      }
-      if (existing.badge_number === badgeNumber.toUpperCase()) {
-        return res.status(409).json({
-          error: 'An account with this badge number already exists',
-          code: 'BADGE_EXISTS'
-        });
-      }
-    }
+    // Check if supervisor already exists
+    const { data: existingSupervisor, error: checkError } = await from('supervisors')
+      .select('email, badge_number')
+      .execute();
 
-    // Create auth user in Supabase (will be pending until approved)
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: email.toLowerCase(),
-      password: password,
-      options: {
-        data: {
-          full_name: fullName,
-          badge_number: badgeNumber.toUpperCase(),
-          depot: depot || 'SDC',
-          role: role,
-          signup_date: new Date().toISOString(),
-          pending_approval: true
+    if (!checkError && existingSupervisor) {
+      const existing = existingSupervisor.find(
+        s => s.email === email.toLowerCase() || s.badge_number === badgeNumber.toUpperCase()
+      );
+
+      if (existing) {
+        if (existing.email === email.toLowerCase()) {
+          return res.status(409).json({
+            error: 'An account with this email address already exists',
+            code: 'EMAIL_EXISTS'
+          });
+        }
+        if (existing.badge_number === badgeNumber.toUpperCase()) {
+          return res.status(409).json({
+            error: 'An account with this badge number already exists',
+            code: 'BADGE_EXISTS'
+          });
         }
       }
-    });
-
-    if (authError) {
-      console.error('Supabase auth user creation error:', authError);
-      
-      // Handle specific auth errors
-      if (authError.status === 422 && authError.code === 'user_already_exists') {
-        return res.status(409).json({
-          error: 'An account with this email address already exists. Please use a different email or try logging in.',
-          code: 'EMAIL_EXISTS'
-        });
-      }
-      
-      // Handle other auth errors
-      let errorMessage = 'Failed to create user account. Please try again.';
-      if (authError.message && authError.message.includes('Invalid email')) {
-        errorMessage = 'Please enter a valid email address.';
-      } else if (authError.message && authError.message.includes('Password')) {
-        errorMessage = 'Password must be at least 6 characters long.';
-      }
-      
-      return res.status(500).json({
-        error: errorMessage,
-        code: 'AUTH_CREATE_FAILED'
-      });
     }
 
-    // Add supervisor to supervisors table with pending approval status
-    const { data: supervisorData, error: supervisorError } = await supabase
-      .from('supervisors')
-      .insert({
+    // Hash password
+    const passwordHash = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
+
+    // Generate UUID for new supervisor
+    const supervisorId = crypto.randomUUID();
+
+    // Insert new supervisor (pending approval by default)
+    try {
+      await insert('supervisors', {
+        id: supervisorId,
         email: email.toLowerCase(),
         name: fullName,
         badge_number: badgeNumber.toUpperCase(),
         depot: depot || 'SDC',
         role: role,
+        password_hash: passwordHash,
         is_active: false, // Pending approval
         pending_approval: true,
         signup_date: new Date().toISOString(),
-        auth_user_id: authData.user.id
-      })
-      .select()
-      .single();
-
-    if (supervisorError) {
-      console.error('Supervisor table insert error:', supervisorError);
-
-      // Clean up auth user if supervisor creation fails
-      try {
-        // We can't easily delete the auth user with anon key, so just log the issue
-        console.warn('Auth user created but supervisor record failed. Manual cleanup may be needed for:', email);
-      } catch (cleanupError) {
-        console.error('Failed to cleanup auth user:', cleanupError);
-      }
-
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+    } catch (insertError) {
+      console.error('Supervisor insert error:', insertError);
       return res.status(500).json({
         error: 'Failed to create supervisor record. Please try again.',
         code: 'SUPERVISOR_CREATE_FAILED'
@@ -452,18 +494,15 @@ router.post('/signup', async (req, res) => {
     // Log successful signup
     console.log(`🆕 New supervisor signup: ${fullName} (${email}) - Badge: ${badgeNumber}`);
 
-    // TODO: Send email notification to admins about new signup
-    // This could be enhanced to send email notifications to administrators
-
     res.status(201).json({
       success: true,
       message: 'Signup successful! Your account is pending approval.',
       supervisor: {
-        id: supervisorData.id,
-        name: supervisorData.name,
-        email: supervisorData.email,
-        badge_number: supervisorData.badge_number,
-        depot: supervisorData.depot,
+        id: supervisorId,
+        name: fullName,
+        email: email.toLowerCase(),
+        badge_number: badgeNumber.toUpperCase(),
+        depot: depot || 'SDC',
         pending_approval: true
       }
     });
@@ -480,19 +519,56 @@ router.post('/signup', async (req, res) => {
 // POST /api/auth/logout - Logout endpoint
 router.post('/logout', async (req, res) => {
   try {
+    let supervisorInfo = null;
+
     // Extract token from Authorization header
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
 
-      // Sign out from Supabase
-      const { error } = await supabase.auth.signOut(token);
-      if (error) {
-        console.warn('Supabase logout error:', error.message);
+      try {
+        // Decode token to get user info (don't verify, just decode)
+        const decoded = jwt.decode(token);
+
+        if (decoded && decoded.id) {
+          // Fetch supervisor details
+          const { data: supervisor } = await from('supervisors')
+            .select('*')
+            .eq('id', decoded.id)
+            .single();
+
+          supervisorInfo = supervisor;
+        }
+      } catch (decodeError) {
+        console.warn('Error decoding token during logout:', decodeError.message);
       }
     }
 
-    console.log('👋 User logged out successfully');
+    // Log logout activity to Activity Feed
+    if (supervisorInfo) {
+      await activityLogger.logActivity({
+        activityType: ACTIVITY_TYPES.USER_LOGOUT,
+        action: 'logged out',
+        actorType: ACTOR_TYPES.SUPERVISOR,
+        actorId: supervisorInfo.badge_number || supervisorInfo.id,
+        actorName: supervisorInfo.name,
+        depot: supervisorInfo.depot,
+        severity: SEVERITY_LEVELS.INFO,
+        source: 'authentication',
+        metadata: {
+          email: supervisorInfo.email,
+          role: supervisorInfo.role,
+          logoutTime: new Date().toISOString()
+        }
+      });
+      console.log(`👋 User logged out: ${supervisorInfo.name} (${supervisorInfo.email})`);
+    } else {
+      console.log('👋 User logged out successfully');
+    }
+
+    // Note: JWT tokens are stateless, so we don't invalidate them server-side
+    // The client should discard the token
+    // To implement token blacklisting, you would add the token to a blacklist here
 
     res.json({
       success: true,
@@ -511,24 +587,22 @@ router.post('/logout', async (req, res) => {
 router.post('/verify', async (req, res) => {
   try {
     const { session_token, username } = req.body;
-    
+
     if (!username) {
       return res.status(400).json({ error: 'Username is required for verification' });
     }
 
     // Verify user exists and is active
-    const { data: supervisor, error } = await supabase
-      .from('users')
-      .select('id, username, full_name, role, is_active')
-      .eq('username', username)
-      .eq('role', 'supervisor')
+    const { data: supervisor, error } = await from('supervisors')
+      .select('id, name, email, role, is_active, badge_number')
+      .eq('name', username)
       .eq('is_active', true)
       .single();
 
     if (error || !supervisor) {
-      return res.status(401).json({ 
-        valid: false, 
-        error: 'Invalid session' 
+      return res.status(401).json({
+        valid: false,
+        error: 'Invalid session'
       });
     }
 
@@ -536,9 +610,11 @@ router.post('/verify', async (req, res) => {
       valid: true,
       user: {
         id: supervisor.id,
-        username: supervisor.username,
-        full_name: supervisor.full_name,
-        role: supervisor.role
+        username: supervisor.name,
+        full_name: supervisor.name,
+        role: supervisor.role,
+        email: supervisor.email,
+        badge_number: supervisor.badge_number
       },
       message: 'Session verified'
     });
@@ -552,35 +628,51 @@ router.post('/verify', async (req, res) => {
 router.get('/validate', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
-    
-    if (!authHeader) {
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({ error: 'No authorization header' });
     }
 
-    // In a full implementation, validate JWT token here
-    // For now, return success for development
-    res.json({
-      valid: true,
-      message: 'Session valid'
-    });
+    const token = authHeader.substring(7);
+
+    // Verify JWT token
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+
+      res.json({
+        valid: true,
+        user: {
+          id: decoded.id,
+          email: decoded.email,
+          name: decoded.name,
+          role: decoded.role
+        },
+        message: 'Session valid'
+      });
+    } catch (jwtError) {
+      return res.status(401).json({
+        valid: false,
+        error: 'Invalid or expired token'
+      });
+    }
   } catch (error) {
     console.error('Error validating session:', error);
     res.status(500).json({ error: 'Session validation failed' });
   }
 });
 
-// GET /api/auth/depots - Get list of depots from users
+// GET /api/auth/depots - Get list of depots
 router.get('/depots', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('users')
+    const { data, error } = await from('supervisors')
       .select('depot')
-      .not('depot', 'is', null);
+      .notNull('depot')
+      .execute();
 
     if (error) throw error;
 
     // Get unique depots
-    const depots = [...new Set(data.map(user => user.depot))].sort();
+    const depots = [...new Set(data.map(supervisor => supervisor.depot))].sort();
 
     res.json(depots);
   } catch (error) {
@@ -594,14 +686,11 @@ router.get('/recent-sessions', async (req, res) => {
   try {
     const { limit = 10 } = req.query;
 
-    // Since sessions are managed in memory, we'll provide basic session info
-    // This could be enhanced to track actual session data if needed
-    const { data, error } = await supabase
-      .from('users')
-      .select('id, full_name, username, depot')
+    const { data, error } = await from('supervisors')
+      .select('id, name, email, depot, badge_number')
       .eq('is_active', true)
-      .eq('role', 'supervisor')
-      .limit(parseInt(limit));
+      .limit(parseInt(limit))
+      .execute();
 
     if (error) throw error;
 
@@ -623,11 +712,11 @@ router.get('/recent-sessions', async (req, res) => {
 // GET /api/auth/pending-signups - Get all pending supervisor signups (Admin only)
 router.get('/pending-signups', authenticateAdmin, async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('supervisors')
+    const { data, error } = await from('supervisors')
       .select('*')
       .eq('pending_approval', true)
-      .order('signup_date', { ascending: false });
+      .order('signup_date', 'DESC')
+      .execute();
 
     if (error) throw error;
 
@@ -658,8 +747,7 @@ router.post('/approve-signup', authenticateAdmin, async (req, res) => {
     }
 
     // Get the supervisor record
-    const { data: supervisor, error: fetchError } = await supabase
-      .from('supervisors')
+    const { data: supervisor, error: fetchError } = await from('supervisors')
       .select('*')
       .eq('id', supervisorId)
       .single();
@@ -680,32 +768,16 @@ router.post('/approve-signup', authenticateAdmin, async (req, res) => {
 
     if (approved) {
       // Approve the supervisor
-      const { error: updateError } = await supabase
-        .from('supervisors')
-        .update({
+      try {
+        await update('supervisors', {
           is_active: true,
           pending_approval: false,
           approved_date: new Date().toISOString()
-        })
-        .eq('id', supervisorId);
-
-      if (updateError) throw updateError;
-
-      // Update auth user to confirm email
-      if (supervisor.auth_user_id) {
-        try {
-          await supabase.auth.admin.updateUserById(supervisor.auth_user_id, {
-            email_confirm: true,
-            user_metadata: {
-              ...supervisor,
-              pending_approval: false,
-              approved: true,
-              approved_date: new Date().toISOString()
-            }
-          });
-        } catch (authUpdateError) {
-          console.warn('Failed to update auth user:', authUpdateError);
-        }
+        }, {
+          id: supervisorId
+        });
+      } catch (updateError) {
+        throw updateError;
       }
 
       console.log(`✅ Supervisor approved: ${supervisor.name} (${supervisor.email})`);
@@ -722,22 +794,11 @@ router.post('/approve-signup', authenticateAdmin, async (req, res) => {
         }
       });
     } else {
-      // Reject the supervisor - delete from both tables
-      // Delete from supervisors table
-      const { error: deleteError } = await supabase
-        .from('supervisors')
-        .delete()
-        .eq('id', supervisorId);
-
-      if (deleteError) throw deleteError;
-
-      // Delete auth user
-      if (supervisor.auth_user_id) {
-        try {
-          await supabase.auth.admin.deleteUser(supervisor.auth_user_id);
-        } catch (authDeleteError) {
-          console.warn('Failed to delete auth user:', authDeleteError);
-        }
+      // Reject the supervisor - delete from table
+      try {
+        await remove('supervisors', { id: supervisorId });
+      } catch (deleteError) {
+        throw deleteError;
       }
 
       console.log(`❌ Supervisor rejected: ${supervisor.name} (${supervisor.email})`);
@@ -776,28 +837,31 @@ router.put('/supervisor/:id', authenticateAdmin, async (req, res) => {
     if (role !== undefined) updateData.role = role;
     if (is_active !== undefined) updateData.is_active = is_active;
 
-    const { data, error } = await supabase
-      .from('supervisors')
-      .update(updateData)
+    try {
+      await update('supervisors', updateData, { id: supervisorId });
+    } catch (error) {
+      throw error;
+    }
+
+    // Fetch updated supervisor
+    const { data: updatedSupervisor } = await from('supervisors')
+      .select('*')
       .eq('id', supervisorId)
-      .select()
       .single();
 
-    if (error) throw error;
-
-    if (!data) {
+    if (!updatedSupervisor) {
       return res.status(404).json({
         error: 'Supervisor not found',
         code: 'SUPERVISOR_NOT_FOUND'
       });
     }
 
-    console.log(`🔄 Supervisor updated: ${data.name} (${data.email})`);
+    console.log(`🔄 Supervisor updated: ${updatedSupervisor.name} (${updatedSupervisor.email})`);
 
     res.json({
       success: true,
       message: 'Supervisor updated successfully',
-      supervisor: data
+      supervisor: updatedSupervisor
     });
 
   } catch (error) {
@@ -830,34 +894,41 @@ router.post('/change-password', async (req, res) => {
       });
     }
 
-    // Verify current password by attempting to sign in
-    const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
-      email: email.toLowerCase(),
-      password: currentPassword
-    });
+    // Fetch supervisor
+    const { data: supervisor, error: fetchError } = await from('supervisors')
+      .select('*')
+      .eq('email', email.toLowerCase())
+      .single();
 
-    if (signInError || !authData.user) {
+    if (fetchError || !supervisor) {
+      return res.status(404).json({
+        error: 'Supervisor not found',
+        code: 'SUPERVISOR_NOT_FOUND'
+      });
+    }
+
+    // Verify current password
+    const passwordMatch = await bcrypt.compare(currentPassword, supervisor.password_hash);
+
+    if (!passwordMatch) {
       return res.status(401).json({
         error: 'Current password is incorrect',
         code: 'INVALID_PASSWORD'
       });
     }
 
-    // Create admin client to update password
-    const supabaseAdmin = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_KEY, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    });
+    // Hash new password
+    const newPasswordHash = await bcrypt.hash(newPassword, BCRYPT_SALT_ROUNDS);
 
-    // Update password using admin API
-    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
-      authData.user.id,
-      { password: newPassword }
-    );
-
-    if (updateError) {
+    // Update password
+    try {
+      await update('supervisors', {
+        password_hash: newPasswordHash,
+        updated_at: new Date().toISOString()
+      }, {
+        id: supervisor.id
+      });
+    } catch (updateError) {
       console.error('❌ Failed to update password:', updateError);
       return res.status(500).json({
         error: 'Failed to update password. Please try again.',
@@ -887,14 +958,14 @@ router.post('/change-password', async (req, res) => {
 router.get('/supervisors/:id/stats', async (req, res) => {
   try {
     const supervisorId = req.params.id;
-    
+
     // Get supervisor details first
-    const { data: supervisor, error: supervisorError } = await supabase
-      .from('supervisors')
+    const { data: supervisor, error: supervisorError } = await from('supervisors')
       .select('*')
-      .or(`id.eq.${supervisorId},badge_number.eq.${supervisorId}`)
+      .eq('id', supervisorId)
+      .or(`badge_number.eq.${supervisorId}`)
       .single();
-    
+
     if (supervisorError || !supervisor) {
       console.log(`Supervisor not found: ${supervisorId}`);
       return res.status(404).json({
@@ -902,40 +973,40 @@ router.get('/supervisors/:id/stats', async (req, res) => {
         code: 'SUPERVISOR_NOT_FOUND'
       });
     }
-    
+
     // Get breakdown counts for this supervisor
     const today = new Date().toISOString().split('T')[0];
-    
+
     // Get active breakdowns
-    const { data: activeBreakdowns, error: activeError } = await supabase
-      .from('breakdowns')
-      .select('id', { count: 'exact' })
+    const { data: activeBreakdowns } = await from('breakdowns')
+      .select('id')
       .eq('supervisor_id', supervisor.id)
-      .in('status', ['in_progress', 'pending', 'dispatched']);
-    
+      .in('status', ['in_progress', 'pending', 'dispatched'])
+      .execute();
+
     // Get today's breakdowns
-    const { data: todayBreakdowns, error: todayError } = await supabase
-      .from('breakdowns')
-      .select('id', { count: 'exact' })
+    const { data: todayBreakdowns } = await from('breakdowns')
+      .select('id')
       .eq('supervisor_id', supervisor.id)
-      .gte('created_at', `${today}T00:00:00`);
-    
+      .gte('created_at', `${today}T00:00:00`)
+      .execute();
+
     // Get resolved breakdowns
-    const { data: resolvedBreakdowns, error: resolvedError } = await supabase
-      .from('breakdowns')
-      .select('id', { count: 'exact' })
+    const { data: resolvedBreakdowns } = await from('breakdowns')
+      .select('id')
       .eq('supervisor_id', supervisor.id)
-      .eq('status', 'completed');
-    
+      .eq('status', 'completed')
+      .execute();
+
     // Calculate response time (mock for now)
     const avgResponseMinutes = Math.floor(Math.random() * 15) + 5;
     const responseTime = `00:${String(avgResponseMinutes).padStart(2, '0')}`;
-    
+
     // Fleet health metrics (mock for now)
     const fleetHealth = 85 + Math.floor(Math.random() * 15);
     const onRoute = Math.floor(Math.random() * 50) + 150;
     const depotCount = Math.floor(Math.random() * 10) + 5;
-    
+
     const stats = {
       active: activeBreakdowns?.length || 0,
       today: todayBreakdowns?.length || 0,
@@ -948,10 +1019,10 @@ router.get('/supervisors/:id/stats', async (req, res) => {
       supervisorName: supervisor.name,
       supervisorDepot: supervisor.depot
     };
-    
+
     console.log(`📊 Supervisor stats fetched for ${supervisor.name} (${supervisorId})`);
     res.json(stats);
-    
+
   } catch (error) {
     console.error('Error fetching supervisor stats:', error);
     res.status(500).json({
@@ -986,44 +1057,13 @@ router.post('/admin/reset-password', authenticateAdmin, async (req, res) => {
       });
     }
 
-    // Get service role key for admin operations
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_KEY;
+    // Find supervisor by email
+    const { data: supervisor, error: findError } = await from('supervisors')
+      .select('*')
+      .eq('email', email.toLowerCase())
+      .single();
 
-    console.log('🔍 Service role key check:', {
-      hasServiceKey: !!process.env.SUPABASE_SERVICE_KEY,
-      keyLength: serviceRoleKey ? serviceRoleKey.length : 0
-    });
-
-    if (!serviceRoleKey || serviceRoleKey === 'your-service-role-key-here') {
-      console.error('❌ SUPABASE_SERVICE_KEY not configured');
-      return res.status(500).json({
-        success: false,
-        error: 'Admin API not properly configured - service role key missing',
-        code: 'SERVICE_KEY_MISSING',
-        debug: {
-          hasServiceKey: !!process.env.SUPABASE_SERVICE_KEY
-        }
-      });
-    }
-
-    // Create admin client with service role key
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
-
-    // Find user by email
-    const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
-
-    if (listError) {
-      console.error('❌ Error listing users:', listError);
-      return res.status(500).json({
-        success: false,
-        error: 'Failed to find user',
-        code: 'USER_LOOKUP_ERROR'
-      });
-    }
-
-    const user = users.find(u => u.email?.toLowerCase() === email.toLowerCase());
-
-    if (!user) {
+    if (findError || !supervisor) {
       return res.status(404).json({
         success: false,
         error: 'User not found with that email',
@@ -1031,13 +1071,18 @@ router.post('/admin/reset-password', authenticateAdmin, async (req, res) => {
       });
     }
 
-    // Update password using admin API
-    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
-      user.id,
-      { password: newPassword }
-    );
+    // Hash new password
+    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_SALT_ROUNDS);
 
-    if (updateError) {
+    // Update password
+    try {
+      await update('supervisors', {
+        password_hash: passwordHash,
+        updated_at: new Date().toISOString()
+      }, {
+        id: supervisor.id
+      });
+    } catch (updateError) {
       console.error('❌ Failed to update password:', updateError);
       return res.status(500).json({
         success: false,
@@ -1053,8 +1098,8 @@ router.post('/admin/reset-password', authenticateAdmin, async (req, res) => {
       success: true,
       message: 'Password updated successfully',
       user: {
-        email: user.email,
-        id: user.id
+        email: supervisor.email,
+        id: supervisor.id
       }
     });
 
@@ -1067,6 +1112,200 @@ router.post('/admin/reset-password', authenticateAdmin, async (req, res) => {
       code: 'RESET_ERROR',
       details: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+// Apply rate limit clearing middleware after successful login
+router.use(clearLoginAttempts);
+
+// GET /api/auth/duties - Get available duty shifts
+router.get('/duties', async (req, res) => {
+  try {
+    const duties = Object.values(dutyManager.DUTY_SHIFTS).map(duty => ({
+      code: duty.code,
+      startTime: duty.startTime,
+      endTime: duty.endTime,
+      description: duty.description
+    }));
+
+    res.json({
+      success: true,
+      duties
+    });
+  } catch (error) {
+    console.error('Error fetching duties:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch duties'
+    });
+  }
+});
+
+// GET /api/auth/shift-warning - Check if supervisor should see shift ending warning
+router.get('/shift-warning', async (req, res) => {
+  try {
+    const supervisorId = req.user?.id || req.query.supervisorId;
+
+    if (!supervisorId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Supervisor ID required'
+      });
+    }
+
+    const warning = await dutyManager.checkShiftEndingWarning(supervisorId);
+
+    res.json({
+      success: true,
+      warning: warning || { shouldWarn: false }
+    });
+  } catch (error) {
+    console.error('Error checking shift warning:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to check shift warning'
+    });
+  }
+});
+
+// POST /api/auth/end-shift - End supervisor's current shift
+router.post('/end-shift', async (req, res) => {
+  try {
+    const supervisorId = req.user?.id || req.body.supervisorId;
+
+    if (!supervisorId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Supervisor ID required'
+      });
+    }
+
+    const result = await dutyManager.endShift(supervisorId);
+
+    res.json({
+      success: true,
+      message: `Shift ended for ${result.supervisorName}`,
+      data: result
+    });
+  } catch (error) {
+    console.error('Error ending shift:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to end shift'
+    });
+  }
+});
+
+// GET /api/auth/active-supervisors - Get supervisors currently on shift
+router.get('/active-supervisors', async (req, res) => {
+  try {
+    const { duty } = req.query;
+    const supervisors = await dutyManager.getActiveSupervisors(duty);
+
+    res.json({
+      success: true,
+      supervisors,
+      count: supervisors.length
+    });
+  } catch (error) {
+    console.error('Error fetching active supervisors:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch active supervisors'
+    });
+  }
+});
+
+// GET /api/auth/shift-history - Get shift history for reporting
+router.get('/shift-history', async (req, res) => {
+  try {
+    const filters = {
+      supervisorId: req.query.supervisorId,
+      duty: req.query.duty,
+      startDate: req.query.startDate,
+      endDate: req.query.endDate,
+      limit: req.query.limit ? parseInt(req.query.limit) : 50
+    };
+
+    const history = await dutyManager.getShiftHistory(filters);
+
+    res.json({
+      success: true,
+      history,
+      count: history.length
+    });
+  } catch (error) {
+    console.error('Error fetching shift history:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch shift history'
+    });
+  }
+});
+
+// Set duty after login
+// POST /api/auth/set-duty
+router.post('/set-duty', verifyToken, async (req, res) => {
+  try {
+    const { duty } = req.body;
+    const supervisorId = req.user.id;
+
+    if (!duty) {
+      return res.status(400).json({
+        success: false,
+        error: 'Duty code is required'
+      });
+    }
+
+    // Validate duty code
+    if (!dutyManager.DUTY_SHIFTS[duty]) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid duty code: ${duty}`
+      });
+    }
+
+    // Get supervisor details
+    const supervisorResult = await query(
+      'SELECT id, name, badge_number FROM supervisors WHERE id = ?',
+      [supervisorId]
+    );
+
+    if (supervisorResult.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Supervisor not found'
+      });
+    }
+
+    const supervisor = supervisorResult[0];
+
+    // Start the shift
+    const shiftInfo = await dutyManager.startShift({
+      supervisorId: supervisor.id,
+      supervisorName: supervisor.name,
+      supervisorBadge: supervisor.badge_number,
+      duty: duty
+    });
+
+    console.log(`✅ Duty set after login: ${supervisor.name} -> ${duty}`);
+
+    res.json({
+      success: true,
+      duty: duty,
+      shiftInfo: {
+        duty: shiftInfo.duty,
+        shiftStart: shiftInfo.shiftStart,
+        shiftEnd: shiftInfo.shiftEnd
+      }
+    });
+
+  } catch (error) {
+    console.error('Error setting duty:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to set duty'
     });
   }
 });

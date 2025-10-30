@@ -1,5 +1,6 @@
 import React, { useState, memo } from 'react';
 import { getWizardInfo } from './utils/wizardTypeMapping';
+import DepotContactBadge from '../../components/DepotContactBadge';
 
 const SDCBreakdownCard = memo(({ 
   breakdown, 
@@ -181,6 +182,15 @@ const SDCBreakdownCard = memo(({
         <div className="info-item">
           <span className="info-label">Depot</span>
           <span className="info-value">{breakdown.depot_display || breakdown.depot_id || 'Unknown'}</span>
+        </div>
+        <div className="info-item full-width">
+          <DepotContactBadge
+            fleetNumber={breakdown.fleet_no || breakdown.fleet_number}
+            depot={breakdown.depot_display || breakdown.depot_id}
+            size="small"
+            showDepotName={false}
+            variant="inline"
+          />
         </div>
         <div className="info-item">
           <span className="info-label">Supervisor</span>

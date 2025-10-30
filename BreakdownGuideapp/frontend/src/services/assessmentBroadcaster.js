@@ -4,11 +4,12 @@
  *
  * This service bridges the gap between the breakdown guide wizards
  * and the SDC Operations Dashboard, enabling live tracking of assessments
+ * Supabase removed - now uses backend MySQL API with WebSocket
  */
 
-import { supabase } from './supabase-client.js';
+// Supabase import removed - no longer using Supabase for authentication
 
-const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://breakdown-guide.onrender.com';
+const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://breakdowns.gobarry.co.uk/api';
 
 class AssessmentBroadcaster {
     constructor() {
@@ -167,9 +168,9 @@ class AssessmentBroadcaster {
      */
     async connectWebSocket() {
         try {
-            // Get authentication token from Supabase session
-            const { data: { session } } = await supabase.auth.getSession();
-            const token = session?.access_token;
+            // Supabase removed - now uses backend MySQL API
+            // TODO: Get authentication token from backend session
+            const token = localStorage.getItem('auth_token') || 'temp-token';
 
             if (!token) {
                 console.warn('⚠️ No authentication token available for WebSocket connection');

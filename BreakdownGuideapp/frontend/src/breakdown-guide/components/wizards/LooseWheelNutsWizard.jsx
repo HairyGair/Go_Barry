@@ -4,7 +4,7 @@ import constants from '../common/constants.js';
 
 // Loose Wheel Nuts Wizard Component - CRITICAL SAFETY EMERGENCY
 // Uses icons and constants from common components
-// Follows SDC Engineering Issues Guide v1.3 - Loose Wheel Nuts Section (Page 28)
+// Follows operational safety procedures v1.3 - Loose Wheel Nuts Section (Page 28)
 // DVSA Categorisation: DANGEROUS DEFECT - Immediate Prohibition (Category I)
 
 const LooseWheelNutsWizard = ({ currentStep, responses, updateResponse, onNext, onPrevious, onComplete }) => {
@@ -20,7 +20,7 @@ const LooseWheelNutsWizard = ({ currentStep, responses, updateResponse, onNext, 
                             <AlertTriangle className="w-12 h-12 text-red-400" />
                         </div>
                         <h2 className="text-3xl font-bold text-white mb-4">🚨 LOOSE WHEEL NUTS - CRITICAL SAFETY EMERGENCY</h2>
-                        <p className="text-gray-300 text-lg">Immediate safety protocol for wheel nut security failure - following SDC Engineering Issues Guide v1.3 critical safety procedures.</p>
+                        <p className="text-gray-300 text-lg">Immediate safety protocol for wheel nut security failure - following operational safety procedures v1.3 critical safety procedures.</p>
                         <p className="text-red-300 text-sm mt-2 font-semibold">⚠️ DVSA Classification: DANGEROUS DEFECT requiring immediate prohibition</p>
                     </div>
                     
@@ -363,7 +363,7 @@ const LooseWheelNutsWizard = ({ currentStep, responses, updateResponse, onNext, 
                                             </div>
                                             <div className="mt-6 p-4 bg-red-600/40 backdrop-blur-sm rounded">
                                                 <p className="font-bold text-red-100 text-lg">🚫 SDC ZERO TOLERANCE: Vehicle must NOT continue under any circumstances</p>
-                                                <p className="text-red-200/80 text-sm mt-1">As per SDC Guide v1.3 Page 28: "Under no circumstances should the vehicle continue in service with loose wheel nuts"</p>
+                                                <p className="text-red-200/80 text-sm mt-1">As per standard operational procedures v1.3 Page 28: "Under no circumstances should the vehicle continue in service with loose wheel nuts"</p>
                                             </div>
                                         </div>
                                     </div>
@@ -566,7 +566,7 @@ const LooseWheelNutsWizard = ({ currentStep, responses, updateResponse, onNext, 
                     <div className="bg-red-500/20 backdrop-blur-sm rounded-lg p-6 border border-red-400/30">
                         <h3 className="text-lg font-bold text-red-200 mb-3">🚫 SDC Zero Tolerance Policy (v1.3)</h3>
                         <p className="text-red-300/90 text-sm mb-2">
-                            Loose wheel nuts represent the highest level of safety risk. Per SDC Guide v1.3: "Incidents of loose wheel nuts should be reported to the depot engineering manager, general manager and engineering delivery director."
+                            Loose wheel nuts represent the highest level of safety risk. In line with standard control-room procedure v1.3: "Incidents of loose wheel nuts should be reported to the depot engineering manager, general manager and engineering delivery director."
                         </p>
                         <p className="text-red-300/90 text-sm">
                             DVSA Classification: This is a DANGEROUS DEFECT that would result in immediate prohibition (PG9) if discovered during roadside inspection.

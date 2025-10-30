@@ -1,8 +1,20 @@
+/**
+ * Go BARRY Breakdown Management System
+ *
+ * Copyright © 2025 Anthony Gair. All Rights Reserved.
+ *
+ * This software is proprietary and confidential. Unauthorized copying,
+ * distribution, modification, or use is strictly prohibited.
+ *
+ * @author Anthony Gair
+ * @license Proprietary
+ */
+
 // AuthContext - Global Authentication State Management
 // Provides centralized authentication state and methods for the entire application
 
 import React, { createContext, useContext, useReducer, useEffect, useCallback, useRef } from 'react';
-import enhancedAuthService from '../services/enhanced-auth-service.js';
+import backendAuthService from '../services/backend-auth-service.js';
 import { authErrorHandler, processAuthError } from '../utils/errorHandling.js';
 import { emergencyLogout, silentLogout, autoLogout, secureCleanup, ActivityTracker } from '../utils/logoutHelpers.js';
 
@@ -132,13 +144,13 @@ export const AuthProvider = ({ children }) => {
 
         try {
             // Set up session listener first
-            sessionListenerRef.current = enhancedAuthService.addSessionListener((session) => {
+            sessionListenerRef.current = backendAuthService.addSessionListener((session) => {
                 console.log('🔄 AuthContext: Session change detected:', session?.name || 'null');
                 handleSessionChange(session);
             });
 
             // Check for existing session
-            const { success, session } = await enhancedAuthService.getCurrentSession();
+            const { success, session } = await backendAuthService.getCurrentSession();
 
             if (success && session) {
                 console.log('✅ AuthContext: Found existing session for:', session.name);
@@ -168,7 +180,9 @@ export const AuthProvider = ({ children }) => {
                         depot: session.depot,
                         role: session.role,
                         isAdmin: session.isAdmin,
-                        authMethod: session.authMethod
+                        authMethod: session.authMethod,
+                        current_duty: session.current_duty || null,
+                        duty_end_time: session.duty_end_time || null
                     },
                     loginTime: session.timestamp,
                     expiresAt: session.expiresAt,
@@ -218,7 +232,7 @@ export const AuthProvider = ({ children }) => {
         dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
 
         try {
-            const result = await enhancedAuthService.authenticate(email, password, rememberMe);
+            const result = await backendAuthService.authenticate(email, password, rememberMe);
 
             if (result.success) {
                 console.log('✅ AuthContext: Login successful for:', result.session?.name);
@@ -243,10 +257,10 @@ export const AuthProvider = ({ children }) => {
         dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: true });
 
         try {
-            // Step 1: Call Supabase signOut
-            console.log('🔐 Step 1: Calling Supabase signOut...');
-            await enhancedAuthService.signOut();
-            console.log('✅ Supabase signOut successful');
+            // Step 1: Call Backend signOut
+            console.log('🔐 Step 1: Calling Backend signOut...');
+            await backendAuthService.signOut();
+            console.log('✅ Backend signOut successful');
 
             // Step 2: Clear localStorage (authentication-related items)
             console.log('🧹 Step 2: Clearing localStorage...');
@@ -422,7 +436,7 @@ export const AuthProvider = ({ children }) => {
         dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: true });
 
         try {
-            const result = await silentLogout(enhancedAuthService);
+            const result = await silentLogout(backendAuthService);
             if (result.success) {
                 dispatch({ type: AUTH_ACTIONS.CLEAR_USER });
                 dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
@@ -442,7 +456,7 @@ export const AuthProvider = ({ children }) => {
         dispatch({ type: AUTH_ACTIONS.SET_LOADING, payload: true });
 
         try {
-            const result = await autoLogout(enhancedAuthService, reason);
+            const result = await autoLogout(backendAuthService, reason);
             dispatch({ type: AUTH_ACTIONS.CLEAR_USER });
             dispatch({ type: AUTH_ACTIONS.CLEAR_ERROR });
             return result;
@@ -471,7 +485,7 @@ export const AuthProvider = ({ children }) => {
         dispatch({ type: AUTH_ACTIONS.SET_REFRESH_LOADING, payload: true });
 
         try {
-            const { success, session } = await enhancedAuthService.getCurrentSession();
+            const { success, session } = await backendAuthService.getCurrentSession();
 
             if (success && session) {
                 console.log('✅ AuthContext: Session refresh successful');
@@ -498,7 +512,7 @@ export const AuthProvider = ({ children }) => {
         dispatch({ type: AUTH_ACTIONS.SET_SESSION_CHECKING, payload: true });
 
         try {
-            const { success, session } = await enhancedAuthService.getCurrentSession();
+            const { success, session } = await backendAuthService.getCurrentSession();
 
             if (success && session) {
                 console.log('✅ AuthContext: Valid session found');

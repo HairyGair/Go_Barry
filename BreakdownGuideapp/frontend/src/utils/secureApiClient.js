@@ -1,21 +1,22 @@
 // Secure API Client with automatic auth token inclusion and comprehensive security
 // Ensures all API calls include proper authentication tokens and handles token validation
-
-import { supabase } from '../services/supabase-client.js';
+// Supabase removed - now uses backend MySQL API
 
 class SecureApiClient {
     constructor() {
-        this.baseURL = import.meta.env.VITE_API_URL || 'https://breakdown-guide.onrender.com';
+        this.baseURL = import.meta.env.VITE_API_URL || 'https://breakdowns.gobarry.co.uk/api';
         this.defaultTimeout = 10000; // 10 seconds
         this.maxRetries = 3;
     }
 
-    // Get current auth token from Supabase session
+    // Get current auth token from backend session
     async getAuthToken() {
         try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.access_token) {
-                return session.access_token;
+            // Supabase removed - now uses backend MySQL API
+            // TODO: Get token from backend session storage
+            const token = localStorage.getItem('auth_token');
+            if (token) {
+                return token;
             }
             throw new Error('No valid session found');
         } catch (error) {
@@ -121,16 +122,10 @@ class SecureApiClient {
             console.warn('Auth token invalid, attempting refresh...');
 
             try {
-                // Attempt to refresh session
-                const { error } = await supabase.auth.refreshSession();
-                if (error) {
-                    throw new Error('Session refresh failed');
-                }
-
-                // Retry the request with new token (if retries available)
-                if (retriesRemaining > 0) {
-                    return this.secureRequest(endpoint, { retries: retriesRemaining - 1 });
-                }
+                // Supabase removed - now uses backend MySQL API
+                // TODO: Implement backend session refresh
+                // For now, trigger logout
+                throw new Error('Session refresh not implemented');
             } catch (refreshError) {
                 console.error('Session refresh failed:', refreshError);
                 // Trigger logout/redirect to login

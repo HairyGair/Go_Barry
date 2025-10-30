@@ -282,7 +282,7 @@ const AdminRequiredMessage = ({ user }) => (
                     Go Back
                 </button>
                 <button
-                    onClick={() => window.location.href = '/'}
+                    onClick={() => window.location.href = '/breakdown-guide'}
                     className="btn btn-primary"
                 >
                     Go to Dashboard
@@ -450,7 +450,7 @@ const AccessDeniedMessage = ({ reason, user, requiredRole, requiredPermission })
                         Go Back
                     </button>
                     <button
-                        onClick={() => window.location.href = '/'}
+                        onClick={() => window.location.href = '/breakdown-guide'}
                         className="btn btn-primary"
                     >
                         Go to Dashboard

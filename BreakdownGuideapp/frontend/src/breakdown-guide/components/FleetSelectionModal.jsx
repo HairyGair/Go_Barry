@@ -29,6 +29,9 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
     // Secured mileage state
     const [securedMileage, setSecuredMileage] = useState(false);
 
+    // Not in service (Light Running / Dead Run) state
+    const [notInService, setNotInService] = useState(false);
+
     // Storage hooks
     const { topRoutes, updateRoute } = useFrequentRoutes();
     const { recentFleetNumbers, saveFleetNumber } = useRecentFleetNumbers();
@@ -106,20 +109,27 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
         }
     }, [isOpen]);
     
+    // Track whether modal has been initialized to prevent unwanted resets
+    const [modalInitialized, setModalInitialized] = useState(false);
+
     // Reset modal when opened and load draft if available
     useEffect(() => {
-        if (isOpen) {
+        if (isOpen && !modalInitialized) {
+            // Only initialize once when modal opens
+            setModalInitialized(true);
+
             // Check for draft and resume if available
             if (hasDraft && draft) {
                 setSearchQuery(draft.fleetNumber || '');
                 setSelectedRoute(draft.route || '');
                 setRouteName(draft.routeName || '');
                 setSecuredMileage(draft.securedMileage || false);
+                setNotInService(draft.notInService || false);
 
                 // If draft has fleet data, set it
                 if (draft.fleetData) {
                     setSelectedVehicle(draft.fleetData);
-                    setCurrentStep('route');
+                    setCurrentStep(draft.step || 'route');
                 } else {
                     setCurrentStep('fleet');
                 }
@@ -132,20 +142,20 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                 setRouteName('');
                 setRouteSearch('');
                 setSecuredMileage(false);
-            }
-            // Only clear ticketerCoords when modal is first opened, not on every state change
-            if (!isOpen) {
-                setTicketerCoords('');
+                setNotInService(false);
             }
             setError('');
             setShowRouteSearch(false);
+        } else if (!isOpen && modalInitialized) {
+            // Reset initialization flag when modal closes
+            setModalInitialized(false);
         }
-    }, [isOpen, hasDraft, draft]);
+    }, [isOpen]);
 
     // Auto-save draft on changes (optimized to reduce re-renders)
     useEffect(() => {
-        // Only auto-save if modal is open and we have meaningful data
-        if (isOpen && (searchQuery?.length > 2 || selectedRoute || selectedVehicle)) {
+        // Only auto-save if modal is open, initialized, and we have meaningful data
+        if (isOpen && modalInitialized && (searchQuery?.length > 2 || selectedRoute || selectedVehicle)) {
             const draftData = {
                 wizardType,
                 fleetNumber: searchQuery,
@@ -153,18 +163,19 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                 route: selectedRoute,
                 routeName,
                 securedMileage,
+                notInService,
                 timestamp: new Date().toISOString(),
                 step: currentStep
             };
 
-            // Increased debounce time to reduce interference with user input
+            // Debounce save to prevent interference with user input
             const saveTimer = setTimeout(() => {
                 saveDraft(draftData);
             }, 2000);
 
             return () => clearTimeout(saveTimer);
         }
-    }, [searchQuery, selectedVehicle, routeName, securedMileage]); // Added securedMileage to dependencies
+    }, [searchQuery, selectedVehicle, selectedRoute, routeName, securedMileage, currentStep, isOpen, modalInitialized]); // Added all relevant dependencies
     
     // Search fleet
     useEffect(() => {
@@ -305,6 +316,7 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                 route: selectedRoute,
                 routeName: routeName,
                 securedMileage: securedMileage,
+                notInService: notInService,
                 location: {
                     type: 'ticketer',
                     lat,
@@ -343,6 +355,7 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
             route: selectedRoute,
             routeName: routeName,
             securedMileage: securedMileage,
+            notInService: notInService,
             location: {
                 type: 'depot',
                 name: depotName,
@@ -368,6 +381,7 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
             route: selectedRoute,
             routeName: routeName,
             securedMileage: securedMileage,
+            notInService: notInService,
             location: {
                 type: 'skip',
                 description: 'Location to be added later'
@@ -544,6 +558,39 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                                             </div>
                                             <p className="text-sm text-gray-400 mt-1">
                                                 This vehicle is operating contracted work. Failure to fulfill secured mileage may result in fines.
+                                            </p>
+                                        </div>
+                                    </label>
+                                </div>
+
+                                {/* Not in Service (Light Running / Dead Run) Checkbox */}
+                                <div
+                                    className={`p-4 rounded-lg border-2 transition-all ${
+                                        notInService
+                                            ? 'bg-blue-500/20 border-blue-500/50'
+                                            : 'bg-gray-800 border-gray-600 hover:border-gray-500'
+                                    }`}
+                                >
+                                    <label className="flex items-start gap-3 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={notInService}
+                                            onChange={(e) => setNotInService(e.target.checked)}
+                                            className="w-5 h-5 mt-0.5 rounded border-gray-500 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-800 cursor-pointer"
+                                        />
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2">
+                                                <span className={`font-semibold ${notInService ? 'text-blue-400' : 'text-white'}`}>
+                                                    Not in Service (Light Running / Dead Run)
+                                                </span>
+                                                {notInService && (
+                                                    <span className="px-2 py-0.5 bg-blue-500 text-white text-xs font-bold rounded">
+                                                        NO PASSENGERS
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <p className="text-sm text-gray-400 mt-1">
+                                                Vehicle was not carrying passengers when the breakdown occurred (e.g., running to/from depot, changeover, training).
                                             </p>
                                         </div>
                                     </label>

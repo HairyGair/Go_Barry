@@ -31,9 +31,9 @@ export const emergencyLogout = () => {
         console.warn('⚠️ Cookie clear failed:', e);
     }
 
-    // Force page reload to reset app state
+    // Force page reload to reset app state and redirect to login
     setTimeout(() => {
-        window.location.href = '/';
+        window.location.href = '/login';
     }, 100);
 
     console.log('✅ Emergency logout completed');

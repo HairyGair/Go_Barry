@@ -2,7 +2,7 @@ import React from 'react';
 import * as Icons from '../common/icons.jsx';
 import constants from '../common/constants.js';
 
-// Cutting Out/Fuel Wizard Component - Following SDC Engineering Issues Guide Section 18
+// Cutting Out/Fuel Wizard Component - Following standard operational safety checks Section 18
 // Critical fuel system safety assessment with fire prevention protocols
 
 const CuttingOutFuelWizard = ({ currentStep, responses, updateResponse, onNext, onPrevious, onComplete }) => {
@@ -28,13 +28,13 @@ const CuttingOutFuelWizard = ({ currentStep, responses, updateResponse, onNext, 
                             <Flame className="w-8 h-8 text-orange-400" />
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">⛽ Cut Out / Fuel Problem Assessment</h2>
-                        <p className="text-gray-300">Following SDC Engineering Issues Guide Section 18 - Critical fuel system safety evaluation with fire prevention protocols.</p>
+                        <p className="text-gray-300">Following standard operational safety checks Section 18 - Critical fuel system safety evaluation with fire prevention protocols.</p>
                     </div>
                     
                     <div className="bg-red-500/20 backdrop-blur-sm rounded-lg p-6 border border-red-400/30">
                         <h3 className="text-lg font-semibold text-red-200 mb-4">🔥 CRITICAL FIRE SAFETY SYSTEM</h3>
                         <p className="text-red-300/80 text-sm leading-relaxed mb-4">
-                            Fuel system issues pose immediate fire and explosion risks. SDC guidance prioritises detection of fuel leaks and prevention of ignition sources.
+                            Fuel system issues pose immediate fire and explosion risks. standard operational guidance prioritises detection of fuel leaks and prevention of ignition sources.
                         </p>
                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
                             <h4 className="font-semibold text-red-200 mb-2">SDC Fuel Safety Protocol:</h4>
@@ -49,7 +49,7 @@ const CuttingOutFuelWizard = ({ currentStep, responses, updateResponse, onNext, 
 
                     <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/20">
                         <h3 className="text-lg font-semibold text-white mb-4">SDC Step 1: Check the Ignition</h3>
-                        <p className="text-gray-300 text-sm mb-4">First step per SDC guidance: Confirm that the ignition is turned on.</p>
+                        <p className="text-gray-300 text-sm mb-4">First step per standard operational guidance: Confirm that the ignition is turned on.</p>
                         
                         <div className="space-y-3">
                             <button

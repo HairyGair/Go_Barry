@@ -1,5 +1,21 @@
 # cPanel Deployment Guide
 
+---
+
+## ⚠️ **LEGACY DOCUMENTATION - OUTDATED** ⚠️
+
+**This document describes outdated deployment using Supabase/Render.com.**
+
+**Current Deployment:**
+- ✅ Platform: cPanel (self-hosted)
+- ✅ Database: MySQL (cPanel)
+- ✅ See: `docs/CPANEL_ONLY_DEPLOYMENT_GUIDE.md`
+- ✅ Quick: `docs/CPANEL_QUICK_START_10MIN.md`
+
+**Last Updated:** October 27, 2025
+
+---
+
 ## Problem Solved
 
 This document explains the fix for the 404 asset errors when deploying the Breakdown Guide frontend to cPanel hosting.

@@ -3,7 +3,7 @@ import * as Icons from '../common/icons.jsx';
 import constants from '../common/constants.js';
 
 // Suspension Wizard Component
-// Follows SDC Guide Section 34 - Suspension
+// Follows operational procedure Section 34 - Suspension
 
 const SuspensionWizard = ({ currentStep, responses, updateResponse, onNext, onPrevious, onComplete }) => {
     // Get icons from global scope
@@ -18,7 +18,7 @@ const SuspensionWizard = ({ currentStep, responses, updateResponse, onNext, onPr
                             <Tool className="w-8 h-8 text-amber-400" />
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">🏗️ Suspension System Assessment</h2>
-                        <p className="text-gray-300">Following SDC guidance for suspension issues - we'll start with the required reset procedure.</p>
+                        <p className="text-gray-300">Following standard operational safety checks guidance for suspension issues - we'll start with the required reset procedure.</p>
                     </div>
                     
                     <div className="bg-red-500/20 backdrop-blur-sm rounded-lg p-6 border border-red-400/30">
@@ -30,7 +30,7 @@ const SuspensionWizard = ({ currentStep, responses, updateResponse, onNext, onPr
 
                     <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/20">
                         <h3 className="text-lg font-semibold text-white mb-4">Step 1: Vehicle Reset Procedure</h3>
-                        <p className="text-gray-300 text-sm mb-4">According to SDC guidance, the first step is to perform a complete vehicle reset to see if this clears the suspension fault.</p>
+                        <p className="text-gray-300 text-sm mb-4">According to standard operational guidance, the first step is to perform a complete vehicle reset to see if this clears the suspension fault.</p>
                         
                         <div className="bg-blue-500/20 rounded-lg p-4 border border-blue-400/30 mb-4">
                             <h4 className="font-semibold text-blue-200 mb-2">Reset Instructions for Driver:</h4>
@@ -565,7 +565,7 @@ const SuspensionWizard = ({ currentStep, responses, updateResponse, onNext, onPr
             );
 
         case 5:
-            // Decision logic based on SDC guide and responses
+            // Decision logic based on operational procedures and responses
             const generateDecision = () => {
                 // Critical conditions requiring immediate stop
                 if (responses.warning_lights === 'red' ||

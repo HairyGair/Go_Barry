@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { apiClient } from '../../services/api-client';
 
-const ResolutionDialog = ({ breakdown, engineerBadge, engineerName, onResolved, onClose }) => {
+const ResolutionDialog = ({ breakdown, onResolved, onClose }) => {
   const [resolutionType, setResolutionType] = useState('');
   const [resolutionNotes, setResolutionNotes] = useState('');
   const [partsUsed, setPartsUsed] = useState([{ partNumber: '', description: '', quantity: 1 }]);
@@ -100,7 +100,6 @@ const ResolutionDialog = ({ breakdown, engineerBadge, engineerName, onResolved, 
 
       const response = await apiClient.post('/api/engineering/complete-job', {
         breakdown_id: breakdown.breakdown_id,
-        engineer_badge: engineerBadge,
         resolution_type: resolutionType,
         resolution_notes: resolutionNotes.trim(),
         parts_used: validParts.length > 0 ? validParts : null,

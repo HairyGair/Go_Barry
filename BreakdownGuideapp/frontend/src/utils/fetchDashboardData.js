@@ -260,7 +260,7 @@ export async function fetchDashboardData() {
               status: breakdown.wizard_decision || breakdown.severity,
               
               // Enriched fields
-              supervisorName: breakdown.supervisor_name,
+              supervisorName: breakdown.supervisor_name || (breakdown.supervisor_badge ? `Supervisor ${breakdown.supervisor_badge}` : null),
               busNumber: breakdown.fleet_no,
               fleet_no: breakdown.fleet_no,
               issue: breakdown.issue_category,
@@ -270,7 +270,7 @@ export async function fetchDashboardData() {
               route: breakdown.route || breakdown.route_number,
               route_number: breakdown.route || breakdown.route_number,
               passengersOnBoard: breakdown.passengers_on_board,
-              
+
               // Metadata
               source: 'breakdowns',
               metadata: {

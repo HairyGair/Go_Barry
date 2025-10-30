@@ -711,7 +711,7 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
             </div>
 
             <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-600/30">
-              <h4 className="font-semibold text-white mb-3">Additional Guidance (SDC Guide):</h4>
+              <h4 className="font-semibold text-white mb-3">Additional Guidance (Operational procedures):</h4>
               <ul className="list-disc ml-6 space-y-2 text-gray-300 text-sm">
                 <li>Record any defects immediately on the Tranzaura System when the bus is stationary and in a safe location</li>
                 <li>Vehicles permitted to continue must have a planned changeover organised at the earliest opportunity</li>

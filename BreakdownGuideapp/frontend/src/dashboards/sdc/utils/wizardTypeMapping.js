@@ -1,7 +1,7 @@
 /**
  * SDC Wizard Type Mapping
  * Maps wizard types to detailed step information for dashboard display
- * Based on 33 available SDC Guide assessment types
+ * Based on 33 available standard procedure assessment types
  */
 
 export const WIZARD_TYPE_MAPPING = {

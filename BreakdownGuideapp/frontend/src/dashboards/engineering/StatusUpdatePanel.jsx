@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { apiClient } from '../../services/api-client';
 
-const StatusUpdatePanel = ({ breakdown, engineerBadge, onStatusUpdated, onClose }) => {
+const StatusUpdatePanel = ({ breakdown, onStatusUpdated, onClose }) => {
   const [selectedStatus, setSelectedStatus] = useState(null);
   const [notes, setNotes] = useState('');
   const [eta, setEta] = useState('');
@@ -10,34 +10,26 @@ const StatusUpdatePanel = ({ breakdown, engineerBadge, onStatusUpdated, onClose 
 
   const statusOptions = [
     {
-      id: 'dispatched',
-      label: 'Dispatched',
-      icon: '🚗',
-      description: 'En route to breakdown location',
-      color: '#3b82f6',
-      requiresEta: true
-    },
-    {
-      id: 'on_site',
-      label: 'On Site',
+      id: 'arrived',
+      label: 'Arrived On Site',
       icon: '📍',
-      description: 'Arrived at breakdown location',
+      description: 'Engineer has arrived at breakdown location',
       color: '#f59e0b',
       requiresEta: false
     },
     {
-      id: 'fixing',
-      label: 'Fixing',
+      id: 'working',
+      label: 'Working on Repair',
       icon: '🔧',
-      description: 'Repair work in progress',
+      description: 'Engineer is actively working on the vehicle',
       color: '#8b5cf6',
       requiresEta: false
     },
     {
-      id: 'testing',
-      label: 'Testing',
-      icon: '🧪',
-      description: 'Testing repairs before completion',
+      id: 'completed',
+      label: 'Repair Completed',
+      icon: '✅',
+      description: 'Repair work has been completed',
       color: '#10b981',
       requiresEta: false
     }
@@ -78,12 +70,10 @@ const StatusUpdatePanel = ({ breakdown, engineerBadge, onStatusUpdated, onClose 
     setError(null);
 
     try {
-      const response = await apiClient.put('/api/engineering/update-status', {
+      const response = await apiClient.post('/api/engineering/update-engineer-status', {
         breakdown_id: breakdown.breakdown_id,
         status: selectedStatus.id,
-        engineer_badge: engineerBadge,
-        notes: notes.trim() || null,
-        eta_minutes: selectedStatus.requiresEta ? parseInt(eta) : null
+        notes: notes.trim() || null
       });
 
       if (response.success) {

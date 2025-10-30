@@ -9,7 +9,7 @@
 import React from 'react';
 import { FileText, Printer, Mail, CheckCircle, Download, Copy, AlertTriangle } from './icons.jsx';
 
-const AssessmentSummary = ({ 
+const AssessmentSummary = ({
     assessmentData,
     vehicle,
     supervisor,
@@ -17,7 +17,8 @@ const AssessmentSummary = ({
     wizardType,
     onPrint,
     onEmail,
-    onComplete
+    onComplete,
+    isSubmitting = false
 }) => {
     // Format date and time
     const assessmentDate = new Date();
@@ -311,8 +312,8 @@ ${new Date().toISOString()}
                 </div>
             </div>
             
-            {/* Tracerit Reminder - Only shown for Road Traffic Incidents per SDC Guide */}
-            {/* Only Road Traffic Incidents require Tracerit reports per SDC Guide */}
+            {/* Tracerit Reminder - Only shown for Road Traffic Incidents per standard operational procedures */}
+            {/* Only Road Traffic Incidents require Tracerit reports per standard control-room procedure */}
             {(wizardType?.toLowerCase().includes('road-traffic') || wizardType?.toLowerCase().includes('incident')) && (
                 <div className="bg-purple-500/20 backdrop-blur-sm rounded-lg p-6 border border-purple-400/30">
                     <div className="flex items-start space-x-4">
@@ -336,14 +337,16 @@ ${new Date().toISOString()}
             <div className="flex justify-center pt-6 border-t border-white/20">
                 <button
                     type="button"
-                    onMouseDown={() => console.log('🔥 Button mousedown event')}
-                    onMouseUp={() => console.log('🔥 Button mouseup event')}
+                    disabled={isSubmitting}
                     onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
+                        if (isSubmitting) {
+                            console.log('⚠️ Button clicked but already submitting');
+                            return;
+                        }
                         console.log('🔥 AssessmentSummary Complete Assessment button clicked!');
                         console.log('onComplete function:', onComplete);
-                        console.log('Event:', e);
                         if (onComplete) {
                             console.log('🚀 Calling onComplete...');
                             onComplete();
@@ -351,11 +354,24 @@ ${new Date().toISOString()}
                             console.error('❌ onComplete function is not defined!');
                         }
                     }}
-                    className="flex items-center px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors cursor-pointer"
+                    className={`flex items-center px-8 py-3 rounded-lg transition-colors ${
+                        isSubmitting
+                            ? 'bg-gray-400 cursor-not-allowed opacity-50'
+                            : 'bg-green-600 text-white hover:bg-green-700 cursor-pointer'
+                    }`}
                     style={{pointerEvents: 'auto'}}
                 >
-                    <CheckCircle className="w-5 h-5 mr-2" />
-                    Complete Assessment
+                    {isSubmitting ? (
+                        <>
+                            <span className="animate-spin mr-2">⏳</span>
+                            Submitting...
+                        </>
+                    ) : (
+                        <>
+                            <CheckCircle className="w-5 h-5 mr-2" />
+                            Complete Assessment
+                        </>
+                    )}
                 </button>
             </div>
         </div>

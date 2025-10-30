@@ -195,8 +195,18 @@ export async function fetchLegacyActivities(limit = 50) {
         data.breakdowns.forEach(breakdown => {
           // Get the breakdown ID (could be 'id' or 'breakdown_id')
           const breakdownId = breakdown.breakdown_id || breakdown.id;
-          const fleetNumber = breakdown.fleet_no || breakdown.fleet_number || 'Unknown';
-          const supervisorName = breakdown.supervisor_name || breakdown.supervisor || 'Supervisor';
+
+          // Extract fleet number with better fallback
+          const fleetNumber = breakdown.fleet_no ||
+                             breakdown.fleet_number ||
+                             breakdown.vehicle ||
+                             null; // null instead of 'Unknown' - formatter will handle it
+
+          // Extract supervisor name with better fallback
+          const supervisorName = breakdown.supervisor_name ||
+                                breakdown.supervisor ||
+                                (breakdown.supervisor_badge ? `Supervisor ${breakdown.supervisor_badge}` : null) ||
+                                null; // null instead of 'Supervisor' - formatter will handle it
 
           // Check if this is a wizard assessment or regular breakdown
           // A wizard assessment has wizard_decision, wizard_type, or breakdown_source === 'wizard'

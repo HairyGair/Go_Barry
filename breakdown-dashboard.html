@@ -182,7 +182,20 @@
     </div>
 
     <script>
-        const API_URL = 'http://localhost:3001';
+        // Dynamic backend URL detection
+        const API_URL = (() => {
+            const hostname = window.location.hostname;
+
+            // Development environment
+            if (hostname === 'localhost' || hostname === '127.0.0.1') {
+                return 'http://localhost:3001';
+            }
+
+            // Production environment
+            return 'https://api.breakdowns.gobarry.co.uk';
+        })();
+
+        console.log('🔧 Backend URL:', API_URL);
         
         async function loadBreakdowns() {
             try {

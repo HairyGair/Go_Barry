@@ -8,7 +8,7 @@ function GearSelectionWizard({ currentStep, responses, updateResponse, onNext, o
   
   const handleCompleteAssessment = () => {
     let finalDecision = 'CONTINUE';
-    let notes = 'Gear selection assessment completed per SDC Guide. ';
+    let notes = 'Gear selection assessment completed per standard operational procedures. ';
     
     // Check if issue was resolved through troubleshooting
     if (responses.systemReset === 'resolved') {

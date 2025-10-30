@@ -1,39 +1,43 @@
-import React, { useState, memo, useEffect } from 'react';
+import React, { useState, memo, useEffect, useCallback } from 'react';
 import { getWizardInfo } from './utils/wizardTypeMapping';
 import SimpleLocationMap from './SimpleLocationMap';
+import DepotContactBadge from '../../components/DepotContactBadge';
 import './SDCBreakdownCard-Carousel.css';
 
-// SDC Guide category mappings with icons and sections
+// Google Maps API key for geocoding
+const GOOGLE_MAPS_API_KEY = 'AIzaSyBhBN_kVOnIRTKXYhzrDwpr8kvb0Uy0IY8';
+
+// standard procedure category mappings with icons
 const SDC_GUIDE_CATEGORIES = {
-  'Steering': { icon: '🚗', section: 'Section 8', critical: true, page: 8 },
-  'Brakes': { icon: '🛑', section: 'Section 7', critical: true, page: 7 },
-  'ABS Light': { icon: '⚠️', section: 'Section 3', critical: true, page: 14 },
-  'Battery Light': { icon: '🔋', section: 'Section 4', critical: false, page: 13 },
-  'Non Starter': { icon: '🔑', section: 'Section 19', critical: true, page: 9 },
-  'Overheating': { icon: '🌡️', section: 'Section 21', critical: true, page: 11 },
-  'Oil Warning Light': { icon: '🛢️', section: 'Section 20', critical: true, page: 22 },
-  'Road Traffic Incidents': { icon: '🚨', section: 'Section 2', critical: true, page: 4 },
-  'Doors': { icon: '🚪', section: 'Section 10', critical: false, page: 17 },
-  'Wipers/Screenwash': { icon: '🌧️', section: 'Section 30', critical: false, page: 12 },
-  'Puncture': { icon: '🔧', section: 'Section 22', critical: true, page: 32 },
-  'Exterior Lights': { icon: '💡', section: 'Section 11', critical: false, page: 35 },
-  'Interior Lights': { icon: '💡', section: 'Section 15', critical: false, page: 33 },
-  'Warning Lights': { icon: '⚡', section: 'Section 28', critical: true, page: 25 },
-  'Suspension': { icon: '🔩', section: 'Section 27', critical: true, page: 34 },
-  'Wing Mirrors': { icon: '🪞', section: 'Section 29', critical: false, page: 27 },
-  'Broken Windows': { icon: '🪟', section: 'Section 6', critical: false, page: 6 },
-  'Gear Selection': { icon: '⚙️', section: 'Section 13', critical: true, page: 24 },
-  'Gearbox': { icon: '⚙️', section: 'Section 14', critical: true, page: 21 },
-  'Low Water': { icon: '💧', section: 'Section 18', critical: false, page: 16 },
-  'Excessive Smoke': { icon: '💨', section: 'Section 12', critical: false, page: 10 },
-  'Cutting Out/Fuel': { icon: '⛽', section: 'Section 8', critical: true, page: 18 },
-  'Demisters/Heaters': { icon: '🌬️', section: 'Section 9', critical: false, page: 15 },
-  'Ramp': { icon: '♿', section: 'Section 23', critical: false, page: 20 },
-  'Repeat Defects': { icon: '🔄', section: 'Section 24', critical: false, page: 23 },
-  'Speedo': { icon: '📊', section: 'Section 25', critical: false, page: 31 },
-  'Buzzers': { icon: '🔔', section: 'Section 7', critical: false, page: 26 },
-  'Interior/Exterior Damage': { icon: '🚧', section: 'Section 17', critical: false, page: 29 },
-  'Loose Wheel Nuts': { icon: '⚠️', section: 'Section 17', critical: true, page: 28 }
+  'Steering': { icon: '🚗', critical: true },
+  'Brakes': { icon: '🛑', critical: true },
+  'ABS Light': { icon: '⚠️', critical: true },
+  'Battery Light': { icon: '🔋', critical: false },
+  'Non Starter': { icon: '🔑', critical: true },
+  'Overheating': { icon: '🌡️', critical: true },
+  'Oil Warning Light': { icon: '🛢️', critical: true },
+  'Road Traffic Incidents': { icon: '🚨', critical: true },
+  'Doors': { icon: '🚪', critical: false },
+  'Wipers/Screenwash': { icon: '🌧️', critical: false },
+  'Puncture': { icon: '🔧', critical: true },
+  'Exterior Lights': { icon: '💡', critical: false },
+  'Interior Lights': { icon: '💡', critical: false },
+  'Warning Lights': { icon: '⚡', critical: true },
+  'Suspension': { icon: '🔩', critical: true },
+  'Wing Mirrors': { icon: '🪞', critical: false },
+  'Broken Windows': { icon: '🪟', critical: false },
+  'Gear Selection': { icon: '⚙️', critical: true },
+  'Gearbox': { icon: '⚙️', critical: true },
+  'Low Water': { icon: '💧', critical: false },
+  'Excessive Smoke': { icon: '💨', critical: false },
+  'Cutting Out/Fuel': { icon: '⛽', critical: true },
+  'Demisters/Heaters': { icon: '🌬️', critical: false },
+  'Ramp': { icon: '♿', critical: false },
+  'Repeat Defects': { icon: '🔄', critical: false },
+  'Speedo': { icon: '📊', critical: false },
+  'Buzzers': { icon: '🔔', critical: false },
+  'Interior/Exterior Damage': { icon: '🚧', critical: false },
+  'Loose Wheel Nuts': { icon: '⚠️', critical: true }
 };
 
 // Helper to extract coordinates from location string
@@ -120,6 +124,7 @@ const SDCBreakdownCardEnhanced = memo(({
   const [showMap, setShowMap] = useState(true);
   const [activeCardIndex, setActiveCardIndex] = useState(0); // Track which card is active
   const [isExpanded, setIsExpanded] = useState(false); // Track if details are expanded
+  const [geocodedLocation, setGeocodedLocation] = useState(null); // Store geocoded street name
 
   // Validate fleet number - should be 3-5 digits typically
   const isValidFleetNumber = (value) => {
@@ -197,7 +202,44 @@ const SDCBreakdownCardEnhanced = memo(({
     ).join(' ');
   };
 
-  // Get SDC Guide info based on issue type
+  // Reverse geocode coordinates to street name (same as Control Room)
+  const reverseGeocode = useCallback(async (lat, lng) => {
+    try {
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${GOOGLE_MAPS_API_KEY}`
+      );
+      const data = await response.json();
+
+      if (data.status === 'OK' && data.results && data.results.length > 0) {
+        const result = data.results[0];
+
+        // Try to get street name first
+        const route = result.address_components.find(
+          comp => comp.types.includes('route')
+        );
+
+        if (route) {
+          setGeocodedLocation(route.long_name);
+        } else {
+          // Fallback to locality (town/village)
+          const locality = result.address_components.find(
+            comp => comp.types.includes('locality') || comp.types.includes('postal_town')
+          );
+
+          if (locality) {
+            setGeocodedLocation(locality.long_name);
+          } else {
+            // Use first part of formatted address
+            setGeocodedLocation(result.formatted_address.split(',')[0]);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Geocoding error:', error);
+    }
+  }, []);
+
+  // Get standard procedure info based on issue type
   const rawIssueType = breakdown.issue_type || breakdown.wizard_type?.replace('Wizard', '') || 'General';
   const issueType = capitalizeWords(rawIssueType);
   const sdcGuideInfo = SDC_GUIDE_CATEGORIES[issueType] || { icon: '❔', section: 'N/A', critical: false };
@@ -233,22 +275,52 @@ const SDCBreakdownCardEnhanced = memo(({
   // Get more specific location details
   const getLocationDetails = () => {
     const location = breakdown.location || '';
+
+    // If we have geocoded location, use it instead of raw coordinates
+    if (geocodedLocation) {
+      return {
+        primary: geocodedLocation,
+        secondary: breakdown.depot || ''
+      };
+    }
+
+    // Check if location is just coordinates
+    const coords = extractCoordinates(location);
+    if (coords && location.match(/^(-?\d+\.?\d*),?\s*(-?\d+\.?\d*)$/)) {
+      // Show "Locating..." while geocoding
+      return {
+        primary: 'Locating...',
+        secondary: breakdown.depot || ''
+      };
+    }
+
     const parts = location.split(',').map(p => p.trim());
-    
+
     if (parts.length >= 2) {
       return {
         primary: parts[0], // Street or specific location
         secondary: parts.slice(1).join(', ') // Area/City
       };
     }
-    
+
     return {
       primary: location,
       secondary: ''
     };
   };
-  
+
   const locationDetails = getLocationDetails();
+
+  // Trigger geocoding when coordinates are detected
+  useEffect(() => {
+    const location = breakdown.location || '';
+    const coords = extractCoordinates(location);
+
+    // If we have coordinates and no geocoded location yet, geocode them
+    if (coords && !geocodedLocation) {
+      reverseGeocode(coords.lat, coords.lng);
+    }
+  }, [breakdown.location, geocodedLocation, reverseGeocode]);
   
   // Calculate SLA status (30 min warning, 45 min breach for critical)
   useEffect(() => {
@@ -367,6 +439,12 @@ const SDCBreakdownCardEnhanced = memo(({
         </div>
 
         <div className="header-right">
+          {breakdown.isResolving && (
+            <div className="resolving-badge">
+              <span className="spinner">⏳</span>
+              Resolving...
+            </div>
+          )}
           <div className={`timer-compact ${slaStatus}`}>
             {formatTime(timeElapsed)} ELAPSED
           </div>
@@ -461,6 +539,15 @@ const SDCBreakdownCardEnhanced = memo(({
                       <span className="meta-label">Depot:</span>
                       <span className="meta-value">{depot}</span>
                     </div>
+                    <div className="meta-item">
+                      <DepotContactBadge
+                        fleetNumber={fleetNumber}
+                        depot={breakdown.depot}
+                        size="medium"
+                        showDepotName={true}
+                        variant="inline"
+                      />
+                    </div>
                   </div>
                 </div>
                 {mapData && mapData.type === 'iframe' ? (
@@ -509,15 +596,6 @@ const SDCBreakdownCardEnhanced = memo(({
                   <div className="issue-icon-large">{sdcGuideInfo.icon}</div>
                   <div className="issue-info-large">
                     <h2 className="issue-type-large">{issueType}</h2>
-                    <div className="sdc-reference-large">
-                      <span className="sdc-label">SDC Guide Reference:</span>
-                      <button
-                        className="sdc-link-large"
-                        onClick={() => onViewGuide && onViewGuide(sdcGuideInfo.section, sdcGuideInfo.page)}
-                      >
-                        {sdcGuideInfo.section} - Page {sdcGuideInfo.page}
-                      </button>
-                    </div>
                   </div>
                 </div>
                 <div className={`decision-display-large ${decisionInfo.class}`}>

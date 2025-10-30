@@ -7,7 +7,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import assessmentAPI from '../services/assessmentAPI';
 import assessmentWebSocket from '../services/assessmentWebSocket';
-import { supabase } from '../services/supabase-client';
+// Supabase removed - uses backend API for authentication
 
 export const useAssessmentData = (options = {}) => {
   const {
@@ -18,16 +18,13 @@ export const useAssessmentData = (options = {}) => {
     cacheTimeout = 5 * 60 * 1000 // 5 minutes
   } = options;
 
-  // Authentication status detection (updated to use Supabase session)
+  // Authentication status detection (Supabase removed - uses backend API session)
   const hasAuthToken = async () => {
     try {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      if (session && session.access_token) {
-        return true;
-      }
-      
-      // Fallback to legacy tokens
-      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('supervisor_token');
+      // Check for backend API authentication tokens
+      const token = localStorage.getItem('auth_token') ||
+                    sessionStorage.getItem('supervisor_token') ||
+                    localStorage.getItem('supervisor_session');
       return Boolean(token);
     } catch (error) {
       console.warn('⚠️ Error checking authentication:', error);

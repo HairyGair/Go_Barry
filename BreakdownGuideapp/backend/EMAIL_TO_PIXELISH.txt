@@ -1,0 +1,67 @@
+========================================
+EMAIL TO PIXELISH SUPPORT
+========================================
+
+Subject: Request to Install Node.js 18 LTS - WebAssembly Compatibility Issue
+
+---
+
+Hello Pixelish Support Team,
+
+I'm running a Node.js application on my shared hosting account but encountering critical WebAssembly memory allocation errors with Node.js v22.19.0 that prevent my application from starting.
+
+ERROR MESSAGE:
+--------------
+RangeError: WebAssembly.instantiate(): Out of memory: Cannot allocate Wasm memory for new instance
+at lazyllhttp (node:internal/deps/undici/undici:5829:32)
+
+CAUSE:
+------
+Node.js v22 includes the undici library (with WebAssembly) as a core dependency for the global fetch API. This requires more memory than shared hosting environments typically provide, causing the application to crash immediately after startup.
+
+RESOLUTION REQUEST:
+-------------------
+Could you please install Node.js 18 LTS (v18.20.x) on the server or for my account?
+
+Node.js 18 is:
+- Officially supported until April 2025
+- Does NOT have the undici/WebAssembly issues
+- The recommended version for shared hosting environments
+- Fully compatible with all modern JavaScript features
+- Used by millions of production applications
+
+ACCOUNT DETAILS:
+----------------
+- Username: gobarryco
+- Server: 85.234.151.224
+- Current Node version: v22.19.0 (causing issues)
+- Requested Node version: v18.20.x (any 18.x version)
+
+ALTERNATIVE OPTIONS (if Node 18 installation isn't possible):
+--------------------------------------------------------------
+1. Provide access to nvm (Node Version Manager) so I can switch versions myself
+2. Increase WebAssembly memory allocation limits for Node.js v22
+3. Configure Node.js 18 specifically for my account via "Setup Node.js App" in cPanel
+
+BUSINESS IMPACT:
+----------------
+This is a production application for Go North East's breakdown management system. The application is fully developed and tested, but cannot run on Node.js v22 in a shared hosting environment.
+
+I've tested multiple code-level fixes but this is an environment-level issue that requires Node.js 18 or increased memory allocation.
+
+Thank you for your prompt assistance!
+
+Best regards,
+Anthony Gair
+Go BARRY / Go North East
+Email: [Your email]
+Account: gobarryco
+
+---
+
+TECHNICAL REFERENCES:
+- Node.js Release Schedule: https://github.com/nodejs/release#release-schedule
+- undici WebAssembly Issues: https://github.com/nodejs/undici/issues?q=webassembly
+- Node.js 18 is LTS until April 2025
+
+========================================

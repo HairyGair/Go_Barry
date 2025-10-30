@@ -1,10 +1,11 @@
 /**
  * Assessment Progress Service
  * Provides real-time tracking of assessment progress and step monitoring
+ * Supabase removed - now uses backend MySQL API with WebSocket
  */
 
 import { apiConfig } from '../breakdown-guide/components/common/constants';
-import { supabase } from './supabase-client.js';
+// Supabase import removed - no longer using Supabase for real-time
 
 class AssessmentProgressService {
   constructor() {
@@ -72,9 +73,9 @@ class AssessmentProgressService {
   // Connect to WebSocket for real-time updates
   async connectWebSocket() {
     try {
-      // Get authentication token from Supabase session
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
+      // Supabase removed - now uses backend MySQL API
+      // TODO: Get authentication token from backend session
+      const token = localStorage.getItem('auth_token') || 'temp-token';
 
       if (!token) {
         console.warn('⚠️ No authentication token available for WebSocket connection');

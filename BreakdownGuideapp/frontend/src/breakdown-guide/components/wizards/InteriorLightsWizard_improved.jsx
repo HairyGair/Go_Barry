@@ -3,7 +3,7 @@ import * as Icons from '../common/icons.jsx';
 import constants from '../common/constants.js';
 
 // Interior Lights Wizard Component
-// Follows SDC Engineering Issues Guide - Section 15 (Page 33)
+// Follows operational safety procedures - Section 15 (Page 33)
 
 const InteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, onPrevious, onComplete }) => {
     // Get icons from global scope
@@ -18,7 +18,7 @@ const InteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, 
                             <FileText className="w-8 h-8 text-blue-400" />
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">🔦 Interior Lights Assessment</h2>
-                        <p className="text-gray-300">Following SDC Section 15 - Two critical checks required for interior lighting safety.</p>
+                        <p className="text-gray-300">Following standard operational safety checks Section 15 - Two critical checks required for interior lighting safety.</p>
                     </div>
                     
                     <div className="bg-yellow-500/20 backdrop-blur-sm rounded-lg p-6 border border-yellow-400/30">
@@ -392,7 +392,7 @@ const InteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, 
                             <FileText className="w-8 h-8 text-blue-400" />
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">📋 Interior Lights Decision</h2>
-                        <p className="text-gray-300">Based on SDC Section 15 requirements</p>
+                        <p className="text-gray-300">Based on recognised industry best practice Section 15 requirements</p>
                     </div>
 
                     <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/20">

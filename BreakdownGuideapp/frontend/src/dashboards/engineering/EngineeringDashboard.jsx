@@ -5,7 +5,8 @@ import FilterBar from '../components/FilterBar';
 import { apiClient } from '../../services/api-client';
 import EngineeringCardEnhanced from './EngineeringCardEnhanced';
 import DepotStats from './DepotStats';
-import { supabase } from '../../services/supabase-client';
+import DepotContactsPanel from './DepotContactsPanel';
+// Supabase removed - uses backend API for authentication and WebSocket
 
 const REFRESH_INTERVAL = 10000; // 10 seconds
 const PRIORITY_ROUTES = ['X10', 'X21', '21', '56', '1'];
@@ -24,16 +25,10 @@ const EngineeringDashboard = () => {
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [wsConnected, setWsConnected] = useState(false);
 
-  // Engineer identity (from localStorage or props)
-  const [engineerBadge, setEngineerBadge] = useState(localStorage.getItem('engineer_badge') || null);
-  const [engineerName, setEngineerName] = useState(localStorage.getItem('engineer_name') || null);
-  const [viewMode, setViewMode] = useState(localStorage.getItem('engineer_view_mode') || 'all'); // 'all' or 'my_jobs'
-
-  // Filter options
+  // Filter options (simplified - no individual engineer tracking)
   const filterOptions = [
     { value: 'all', label: 'All Jobs' },
-    { value: 'unassigned', label: 'Unassigned' },
-    { value: 'my_jobs', label: 'My Jobs' },
+    { value: 'unassigned', label: 'Awaiting Dispatch' },
     { value: 'dispatched', label: 'Dispatched' },
     { value: 'on_site', label: 'On Site' },
     { value: 'priority', label: 'Priority Routes' },
@@ -54,16 +49,16 @@ const EngineeringDashboard = () => {
 
   const connectWebSocket = async () => {
     try {
-      // Get authentication token from Supabase session
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
+      // Supabase removed - get authentication token from backend API session
+      // For now, WebSocket can connect without token or use backend session token
+      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('supervisor_token');
 
       if (!token) {
         console.warn('⚠️ No authentication token available for WebSocket connection');
-        return;
+        // Continue anyway - backend may allow unauthenticated WebSocket for dashboard
       }
 
-      const WS_URL = import.meta.env.VITE_WS_URL || 'wss://breakdown-guide.onrender.com';
+      const WS_URL = import.meta.env.VITE_WS_URL || 'wss://breakdowns.gobarry.co.uk/ws';
       const wsUrl = `${WS_URL}/ws?channel=engineering&token=${encodeURIComponent(token)}`;
       ws = new WebSocket(wsUrl);
 
@@ -116,9 +111,7 @@ const EngineeringDashboard = () => {
         break;
 
       case 'job_accepted':
-        if (data.engineer_badge === engineerBadge) {
-          showNotification(`You accepted job: ${data.breakdown_id}`);
-        }
+        showNotification(`Job ${data.breakdown_id} accepted`);
         fetchAllData();
         break;
 
@@ -154,9 +147,6 @@ const EngineeringDashboard = () => {
       const params = new URLSearchParams();
       if (currentFilter !== 'all') {
         params.append('filter', currentFilter);
-      }
-      if (currentFilter === 'my_jobs' && engineerBadge) {
-        params.append('engineer_badge', engineerBadge);
       }
 
       const data = await apiClient.get(`/api/engineering/jobs?${params.toString()}`);
@@ -195,7 +185,7 @@ const EngineeringDashboard = () => {
     ]);
     setLastUpdate(new Date());
     setLoading(false);
-  }, [currentFilter, engineerBadge]);
+  }, [currentFilter]);
 
   // Initial load and auto-refresh
   useEffect(() => {
@@ -211,41 +201,20 @@ const EngineeringDashboard = () => {
   // Filtered breakdowns (already filtered by API, but can add client-side filtering if needed)
   const filteredBreakdowns = allBreakdowns;
 
-  // Calculate statistics
+  // Calculate statistics (simplified - no individual engineer tracking)
   const stats = {
     total: allBreakdowns.length,
-    unassigned: allBreakdowns.filter(b => !b.engineer_id).length,
-    myJobs: engineerBadge ? allBreakdowns.filter(b => b.engineer_badge === engineerBadge).length : 0,
-    onSite: allBreakdowns.filter(b => b.status === 'on_site').length,
+    awaitingDispatch: allBreakdowns.filter(b =>
+      !b.engineer_dispatched_at &&
+      b.status !== 'dispatched' &&
+      b.status !== 'on_site' &&
+      b.status !== 'in_progress'
+    ).length,
+    dispatched: allBreakdowns.filter(b => b.status === 'dispatched').length,
+    onSite: allBreakdowns.filter(b => b.status === 'on_site' || b.status === 'in_progress').length,
     overdue: allBreakdowns.filter(b => b.is_overdue).length,
     avgResponseTime: engineeringMetrics.avgResponseTime || 0,
     slaCompliance: engineeringMetrics.slaCompliance || 0
-  };
-
-  // Handle engineer login
-  const handleEngineerLogin = () => {
-    const badge = prompt('Enter your engineer badge number (e.g., ENG001):');
-    if (!badge) return;
-
-    const name = prompt('Enter your name:');
-    if (!name) return;
-
-    // Save to localStorage
-    localStorage.setItem('engineer_badge', badge);
-    localStorage.setItem('engineer_name', name);
-
-    setEngineerBadge(badge);
-    setEngineerName(name);
-
-    showNotification(`Logged in as ${name} (${badge})`);
-  };
-
-  const handleEngineerLogout = () => {
-    localStorage.removeItem('engineer_badge');
-    localStorage.removeItem('engineer_name');
-    setEngineerBadge(null);
-    setEngineerName(null);
-    showNotification('Logged out');
   };
 
   // Callback handlers for card actions
@@ -350,63 +319,42 @@ const EngineeringDashboard = () => {
 
   return (
     <DashboardLayout title="Engineering Dashboard" icon="🔧">
-      {/* Engineer Identity Bar */}
-      <div className="engineer-identity-bar">
-        {engineerBadge ? (
-          <>
-            <div className="engineer-info">
-              <span className="engineer-icon">👷</span>
-              <div>
-                <div className="engineer-name">{engineerName}</div>
-                <div className="engineer-badge">{engineerBadge}</div>
-              </div>
-            </div>
-            <div className="engineer-actions">
-              <span className={`ws-indicator ${wsConnected ? 'connected' : 'disconnected'}`}>
-                {wsConnected ? '🟢 Live' : '🔴 Offline'}
-              </span>
-              <button className="btn-logout" onClick={handleEngineerLogout}>
-                Logout
-              </button>
-            </div>
-          </>
-        ) : (
-          <div className="engineer-login-prompt">
-            <p>Login to accept and manage jobs</p>
-            <button className="btn-login" onClick={handleEngineerLogin}>
-              👷 Engineer Login
-            </button>
-          </div>
-        )}
+      {/* Dashboard Header */}
+      <div className="dashboard-header">
+        <div className="header-info">
+          <h2>Engineering Dispatch & Management</h2>
+          <p>Monitor and dispatch engineers to active breakdowns</p>
+        </div>
+        <span className={`ws-indicator ${wsConnected ? 'connected' : 'disconnected'}`}>
+          {wsConnected ? '🟢 Live Updates' : '🔴 Offline'}
+        </span>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
         <StatsCard
-          title="Total Jobs"
+          title="Total Active"
           value={stats.total}
-          change={`${stats.unassigned} unassigned`}
-          trend={stats.unassigned > 2 ? 'danger' : 'warning'}
-        />
-        {engineerBadge && (
-          <StatsCard
-            title="My Jobs"
-            value={stats.myJobs}
-            change={stats.myJobs > 0 ? 'Active assignments' : 'No jobs'}
-            trend={stats.myJobs > 0 ? 'info' : 'neutral'}
-          />
-        )}
-        <StatsCard
-          title="On Site"
-          value={stats.onSite}
-          change="Engineers working"
+          change="All breakdowns"
           trend="neutral"
         />
         <StatsCard
-          title="SLA Risk"
-          value={stats.overdue}
-          change={stats.overdue > 0 ? 'Immediate action needed' : 'On track'}
-          trend={stats.overdue > 0 ? 'danger' : 'success'}
+          title="Awaiting Dispatch"
+          value={stats.awaitingDispatch}
+          change={stats.awaitingDispatch > 2 ? 'Action needed' : 'Under control'}
+          trend={stats.awaitingDispatch > 2 ? 'danger' : 'success'}
+        />
+        <StatsCard
+          title="Dispatched"
+          value={stats.dispatched}
+          change="Engineers en route"
+          trend="info"
+        />
+        <StatsCard
+          title="On Site / Working"
+          value={stats.onSite}
+          change="Repairs in progress"
+          trend="neutral"
         />
         <StatsCard
           title="SLA Compliance"
@@ -423,9 +371,12 @@ const EngineeringDashboard = () => {
         onFilterChange={setCurrentFilter}
       />
 
+      {/* Depot Contacts Quick Reference */}
+      <DepotContactsPanel />
+
       {/* Depot Statistics */}
       {depotStats.length > 0 && (
-        <DepotStats depots={depotStats} />
+        <DepotStats engineers={[]} metrics={engineeringMetrics?.by_depot || {}} />
       )}
 
       {/* Breakdown Cards */}
@@ -454,8 +405,6 @@ const EngineeringDashboard = () => {
             <EngineeringCardEnhanced
               key={breakdown.breakdown_id}
               breakdown={breakdown}
-              engineerBadge={engineerBadge}
-              engineerName={engineerName}
               onJobAccepted={handleJobAccepted}
               onStatusUpdated={handleStatusUpdated}
               onJobCompleted={handleJobCompleted}
@@ -483,10 +432,10 @@ const EngineeringDashboard = () => {
         </span>
       </div>
 
-      <style jsx>{`
-        .engineer-identity-bar {
+      <style>{`
+        .dashboard-header {
           background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
-          padding: 16px 20px;
+          padding: 20px 24px;
           border-radius: 12px;
           margin-bottom: 24px;
           display: flex;
@@ -495,36 +444,21 @@ const EngineeringDashboard = () => {
           box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
 
-        .engineer-info {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-
-        .engineer-icon {
-          font-size: 32px;
-        }
-
-        .engineer-name {
+        .header-info h2 {
+          margin: 0 0 4px 0;
           color: white;
-          font-size: 18px;
-          font-weight: 600;
+          font-size: 22px;
+          font-weight: 700;
         }
 
-        .engineer-badge {
+        .header-info p {
+          margin: 0;
           color: #93c5fd;
           font-size: 14px;
-          font-family: monospace;
-        }
-
-        .engineer-actions {
-          display: flex;
-          align-items: center;
-          gap: 16px;
         }
 
         .ws-indicator {
-          padding: 6px 12px;
+          padding: 8px 14px;
           border-radius: 6px;
           font-size: 13px;
           font-weight: 600;
@@ -538,53 +472,6 @@ const EngineeringDashboard = () => {
         .ws-indicator.disconnected {
           background: rgba(239, 68, 68, 0.2);
           color: #ef4444;
-        }
-
-        .btn-logout {
-          background: rgba(255, 255, 255, 0.2);
-          color: white;
-          border: none;
-          padding: 8px 16px;
-          border-radius: 6px;
-          font-size: 14px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .btn-logout:hover {
-          background: rgba(255, 255, 255, 0.3);
-        }
-
-        .engineer-login-prompt {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          width: 100%;
-        }
-
-        .engineer-login-prompt p {
-          margin: 0;
-          color: white;
-          font-size: 16px;
-        }
-
-        .btn-login {
-          background: rgba(255, 255, 255, 0.2);
-          color: white;
-          border: 2px solid white;
-          padding: 10px 20px;
-          border-radius: 8px;
-          font-size: 15px;
-          font-weight: 700;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .btn-login:hover {
-          background: white;
-          color: #1e3a8a;
-          transform: translateY(-2px);
         }
 
         .no-data-message {

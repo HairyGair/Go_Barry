@@ -16,7 +16,7 @@ const DashboardDebug = () => {
     }
 
     // Check API
-    fetch('https://breakdown-guide.onrender.com/api/breakdowns/live')
+    fetch('https://breakdowns.gobarry.co.uk/api/api/breakdowns/live')
       .then(res => {
         setApiStatus({
           status: res.status,

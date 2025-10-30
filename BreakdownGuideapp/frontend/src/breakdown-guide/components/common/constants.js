@@ -22,14 +22,14 @@ export const breakdownConfig = {
 
 // API Configuration
 export const apiConfig = {
-    baseUrl: import.meta.env.VITE_API_URL || 'https://breakdown-guide.onrender.com',
+    baseUrl: import.meta.env.VITE_API_URL || 'https://breakdowns.gobarry.co.uk/api',
     supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
     supabaseAnonKey: import.meta.env.VITE_SUPABASE_ANON_KEY
 };
 
 // WebSocket Configuration
 export const websocketConfig = {
-    url: import.meta.env.VITE_WS_URL || 'wss://breakdown-guide.onrender.com',
+    url: import.meta.env.VITE_WS_URL || 'wss://breakdowns.gobarry.co.uk/ws',
     endpoints: {
         sdcDashboard: '/ws?channel=sdc-dashboard',
         breakdowns: '/ws?channel=breakdowns',

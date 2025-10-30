@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { authHelpers, supabase } from '../services/supabase-client.js';
 import { apiConfig } from '../breakdown-guide/components/common/constants.js';
 
 // Hardcoded supervisor list as fallback
@@ -55,22 +54,9 @@ const HeaderLogin = ({ onLoginSuccess }) => {
         }
       }
 
-      console.log('⚠️ Backend API failed, trying Supabase...');
+      console.log('⚠️ Backend API failed, using hardcoded supervisor list');
 
-      // Fallback to Supabase
-      let { data, error } = await supabase
-        .from('supervisors')
-        .select('id, name, email')
-        .order('name');
-
-      if (!error && data && data.length > 0) {
-        console.log('✅ Loaded supervisors from Supabase:', data);
-        setSupervisors(data);
-        setUseFallback(false);
-        return;
-      }
-
-      // Final fallback to hardcoded list
+      // Fallback to hardcoded list
       console.log('⚠️ All sources failed, using hardcoded supervisor list');
       setSupervisors(FALLBACK_SUPERVISORS);
       setUseFallback(true);
@@ -162,32 +148,8 @@ const HeaderLogin = ({ onLoginSuccess }) => {
         }
       }
 
-      // Last resort: Try Supabase authentication
-      console.log('⚠️ Trying Supabase authentication as last resort...');
-      const authResult = await authHelpers.signInWithPassword(selectedEmail, password);
-
-      if (!authResult.supervisor) {
-        throw new Error('Supervisor profile not found');
-      }
-
-      const session = {
-        id: authResult.supervisor.id,
-        supervisorId: authResult.supervisor.id,
-        name: authResult.supervisor.name,
-        email: authResult.supervisor.email,
-        depot: 'SDC', // All supervisors work at SDC
-        role: authResult.supervisor.role || 'supervisor',
-        isAdmin: authResult.supervisor.role === 'admin',
-        timestamp: new Date().toISOString(),
-        authenticated: true,
-        supabaseSession: authResult.session
-      };
-
-      // Clear form
-      setSelectedEmail('');
-      setPassword('');
-
-      onLoginSuccess(session);
+      // If we reach here and not using fallback, authentication failed
+      throw new Error('Authentication failed. Please check your credentials.');
       
     } catch (err) {
       console.error('Login error:', err);

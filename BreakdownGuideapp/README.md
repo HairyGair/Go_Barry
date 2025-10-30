@@ -1,739 +1,731 @@
-# Go North East - Breakdown Management System
+# Go BARRY Breakdown Management System
 
-**Version:** 2.1.0
-**Author:** Anthony Gair
-**Organization:** Go North East
-**Status:** Production-Ready ✅
-**Last Updated:** October 4, 2025
+> Real-time breakdown tracking and diagnostic platform for Go North East bus operations
 
-## 📋 Executive Summary
-
-The **Breakdown Management System** is a production-ready full-stack web application for Go North East bus operations to manage, track, and analyze vehicle breakdowns in real-time. The system serves 13 active supervisors across 6 depots, managing a fleet of 1,000+ vehicles with 20+ AI-driven diagnostic wizards for comprehensive breakdown assessment.
-
-**Key Metrics:**
-- **Fleet Size:** 1,000+ vehicles across 6 depots (Washington, Riverside, Consett, Deptford, Percy Main, Hexham)
-- **Active Users:** 13 supervisors with role-based access (Admin, Supervisor, Manager)
-- **Diagnostic Wizards:** 20+ interactive assessment flows
-- **Uptime:** 99.5% production availability (Render.com hosting)
-- **API Performance:** <500ms average latency
-- **Code Base:** 7,465 LOC backend + 157 frontend components
-
----
-
-## 🏗️ System Architecture
-
-### Technology Stack
-
-| Layer | Technology | Version | Purpose |
-|-------|-----------|---------|---------|
-| **Frontend** | React + Vite | 18.2 / 5.0 | SPA with hot reload |
-| **Backend** | Node.js + Express | 18+ / 4.18 | RESTful API server |
-| **Database** | Supabase PostgreSQL | Latest | Primary data store |
-| **Authentication** | Supabase Auth | 2.38+ | JWT-based auth |
-| **Real-time** | WebSocket (ws) | 8.18 | Live updates |
-| **Styling** | TailwindCSS | 3.x | Utility-first CSS |
-| **State** | React Hooks | - | Local state management |
-| **HTTP Client** | Axios | 1.6 | API communication |
-| **Maps** | Leaflet + React-Leaflet | 4.2 | Location mapping |
-| **Icons** | Lucide React | 0.544 | Icon library |
-| **Hosting** | Render.com (backend) | Free tier | Auto-deploy from Git |
-
-### Current Deployment
+[![Production](https://img.shields.io/badge/status-production-brightgreen)](https://breakdowns.gobarry.co.uk)
+[![Version](https://img.shields.io/badge/version-3.0.0-blue)]()
+[![Database](https://img.shields.io/badge/database-MySQL-orange)]()
 
 **Production URLs:**
-- Backend API: https://breakdown-guide.onrender.com
-- Frontend: https://breakdowns.gobarry.co.uk (cPanel hosted)
-- Database: Supabase Project `oieliubbvvdzhzvikzal`
-
-**Git Repository:**
-- Production: https://github.com/HairyGair/Breakdown_Guide
-- Origin (legacy): https://github.com/HairyGair/Go_Barry
+- **Frontend:** https://breakdowns.gobarry.co.uk
+- **Backend API:** https://api.breakdowns.gobarry.co.uk
 
 ---
 
-## 📁 Project Structure
+## Overview
 
-```
-BreakdownGuideapp/
-├── backend/                      # Node.js Express API
-│   ├── routes/                   # API endpoints (6,547 LOC)
-│   │   ├── auth.js              # Authentication (login, password reset)
-│   │   ├── breakdowns.js        # CRUD for breakdowns
-│   │   ├── activity.js          # Activity feed & logging
-│   │   ├── analytics.js         # KPIs, trends, reports
-│   │   ├── engineering.js       # Engineer assignment & tracking
-│   │   ├── fleet.js             # Vehicle/fleet data
-│   │   ├── wizards.js           # Diagnostic wizard logic
-│   │   ├── supervisors.js       # Supervisor management
-│   │   ├── breakdownsAPI.js     # SDC dashboard API
-│   │   └── webSocketHandler.js  # WebSocket connections
-│   ├── middleware/
-│   │   └── authMiddleware.js    # JWT verification, rate limiting
-│   ├── services/
-│   │   └── activityLogger.js    # Activity tracking service
-│   ├── data/                    # JSON data files
-│   │   └── breakdown-counter.json
-│   ├── server.js                # Express app entry point
-│   ├── package.json             # Dependencies
-│   └── render.yaml              # Render deployment config
-│
-├── frontend/                     # React SPA
-│   ├── src/
-│   │   ├── components/          # Reusable React components
-│   │   │   ├── ModernAppHeader.jsx
-│   │   │   ├── HeaderLogin.jsx
-│   │   │   ├── ChangePasswordModal.jsx
-│   │   │   ├── ActivityFeed.jsx
-│   │   │   └── notifications/
-│   │   ├── pages/               # Route pages
-│   │   │   ├── Home.jsx
-│   │   │   ├── Dashboard.jsx
-│   │   │   ├── BreakdownGuide.jsx
-│   │   │   └── Engineering.jsx
-│   │   ├── services/            # API services
-│   │   │   ├── supabase-client.js
-│   │   │   ├── api.js
-│   │   │   └── auth.js
-│   │   ├── hooks/               # Custom React hooks
-│   │   ├── utils/               # Helper functions
-│   │   ├── App.jsx              # Root component
-│   │   └── main.jsx             # Entry point
-│   ├── public/                  # Static assets
-│   ├── index.html               # HTML template
-│   ├── vite.config.js          # Vite configuration
-│   └── package.json            # Dependencies
-│
-├── database/
-│   └── migrations/              # SQL migration files
-│
-├── tests/                       # Playwright E2E tests
-│   ├── homepage-debug.spec.js
-│   └── quick-activity-test.spec.js
-│
-├── docs/                        # Documentation
-│   ├── API.md
-│   └── SETUP.md
-│
-├── setup-auth-users.js         # Script to create supervisor accounts
-├── setup-database-tables.sql   # Initial DB schema
-└── README.md                   # This file
-```
+The Go BARRY Breakdown Management System is a production-ready web application serving 9 active supervisors across 6 depots, managing breakdown operations for a fleet of 1,000+ vehicles. The system provides real-time breakdown tracking, 20+ interactive diagnostic wizards, and comprehensive operational dashboards.
+
+### Key Features
+
+- **Badge-Based Authentication** - Secure login with duty shift selection (100/200/400/500)
+- **Real-Time Tracking** - WebSocket-powered live dashboard updates
+- **Diagnostic Wizards** - 20+ guided assessment flows for common breakdown scenarios
+- **GPS Location Tracking** - Precise breakdown location capture and mapping
+- **SDC Operations Dashboard** - Real-time breakdown monitoring and resolution
+- **Activity Feed** - Unified activity stream with live updates
+- **Analytics & Reporting** - Comprehensive KPIs and trend analysis
+- **Mobile-Optimized** - Responsive design works on phones, tablets, and desktops
+
+### Built For
+
+- **9 Active Supervisors** across Washington, Riverside, Consett, Deptford, Percy Main, Hexham
+- **1,000+ Vehicles** in the Go North East fleet
+- **24/7 Operations** with duty shift tracking
+- **Real-Time Coordination** between supervisors, engineers, and SDC operators
 
 ---
 
-## 🚀 Getting Started
+## Quick Start
 
 ### Prerequisites
 
-```bash
-# Required software
-node --version  # Must be 18.0.0+
-npm --version   # 9.0.0+
-git --version   # Any recent version
+- Node.js 18.0.0+ ([Download](https://nodejs.org/))
+- MySQL 8.0+ ([Download](https://dev.mysql.com/downloads/))
+- npm 9.0.0+ (included with Node.js)
+- Git ([Download](https://git-scm.com/))
 
-# Accounts needed
-# - Supabase account (free tier)
-# - GitHub account (for deployment)
-```
+### Installation
 
-### Local Development Setup
-
-**1. Clone Repository**
+**1. Clone Repository:**
 ```bash
 cd "/Users/anthony/Go BARRY App/BreakdownGuideapp"
 ```
 
-**2. Install Dependencies**
+**2. Backend Setup:**
 ```bash
-# Backend
 cd backend
 npm install
+cp .env.cpanel.example .env
+# Edit .env with your MySQL credentials
+npm run dev
+```
 
-# Frontend
+**3. Frontend Setup:**
+```bash
 cd ../frontend
 npm install
-```
-
-**3. Environment Configuration**
-
-**Backend `.env`:**
-```bash
-# Supabase (REQUIRED)
-SUPABASE_URL=https://oieliubbvvdzhzvikzal.supabase.co
-SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-
-# Server
-PORT=3001
-NODE_ENV=development
-
-# CORS (comma-separated origins)
-ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000
-```
-
-**Frontend `.env`:**
-```bash
-VITE_API_URL=http://localhost:3001
-VITE_SUPABASE_URL=https://oieliubbvvdzhzvikzal.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-```
-
-**4. Database Setup**
-
-```bash
-# Run SQL schema in Supabase SQL Editor
-# File: setup-database-tables.sql
-
-# Create supervisor auth users
-node setup-auth-users.js
-```
-
-**5. Start Development Servers**
-
-Terminal 1 (Backend):
-```bash
-cd backend
+cp .env.example .env
+# Edit .env with API URL
 npm run dev
-# → http://localhost:3001
 ```
 
-Terminal 2 (Frontend):
+**4. Database Setup:**
 ```bash
-cd frontend
-npm run dev
-# → http://localhost:5173
+# Import schema
+mysql -u root -p < backend/migrations/complete_schema.sql
+
+# Create initial supervisor (use bcrypt to hash password)
+INSERT INTO supervisors (email, name, badge_number, role, password_hash)
+VALUES ('admin@example.com', 'Admin User', 'AD001', 'admin', '<bcrypt_hash>');
 ```
 
-**6. Login**
-```
-Email: anthony.gair@gonortheast.co.uk
-Password: TempPass123!
-```
+**5. Access Application:**
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:3001
+- API Health Check: http://localhost:3001/api/health
 
 ---
 
-## 🔐 Authentication System
+## Technology Stack
 
-### How It Works
+### Frontend
+- **React 18.2** - UI framework
+- **Vite 5.0** - Build tool and dev server
+- **TailwindCSS 3.x** - Utility-first CSS
+- **Axios** - HTTP client
+- **React Router** - Client-side routing
+- **Lucide React** - Icon library
+- **Leaflet** - Interactive maps
 
-1. **User Login** → `POST /api/auth/login`
-2. **Supabase Auth** validates credentials
-3. **JWT Token** returned if valid
-4. **Supervisor Lookup** using `auth_user_id` FK
-5. **Frontend** stores token in localStorage
-6. **All API Requests** include `Authorization: Bearer <token>`
-7. **Middleware** verifies token on each request
+### Backend
+- **Node.js 18+** - Runtime environment
+- **Express 4.18** - Web framework
+- **MySQL 8.0+** - Primary database
+- **JWT + bcrypt** - Authentication
+- **WebSocket (ws)** - Real-time communication
+- **cors** - Cross-origin resource sharing
+- **helmet** - Security headers
 
-### Supervisor Accounts (13 total)
-
-| Email | Badge | Role | Depot | Password |
-|-------|-------|------|-------|----------|
-| anthony.gair@gonortheast.co.uk | AG003 | Admin | SDC | TempPass123! |
-| simon.glass@gonortheast.co.uk | SG001 | Supervisor | SDC | TempPass123! |
-| david.hall@gonortheast.co.uk | DH001 | Supervisor | SDC | TempPass123! |
-| barry.perryman@gonortheast.co.uk | BP001 | Supervisor | SDC | TempPass123! |
-| ... (9 more) | | | | TempPass123! |
-
-### Database Schema (Auth)
-
-**Table: `supervisors`**
-```sql
-CREATE TABLE supervisors (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  email TEXT UNIQUE NOT NULL,
-  name TEXT NOT NULL,
-  badge_number TEXT UNIQUE NOT NULL,
-  depot TEXT NOT NULL,
-  role TEXT NOT NULL DEFAULT 'supervisor',
-  auth_user_id UUID REFERENCES auth.users(id),
-  is_active BOOLEAN DEFAULT true,
-  pending_approval BOOLEAN DEFAULT false,
-  approved_date TIMESTAMPTZ,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-**Table: `auth.users` (Supabase)**
-- Managed by Supabase Auth
-- Contains email, encrypted password, JWT claims
-- Linked to `supervisors` via `auth_user_id`
+### Infrastructure
+- **cPanel** - Frontend hosting
+- **PM2** - Backend process manager
+- **MySQL** - Database (85.234.151.224)
+- **HTTPS** - Secure connections
 
 ---
 
-## 📊 Core Modules
+## Architecture
+
+### System Overview
+
+```
+┌─────────────────────────────────────────────────────┐
+│              React Frontend (Vite)                   │
+│  - Dashboard UI                                      │
+│  - Diagnostic Wizards                                │
+│  - Activity Feed                                     │
+│  - Real-time Updates                                 │
+└───────────────────┬─────────────────────────────────┘
+                    │ HTTPS REST API + WebSocket
+┌───────────────────┴─────────────────────────────────┐
+│           Node.js + Express Backend                  │
+│  - Authentication (JWT)                              │
+│  - Breakdown Management                              │
+│  - WebSocket Handler                                 │
+│  - Activity Logger                                   │
+└───────────────────┬─────────────────────────────────┘
+                    │ MySQL Protocol
+┌───────────────────┴─────────────────────────────────┐
+│              MySQL Database                          │
+│  - supervisors, breakdowns                           │
+│  - activities, wizard_progress                       │
+│  - fleet_vehicles                                    │
+└─────────────────────────────────────────────────────┘
+```
+
+### Key Components
+
+**Frontend (`/frontend/`):**
+- `src/components/` - Reusable UI components
+- `src/pages/` - Route-level page components
+- `src/services/` - API communication layer
+- `src/App.jsx` - Root application component
+
+**Backend (`/backend/`):**
+- `routes/` - API endpoint handlers (165+ routes)
+- `middleware/` - Authentication and validation
+- `services/` - Business logic
+- `config/` - Database and app configuration
+- `migrations/` - Database schema versions
+
+---
+
+## Authentication
+
+### Login Flow (October 2025)
+
+The system uses a 3-step authentication process:
+
+**Step 1: Login**
+- Enter email and password
+- System validates credentials with bcrypt
+- Returns JWT token (24-hour expiration)
+
+**Step 2: Select Duty**
+- Modal appears with duty options:
+  - **Duty 100** (00:00 - 08:00) - Night Shift
+  - **Duty 200** (08:00 - 16:00) - Morning Shift
+  - **Duty 400** (16:00 - 00:00) - Evening Shift
+  - **Duty 500** - Variable Shift
+- Can skip if not on active duty
+
+**Step 3: Access Granted**
+- Full application access
+- Duty badge shown in navigation
+- All actions logged with duty information
+
+### Supervisor Roles
+
+**Admin Users:**
+- Full system access
+- User management capabilities
+- Analytics and reporting access
+- Example: AG003 (Anthony Gair), BP009 (Barry Perryman)
+
+**Supervisor Users:**
+- Create and manage breakdowns
+- Complete diagnostic wizards
+- View activity feed
+- Access depot-specific data
+
+**Manager Users:**
+- Read-only access to dashboards
+- Analytics and reporting
+- No breakdown creation/modification
+
+---
+
+## Core Features
 
 ### 1. Breakdown Management
 
-**File:** `backend/routes/breakdowns.js` (29,908 bytes)
+**Create Breakdowns:**
+- Auto-generated IDs (format: `BRK-YYYYMMDD-NNN`)
+- GPS location capture
+- Fleet number lookup
+- Issue categorization
+- Photo uploads (future enhancement)
+
+**Track Breakdowns:**
+- Real-time status updates
+- Timeline view of all events
+- Engineer assignment tracking
+- Resolution workflow
+- Audit trail
+
+**Statuses:**
+- `pending` - Initial report
+- `in-progress` - Assessment underway
+- `acknowledged` - SDC acknowledged
+- `dispatched` - Engineer dispatched
+- `on_site` - Engineer arrived
+- `resolved` - Breakdown resolved
+
+### 2. Diagnostic Wizards (20+ Types)
+
+**Available Wizards:**
+- Steering Issues
+- Brake Problems
+- Non-Starter
+- Battery Issues
+- Engine Warnings
+- Cooling System
+- Gearbox Problems
+- Door Malfunctions
+- Wheelchair Ramp
+- Destination Display
+- Interior/Exterior Lights
+- Wipers & Screenwash
+- Demister/Heaters
+- Wing Mirrors
+- Puncture
+- Suspension
+- And more...
+
+**Wizard Flow:**
+1. Select vehicle (fleet number)
+2. Confirm location
+3. Answer symptom questions (conditional logic)
+4. Complete safety checks
+5. Receive severity assessment (STOP/AMBER/CONTINUE)
+6. Get action recommendations
+7. Generate breakdown record
+
+### 3. SDC Operations Dashboard
 
 **Features:**
-- Create/Read/Update/Delete breakdowns
-- Wizard-based assessments (20+ types)
-- Auto-generated breakdown IDs (e.g., `BRK-20250101-001`)
-- GPS location tracking
-- Photo uploads (planned)
-- Status workflow: `pending` → `in-progress` → `resolved`
-- Audit trail for all changes
+- Real-time breakdown cards
+- Live breakdown counter
+- Filter by depot, severity, status
+- Quick action panels
+- Engineer dispatch interface
+- Breakdown resolution workflow
 
-**Key Endpoints:**
-```javascript
-POST   /api/breakdowns              // Create breakdown
-GET    /api/breakdowns/:id          // Get by ID
-PUT    /api/breakdowns/:id          // Update
-DELETE /api/breakdowns/:id          // Delete (soft)
-GET    /api/breakdowns/live         // Live for dashboard
-GET    /api/breakdowns/stats        // Statistics
-GET    /api/breakdowns/in-progress  // Active assessments
-POST   /api/breakdowns/:id/edit     // Start edit session
-GET    /api/breakdowns/:id/audit    // Audit trail
-```
+**Real-Time Updates:**
+- New breakdowns appear instantly
+- Status changes broadcast to all users
+- Activity feed updates automatically
+- Assessment progress tracking
 
-**Database Schema:**
-```sql
-CREATE TABLE breakdowns (
-  id UUID PRIMARY KEY,
-  breakdown_id TEXT UNIQUE NOT NULL,
-  fleet_no TEXT NOT NULL,
-  supervisor_badge TEXT REFERENCES supervisors(badge_number),
-  supervisor_name TEXT,
-  location_description TEXT,
-  location GEOGRAPHY(POINT, 4326),
-  issue_category TEXT,
-  severity TEXT CHECK (severity IN ('STOP', 'AMBER', 'CONTINUE')),
-  status TEXT CHECK (status IN ('pending', 'in-progress', 'resolved')),
-  wizard_type TEXT,
-  wizard_decision TEXT,
-  wizard_assessment_data JSONB,
-  depot TEXT,
-  breakdown_source TEXT DEFAULT 'wizard',
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-### 2. Activity Feed
-
-**File:** `backend/routes/activity.js` (26,242 bytes)
+### 4. Activity Feed
 
 **Features:**
-- Real-time activity tracking
-- Unified activities table
+- Unified activity stream
+- Real-time updates via WebSocket
 - Pagination support
-- Filtering by depot, actor, type, severity
-- Live updates (last 5 minutes)
+- Filtering (depot, actor, type, severity)
 - Search functionality
 
-**Key Endpoints:**
-```javascript
-GET  /api/activity/feed           // Paginated feed
-GET  /api/activity/live           // Real-time (last 5 min)
-POST /api/activity/log            // Log new activity
-GET  /api/activity/stats          // Statistics
-GET  /api/activity/search?q=term  // Search activities
-```
-
 **Activity Types:**
-- `breakdown_created`
-- `assessment_completed`
-- `engineer_assigned`
-- `engineer_dispatched`
-- `status_updated`
-- `resolved`
+- Breakdown reported
+- Wizard started/completed
+- Status updated
+- Engineer assigned/dispatched
+- Resolution logged
+- Comments added
 
-### 3. Analytics & Reporting
+### 5. Analytics & Reporting
 
-**File:** `backend/routes/analytics.js` (26,471 bytes)
-
-**Metrics Tracked:**
+**Available Metrics:**
 - Total breakdowns by depot
 - Average response times
 - Engineer performance
 - Repeat breakdown detection
-- Cost analysis
 - Fleet health scores
-- Trend analysis (hourly, daily, weekly)
-
-**Key Endpoints:**
-```javascript
-GET /api/analytics/kpis                 // Key performance indicators
-GET /api/analytics/trends               // Time-series data
-GET /api/analytics/depot-comparison     // Compare depots
-GET /api/analytics/fleet-health         // Fleet-wide metrics
-```
-
-### 4. Engineering Management
-
-**File:** `backend/routes/engineering.js` (26,289 bytes)
-
-**Features:**
-- Engineer profiles & availability
-- Manual assignment
-- Auto-assignment (location + skills)
-- Skill matching (electrical, mechanical, HVAC)
-- Performance tracking
-- ETA tracking
-
-**Key Endpoints:**
-```javascript
-GET  /api/engineering/engineers        // List all
-POST /api/engineering/assign           // Manual assign
-POST /api/engineering/auto-assign      // Auto-assign
-GET  /api/engineering/metrics          // Performance metrics
-GET  /api/engineering/depot-stats      // Depot statistics
-```
-
-### 5. Diagnostic Wizards
-
-**File:** `backend/routes/wizards.js` (6,741 bytes)
-
-**20+ Wizard Types:**
-- Steering issues
-- Brake problems
-- Engine faults
-- Electrical issues
-- HVAC (heating/cooling)
-- Door malfunctions
-- Wheelchair ramp
-- Destination display
-- And 12+ more...
-
-**Wizard Flow:**
-1. Initial assessment (vehicle, location)
-2. Symptom questions (conditional logic)
-3. Safety checks
-4. Severity determination (STOP/AMBER/CONTINUE)
-5. Action plan (repair/replace/dispatch)
-6. Documentation & photo capture
+- Hourly/daily/weekly trends
+- Depot comparisons
+- Cost analysis
 
 ---
 
-## 🗄️ Database Schema
-
-### Complete Schema Overview
-
-**Tables (9 total):**
-1. `supervisors` - User accounts
-2. `breakdowns` - Breakdown records
-3. `activities` - Unified activity log
-4. `breakdown_events` - Breakdown-specific events
-5. `engineers` - Engineering team
-6. `vehicles` - Fleet data (planned)
-7. `supervisor_sessions` - Active sessions
-8. `breakdown_photos` - Photo uploads (planned)
-9. `audit_log` - System audit trail
-
-**Key Relationships:**
-```
-supervisors (1) ──< (∞) breakdowns
-supervisors (1) ──< (∞) activities
-breakdowns  (1) ──< (∞) breakdown_events
-breakdowns  (1) ──< (∞) breakdown_photos
-engineers   (1) ──< (∞) breakdowns (via engineer_assigned)
-```
-
----
-
-## 🌐 API Reference
+## API Reference
 
 ### Base URLs
 
-- **Local:** `http://localhost:3001`
-- **Production:** `https://breakdown-guide.onrender.com`
-
-### Authentication
-
-All protected endpoints require:
-```http
-Authorization: Bearer <jwt_token>
+**Local Development:**
+```
+Backend:  http://localhost:3001
+Frontend: http://localhost:5173
 ```
 
-**Get Token:**
+**Production:**
+```
+Backend:  https://api.breakdowns.gobarry.co.uk
+Frontend: https://breakdowns.gobarry.co.uk
+```
+
+### Authentication Endpoints
+
 ```bash
-curl -X POST http://localhost:3001/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"anthony.gair@gonortheast.co.uk","password":"TempPass123!"}'
+# Login
+POST /api/supervisor/login
+Body: { "email": "user@example.com", "password": "password" }
+Response: { "token": "jwt_token", "user": {...} }
+
+# Set Duty
+POST /api/auth/set-duty
+Headers: { "Authorization": "Bearer <token>" }
+Body: { "duty": "100" }
+Response: { "success": true, "duty": "100" }
+
+# Get Session
+GET /api/supervisor/session
+Headers: { "Authorization": "Bearer <token>" }
+Response: { "user": {...}, "duty": "100" }
+
+# Logout
+POST /api/supervisor/logout
+Headers: { "Authorization": "Bearer <token>" }
+Response: { "success": true }
 ```
 
-**Response:**
-```json
-{
-  "success": true,
-  "session": {
-    "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "user": { "id": "...", "email": "..." }
-  }
-}
-```
+### Breakdown Endpoints
 
-### Sample Requests
-
-**Create Breakdown:**
 ```bash
-curl -X POST http://localhost:3001/api/breakdowns \
-  -H "Authorization: Bearer <token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "fleet_no": "6377",
-    "location_description": "Washington Depot",
-    "issue_category": "steering",
-    "severity": "AMBER",
-    "supervisor_badge": "AG003"
-  }'
+# Create Breakdown
+POST /api/breakdowns
+Headers: { "Authorization": "Bearer <token>" }
+Body: { "fleet_no": "6377", "location": "...", "issue": "..." }
+
+# Get All Live Breakdowns
+GET /api/breakdowns/live
+Headers: { "Authorization": "Bearer <token>" }
+
+# Get Breakdown by ID
+GET /api/breakdowns/:id
+Headers: { "Authorization": "Bearer <token>" }
+
+# Update Breakdown
+PUT /api/breakdowns/:id
+Headers: { "Authorization": "Bearer <token>" }
+Body: { "status": "resolved", "notes": "..." }
+
+# Get Statistics
+GET /api/breakdowns/stats
+Headers: { "Authorization": "Bearer <token>" }
 ```
 
-**Get Activity Feed:**
+### Activity Endpoints
+
 ```bash
-curl http://localhost:3001/api/activity/feed?limit=20 \
-  -H "Authorization: Bearer <token>"
+# Get Activity Feed
+GET /api/activity/feed?limit=50&offset=0
+Headers: { "Authorization": "Bearer <token>" }
+
+# Get Live Activities (last 5 minutes)
+GET /api/activity/live
+Headers: { "Authorization": "Bearer <token>" }
+
+# Search Activities
+GET /api/activity/search?q=6377
+Headers: { "Authorization": "Bearer <token>" }
 ```
+
+### WebSocket Connection
+
+```javascript
+// Connect to WebSocket
+const ws = new WebSocket('wss://api.breakdowns.gobarry.co.uk/ws');
+
+// Subscribe to channel
+ws.send(JSON.stringify({
+  type: 'subscribe',
+  channel: 'breakdowns',
+  token: 'jwt_token'
+}));
+
+// Receive messages
+ws.onmessage = (event) => {
+  const message = JSON.parse(event.data);
+  // Handle: new_breakdown, breakdown_updated, breakdown_resolved, etc.
+};
+```
+
+**See `docs/COMPLETE_API_ENDPOINT_AUDIT.md` for complete API documentation (165+ endpoints).**
 
 ---
 
-## 🧪 Testing
+## Database Schema
 
-### E2E Tests (Playwright)
+### Core Tables
 
-```bash
-# Install
-npm install
-
-# Run all tests
-npm test
-
-# Run in headed mode
-npx playwright test --headed
-
-# Run specific test
-npx playwright test tests/homepage-debug.spec.js
+**supervisors** - User accounts
+```sql
+id, email, name, badge_number, depot, role,
+password_hash, duty, is_active, created_at, updated_at
 ```
 
-**Test Files:**
-- `homepage-debug.spec.js` - Homepage loading
-- `quick-activity-test.spec.js` - Activity feed
-- `debug-activity-test.spec.js` - Activity debugging
+**breakdowns** - Breakdown records
+```sql
+id, breakdown_id, fleet_no, supervisor_badge,
+location_description, location_lat, location_lng,
+issue_category, severity, status, wizard_type,
+wizard_decision, wizard_assessment_data, depot,
+resolved_at, resolution_notes, created_at, updated_at
+```
+
+**activities** - Activity log
+```sql
+id, activity_type, timestamp, breakdown_id, fleet_no,
+supervisor_name, supervisor_badge, message,
+description, severity, depot, source
+```
+
+**wizard_progress** - Assessment tracking
+```sql
+id, supervisor_id, wizard_type, current_step,
+total_steps, progress_data, status, created_at, updated_at
+```
+
+**fleet_vehicles** - Fleet data (optional)
+```sql
+id, fleet_no, vehicle_type, depot, make, model,
+year, registration, is_active, created_at, updated_at
+```
+
+**See `docs/DATABASE_SCHEMA_REPORT.md` for complete schema documentation.**
 
 ---
 
-## 📦 Deployment
+## Deployment
 
-### Backend (Render.com)
+### Backend Deployment (PM2)
 
-**Repository:** https://github.com/HairyGair/Breakdown_Guide
-
-**Render Configuration (`render.yaml`):**
-```yaml
-services:
-  - type: web
-    name: breakdown-guide
-    env: node
-    region: frankfurt
-    plan: free
-    buildCommand: cd backend && npm install
-    startCommand: cd backend && npm start
-    healthCheckPath: /health
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - fromGroup: breakdown-guide-secrets
-```
-
-**Environment Variables (Set in Render Dashboard):**
-- `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_KEY`
-- `PORT` (auto-set by Render)
-- `NODE_ENV=production`
-
-**Deployment Process:**
-1. Push to `main` branch
-2. Render auto-detects changes
-3. Runs build command
-4. Deploys to production
-5. Health check on `/health` endpoint
-
-### Frontend (Multiple Options)
-
-**Option 1: Render**
-```yaml
-# Add to render.yaml
-  - type: web
-    name: breakdown-guide-frontend
-    env: static
-    buildCommand: cd frontend && npm install && npm run build
-    staticPublishPath: frontend/dist
-```
-
-**Option 2: Vercel**
+**Via SSH:**
 ```bash
-# Install Vercel CLI
-npm i -g vercel
-
-# Deploy
-cd frontend
-vercel --prod
+ssh user@85.234.151.224
+cd ~/api
+npm ci --production
+pm2 restart breakdown-backend
+pm2 logs breakdown-backend
 ```
 
-**Option 3: cPanel**
+### Frontend Deployment (cPanel)
+
+**Build and Upload:**
 ```bash
+# Local machine
 cd frontend
 npm run build
-# Upload dist/ contents to public_html
+
+# Upload via SFTP/CyberDuck:
+# Delete all files in: ~/public_html/breakdowns.gobarry.co.uk/
+# Upload all files from: frontend/dist/
 ```
 
-### Database (Supabase)
+### Database Migrations
 
-**Project Details:**
-- URL: https://oieliubbvvdzhzvikzal.supabase.co
-- Region: EU West (Ireland)
-- Plan: Free tier
+**Apply via phpMyAdmin:**
+1. Login to phpMyAdmin (cPanel)
+2. Select `gobarryco_breakdown` database
+3. Go to SQL tab
+4. Paste migration SQL from `/backend/migrations/`
+5. Execute and verify
 
-**Setup Checklist:**
-- [x] Run `setup-database-tables.sql`
-- [x] Run `setup-auth-users.js`
-- [x] Enable Row Level Security (RLS)
-- [x] Configure CORS origins
-- [x] Set up database backups
+**See `docs/CPANEL_ONLY_DEPLOYMENT_GUIDE.md` for complete deployment instructions.**
 
 ---
 
-## 🐛 Troubleshooting
+## Development
 
-### Common Issues & Solutions
+### Project Structure
 
-**1. "401 Unauthorized" Errors**
-```bash
-# Check:
-1. Token is valid and not expired
-2. User exists in auth.users table
-3. auth_user_id is set in supervisors table
-4. Authorization header format: "Bearer <token>"
-
-# Fix:
-curl http://localhost:3001/api/auth/verify \
-  -H "Authorization: Bearer <your_token>"
+```
+BreakdownGuideapp/
+├── backend/           # Node.js Express API
+├── frontend/          # React SPA
+├── docs/             # Documentation
+├── CLAUDE.md         # AI assistant guide
+├── README.md         # This file
+├── PROJECT_GOALS.md  # Project objectives
+└── DEVELOPMENT.md    # Development guidelines
 ```
 
-**2. "Activity Feed Not Loading"**
-```bash
-# Check backend health
-curl http://localhost:3001/health
+### Code Standards
 
-# Check CORS settings in server.js (line 102-108)
-# Verify frontend URL is in ALLOWED_ORIGINS
-```
+**Backend (Node.js):**
+- ES6 modules (import/export)
+- Async/await for async operations
+- Parameterized SQL queries
+- Try-catch error handling
+- Consistent API response format
 
-**3. "Supabase Connection Failed"**
-```bash
-# Verify credentials
-echo $SUPABASE_URL
-echo $SUPABASE_ANON_KEY
-
-# Test connection
-node -e "
-import { createClient } from '@supabase/supabase-js';
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
-const { data, error } = await supabase.from('supervisors').select('count');
-console.log(data, error);
-"
-```
-
-**4. "Cannot find module" Errors**
-```bash
-# Reinstall dependencies
-cd backend && rm -rf node_modules && npm install
-cd frontend && rm -rf node_modules && npm install
-```
-
----
-
-## 🛠️ Development Guidelines
-
-### Code Style
-
-- **ES6 Modules:** All imports/exports use `import`/`export`
-- **Async/Await:** Preferred over `.then()` chains
-- **Functional Components:** React components with hooks
-- **Naming Conventions:**
-  - Variables: `camelCase`
-  - Components: `PascalCase`
-  - Constants: `UPPER_SNAKE_CASE`
-  - Files: `kebab-case.js` or `PascalCase.jsx`
+**Frontend (React):**
+- Functional components with hooks
+- PascalCase for component files
+- camelCase for utility functions
+- Props validation (future: PropTypes)
 
 ### Git Workflow
 
 ```bash
-# Always work from main branch
+# Work from main branch
 git checkout main
-git pull breakdown main
+git pull origin main
 
-# Make changes
+# Make changes and commit
 git add .
-git commit -m "feat: add new feature
+git commit -m "feat: add new feature"
 
-🤖 Generated with Claude Code
-Co-Authored-By: Claude <noreply@anthropic.com>"
+# Push to repository
+git push origin main
 
-# Push to trigger deployment
-git push breakdown main
+# Deploy manually (see deployment guide)
 ```
-
-### Adding New Features
-
-1. **Backend Route:**
-   - Create `backend/routes/feature.js`
-   - Export Express router
-   - Import in `backend/server.js`
-   - Add authentication middleware
-
-2. **Frontend Component:**
-   - Create `frontend/src/components/Feature.jsx`
-   - Add route in `App.jsx` if needed
-   - Create API service in `services/api.js`
-
-3. **Database Changes:**
-   - Write migration SQL
-   - Test locally first
-   - Apply to Supabase production
 
 ---
 
-## 📞 Support & Contact
+## Testing
+
+### Manual Testing Checklist
+
+**Authentication:**
+- [ ] Login with valid credentials
+- [ ] Duty selection modal appears
+- [ ] Select duty and verify badge in nav
+- [ ] Logout and verify session ended
+
+**Breakdown Management:**
+- [ ] Create new breakdown
+- [ ] Verify auto-generated ID
+- [ ] Check breakdown appears in dashboard
+- [ ] Update breakdown status
+- [ ] Resolve breakdown
+- [ ] Verify activity feed updated
+
+**Real-Time Updates:**
+- [ ] Open dashboard in two browsers
+- [ ] Create breakdown in browser A
+- [ ] Verify appears in browser B instantly
+- [ ] Update status in browser B
+- [ ] Verify updates in browser A
+
+### API Testing
+
+**Using curl:**
+```bash
+# Login
+TOKEN=$(curl -s -X POST http://localhost:3001/api/supervisor/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"test123"}' \
+  | jq -r '.token')
+
+# Get breakdowns
+curl -H "Authorization: Bearer $TOKEN" \
+  http://localhost:3001/api/breakdowns/live | jq
+```
+
+---
+
+## Troubleshooting
+
+### Common Issues
+
+**Backend won't start:**
+```bash
+# Check logs
+pm2 logs breakdown-backend --lines 100
+
+# Common causes:
+# - MySQL connection failed (check .env)
+# - Port in use (change PORT in .env)
+# - Missing dependencies (run npm install)
+```
+
+**Frontend showing blank page:**
+```bash
+# Check browser console for errors
+# Hard refresh: Cmd+Shift+R (Mac) or Ctrl+Shift+R (Windows)
+
+# Rebuild frontend
+cd frontend
+rm -rf dist node_modules/.vite
+npm install
+npm run build
+```
+
+**Database connection timeout:**
+```bash
+# Test MySQL connection
+mysql -h 85.234.151.224 -u gobarryco_Gair -p gobarryco_breakdown
+
+# Check MySQL service status
+systemctl status mysql  # If root access available
+```
+
+**WebSocket not connecting:**
+```bash
+# Test WebSocket endpoint
+curl -i -N -H "Connection: Upgrade" -H "Upgrade: websocket" \
+  https://api.breakdowns.gobarry.co.uk/ws
+
+# Check PM2 logs for WebSocket errors
+pm2 logs | grep -i websocket
+```
+
+---
+
+## Documentation
+
+### Available Guides
+
+**Getting Started:**
+- `README.md` - This file (project overview)
+- `CLAUDE.md` - AI assistant guide
+- `PROJECT_GOALS.md` - Objectives and roadmap
+- `DEVELOPMENT.md` - Development guidelines
+
+**Technical Documentation:**
+- `docs/CPANEL_ONLY_DEPLOYMENT_GUIDE.md` - Deployment guide
+- `docs/COMPLETE_API_ENDPOINT_AUDIT.md` - API reference
+- `docs/DATABASE_SCHEMA_REPORT.md` - Database design
+- `docs/MASTER_CPANEL_DOCUMENTATION_INDEX.md` - Documentation index
+
+**System Information:**
+- `SYSTEM_STATUS.md` - Current system status
+- `NEW_AUTH_FLOW.md` - Authentication changes
+- `ARCHITECTURE.md` - System architecture (legacy)
+
+---
+
+## Contributing
+
+### Development Process
+
+1. **Check Documentation** - Read relevant docs before making changes
+2. **Test Locally** - Verify changes work in local development
+3. **Follow Code Standards** - Match existing patterns and conventions
+4. **Update Documentation** - Keep docs in sync with code changes
+5. **Test in Production** - Verify deployment after going live
+
+### Code Review Checklist
+
+- [ ] Code follows project standards
+- [ ] All console.log statements removed (use proper logging)
+- [ ] Error handling implemented
+- [ ] SQL queries use parameterized statements
+- [ ] API responses use consistent format
+- [ ] Documentation updated if needed
+- [ ] Tested locally before deployment
+
+---
+
+## License
+
+**Copyright © 2025 Anthony Gair. All Rights Reserved.**
+
+This software is proprietary and confidential. Unauthorized copying, distribution, modification, or use is strictly prohibited without explicit written permission from the author.
+
+Licensed exclusively to Go North East for internal breakdown management operations.
+
+---
+
+## Support
 
 **Developer:** Anthony Gair
 **Email:** anthony.gair@gonortheast.co.uk
 **Organization:** Go North East
 
 **For Issues:**
-- GitHub: https://github.com/HairyGair/Breakdown_Guide/issues
-- Internal: Slack #breakdown-system
+- Check troubleshooting section above
+- Review relevant documentation
+- Contact developer for assistance
 
 ---
 
-## 📄 License
+## Recent Updates
 
-**Copyright © 2025 Anthony Gair. All Rights Reserved.**
+**October 30, 2025 - Documentation Overhaul**
+- Created comprehensive CLAUDE.md for AI assistants
+- Updated README with current system architecture
+- Added PROJECT_GOALS.md with roadmap
+- Created DEVELOPMENT.md with dev guidelines
 
-This software is proprietary and confidential. Unauthorized copying, distribution, modification, or use is strictly prohibited without explicit written permission from the author.
+**October 2025 - Duty Selection Flow**
+- Implemented 3-step authentication (Login → Select Duty → Access)
+- Added DutySelectionModal component
+- New endpoint: POST /api/auth/set-duty
+- Duty badge displayed in navigation
+
+**October 2025 - MySQL Migration Complete**
+- Migrated from Supabase to MySQL
+- Replaced Supabase Auth with JWT + bcrypt
+- Moved from Render.com to cPanel + PM2
+- Created comprehensive deployment documentation
 
 ---
 
-**Last Updated:** October 4, 2025
-**Version:** 2.1.0
+**Last Updated:** October 30, 2025
+**Version:** 3.0.0
 **Status:** Production-Ready ✅
-
-## 🎯 Recent Updates
-
-**October 4, 2025 - Breakdown Resolution Feature**
-- ✅ Added breakdown resolution workflow for SDC Operations Dashboard
-- ✅ Database schema updated with resolution tracking columns (`resolved_at`, `resolved_by`, `resolution_type`, etc.)
-- ✅ New endpoint: `POST /api/sdc/resolve` for marking breakdowns as complete
-- ✅ Resolution types: fixed, changeover, cancelled, duplicate, other
-- ✅ Real-time dashboard updates via WebSocket when breakdowns are resolved
-- ✅ Fixed git repository synchronization (dual-repo setup documented)
-- ✅ Applied `updated_at` column migration with automatic trigger
-
-**Key Statistics:**
-- **Total Breakdowns:** 1,524 lines of breakdown management code
-- **SDC Endpoint:** 1,525 lines (`breakdownsAPI.js`)
-- **Activity Logging:** Full audit trail with `activities.json` and `audit-log.json`

@@ -3,7 +3,7 @@ import * as Icons from '../common/icons.jsx';
 import constants from '../common/constants.js';
 
 // Low Water Wizard Component
-// Follows the exact flow from SDC Guide page 16
+// Follows the operational procedure reference
 // Updated to include Red/Amber warning light guidance
 
 const LowWaterWizard = ({ currentStep, responses, updateResponse, onNext, onPrevious, onComplete }) => {
@@ -19,7 +19,7 @@ const LowWaterWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                             <Droplets className="w-8 h-8 text-blue-400" />
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">💧 Low Water Assessment</h2>
-                        <p className="text-gray-300">Following SDC guidance for low water issues - systematic approach to assess safety and continuity.</p>
+                        <p className="text-gray-300">Following standard operational safety checks guidance for low water issues - systematic approach to assess safety and continuity.</p>
                     </div>
                     
                     <div className="bg-red-500/20 backdrop-blur-sm rounded-lg p-6 border border-red-400/30">
@@ -555,7 +555,7 @@ const LowWaterWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
             );
 
         case 5:
-            // Decision logic based on SDC guide
+            // Decision logic based on operational procedures
             const generateDecision = () => {
                 // CRITICAL: Check warning light first
                 if (responses.warning_light === 'red_light') {

@@ -14,7 +14,7 @@ function BuzzersWizard({ currentStep, responses, updateResponse, onNext, onPrevi
                 <span className="text-3xl">🔊</span>
               </div>
               <h2 className="text-2xl font-bold text-white mb-2">🔊 BUZZERS SOUNDING</h2>
-              <p className="text-gray-300">Warning buzzer system diagnostic - following SDC Engineering Issues Guide buzzer procedures.</p>
+              <p className="text-gray-300">Warning buzzer system diagnostic - following operational safety procedures buzzer procedures.</p>
             </div>
 
             <div className="bg-amber-500/20 backdrop-blur-sm rounded-lg p-6 border border-amber-400/30">
@@ -23,11 +23,11 @@ function BuzzersWizard({ currentStep, responses, updateResponse, onNext, onPrevi
                 Buzzers indicate system warnings that require immediate assessment. Some vehicles will not drive with certain buzzers sounding.
               </p>
               <div className="mt-4">
-                <h4 className="font-semibold text-amber-200 mb-2">SDC Mandatory Actions:</h4>
+                <h4 className="font-semibold text-amber-200 mb-2">Mandatory operational actions:</h4>
                 <ul className="text-amber-300/80 text-sm space-y-1">
                   <li>• IDENTIFY which specific buzzer is sounding</li>
                   <li>• CHECK for corresponding warning lights</li>
-                  <li>• REFER to SDC guide or dashboard manual</li>
+                  <li>• REFER to operational procedures or dashboard manual</li>
                   <li>• ASSESS whether vehicle can continue safely</li>
                   <li>• SEEK engineering assistance if uncertain</li>
                 </ul>
@@ -135,7 +135,7 @@ function BuzzersWizard({ currentStep, responses, updateResponse, onNext, onPrevi
           <div className="space-y-6">
             <div className="text-center">
               <h2 className="text-2xl font-bold text-white mb-2">SDC Step 1: Identify the Buzzer</h2>
-              <p className="text-gray-300">Following SDC Engineering Issues Guide - accurately identify which buzzer is sounding and its pattern.</p>
+              <p className="text-gray-300">Following standard operational safety checks - accurately identify which buzzer is sounding and its pattern.</p>
             </div>
 
             <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/20">
@@ -194,7 +194,7 @@ function BuzzersWizard({ currentStep, responses, updateResponse, onNext, onPrevi
                   <div className="flex-1">
                     <h3 className="text-xl font-bold text-red-200 mb-3">STOP - SEEK ENGINEERING ASSISTANCE</h3>
                     <div className="text-red-300/90 space-y-2">
-                      <p className="font-semibold">SDC Guide: If buzzer cannot be identified:</p>
+                      <p className="font-semibold">Operational procedure: If buzzer cannot be identified:</p>
                       <ul className="list-disc list-inside space-y-1">
                         <li>Stop the vehicle immediately</li>
                         <li>Some vehicles will not drive with buzzers sounding</li>
@@ -214,7 +214,7 @@ function BuzzersWizard({ currentStep, responses, updateResponse, onNext, onPrevi
           <div className="space-y-6">
             <div className="text-center">
               <h2 className="text-2xl font-bold text-white mb-2">SDC Step 2: Check for Warning Lights</h2>
-              <p className="text-gray-300">Following SDC Engineering Issues Guide - check if any warning lights are illuminated that correspond with the buzzer sound.</p>
+              <p className="text-gray-300">Following standard operational safety checks - check if any warning lights are illuminated that correspond with the buzzer sound.</p>
             </div>
 
             <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/20">
@@ -291,7 +291,7 @@ function BuzzersWizard({ currentStep, responses, updateResponse, onNext, onPrevi
               <div className="bg-orange-500/20 backdrop-blur-sm rounded-lg p-6 border border-orange-400/30">
                 <h3 className="text-lg font-semibold text-orange-200 mb-4">⚠️ Matching Warning Light Identified</h3>
                 <p className="text-orange-300/80 text-sm leading-relaxed mb-4">
-                  SDC Guide: With corresponding warning light and buzzer, refer to specific guidance in SDC Guide or dashboard manual for that warning.
+                  Operational procedure: With corresponding warning light and buzzer, refer to specific operational guidance or dashboard manual for that warning.
                 </p>
                 <div className="text-orange-300/80 text-sm">
                   <h4 className="font-semibold mb-2">Common Examples:</h4>
@@ -311,7 +311,7 @@ function BuzzersWizard({ currentStep, responses, updateResponse, onNext, onPrevi
           <div className="space-y-6">
             <div className="text-center">
               <h2 className="text-2xl font-bold text-white mb-2">SDC Step 3: Take Action</h2>
-              <p className="text-gray-300">Following SDC Engineering Issues Guide - determine whether it is safe to continue to the next convenient changeover point.</p>
+              <p className="text-gray-300">Following standard operational safety checks - determine whether it is safe to continue to the next convenient changeover point.</p>
             </div>
 
             <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/20">
@@ -407,7 +407,7 @@ function BuzzersWizard({ currentStep, responses, updateResponse, onNext, onPrevi
             <div className="bg-blue-500/20 backdrop-blur-sm rounded-lg p-6 border border-blue-400/30">
               <h3 className="text-lg font-semibold text-blue-200 mb-4">🔧 Final SDC Guidance</h3>
               <div className="text-blue-300/80 text-sm space-y-3">
-                <p className="font-semibold">SDC Engineering Issues Guide states:</p>
+                <p className="font-semibold">operational safety procedures states:</p>
                 <ul className="list-disc list-inside space-y-2">
                   <li>Some vehicles will not drive with a buzzer sounding</li>
                   <li>If issue cannot be resolved, stop and await assistance from engineering</li>

@@ -1,0 +1,147 @@
+/* Wizard Button Group Styles */
+/* Professional animations and transitions for wizard navigation buttons */
+
+/* Safe area support for mobile devices with notches/home indicators */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 1rem);
+}
+
+/* Smooth fade-in animation for button group */
+.wizard-button-group {
+  animation: wizard-button-fade-in 0.3s ease-out;
+}
+
+@keyframes wizard-button-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Enhanced focus states for accessibility */
+.wizard-button-group button:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+}
+
+/* Loading spinner animation */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Button press animation */
+.wizard-button-group button:active:not(:disabled) {
+  transform: scale(0.95);
+  transition: transform 0.1s ease-out;
+}
+
+/* Disabled button visual feedback */
+.wizard-button-group button:disabled {
+  cursor: not-allowed;
+  filter: grayscale(50%);
+}
+
+/* Gradient overlay pulse effect (subtle breathing animation) */
+.wizard-button-group .gradient-overlay {
+  animation: gradient-pulse 3s ease-in-out infinite;
+}
+
+@keyframes gradient-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+/* Mobile-specific optimizations */
+@media (max-width: 640px) {
+  /* Larger touch targets on mobile */
+  .wizard-button-group button {
+    min-height: 48px;
+    font-size: 16px; /* Prevents iOS zoom on focus */
+  }
+
+  /* Prevent accidental double-tap zoom */
+  .wizard-button-group button {
+    touch-action: manipulation;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .wizard-button-group button {
+    border: 2px solid currentColor;
+  }
+
+  .wizard-button-group button:focus-visible {
+    outline-width: 3px;
+  }
+}
+
+/* Reduced motion support for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .wizard-button-group,
+  .wizard-button-group button {
+    animation: none;
+    transition: none;
+  }
+
+  .wizard-button-group button:hover {
+    transform: none;
+  }
+
+  .animate-spin {
+    animation: none;
+  }
+}
+
+/* Dark mode specific adjustments (already default, but explicit) */
+@media (prefers-color-scheme: dark) {
+  .wizard-button-group {
+    --bg-primary: rgba(17, 24, 39, 0.95);
+    --border-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* Tooltip/hint styling for keyboard shortcuts */
+.wizard-button-group .keyboard-hint {
+  transition: opacity 0.2s ease-in-out;
+}
+
+/* Ensure buttons don't overflow on very small screens */
+@media (max-width: 380px) {
+  .wizard-button-group button {
+    font-size: 14px;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .wizard-button-group button span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* Print styles - hide navigation buttons */
+@media print {
+  .wizard-button-group {
+    display: none;
+  }
+}

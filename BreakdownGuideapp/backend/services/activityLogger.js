@@ -6,8 +6,7 @@
  * and state changes for real-time activity feeds.
  */
 
-// Note: supabase client will be injected via setSupabaseClient method
-let supabase = null;
+import { from, query, insert as dbInsert } from '../utils/queryHelpers.js';
 
 // Activity type constants
 export const ACTIVITY_TYPES = {
@@ -72,18 +71,8 @@ class ActivityLoggerService {
     this.maxBatchSize = 10;
     this.batchTimeout = 5000; // 5 seconds
     this.batchTimer = null;
-  }
-
-  /**
-   * Set the Supabase client (called from server.js after initialization)
-   */
-  setSupabaseClient(supabaseClient) {
-    supabase = supabaseClient;
-    if (!this.isInitialized) {
-      this.init().catch(error => {
-        console.error('Failed to initialize activity logger after setting supabase client:', error);
-      });
-    }
+    // Auto-initialize with MySQL
+    this.init();
   }
 
   /**
@@ -91,24 +80,17 @@ class ActivityLoggerService {
    */
   async init() {
     try {
-      // Check if supabase client is available
-      if (!supabase) {
-        console.log('⏳ Activity Logger waiting for Supabase client...');
-        return false;
-      }
-
       // Test connection to activities table
-      const { data, error } = await supabase
-        .from('activities')
-        .select('id')
-        .limit(1);
-
-      if (error && !error.message.includes('relation "activities" does not exist')) {
-        throw error;
-      }
+      const testSql = 'SELECT id FROM activities LIMIT 1';
+      await query(testSql).catch(error => {
+        // Table might not exist yet, which is okay
+        if (!error.message.includes("doesn't exist")) {
+          throw error;
+        }
+      });
 
       this.isInitialized = true;
-      console.log('✅ Activity Logger Service initialized');
+      console.log('✅ Activity Logger Service initialized with MySQL');
 
       // Process any pending activities
       if (this.pendingActivities.length > 0) {
@@ -183,13 +165,13 @@ class ActivityLoggerService {
     }
 
     try {
-      const { data, error } = await supabase
-        .from('activities')
-        .insert([activity])
-        .select()
-        .single();
+      // Insert into MySQL
+      const result = await dbInsert('activities', activity);
 
-      if (error) throw error;
+      // Fetch the inserted record to return full data
+      const selectSql = 'SELECT * FROM activities WHERE id = ? LIMIT 1';
+      const rows = await query(selectSql, [result.insertId]);
+      const data = rows[0] || null;
 
       console.log(`📝 Activity logged: ${activityType} by ${actorName || actorId}`);
       return data;
@@ -218,12 +200,17 @@ class ActivityLoggerService {
     }
 
     try {
-      const { data, error } = await supabase
-        .from('activities')
-        .insert(activities)
-        .select();
+      // Insert multiple records
+      const insertedIds = [];
 
-      if (error) throw error;
+      for (const activity of activities) {
+        const result = await dbInsert('activities', activity);
+        insertedIds.push(result.insertId);
+      }
+
+      // Fetch all inserted records
+      const selectSql = `SELECT * FROM activities WHERE id IN (${insertedIds.map(() => '?').join(', ')})`;
+      const data = await query(selectSql, insertedIds);
 
       console.log(`📝 Batch logged ${activities.length} activities`);
       return data;
@@ -518,30 +505,29 @@ class ActivityLoggerService {
    */
   async getRecentActivities(limit = 50, offset = 0, filters = {}) {
     try {
-      let query = supabase
-        .from('activities')
+      let activitiesQuery = from('activities')
         .select('*')
-        .order('created_at', { ascending: false })
+        .order('created_at', 'DESC')
         .range(offset, offset + limit - 1);
 
       // Apply filters
       if (filters.depot) {
-        query = query.eq('depot', filters.depot);
+        activitiesQuery = activitiesQuery.eq('depot', filters.depot);
       }
       if (filters.actorId) {
-        query = query.eq('actor_id', filters.actorId);
+        activitiesQuery = activitiesQuery.eq('actor_id', filters.actorId);
       }
       if (filters.activityType) {
-        query = query.eq('activity_type', filters.activityType);
+        activitiesQuery = activitiesQuery.eq('activity_type', filters.activityType);
       }
       if (filters.severity) {
-        query = query.eq('severity', filters.severity);
+        activitiesQuery = activitiesQuery.eq('severity', filters.severity);
       }
       if (filters.source) {
-        query = query.eq('source', filters.source);
+        activitiesQuery = activitiesQuery.eq('source', filters.source);
       }
 
-      const { data, error } = await query;
+      const { data, error } = await activitiesQuery.execute();
 
       if (error) throw error;
 
@@ -566,14 +552,23 @@ class ActivityLoggerService {
    */
   async searchActivities(searchTerm, limit = 20, offset = 0) {
     try {
-      const { data, error } = await supabase
-        .from('activities')
-        .select('*')
-        .textSearch('search_vector', searchTerm)
-        .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1);
+      // MySQL full-text search using LIKE for now
+      // For production, consider adding FULLTEXT indexes
+      const searchSql = `
+        SELECT * FROM activities
+        WHERE message LIKE ? OR action LIKE ? OR actor_name LIKE ?
+        ORDER BY created_at DESC
+        LIMIT ? OFFSET ?
+      `;
 
-      if (error) throw error;
+      const searchPattern = `%${searchTerm}%`;
+      const data = await query(searchSql, [
+        searchPattern,
+        searchPattern,
+        searchPattern,
+        parseInt(limit),
+        parseInt(offset)
+      ]);
 
       return {
         success: true,

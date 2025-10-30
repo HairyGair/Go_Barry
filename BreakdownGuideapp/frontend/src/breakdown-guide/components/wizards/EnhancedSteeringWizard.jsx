@@ -4,7 +4,7 @@ import constants from '../common/constants.js';
 
 // Enhanced Steering Wizard Component with Comprehensive Logging
 // Logs every supervisor decision and action for complete audit trail
-// Follows SDC Engineering Issues Guide - Steering Section (Page 8)
+// Follows operational safety procedures - Steering Section (Page 8)
 
 const EnhancedSteeringWizard = ({ currentStep, responses, updateResponse, onNext, onPrevious, onComplete }) => {
     // Get icons from global scope
@@ -79,7 +79,7 @@ const EnhancedSteeringWizard = ({ currentStep, responses, updateResponse, onNext
                             <Shield className="w-8 h-8 text-red-400" />
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">🚗 Steering System Safety Assessment</h2>
-                        <p className="text-gray-300">Critical safety evaluation following SDC Engineering Issues Guide - ensuring steering system control and directional stability.</p>
+                        <p className="text-gray-300">Critical safety evaluation following operational safety procedures - ensuring steering system control and directional stability.</p>
                     </div>
                     
                     <div className="bg-red-500/20 backdrop-blur-sm rounded-lg p-6 border border-red-400/30">
@@ -88,7 +88,7 @@ const EnhancedSteeringWizard = ({ currentStep, responses, updateResponse, onNext
                             Steering system defects pose immediate danger to vehicle control and directional stability. ANY compromise requires immediate action.
                         </p>
                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                            <h4 className="font-semibold text-red-200 mb-2">SDC Critical Requirements:</h4>
+                            <h4 className="font-semibold text-red-200 mb-2">Critical operational requirements:</h4>
                             <ul className="list-disc list-inside space-y-1 text-red-300/90 text-sm">
                                 <li>DVSA expects no more than 75mm play for power steering vehicles</li>
                                 <li>ANY steering defect = immediate vehicle shutdown</li>

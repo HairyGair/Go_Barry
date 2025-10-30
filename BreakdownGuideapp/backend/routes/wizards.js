@@ -1,10 +1,18 @@
+/**
+ * Wizard Progress API Routes
+ * Tracks wizard assessment progress and completions
+ * Migrated from Supabase to MySQL
+ */
+
 import express from 'express';
-import { supabase } from '../server.js';
+import { from, query, insert, update } from '../utils/queryHelpers.js';
 import webSocketHandler from './webSocketHandler.js';
 
 const router = express.Router();
 
-// POST /api/wizards/progress - Log wizard progress step
+/**
+ * POST /api/wizards/progress - Log wizard progress step
+ */
 router.post('/progress', async (req, res) => {
   try {
     const progressData = {
@@ -12,13 +20,14 @@ router.post('/progress', async (req, res) => {
       created_at: new Date().toISOString()
     };
 
-    const { data, error } = await supabase
-      .from('wizard_progress')
-      .insert(progressData)
-      .select()
-      .single();
+    // Insert wizard progress using MySQL
+    const insertId = await insert('wizard_progress', progressData);
 
-    if (error) throw error;
+    // Fetch the inserted record
+    const { data } = await from('wizard_progress')
+      .select('*')
+      .eq('id', insertId)
+      .single();
 
     res.status(201).json(data);
   } catch (error) {
@@ -27,25 +36,31 @@ router.post('/progress', async (req, res) => {
   }
 });
 
-// GET /api/wizards/progress/:breakdownId - Get wizard progress for breakdown
+/**
+ * GET /api/wizards/progress/:breakdownId - Get wizard progress for breakdown
+ */
 router.get('/progress/:breakdownId', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('wizard_progress')
+    const { data, error } = await from('wizard_progress')
       .select('*')
       .eq('breakdown_id', req.params.breakdownId)
-      .order('created_at');
+      .order('created_at', 'ASC')
+      .execute();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
-    res.json(data);
+    res.json(data || []);
   } catch (error) {
     console.error('Error fetching wizard progress:', error);
     res.status(500).json({ error: 'Failed to fetch wizard progress' });
   }
 });
 
-// POST /api/wizards/complete - Complete wizard assessment
+/**
+ * POST /api/wizards/complete - Complete wizard assessment
+ */
 router.post('/complete', async (req, res) => {
   try {
     const {
@@ -55,6 +70,9 @@ router.post('/complete', async (req, res) => {
       notes,
       assessment_data,
       supervisor_id,
+      supervisor_badge,
+      supervisor_name,
+      depot,
       vehicle_fleet_number,
       location
     } = req.body;
@@ -64,50 +82,79 @@ router.post('/complete', async (req, res) => {
       breakdown_id,
       wizard_type,
       step_type: 'completion',
-      step_data: {
+      step_data: JSON.stringify({
         decision,
         notes,
         assessment_data,
         completed_at: new Date().toISOString()
-      },
+      }),
       supervisor_id,
+      supervisor_badge,
+      supervisor_name,
       vehicle_fleet_number,
       location,
+      depot,
       created_at: new Date().toISOString()
     };
 
-    const { data, error } = await supabase
-      .from('wizard_progress')
-      .insert(completionData)
-      .select()
-      .single();
+    const progressInsertId = await insert('wizard_progress', completionData);
 
-    if (error) throw error;
+    // Fetch the inserted progress record
+    const { data: progressRecord } = await from('wizard_progress')
+      .select('*')
+      .eq('id', progressInsertId)
+      .single();
 
     // Update the breakdown record with the assessment result
-    const { data: breakdown, error: breakdownError } = await supabase
-      .from('breakdowns')
-      .update({
-        assessment_decision: decision,
-        assessment_notes: notes,
-        assessment_completed_at: new Date().toISOString(),
-        status: 'active',  // Keep breakdown active for SDC to manage - don't auto-resolve
-        updated_at: new Date().toISOString()
-      })
-      .eq('breakdown_id', breakdown_id)
-      .select()
-      .single();
+    const updateData = {
+      assessment_decision: decision,
+      assessment_notes: notes,
+      assessment_completed_at: new Date().toISOString(),
+      status: 'active', // Keep breakdown active for SDC to manage
+      updated_at: new Date().toISOString(),
+      wizard_decision: decision,
+      wizard_type: wizard_type
+    };
 
-    if (breakdownError || !breakdown) {
-      console.error('Error updating breakdown:', breakdownError);
+    // Add supervisor info if provided (helps with accountability)
+    if (supervisor_name) updateData.supervisor_name = supervisor_name;
+    if (supervisor_badge) updateData.supervisor_badge = supervisor_badge;
+    if (depot) updateData.depot = depot;
+
+    // Also store in wizard_assessment_data for backup
+    const existingWizardData = assessment_data || {};
+    updateData.wizard_assessment_data = JSON.stringify({
+      ...existingWizardData,
+      supervisorName: supervisor_name,
+      supervisorBadge: supervisor_badge,
+      supervisor_id: supervisor_id,
+      depot: depot,
+      completed_at: new Date().toISOString(),
+      wizard_type: wizard_type,
+      decision: decision
+    });
+
+    // Update breakdown
+    const affectedRows = await update('breakdowns', updateData, {
+      breakdown_id: breakdown_id
+    });
+
+    if (affectedRows === 0) {
+      console.error('Error updating breakdown: No rows affected');
       // Return success for wizard progress but note breakdown update failed
       return res.status(201).json({
-        progress: data,
+        progress: progressRecord,
         breakdown: null,
         warning: 'Assessment completed but breakdown update failed',
         message: 'Assessment logged successfully'
       });
     }
+
+    // Fetch updated breakdown
+    const { data: breakdown } = await from('breakdowns')
+      .select('*')
+      .eq('breakdown_id', breakdown_id)
+      .single();
 
     // Broadcast breakdown update to WebSocket clients
     try {
@@ -144,7 +191,7 @@ router.post('/complete', async (req, res) => {
     }
 
     res.status(201).json({
-      progress: data,
+      progress: progressRecord,
       breakdown: breakdown,
       message: 'Assessment completed successfully'
     });
@@ -154,7 +201,9 @@ router.post('/complete', async (req, res) => {
   }
 });
 
-// GET /api/wizards/stats/usage - Get wizard usage statistics
+/**
+ * GET /api/wizards/stats/usage - Get wizard usage statistics
+ */
 router.get('/stats/usage', async (req, res) => {
   try {
     const { period = 'week' } = req.query;
@@ -178,13 +227,17 @@ router.get('/stats/usage', async (req, res) => {
         startDate.setDate(startDate.getDate() - 7);
     }
 
-    const { data, error } = await supabase
-      .from('wizard_progress')
-      .select('wizard_type, step_type, breakdown_id')
+    // Get completion records
+    const { data, error } = await from('wizard_progress')
+      .select('wizard_type, step_type, breakdown_id, created_at')
       .gte('breakdown_id', 1)
-      .eq('step_type', 'completion');
+      .eq('step_type', 'completion')
+      .gte('created_at', startDate.toISOString())
+      .execute();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
     // Aggregate statistics
     const stats = {
@@ -211,21 +264,28 @@ router.get('/stats/usage', async (req, res) => {
   }
 });
 
-// GET /api/wizards/recent - Get recent wizard assessments
+/**
+ * GET /api/wizards/recent - Get recent wizard assessments
+ */
 router.get('/recent', async (req, res) => {
   try {
     const { limit = 10 } = req.query;
 
-    // Return empty data gracefully since the wizard_progress table structure is unclear
-    // This prevents the 500 errors that cause dashboard loops
+    // Use the wizard_recent_assessments view for better performance
+    const results = await query(
+      `SELECT * FROM wizard_recent_assessments LIMIT ?`,
+      [parseInt(limit)]
+    );
+
     res.json({
       success: true,
-      data: [],
-      count: 0,
-      message: 'No recent wizard assessments found'
+      data: results || [],
+      count: results?.length || 0,
+      message: results?.length > 0 ? 'Recent assessments retrieved' : 'No recent wizard assessments found'
     });
   } catch (error) {
     console.error('Error fetching recent wizard assessments:', error);
+    // Return empty data gracefully to prevent dashboard errors
     res.json({
       success: true,
       data: [],
@@ -235,7 +295,9 @@ router.get('/recent', async (req, res) => {
   }
 });
 
-// GET /api/wizards/decisions/summary - Get decision summary statistics
+/**
+ * GET /api/wizards/decisions/summary - Get decision summary statistics
+ */
 router.get('/decisions/summary', async (req, res) => {
   try {
     const { period = 'week' } = req.query;
@@ -259,17 +321,30 @@ router.get('/decisions/summary', async (req, res) => {
         startDate.setDate(startDate.getDate() - 7);
     }
 
-    const { data, error } = await supabase
-      .from('wizard_progress')
+    // Get completion records with step_data
+    const { data, error } = await from('wizard_progress')
       .select('step_data')
       .gte('breakdown_id', 1)
-      .eq('step_type', 'completion');
+      .eq('step_type', 'completion')
+      .gte('created_at', startDate.toISOString())
+      .execute();
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
-    // Extract decisions from step_data
+    // Extract decisions from step_data (parse JSON if stored as string)
     const decisions = data
-      .map(progress => progress.step_data?.decision)
+      .map(progress => {
+        try {
+          const stepData = typeof progress.step_data === 'string'
+            ? JSON.parse(progress.step_data)
+            : progress.step_data;
+          return stepData?.decision;
+        } catch (e) {
+          return null;
+        }
+      })
       .filter(decision => decision);
 
     const decisionStats = {

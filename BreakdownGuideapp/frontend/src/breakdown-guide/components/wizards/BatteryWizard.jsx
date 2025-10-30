@@ -1,4 +1,4 @@
-// Battery Light Wizard Component - SDC Guide v1.3 Compliant
+// Battery Light Wizard Component - operational safety procedures Compliant
 // Aligned with DVSA's "Categorisation of Vehicle Defects" guidelines
 import React from 'react';
 import * as Icons from '../common/icons.jsx';
@@ -17,7 +17,7 @@ function BatteryWizard({ currentStep, responses, updateResponse, onNext, onPrevi
                 <span className="text-4xl">🔋</span>
               </div>
               <h2 className="text-2xl font-bold text-white mb-2">🔋 Battery Light Assessment</h2>
-              <p className="text-gray-300">Following SDC Engineering Issues Guide v1.3 - Battery Light section</p>
+              <p className="text-gray-300">Following standard operational safety checks v1.3 - Battery Light section</p>
               <p className="text-sm text-gray-400 mt-1">In compliance with DVSA's "Categorisation of Vehicle Defects"</p>
             </div>
 

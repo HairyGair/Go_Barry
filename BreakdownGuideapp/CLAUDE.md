@@ -1,133 +1,728 @@
-# Claude Code Instructions
+# CLAUDE.md - AI Assistant Guide
 
-This file provides guidance to Claude Code when working with the Breakdown Management System.
+This file provides guidance to Claude Code and other AI assistants when working with the Go BARRY Breakdown Management System.
 
-## 📚 Essential Documentation to Read First
-
-Before starting any task, please read these files to understand the system:
-
-1. **README.md** - System overview, architecture, and deployment info
-2. **DEPLOYMENT.md** - Dual repository setup and deployment workflow
-3. **API_REFERENCE.md** - Complete API endpoint documentation
-4. **SYSTEM_STATUS.md** - Current production status and features
-
-## 🏗️ Project Architecture
-
-### Technology Stack
-- **Backend**: Node.js + Express (ES6 modules)
-- **Frontend**: React + Vite
-- **Database**: Supabase PostgreSQL
-- **Auth**: Supabase Auth (JWT)
-- **Real-time**: WebSocket (ws)
-
-### Production URLs
-- **Backend API**: https://breakdown-guide.onrender.com
-- **Frontend**: https://breakdowns.gobarry.co.uk
-- **Database**: Supabase Project `oieliubbvvdzhzvikzal`
-
-### Git Repository Setup (CRITICAL!)
-This project uses TWO git remotes:
-
-```bash
-# ✅ PRODUCTION - Always push here for deployment
-git push breakdown main    # → https://github.com/HairyGair/Breakdown_Guide
-
-# ❌ LEGACY - Development only, NOT for deployment
-git push origin main       # → https://github.com/HairyGair/Go_Barry
-```
-
-**Important**: Render.com watches the `breakdown` remote. Always push to `breakdown main` for production deployment.
-
-## 🔑 Key File Locations
-
-### Backend (`/backend/`)
-- Routes: `/backend/routes/`
-- Services: `/backend/services/`
-- Middleware: `/backend/middleware/`
-- Data: `/backend/data/` (JSON files for breakdowns, activities)
-
-### Frontend (`/frontend/`)
-- Dashboards: `/frontend/src/dashboards/`
-- Components: `/frontend/src/components/`
-- API Client: `/frontend/src/services/apiClient.js`
-- Utils: `/frontend/src/utils/`
-
-## 📝 Development Guidelines
-
-### Before Making Changes
-1. Read relevant documentation files (README.md, API_REFERENCE.md, etc.)
-2. Check current system status in SYSTEM_STATUS.md
-3. Review deployment workflow in DEPLOYMENT.md
-4. Verify you understand the dual-repository setup
-
-### Code Standards
-- **Backend**: ES6 modules (`import`/`export`), NO CommonJS (`require`)
-- **Backend Port**: 3002 (production), 3001 (development)
-- **Authentication**: All `/api/breakdowns/*` routes require supervisor auth
-- **WebSocket**: Real-time updates on port 3002 at `/ws`
-
-### Deployment Workflow
-1. Make changes locally
-2. Test thoroughly
-3. Commit with descriptive message
-4. **Push to `breakdown` remote**: `git push breakdown main`
-5. Render auto-deploys in 2-3 minutes
-
-## 🚨 Common Mistakes to Avoid
-
-1. **Wrong Git Remote**: Pushing to `origin` instead of `breakdown`
-2. **CommonJS Syntax**: Using `require()` in backend (use `import`)
-3. **Wrong Port**: Backend runs on 3002, not 3001
-4. **Missing Auth**: Forgetting supervisor authentication on protected routes
-5. **File Paths**: Backend uses ES6 modules, so `__dirname` needs special handling
-
-## 🔐 Authentication Context
-
-- **Supervisor Auth**: JWT tokens from Supabase
-- **Middleware**: `authenticateSupervisor` for `/api/breakdowns/*`
-- **SDC Auth**: Separate `authenticateSDC` for SDC-specific routes
-- **Development Bypass**: Set `NODE_ENV=development` for auth bypass
-
-## 🛠️ Useful Commands
-
-### Development
-```bash
-# Backend
-cd backend && npm run dev              # Start with nodemon
-
-# Frontend
-cd frontend && npm run dev             # Start Vite dev server
-```
-
-### Deployment
-```bash
-# Deploy to production
-git add .
-git commit -m "description"
-git push breakdown main                # Triggers Render deployment
-```
-
-### Database
-- Supabase Dashboard: https://app.supabase.com/project/oieliubbvvdzhzvikzal
-- Direct Connection: Available via Supabase environment variables
-
-## 📊 Current Production Stats
-- **Active Users**: 13 supervisors
-- **Depots**: 6 (Washington, Riverside, Consett, Deptford, Percy Main, Hexham)
-- **Fleet Size**: 1,000+ vehicles
-- **Uptime**: 99.5%
-- **API Latency**: <500ms average
-
-## 💡 Tips for Claude Code
-
-1. **Always check documentation first** - Read README.md and relevant .md files before coding
-2. **Verify git remote** - Use `git remote -v` to confirm you're pushing to the right repo
-3. **Check current deployment** - Review Render logs to see what's actually deployed
-4. **Test locally first** - Run backend on :3002 and frontend on dev server
-5. **Use the correct auth** - Supervisor routes need `authenticateSupervisor` middleware
+**Last Updated:** October 30, 2025
+**System Status:** Production-Ready ✅
+**Current Version:** 3.0.0 (MySQL + cPanel Deployment)
 
 ---
 
-**Last Updated**: October 4, 2025
-**Maintained By**: Anthony Gair
-**Organization**: Go North East
+## 🎯 Project Overview
+
+The **Go BARRY Breakdown Management System** is a real-time breakdown tracking and diagnostic platform for Go North East bus operations. It serves supervisors across 6 depots managing a fleet of 1,000+ vehicles.
+
+### Quick Facts
+- **Active Supervisors:** 9 across Washington, Riverside, Consett, Deptford, Percy Main, Hexham
+- **Fleet Size:** 1,000+ vehicles
+- **Diagnostic Wizards:** 20+ interactive assessment flows
+- **Authentication:** Badge-based (AG003, BP009, etc.) with duty selection
+- **Deployment:** cPanel (frontend) + PM2 (backend) + MySQL
+
+### Production URLs
+- **Frontend:** https://breakdowns.gobarry.co.uk
+- **Backend API:** https://api.breakdowns.gobarry.co.uk
+- **Database:** MySQL at 85.234.151.224 (direct connection)
+
+---
+
+## 🏗️ System Architecture
+
+### Technology Stack
+
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| **Frontend** | React + Vite | Single-page application |
+| **Backend** | Node.js + Express | RESTful API server |
+| **Database** | MySQL 8.0+ | Primary data store |
+| **Authentication** | JWT + bcrypt | Secure badge-based auth |
+| **Real-time** | WebSocket (ws) | Live dashboard updates |
+| **Hosting** | cPanel + PM2 | Self-hosted infrastructure |
+
+### Key Architecture Changes (2025)
+
+**October 2025 Migration:**
+- ❌ Supabase PostgreSQL → ✅ MySQL (cPanel)
+- ❌ Supabase Auth → ✅ JWT + bcrypt
+- ❌ Render.com → ✅ cPanel + PM2
+- ✅ Added duty selection workflow (Duty 100/200/400/500)
+
+---
+
+## 📁 Project Structure
+
+```
+BreakdownGuideapp/
+├── backend/                    # Node.js Express API
+│   ├── routes/                # API endpoints (165+ routes)
+│   │   ├── auth.js           # Authentication + duty selection
+│   │   ├── breakdowns.js     # Breakdown CRUD
+│   │   ├── breakdownsAPI.js  # SDC dashboard API
+│   │   ├── activity.js       # Activity feed
+│   │   ├── analytics.js      # KPIs & reports
+│   │   └── webSocketHandler.js
+│   ├── middleware/
+│   │   └── authMiddleware.js # JWT verification
+│   ├── services/            # Business logic
+│   ├── config/
+│   │   └── mysql.js         # Database connection
+│   ├── data/                # JSON cache files
+│   ├── migrations/          # MySQL schema migrations
+│   ├── server.js            # Express app entry
+│   └── .env                 # Environment config
+│
+├── frontend/                 # React SPA
+│   ├── src/
+│   │   ├── components/      # UI components
+│   │   ├── pages/           # Route pages
+│   │   ├── services/        # API services
+│   │   └── App.jsx          # Root component
+│   ├── public/              # Static assets
+│   ├── vite.config.js       # Vite configuration
+│   └── .env                 # Frontend config
+│
+├── docs/                    # Comprehensive documentation
+│   ├── CPANEL_ONLY_DEPLOYMENT_GUIDE.md
+│   ├── MASTER_CPANEL_DOCUMENTATION_INDEX.md
+│   └── COMPLETE_API_ENDPOINT_AUDIT.md
+│
+└── README.md                # This project's overview
+```
+
+---
+
+## 🔐 Authentication System
+
+### Current Flow (October 2025)
+
+**New 3-Step Authentication:**
+1. **Login:** Email + password → JWT token
+2. **Select Duty:** Modal appears with Duty 100/200/400/500 options
+3. **Access Granted:** Full app access with duty badge in navigation
+
+### Supervisor Accounts
+
+**Admin Users:**
+- AG003 (Anthony Gair) - SDC
+- BP009 (Barry Perryman) - SDC
+
+**Supervisors (7 active):**
+- Distributed across 6 depots
+- Role-based access (admin/supervisor/manager)
+
+### Technical Implementation
+
+**Backend:** `/backend/routes/auth.js`
+```javascript
+POST /api/supervisor/login      // Step 1: Authenticate
+POST /api/auth/set-duty         // Step 2: Set duty shift
+GET  /api/supervisor/session    // Verify current session
+POST /api/supervisor/logout     // End session
+```
+
+**Frontend:** `DutySelectionModal.jsx`
+- Modal automatically appears after login if no duty set
+- Duty options: 100 (00:00-08:00), 200 (08:00-16:00), 400 (16:00-00:00), 500 (Variable)
+- Can skip duty selection (optional)
+
+**Authentication Token:**
+- JWT stored in memory (NOT localStorage)
+- 24-hour expiration
+- All API requests include: `Authorization: Bearer <token>`
+
+---
+
+## 📊 Core Features
+
+### 1. Breakdown Management
+**File:** `backend/routes/breakdowns.js`
+
+**Features:**
+- Create/Read/Update/Delete breakdowns
+- Auto-generated IDs (e.g., `BRK-20251030-001`)
+- GPS location tracking
+- Photo uploads
+- Status workflow: pending → in-progress → resolved
+- Full audit trail
+
+**Key Endpoints:**
+```
+POST   /api/breakdowns              # Create breakdown
+GET    /api/breakdowns/:id          # Get by ID
+PUT    /api/breakdowns/:id          # Update
+GET    /api/breakdowns/live         # Live breakdowns
+GET    /api/breakdowns/stats        # Statistics
+```
+
+### 2. Diagnostic Wizards (20+ Types)
+**File:** `backend/routes/wizards.js`
+
+**Wizard Categories:**
+- Steering, Brakes, Engine, Electrical
+- HVAC, Doors, Wheelchair Ramp
+- Destination Display, Gearbox, Suspension
+- And 10+ more specialized assessments
+
+**Assessment Flow:**
+1. Vehicle identification
+2. Location capture
+3. Symptom questions (conditional logic)
+4. Safety checks
+5. Severity determination (STOP/AMBER/CONTINUE)
+6. Action plan generation
+
+### 3. SDC Operations Dashboard
+**File:** `backend/routes/breakdownsAPI.js`
+
+**Features:**
+- Real-time breakdown cards
+- Live counter
+- Filter by depot/severity/status
+- Engineer dispatch interface
+- Breakdown resolution workflow
+
+**WebSocket Events:**
+- `new_breakdown` - New breakdown created
+- `breakdown_updated` - Status changed
+- `breakdown_resolved` - Breakdown marked complete
+- `engineer_assigned` - Engineer dispatched
+
+### 4. Activity Feed
+**File:** `backend/routes/activity.js`
+
+**Features:**
+- Real-time activity stream
+- Pagination support
+- Filtering (depot, actor, type, severity)
+- Live updates via WebSocket
+- Search functionality
+
+### 5. Analytics & Reporting
+**File:** `backend/routes/analytics.js`
+
+**Metrics:**
+- Total breakdowns by depot
+- Average response times
+- Engineer performance
+- Repeat breakdown detection
+- Fleet health scores
+- Trend analysis
+
+---
+
+## 🗄️ Database Schema
+
+### MySQL Database
+
+**Connection Details:**
+- Host: 85.234.151.224
+- Port: 3306
+- Database: gobarryco_breakdown
+- User: gobarryco_Gair
+- SSL: Not required (internal network)
+
+### Core Tables
+
+**1. supervisors** - User accounts
+```sql
+- id, email, name, badge_number
+- depot, role (admin/supervisor/manager)
+- password_hash (bcrypt)
+- duty (100/200/400/500)
+- is_active, created_at, updated_at
+```
+
+**2. breakdowns** - Breakdown records
+```sql
+- id, breakdown_id (BRK-YYYYMMDD-NNN)
+- fleet_no, supervisor_badge
+- location_description, location_lat, location_lng
+- issue_category, severity, status
+- wizard_type, wizard_decision
+- wizard_assessment_data (JSON)
+- depot, resolved_at, resolution_notes
+- created_at, updated_at
+```
+
+**3. activities** - Activity log
+```sql
+- id, activity_type, timestamp
+- breakdown_id, fleet_no
+- supervisor_name, supervisor_badge
+- message, description
+- severity, depot, source
+```
+
+**4. wizard_progress** - Assessment tracking
+```sql
+- id, supervisor_id, wizard_type
+- current_step, total_steps
+- progress_data (JSON)
+- status, created_at, updated_at
+```
+
+---
+
+## 🚀 Development Workflow
+
+### Local Development Setup
+
+**Prerequisites:**
+```bash
+node --version  # Must be 18.0.0+
+npm --version   # 9.0.0+
+mysql --version # 8.0+
+```
+
+**1. Backend Setup:**
+```bash
+cd backend
+npm install
+cp .env.cpanel.example .env
+# Edit .env with local MySQL credentials
+npm run dev  # Starts on http://localhost:3001
+```
+
+**2. Frontend Setup:**
+```bash
+cd frontend
+npm install
+cp .env.example .env
+# Edit .env with API URL
+npm run dev  # Starts on http://localhost:5173
+```
+
+**3. Database Setup:**
+```bash
+# Import schema
+mysql -u root -p < backend/migrations/complete_schema.sql
+
+# Create test supervisor
+INSERT INTO supervisors (email, name, badge_number, role, password_hash)
+VALUES ('test@example.com', 'Test User', 'TU001', 'admin',
+  '$2b$10$...');  # Use bcrypt to hash password
+```
+
+### Making Code Changes
+
+**Backend Changes:**
+1. Edit files in `/backend/`
+2. Server auto-restarts with nodemon
+3. Test endpoints with curl or Postman
+4. Check logs for errors
+
+**Frontend Changes:**
+1. Edit files in `/frontend/src/`
+2. Vite hot-reloads automatically
+3. Check browser console for errors
+4. Test in Chrome/Firefox/Safari
+
+**Database Changes:**
+1. Create migration SQL in `/backend/migrations/`
+2. Test locally first
+3. Document in migration summary
+4. Apply to production via phpMyAdmin
+
+### Testing Locally
+
+**Test Authentication:**
+```bash
+# Login
+curl -X POST http://localhost:3001/api/supervisor/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"test123"}'
+
+# Should return JWT token
+```
+
+**Test Breakdown Creation:**
+```bash
+curl -X POST http://localhost:3001/api/breakdowns \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"fleet_no":"6377","location":"Test Location","issue":"Test Issue"}'
+```
+
+---
+
+## 📦 Deployment Process
+
+### Backend Deployment (PM2)
+
+**Deploy via SSH:**
+```bash
+# Connect to server
+ssh user@85.234.151.224
+
+# Navigate to backend directory
+cd ~/api
+
+# Pull latest changes (if using git)
+# OR upload files via SFTP/CyberDuck
+
+# Install dependencies
+npm ci --production
+
+# Restart PM2
+pm2 restart breakdown-backend
+pm2 logs breakdown-backend
+
+# Check status
+pm2 status
+curl http://localhost:3001/api/health
+```
+
+### Frontend Deployment (cPanel)
+
+**Build and Upload:**
+```bash
+# Local machine
+cd frontend
+npm run build
+
+# Uploads via CyberDuck or cPanel File Manager:
+# 1. Delete all files in ~/public_html/breakdowns.gobarry.co.uk/
+# 2. Upload all files from frontend/dist/
+# 3. Test: https://breakdowns.gobarry.co.uk
+```
+
+### Database Migrations
+
+**Apply via phpMyAdmin:**
+1. Login to phpMyAdmin (cPanel)
+2. Select `gobarryco_breakdown` database
+3. Go to SQL tab
+4. Paste migration SQL
+5. Execute
+6. Verify with SELECT queries
+
+---
+
+## 🐛 Common Issues & Solutions
+
+### Backend Won't Start
+
+**Symptom:** PM2 shows "errored" status
+
+**Solutions:**
+```bash
+# Check logs
+pm2 logs breakdown-backend --lines 100
+
+# Common issues:
+# 1. MySQL connection failed - Check .env DB credentials
+# 2. Port in use - Check PM2 config
+# 3. Missing dependencies - Run npm install
+# 4. Syntax errors - Check recent code changes
+
+# Restart with fresh logs
+pm2 delete breakdown-backend
+pm2 start ecosystem.config.js
+```
+
+### Frontend Showing Old Code
+
+**Symptom:** Changes not visible after deployment
+
+**Solutions:**
+```bash
+# Hard refresh browser
+Cmd+Shift+R (Mac) or Ctrl+Shift+R (Windows)
+
+# Clear Vite cache and rebuild
+rm -rf frontend/node_modules/.vite
+npm run build
+
+# Check .htaccess for caching headers
+# Should have: Cache-Control: no-cache for index.html
+```
+
+### Database Connection Timeout
+
+**Symptom:** API returns 500 error, logs show MySQL timeout
+
+**Solutions:**
+```bash
+# Check MySQL service
+systemctl status mysql  # If root access available
+
+# Test connection
+mysql -h 85.234.151.224 -u gobarryco_Gair -p gobarryco_breakdown
+
+# Check connection pool settings in backend/config/mysql.js
+# Reduce connectionLimit if hitting max connections
+```
+
+### WebSocket Not Connecting
+
+**Symptom:** Real-time updates not working
+
+**Solutions:**
+```bash
+# Check WebSocket endpoint
+curl -i -N -H "Connection: Upgrade" -H "Upgrade: websocket" \
+  https://api.breakdowns.gobarry.co.uk/ws
+
+# Check PM2 logs for WebSocket errors
+pm2 logs | grep -i websocket
+
+# Verify nginx/apache proxy config
+# Should have proxy_set_header Upgrade/Connection headers
+```
+
+---
+
+## 📝 Code Standards
+
+### Backend (Node.js/Express)
+
+**Naming Conventions:**
+```javascript
+// Variables: camelCase
+const breakdownId = 'BRK-20251030-001';
+
+// Functions: camelCase
+function generateBreakdownId() { }
+
+// Constants: UPPER_SNAKE_CASE
+const MAX_RETRIES = 3;
+
+// Files: kebab-case
+// auth-middleware.js, breakdown-service.js
+```
+
+**Async/Await Pattern:**
+```javascript
+// ✅ Preferred
+async function getBreakdown(id) {
+  try {
+    const [results] = await db.query('SELECT * FROM breakdowns WHERE id = ?', [id]);
+    return results[0];
+  } catch (error) {
+    console.error('Error fetching breakdown:', error);
+    throw error;
+  }
+}
+
+// ❌ Avoid
+function getBreakdown(id) {
+  return db.query('SELECT * FROM breakdowns WHERE id = ?', [id])
+    .then(([results]) => results[0])
+    .catch(error => console.error(error));
+}
+```
+
+**Error Handling:**
+```javascript
+// Always use try-catch in async routes
+router.post('/api/breakdowns', async (req, res) => {
+  try {
+    const breakdown = await createBreakdown(req.body);
+    res.json({ success: true, breakdown });
+  } catch (error) {
+    console.error('Breakdown creation error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to create breakdown'
+    });
+  }
+});
+```
+
+### Frontend (React)
+
+**Component Structure:**
+```javascript
+// Functional components with hooks
+import React, { useState, useEffect } from 'react';
+
+export default function BreakdownCard({ breakdown }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  useEffect(() => {
+    // Side effects here
+  }, [breakdown.id]);
+
+  return (
+    <div className="breakdown-card">
+      {/* JSX here */}
+    </div>
+  );
+}
+```
+
+**File Naming:**
+```
+// Components: PascalCase
+BreakdownCard.jsx
+DutySelectionModal.jsx
+
+// Utilities: camelCase
+apiService.js
+authHelpers.js
+```
+
+---
+
+## 🔍 Important Context
+
+### Recent Major Changes
+
+**October 2025 - Duty Selection Flow:**
+- Added 3-step authentication: Login → Select Duty → Access
+- New endpoint: `POST /api/auth/set-duty`
+- DutySelectionModal component integrated
+- Duty badge shown in navigation
+
+**October 2025 - MySQL Migration:**
+- Migrated from Supabase to MySQL
+- Replaced Supabase Auth with JWT + bcrypt
+- Moved from Render.com to cPanel + PM2
+- Direct database connection (no connection pooling service)
+
+### Known Limitations
+
+**Current Constraints:**
+- Database: Direct connection to MySQL (no read replicas)
+- Backend: Single PM2 instance (no load balancing)
+- WebSocket: Single server (no clustering)
+- File uploads: Limited to 10MB per photo
+
+**Future Enhancements:**
+- Implement Redis for session storage
+- Add database connection pooling
+- Setup read replicas for reporting
+- Implement WebSocket clustering with Redis pub/sub
+
+### Critical Security Notes
+
+**NEVER commit these to git:**
+- Database passwords
+- JWT secrets
+- API keys
+- Production .env files
+
+**Always:**
+- Use parameterized queries (prevent SQL injection)
+- Validate all user input
+- Hash passwords with bcrypt (10+ rounds)
+- Set secure JWT expiration (24 hours max)
+- Use HTTPS in production
+
+---
+
+## 📚 Documentation Map
+
+### Primary Documentation
+- **README.md** - Project overview and quick start
+- **DEPLOYMENT.md** - Deployment procedures
+- **PROJECT_GOALS.md** - Objectives and roadmap
+- **DEVELOPMENT.md** - Development guidelines
+
+### Technical Documentation
+- **ARCHITECTURE.md** - System architecture
+- **DATABASE_SCHEMA_REPORT.md** - Database design
+- **COMPLETE_API_ENDPOINT_AUDIT.md** - API reference
+
+### Deployment Guides
+- **CPANEL_ONLY_DEPLOYMENT_GUIDE.md** - Primary deployment guide
+- **CPANEL_QUICK_START_10MIN.md** - Quick deployment
+- **MASTER_CPANEL_DOCUMENTATION_INDEX.md** - Documentation index
+
+---
+
+## 🎯 Development Tips for AI Assistants
+
+### When Making Changes
+
+**1. Always Read First:**
+- Read existing code before modifying
+- Check related files for patterns
+- Review recent git commits for context
+
+**2. Maintain Consistency:**
+- Follow existing code style
+- Use same naming conventions
+- Match error handling patterns
+
+**3. Test Thoroughly:**
+- Test locally before suggesting deployment
+- Verify database queries return expected results
+- Check authentication still works
+
+**4. Document Changes:**
+- Update relevant documentation
+- Add comments for complex logic
+- Update API documentation if endpoints change
+
+### Common Patterns
+
+**Database Queries:**
+```javascript
+// Use parameterized queries
+const [results] = await db.query(
+  'SELECT * FROM breakdowns WHERE supervisor_badge = ?',
+  [badge]
+);
+```
+
+**API Responses:**
+```javascript
+// Consistent response format
+return res.json({
+  success: true,
+  data: results,
+  message: 'Operation completed'
+});
+```
+
+**Error Responses:**
+```javascript
+// Consistent error format
+return res.status(500).json({
+  success: false,
+  error: 'Error message',
+  details: error.message
+});
+```
+
+---
+
+## 🆘 Getting Help
+
+**For Code Issues:**
+1. Check backend logs: `pm2 logs breakdown-backend`
+2. Check browser console for frontend errors
+3. Review relevant documentation in `/docs/`
+4. Check git history for recent changes
+
+**For Database Issues:**
+1. Test query in phpMyAdmin first
+2. Check table schema matches code expectations
+3. Verify foreign key constraints
+4. Check for locked tables or long-running queries
+
+**For Deployment Issues:**
+1. Verify files uploaded correctly
+2. Check PM2 process status
+3. Test API endpoints manually
+4. Review nginx/apache logs
+
+---
+
+## 📧 Contact
+
+**Developer:** Anthony Gair
+**Email:** anthony.gair@gonortheast.co.uk
+**Organization:** Go North East
+
+**For Issues:**
+- Check documentation first
+- Review troubleshooting sections
+- Contact developer for complex issues
+
+---
+
+**Last Updated:** October 30, 2025
+**Document Version:** 3.0.0
+**System Status:** Production-Ready ✅

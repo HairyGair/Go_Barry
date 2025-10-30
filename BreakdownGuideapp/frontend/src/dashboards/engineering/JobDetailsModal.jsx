@@ -262,8 +262,8 @@ const OverviewTab = ({ job }) => (
       <InfoCard label="Issue Category" value={job.issue_category || 'General'} />
       <InfoCard label="Elapsed Time" value={`${job.timeline?.total_elapsed || 0} min`} />
       <InfoCard
-        label="Engineer"
-        value={job.engineer_name ? `${job.engineer_name} (${job.engineer_badge})` : 'Unassigned'}
+        label="Engineer Status"
+        value={job.engineer_dispatched_at ? 'Engineer Dispatched' : 'Awaiting Dispatch'}
       />
     </div>
 

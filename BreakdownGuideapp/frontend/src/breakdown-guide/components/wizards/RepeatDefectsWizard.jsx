@@ -4,7 +4,7 @@ import constants from '../common/constants.js';
 
 // Repeat Defects Wizard Component - HIGH PRIORITY Quality Control Escalation
 // Uses icons and constants from common components
-// Follows SDC Engineering Issues Guide - Repeat Defects Section (Page 23)
+// Follows operational safety procedures - Repeat Defects Section (Page 23)
 
 const RepeatDefectsWizard = ({ currentStep, responses, updateResponse, onNext, onPrevious, onComplete }) => {
     // Get icons from global scope

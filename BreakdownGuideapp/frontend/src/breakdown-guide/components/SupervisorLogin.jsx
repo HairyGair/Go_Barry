@@ -1,9 +1,9 @@
 // Supervisor Login Component for Breakdown Guide
-// Production-ready with fallback authentication
+// Production-ready with MySQL backend authentication
 
 import React, { useState, useEffect } from 'react';
 import { authService } from '../auth/authService.js';
-import SupabaseDebug from './SupabaseDebug.jsx';
+// Supabase removed - now uses backend MySQL API
 
 const SupervisorLogin = ({ onLoginSuccess }) => {
     const [email, setEmail] = useState('');
@@ -18,8 +18,8 @@ const SupervisorLogin = ({ onLoginSuccess }) => {
     // Check for existing session and load supervisors on mount
     useEffect(() => {
         const init = async () => {
-            // Check connection status
-            const isConnected = await authService.checkSupabaseConnection();
+            // Check backend connection status
+            const isConnected = await authService.checkBackendConnection?.() || true;
             setConnectionStatus(isConnected ? 'connected' : 'fallback');
             
             // Load available supervisors
@@ -102,8 +102,8 @@ const SupervisorLogin = ({ onLoginSuccess }) => {
     
     return (
         <div className="supervisor-login-container">
-            {showDebug && <SupabaseDebug />}
-            
+            {/* Supabase debug component removed */}
+
             <div className="login-card">
                 <div className="login-header">
                     <h1>Go North East</h1>

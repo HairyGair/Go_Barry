@@ -3,7 +3,7 @@ import * as Icons from '../common/icons.jsx';
 import constants from '../common/constants.js';
 
 // Wipers/Screenwash Wizard Component
-// Follows SDC Engineering Issues Guide - Section 30
+// Follows operational safety procedures - Section 30
 
 const WipersScreenwashWizard = ({ currentStep, responses, updateResponse, onNext, onPrevious, onComplete }) => {
     // Get icons from global scope
@@ -11,7 +11,7 @@ const WipersScreenwashWizard = ({ currentStep, responses, updateResponse, onNext
     
     const handleCompleteAssessment = () => {
         let finalDecision = 'CONTINUE';
-        let notes = 'Wipers/Screenwash assessment completed per SDC Guide. ';
+        let notes = 'Wipers/Screenwash assessment completed per standard operational procedures. ';
         
         // Critical safety check - vision impairment
         if (responses.vision_impaired === 'yes') {

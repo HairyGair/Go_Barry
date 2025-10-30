@@ -1,5 +1,5 @@
 import express from 'express';
-import { supabase } from '../server.js';
+import { from, query } from '../utils/queryHelpers.js';
 import { activityLogger, ACTIVITY_TYPES, ACTOR_TYPES, SEVERITY_LEVELS } from '../services/activityLogger.js';
 
 const router = express.Router();
@@ -73,45 +73,49 @@ router.get('/feed', async (req, res) => {
 router.get('/feed/legacy', async (req, res) => {
   try {
     const { limit = 20, offset = 0, depot } = req.query;
-    
+
     // Get recent breakdowns with supervisor info
-    let breakdownQuery = supabase
-      .from('breakdowns')
+    let breakdownQuery = from('breakdowns')
       .select('*')
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
-    
+      .order('created_at', 'DESC')
+      .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
+
     if (depot) {
       breakdownQuery = breakdownQuery.eq('depot', depot);
     }
-    
-    const { data: breakdowns, error: breakdownError } = await breakdownQuery;
+
+    const { data: breakdowns, error: breakdownError } = await breakdownQuery.execute();
     if (breakdownError) throw breakdownError;
     
-    // Get recent breakdown events
-    let eventsQuery = supabase
-      .from('breakdown_events')
-      .select(`
-        *,
-        breakdowns!breakdown_id (
-          breakdown_id,
-          fleet_no,
-          issue_category,
-          location_description,
-          supervisor_name,
-          depot
-        )
-      `)
-      .order('created_at', { ascending: false })
-      .limit(limit);
-    
-    const { data: events, error: eventsError } = await eventsQuery;
+    // Get recent breakdown events with JOIN to breakdowns table
+    const eventsSql = `
+      SELECT
+        be.*,
+        b.breakdown_id,
+        b.fleet_no,
+        b.issue_category,
+        b.location_description,
+        b.supervisor_name,
+        b.depot
+      FROM breakdown_events be
+      LEFT JOIN breakdowns b ON be.breakdown_id = b.breakdown_id
+      ORDER BY be.created_at DESC
+      LIMIT ?
+    `;
+
+    let events = [];
+    let eventsError = null;
+    try {
+      events = await query(eventsSql, [parseInt(limit)]);
+    } catch (error) {
+      eventsError = error;
+    }
     
     // Combine and format activities
     const activities = [];
     
     // Add breakdown creation activities
-    breakdowns.forEach(breakdown => {
+    (breakdowns || []).forEach(breakdown => {
       const isWizardBreakdown = breakdown.breakdown_source === 'wizard' || breakdown.wizard_type;
 
       activities.push({
@@ -177,12 +181,12 @@ router.get('/live', async (req, res) => {
     const sinceTime = since || new Date(Date.now() - 5 * 60 * 1000).toISOString(); // Last 5 minutes by default
 
     // Get activities from unified table since the specified time
-    const { data: activities, error } = await supabase
-      .from('activities')
+    const { data: activities, error } = await from('activities')
       .select('*')
       .gte('created_at', sinceTime)
-      .order('created_at', { ascending: false })
-      .limit(parseInt(limit));
+      .order('created_at', 'DESC')
+      .limit(parseInt(limit))
+      .execute();
 
     if (error) throw error;
 
@@ -237,37 +241,44 @@ router.get('/live/legacy', async (req, res) => {
   try {
     const { since } = req.query;
     const sinceTime = since || new Date(Date.now() - 5 * 60 * 1000).toISOString(); // Last 5 minutes by default
-    
+
     // Get recent breakdowns
-    const { data: breakdowns, error: breakdownError } = await supabase
-      .from('breakdowns')
+    const { data: breakdowns, error: breakdownError } = await from('breakdowns')
       .select('*')
       .gte('created_at', sinceTime)
-      .order('created_at', { ascending: false });
-    
+      .order('created_at', 'DESC')
+      .execute();
+
     if (breakdownError) throw breakdownError;
-    
-    // Get recent events
-    const { data: events, error: eventsError } = await supabase
-      .from('breakdown_events')
-      .select(`
-        *,
-        breakdowns!breakdown_id (
-          breakdown_id,
-          fleet_no,
-          issue_category,
-          location_description,
-          supervisor_name,
-          depot
-        )
-      `)
-      .gte('created_at', sinceTime)
-      .order('created_at', { ascending: false });
+
+    // Get recent events with JOIN
+    const eventsSql = `
+      SELECT
+        be.*,
+        b.breakdown_id,
+        b.fleet_no,
+        b.issue_category,
+        b.location_description,
+        b.supervisor_name,
+        b.depot
+      FROM breakdown_events be
+      LEFT JOIN breakdowns b ON be.breakdown_id = b.breakdown_id
+      WHERE be.created_at >= ?
+      ORDER BY be.created_at DESC
+    `;
+
+    let events = [];
+    let eventsError = null;
+    try {
+      events = await query(eventsSql, [sinceTime]);
+    } catch (error) {
+      eventsError = error;
+    }
     
     // Format activities
     const activities = [];
-    
-    breakdowns.forEach(breakdown => {
+
+    (breakdowns || []).forEach(breakdown => {
       activities.push({
         id: `breakdown-${breakdown.id}`,
         type: 'breakdown_created',
@@ -511,45 +522,51 @@ router.get('/breakdown-guide', async (req, res) => {
     const { limit = 20, offset = 0, supervisor_badge } = req.query;
 
     // Get breakdowns that were created through the wizard/guide
-    let query = supabase
-      .from('breakdowns')
+    let breakdownQuery = from('breakdowns')
       .select('*')
       .eq('breakdown_source', 'wizard')
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+      .order('created_at', 'DESC')
+      .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
 
     if (supervisor_badge) {
-      query = query.eq('supervisor_badge', supervisor_badge);
+      breakdownQuery = breakdownQuery.eq('supervisor_badge', supervisor_badge);
     }
 
-    const { data: wizardBreakdowns, error: wizardError } = await query;
+    const { data: wizardBreakdowns, error: wizardError } = await breakdownQuery.execute();
     if (wizardError) throw wizardError;
 
-    // Get wizard assessment events
-    const { data: assessmentEvents, error: eventsError } = await supabase
-      .from('breakdown_events')
-      .select(`
-        *,
-        breakdowns!breakdown_id (
-          breakdown_id,
-          fleet_no,
-          issue_category,
-          location_description,
-          supervisor_name,
-          supervisor_badge,
-          depot,
-          wizard_type,
-          wizard_decision
-        )
-      `)
-      .eq('event_type', 'wizard_assessment_completed')
-      .order('created_at', { ascending: false })
-      .limit(limit);
+    // Get wizard assessment events with JOIN
+    const eventsSql = `
+      SELECT
+        be.*,
+        b.breakdown_id,
+        b.fleet_no,
+        b.issue_category,
+        b.location_description,
+        b.supervisor_name,
+        b.supervisor_badge,
+        b.depot,
+        b.wizard_type,
+        b.wizard_decision
+      FROM breakdown_events be
+      LEFT JOIN breakdowns b ON be.breakdown_id = b.breakdown_id
+      WHERE be.event_type = ?
+      ORDER BY be.created_at DESC
+      LIMIT ?
+    `;
+
+    let assessmentEvents = [];
+    let eventsError = null;
+    try {
+      assessmentEvents = await query(eventsSql, ['wizard_assessment_completed', parseInt(limit)]);
+    } catch (error) {
+      eventsError = error;
+    }
 
     const activities = [];
 
     // Add wizard breakdown activities
-    wizardBreakdowns.forEach(breakdown => {
+    (wizardBreakdowns || []).forEach(breakdown => {
       activities.push({
         id: `guide-assessment-${breakdown.id}`,
         type: 'breakdown_guide_completed',
@@ -575,25 +592,24 @@ router.get('/breakdown-guide', async (req, res) => {
       });
     });
 
-    // Add assessment events
+    // Add assessment events (breakdown data is now in same row due to JOIN)
     if (assessmentEvents && !eventsError) {
       assessmentEvents.forEach(event => {
-        const breakdown = event.breakdowns;
-        if (breakdown) {
+        if (event.breakdown_id) {
           activities.push({
             id: `guide-event-${event.id}`,
             type: 'breakdown_guide_assessment',
             icon: '📋🔍',
-            message: `${breakdown.supervisor_name || 'Supervisor'} completed ${breakdown.wizard_type || 'breakdown'} assessment for ${breakdown.fleet_no || 'vehicle'}`,
+            message: `${event.supervisor_name || 'Supervisor'} completed ${event.wizard_type || 'breakdown'} assessment for ${event.fleet_no || 'vehicle'}`,
             time: formatTime(event.created_at),
             timestamp: event.created_at,
-            depot: breakdown.depot,
-            supervisor: breakdown.supervisor_name,
-            supervisor_badge: breakdown.supervisor_badge,
-            decision: breakdown.wizard_decision,
+            depot: event.depot,
+            supervisor: event.supervisor_name,
+            supervisor_badge: event.supervisor_badge,
+            decision: event.wizard_decision,
             severity: 'info',
-            breakdown_id: breakdown.breakdown_id,
-            wizard_type: breakdown.wizard_type,
+            breakdown_id: event.breakdown_id,
+            wizard_type: event.wizard_type,
             guide_data: event.event_data
           });
         }
@@ -799,25 +815,24 @@ router.get('/stats', async (req, res) => {
         timeFilter = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     }
 
-    let query = supabase
-      .from('activities')
+    let activitiesQuery = from('activities')
       .select('activity_type, severity, actor_type, depot, created_at')
       .gte('created_at', timeFilter);
 
     if (depot) {
-      query = query.eq('depot', depot);
+      activitiesQuery = activitiesQuery.eq('depot', depot);
     }
     if (actor_id) {
-      query = query.eq('actor_id', actor_id);
+      activitiesQuery = activitiesQuery.eq('actor_id', actor_id);
     }
 
-    const { data: activities, error } = await query;
+    const { data: activities, error } = await activitiesQuery.execute();
 
     if (error) throw error;
 
     // Calculate statistics
     const stats = {
-      total: activities.length,
+      total: activities?.length || 0,
       byType: {},
       bySeverity: { critical: 0, warning: 0, normal: 0, success: 0, info: 0 },
       byActorType: {},
@@ -827,7 +842,7 @@ router.get('/stats', async (req, res) => {
       timeFilter
     };
 
-    activities.forEach(activity => {
+    (activities || []).forEach(activity => {
       // By type
       stats.byType[activity.activity_type] = (stats.byType[activity.activity_type] || 0) + 1;
 
@@ -874,27 +889,27 @@ router.delete('/:id', async (req, res) => {
       });
     }
 
-    const { data, error } = await supabase
-      .from('activities')
-      .delete()
-      .eq('id', id)
-      .select()
-      .single();
+    // First, get the activity to return in response
+    const activitySql = 'SELECT * FROM activities WHERE id = ? LIMIT 1';
+    const activities = await query(activitySql, [id]);
 
-    if (error) {
-      if (error.code === 'PGRST116') {
-        return res.status(404).json({
-          success: false,
-          error: 'Activity not found'
-        });
-      }
-      throw error;
+    if (!activities || activities.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Activity not found'
+      });
     }
+
+    const deletedActivity = activities[0];
+
+    // Delete the activity
+    const deleteSql = 'DELETE FROM activities WHERE id = ?';
+    await query(deleteSql, [id]);
 
     res.json({
       success: true,
       message: `Activity ${id} deleted successfully`,
-      deleted_activity: data
+      deleted_activity: deletedActivity
     });
 
   } catch (error) {

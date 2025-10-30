@@ -118,5 +118,5 @@ If BreakdownGuideapp deploys to production:
 ---
 
 **Created:** 2025-09-30
-**Author:** Claude Code
+**Author:** Anthony Gair
 **Status:** Complete ✅

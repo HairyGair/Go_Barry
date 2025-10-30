@@ -2,7 +2,7 @@ import React from 'react';
 import * as Icons from '../common/icons.jsx';
 import constants from '../common/constants.js';
 
-// Exterior Lights Wizard Component - Following SDC Engineering Issues Guide Section 35
+// Exterior Lights Wizard Component - Following standard operational safety checks Section 35
 // Includes specific requirements for headlights, indicators, and brake lights
 
 const ExteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, onPrevious, onComplete }) => {
@@ -18,7 +18,7 @@ const ExteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, 
                             <AlertTriangle className="w-8 h-8 text-yellow-400" />
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">🚦 Exterior Lights Assessment</h2>
-                        <p className="text-gray-300">Following SDC Engineering Issues Guide Section 35 - Critical lighting safety systems.</p>
+                        <p className="text-gray-300">Following standard operational safety checks Section 35 - Critical lighting safety systems.</p>
                     </div>
 
                     <div className="bg-red-500/20 backdrop-blur-sm rounded-lg p-6 border border-red-400/30">

@@ -1,5 +1,5 @@
 // Non-Starter Wizard Component
-// Aligned with SDC Engineering Issues Guide v1.3 and DVSA Standards
+// Aligned with operational safety procedures v1.3 and DVSA Standards
 import React from 'react';
 import * as Icons from '../common/icons.jsx';
 import constants from '../common/constants.js';
@@ -17,7 +17,7 @@ function NonStarterWizard({ currentStep, responses, updateResponse, onNext, onPr
                 <Power className="w-8 h-8 text-blue-400" />
               </div>
               <h2 className="text-2xl font-bold text-white mb-2">Non-Starter Assessment</h2>
-              <p className="text-gray-300">Follow SDC Guide procedures to diagnose starting problems</p>
+              <p className="text-gray-300">Follow standard operational procedures to diagnose starting problems</p>
             </div>
 
             <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/20">

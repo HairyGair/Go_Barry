@@ -1,5 +1,5 @@
 // Warning Lights Wizard Component - Enhanced Version
-// Follows SDC Engineering Issues Guide - Section 28
+// Follows operational safety procedures - Section 28
 // Includes supervisor communication scripts, safety verification, and edge case handling
 
 const WarningLightsWizard = ({ currentStep, responses, updateResponse, onNext, onPrevious, onComplete }) => {
@@ -207,7 +207,7 @@ const WarningLightsWizard = ({ currentStep, responses, updateResponse, onNext, o
         )}
         {scenario === 'amber-lights' && (
           <>
-            <p>• <strong>ABS amber light:</strong> Must follow specific ABS procedures in Section 3 of SDC guide</p>
+            <p>• <strong>ABS amber light:</strong> Must follow specific ABS procedures in Section 3 of operational procedures</p>
             <p>• <strong>Multiple amber lights:</strong> May indicate broader electrical issue - arrange prompt changeover</p>
             <p>• <strong>Driver anxious about continuing:</strong> Reassure that amber allows continuation but respect driver's safety concerns</p>
             <p>• <strong>Long distance to changeover:</strong> Consider intermediate check-in points or earlier changeover if feasible</p>

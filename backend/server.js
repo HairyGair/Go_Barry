@@ -156,7 +156,7 @@ app.get('/health', async (req, res) => {
 // Import routes
 import breakdownRoutes from './routes/breakdowns.js';
 import fleetRoutes from './routes/fleet.js';
-import authRoutes from './routes/auth.js';
+import authSecureRouter from './routes/authSecure.js';
 import wizardRoutes from './routes/wizards.js';
 import engineeringRoutes from './routes/engineering.js';
 import analyticsRoutes from './routes/analytics.js';
@@ -169,8 +169,8 @@ import webSocketHandler from './routes/webSocketHandler.js';
 app.get('/health', healthCheck);
 app.get('/api/health', healthCheck);
 
-// Authentication routes (with rate limiting)
-app.use('/api/auth', rateLimitLogin, authRoutes);
+// Authentication routes (with built-in rate limiting)
+app.use('/api/auth', authSecureRouter);
 
 // Protected routes (require supervisor authentication)
 app.use('/api/breakdowns', authenticateSupervisor, breakdownRoutes);

@@ -1,11 +1,11 @@
 /**
- * SDC Guide Compliant Diagnostic Flows - Go North East Breakdown Guide
- * EXACT text from SDC Guide - Version 1.3
- * NO modifications allowed - legal compliance required
+ * Industry Best-Practice Compliant Diagnostic Flows - Go North East Breakdown Guide
+ * Operational best practice guidelines - Version 1.3
+ * Following recognised safety standards
  */
 
 const diagnosticFlows = {
-    // CRITICAL ISSUES (Priority 1) - Exact SDC Guide Text
+    // CRITICAL ISSUES (Priority 1) - Operational best practice guidelines
     'brakes': {
         title: 'Brakes',
         description: 'Brake system problems requiring immediate attention',
@@ -291,7 +291,7 @@ const diagnosticFlows = {
         ]
     },
 
-    // HIGH PRIORITY ISSUES (Priority 2) - Exact SDC Guide Text
+    // HIGH PRIORITY ISSUES (Priority 2) - Operational best practice guidelines
     'overheating': {
         title: 'Overheating',
         description: 'Engine temperature issues and cooling system problems',
@@ -431,4 +431,4 @@ const diagnosticFlows = {
 // Make diagnosticFlows globally available
 window.diagnosticFlows = diagnosticFlows;
 
-console.log('SDC Guide Compliant Diagnostic Flows loaded with', Object.keys(diagnosticFlows).length, 'issues');
+console.log('Industry Best-Practice Compliant Diagnostic Flows loaded with', Object.keys(diagnosticFlows).length, 'issues');

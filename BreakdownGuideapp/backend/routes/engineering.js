@@ -1,5 +1,24 @@
+/**
+ * Engineering Routes - MySQL Migration
+ * Handles engineer dispatch, job tracking, and performance metrics
+ *
+ * Migrated from Supabase to MySQL - October 16, 2025
+ *
+ * Features:
+ * - Engineer availability and assignment
+ * - Breakdown dispatch workflow
+ * - Job status tracking (accepted, on_site, fixing, completed)
+ * - Performance metrics and SLA compliance
+ * - Depot statistics and team management
+ * - Vehicle breakdown history
+ *
+ * @author Anthony Gair
+ * @version 2.0.0 (MySQL)
+ */
+
 import express from 'express';
-import { supabase } from '../server.js';
+import { query, select, insert, update } from '../config/mysql.js';
+import { from } from '../utils/queryHelpers.js';
 import { activityLogger, ACTIVITY_TYPES, ACTOR_TYPES, SEVERITY_LEVELS } from '../services/activityLogger.js';
 
 const router = express.Router();
@@ -26,32 +45,34 @@ const broadcastEngineeringEvent = (type, data) => {
 // GET /api/engineering/depot-stats - Get depot performance statistics
 router.get('/depot-stats', async (req, res) => {
   try {
-    // Get all depots
-    const { data: depots, error: depotError } = await supabase
-      .from('depots')
+    // Get all active depots
+    const { data: depots, error: depotError } = await from('depots')
       .select('*')
-      .eq('is_active', true);
+      .eq('is_active', true)
+      .execute();
 
     if (depotError) throw depotError;
 
-    // Get engineer data for each depot (simulated for now)
+    // Get engineer data for each depot
     const depotStats = {};
-    
+
     for (const depot of depots) {
       // Count breakdowns by depot in last 24 hours
-      const { data: breakdowns, error: breakdownError } = await supabase
-        .from('breakdowns')
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+      const { data: breakdowns, error: breakdownError } = await from('breakdowns')
         .select('*')
         .eq('depot', depot.code)
-        .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
-        .in('status', ['active', 'pending', 'in_progress']);
+        .gte('created_at', oneDayAgo.toISOString())
+        .in('status', ['active', 'pending', 'in_progress', 'dispatched', 'on_site'])
+        .execute();
 
       if (breakdownError) throw breakdownError;
 
       // Calculate average response time
       let totalResponseTime = 0;
       let responseCount = 0;
-      
+
       for (const breakdown of breakdowns) {
         if (breakdown.acknowledged_at && breakdown.received_at) {
           const responseTime = new Date(breakdown.acknowledged_at) - new Date(breakdown.received_at);
@@ -61,50 +82,33 @@ router.get('/depot-stats', async (req, res) => {
       }
 
       const avgResponse = responseCount > 0 ? Math.round(totalResponseTime / responseCount) : 0;
-      
+
       // Calculate SLA compliance (under 30 minutes)
       const slaMetCount = breakdowns.filter(b => {
         if (!b.acknowledged_at || !b.received_at) return false;
         const responseTime = (new Date(b.acknowledged_at) - new Date(b.received_at)) / 60000;
         return responseTime <= 30;
       }).length;
-      
-      const slaCompliance = breakdowns.length > 0 
+
+      const slaCompliance = breakdowns.length > 0
         ? Math.round((slaMetCount / breakdowns.length) * 100)
         : 100;
 
-      // Simulated engineer data based on depot codes
-      const engineerCounts = {
-        'WAS': { available: 3, total: 5 },
-        'DAR': { available: 2, total: 4 },
-        'NCL': { available: 2, total: 4 },
-        'HEX': { available: 2, total: 2 },
-        'CON': { available: 1, total: 4 },
-        'GTS': { available: 1, total: 3 }
-      };
-      
-      // Get actual engineer counts if the table exists
-      try {
-        const { data: depotEngineers, error: engError } = await supabase
-          .from('engineers')
-          .select('depot, status')
-          .eq('depot', depot.code)
-          .eq('is_active', true);
-          
-        if (!engError && depotEngineers) {
-          const total = depotEngineers.length;
-          const available = depotEngineers.filter(e => e.status === 'available').length;
-          engineerCounts[depot.code] = { available, total };
-        }
-      } catch (e) {
-        // Use simulated data if engineers table doesn't exist
-      }
+      // Get actual engineer counts
+      const { data: depotEngineers } = await from('engineers')
+        .select('status')
+        .eq('depot', depot.code)
+        .eq('is_active', true)
+        .execute();
+
+      const total = depotEngineers?.length || 0;
+      const available = depotEngineers?.filter(e => e.status === 'available').length || 0;
 
       depotStats[depot.name] = {
         code: depot.code,
-        available: engineerCounts[depot.code]?.available || 0,
-        total: engineerCounts[depot.code]?.total || 0,
-        avgResponse: avgResponse,
+        available,
+        total,
+        avgResponse,
         sla: slaCompliance,
         activeBreakdowns: breakdowns.length
       };
@@ -117,9 +121,9 @@ router.get('/depot-stats', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching depot stats:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to fetch depot statistics' 
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch depot statistics'
     });
   }
 });
@@ -127,11 +131,11 @@ router.get('/depot-stats', async (req, res) => {
 // GET /api/engineering/engineers - Get all engineers
 router.get('/engineers', async (req, res) => {
   try {
-    const { data: engineers, error } = await supabase
-      .from('engineers')
+    const { data: engineers, error } = await from('engineers')
       .select('*')
       .eq('is_active', true)
-      .order('name');
+      .order('name', 'ASC')
+      .execute();
 
     if (error) throw error;
 
@@ -142,9 +146,9 @@ router.get('/engineers', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching engineers:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to fetch engineers' 
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch engineers'
     });
   }
 });
@@ -153,7 +157,7 @@ router.get('/engineers', async (req, res) => {
 router.get('/metrics', async (req, res) => {
   try {
     const { period = 'today' } = req.query;
-    
+
     // Calculate date range
     let startDate = new Date();
     switch (period) {
@@ -168,21 +172,21 @@ router.get('/metrics', async (req, res) => {
     }
 
     // Get breakdowns for the period
-    const { data: breakdowns, error } = await supabase
-      .from('breakdowns')
+    const { data: breakdowns, error } = await from('breakdowns')
       .select('*')
-      .gte('created_at', startDate.toISOString());
+      .gte('created_at', startDate.toISOString())
+      .execute();
 
     if (error) throw error;
 
     // Calculate metrics
     const totalBreakdowns = breakdowns.length;
     const resolvedBreakdowns = breakdowns.filter(b => b.status === 'cleared').length;
-    
+
     // Calculate average response time
     let totalResponseTime = 0;
     let responseCount = 0;
-    
+
     for (const breakdown of breakdowns) {
       if (breakdown.acknowledged_at && breakdown.received_at) {
         const responseTime = new Date(breakdown.acknowledged_at) - new Date(breakdown.received_at);
@@ -192,20 +196,27 @@ router.get('/metrics', async (req, res) => {
     }
 
     const avgResponseTime = responseCount > 0 ? Math.round(totalResponseTime / responseCount) : 0;
-    
+
     // Calculate SLA compliance
     const slaMetCount = breakdowns.filter(b => {
       if (!b.acknowledged_at || !b.received_at) return false;
       const responseTime = (new Date(b.acknowledged_at) - new Date(b.received_at)) / 60000;
       return responseTime <= 30;
     }).length;
-    
-    const slaCompliance = responseCount > 0 
+
+    const slaCompliance = responseCount > 0
       ? Math.round((slaMetCount / responseCount) * 100)
       : 100;
 
-    // Engineer utilization (simulated)
-    const engineerUtilization = 78; // This would come from engineer time tracking
+    // Engineer utilization (simulated based on active jobs)
+    const { data: engineers } = await from('engineers')
+      .select('status')
+      .eq('is_active', true)
+      .execute();
+
+    const totalEngineers = engineers?.length || 1;
+    const busyEngineers = engineers?.filter(e => e.status === 'on_job').length || 0;
+    const engineerUtilization = Math.round((busyEngineers / totalEngineers) * 100);
 
     res.json({
       success: true,
@@ -221,9 +232,9 @@ router.get('/metrics', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching metrics:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to fetch engineering metrics' 
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch engineering metrics'
     });
   }
 });
@@ -232,25 +243,25 @@ router.get('/metrics', async (req, res) => {
 router.get('/engineers/available/:depotId', async (req, res) => {
   try {
     const { depotId } = req.params;
-    
+
     // Map depot names to codes
     const depotMap = {
       'Washington': 'WAS',
-      'Riverside': 'NCL',  // Assuming Riverside maps to Newcastle
+      'Riverside': 'NCL',
       'Percy Main': 'NCL',
       'Consett': 'CON',
-      'Deptford': 'GTS',   // Assuming Deptford maps to Gateshead
+      'Deptford': 'GTS',
       'Hexham': 'HEX'
     };
 
     const depotCode = depotMap[depotId] || depotId;
-    
-    const { data: engineers, error } = await supabase
-      .from('engineers')
+
+    const { data: engineers, error } = await from('engineers')
       .select('*')
       .eq('depot', depotCode)
       .eq('status', 'available')
-      .eq('is_active', true);
+      .eq('is_active', true)
+      .execute();
 
     if (error) throw error;
 
@@ -262,89 +273,217 @@ router.get('/engineers/available/:depotId', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching available engineers:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to fetch available engineers' 
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch available engineers'
     });
   }
 });
 
-// POST /api/engineering/assign - Assign engineer to breakdown
+// POST /api/engineering/assign - Simplified engineer dispatch (anonymous)
 router.post('/assign', async (req, res) => {
   try {
-    const { breakdown_id, engineer_id, estimated_arrival_minutes } = req.body;
-    
-    if (!breakdown_id || !engineer_id) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'breakdown_id and engineer_id are required' 
+    const { breakdown_id, estimated_arrival_minutes, assigned_by } = req.body;
+
+    if (!breakdown_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'breakdown_id is required'
       });
     }
 
+    const dispatchTime = new Date();
+
     // Update breakdown status to dispatched
-    const { data: breakdown, error: updateError } = await supabase
-      .from('breakdowns')
-      .update({
+    const affectedRows = await update(
+      'breakdowns',
+      {
         status: 'dispatched',
-        dispatched_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        dispatched_at: dispatchTime,
+        engineer_dispatched_at: dispatchTime,
+        engineer_eta_minutes: estimated_arrival_minutes || null,
+        updated_at: dispatchTime
+      },
+      { breakdown_id }
+    );
+
+    if (affectedRows === 0) {
+      throw new Error('Breakdown not found');
+    }
+
+    // Get updated breakdown
+    const [breakdown] = await select('breakdowns', { breakdown_id });
+
+    // Create breakdown event for audit trail
+    await insert('breakdown_events', {
+      breakdown_id: breakdown.id,
+      event_type: 'engineer_dispatched',
+      event_data: JSON.stringify({
+        dispatched_at: dispatchTime.toISOString(),
+        estimated_arrival_minutes: estimated_arrival_minutes || null,
+        assigned_by: assigned_by || 'Engineering Manager',
+        breakdown_id: breakdown_id,
+        fleet_no: breakdown.fleet_no,
+        depot: breakdown.depot
       })
-      .eq('breakdown_id', breakdown_id)
-      .select()
-      .single();
-
-    if (updateError) throw updateError;
-
-    // Create breakdown event
-    const { error: eventError } = await supabase
-      .from('breakdown_events')
-      .insert({
-        breakdown_id: breakdown.id,
-        event_type: 'engineer_assigned',
-        event_data: {
-          engineer_id,
-          estimated_arrival_minutes,
-          assigned_at: new Date().toISOString()
-        }
-      });
-
-    if (eventError) console.error('Error creating event:', eventError);
+    });
 
     // Log activity to unified feed
     try {
-      await activityLogger.logEngineerAssigned({
-        engineerId: engineer_id,
-        engineerName: 'Engineer', // This would come from engineer lookup in production
-        breakdownId: breakdown.breakdown_id,
-        fleetNo: breakdown.fleet_no,
-        assignedBy: 'SDC',
-        estimatedArrival: `${estimated_arrival_minutes} minutes`,
-        depot: breakdown.depot || 'SDC'
+      await activityLogger.logActivity({
+        activityType: ACTIVITY_TYPES.ENGINEER_DISPATCHED,
+        action: 'engineer dispatched',
+        actorType: ACTOR_TYPES.ENGINEERING,
+        actorId: assigned_by || 'manager',
+        actorName: assigned_by || 'Engineering Manager',
+        depot: breakdown.depot || 'Unknown',
+        severity: SEVERITY_LEVELS.INFO,
+        source: 'engineering_dashboard',
+        metadata: {
+          breakdown_id: breakdown.breakdown_id,
+          fleet_no: breakdown.fleet_no,
+          dispatched_at: dispatchTime.toISOString(),
+          eta_minutes: estimated_arrival_minutes,
+          location: breakdown.location_description || breakdown.location,
+          issue: breakdown.issue_category
+        }
       });
-      console.log('✅ Engineer assignment activity logged');
+      console.log('✅ Engineer dispatch activity logged');
     } catch (activityError) {
-      console.error('⚠️ Failed to log engineer assignment activity:', activityError);
+      console.error('⚠️ Failed to log engineer dispatch activity:', activityError);
     }
 
     // Return assignment details
     res.json({
       success: true,
-      assignment: {
+      dispatch: {
         breakdown_id,
-        engineer: {
-          id: engineer_id,
-          name: 'John Smith' // This would come from engineer lookup
-        },
+        dispatched_at: dispatchTime.toISOString(),
         status: 'dispatched',
-        estimated_arrival_minutes
+        estimated_arrival_minutes: estimated_arrival_minutes || null,
+        assigned_by: assigned_by || 'Engineering Manager'
       },
       timestamp: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error assigning engineer:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to assign engineer' 
+    console.error('Error dispatching engineer:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to dispatch engineer'
+    });
+  }
+});
+
+// POST /api/engineering/update-engineer-status - Update engineer arrival/completion status
+router.post('/update-engineer-status', async (req, res) => {
+  try {
+    const { breakdown_id, status, notes } = req.body;
+
+    if (!breakdown_id || !status) {
+      return res.status(400).json({
+        success: false,
+        error: 'breakdown_id and status are required'
+      });
+    }
+
+    const validStatuses = ['arrived', 'working', 'completed'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid status. Must be one of: ${validStatuses.join(', ')}`
+      });
+    }
+
+    const updateTime = new Date();
+    const updateFields = {
+      updated_at: updateTime
+    };
+
+    let eventType = '';
+    let activityType = '';
+
+    // Map status to database fields
+    switch (status) {
+      case 'arrived':
+        updateFields.status = 'on_site';
+        updateFields.engineer_on_site_at = updateTime;
+        eventType = 'engineer_arrived';
+        activityType = ACTIVITY_TYPES.ENGINEER_ARRIVED || 'engineer_arrived';
+        break;
+      case 'working':
+        updateFields.status = 'in_progress';
+        updateFields.engineer_fixing_at = updateTime;
+        eventType = 'engineer_working';
+        activityType = 'engineer_working';
+        break;
+      case 'completed':
+        updateFields.status = 'resolved';
+        updateFields.engineer_completed_at = updateTime;
+        updateFields.cleared_at = updateTime;
+        eventType = 'engineer_completed';
+        activityType = ACTIVITY_TYPES.BREAKDOWN_CLEARED || 'breakdown_cleared';
+        break;
+    }
+
+    // Update breakdown
+    await update('breakdowns', updateFields, { breakdown_id });
+
+    // Get updated breakdown
+    const [breakdown] = await select('breakdowns', { breakdown_id });
+
+    // Create breakdown event
+    await insert('breakdown_events', {
+      breakdown_id: breakdown.id,
+      event_type: eventType,
+      event_data: JSON.stringify({
+        status,
+        timestamp: updateTime.toISOString(),
+        notes: notes || null,
+        breakdown_id: breakdown_id,
+        fleet_no: breakdown.fleet_no
+      })
+    });
+
+    // Log activity
+    try {
+      await activityLogger.logActivity({
+        activityType: activityType,
+        action: status === 'arrived' ? 'engineer arrived on site' :
+                status === 'working' ? 'engineer started repairs' :
+                'breakdown resolved',
+        actorType: ACTOR_TYPES.ENGINEERING,
+        actorId: 'engineer',
+        actorName: 'Engineer',
+        depot: breakdown.depot || 'Unknown',
+        severity: SEVERITY_LEVELS.INFO,
+        source: 'engineering_dashboard',
+        metadata: {
+          breakdown_id: breakdown.breakdown_id,
+          fleet_no: breakdown.fleet_no,
+          status,
+          timestamp: updateTime.toISOString(),
+          notes: notes || null
+        }
+      });
+      console.log(`✅ Engineer ${status} activity logged`);
+    } catch (activityError) {
+      console.error('⚠️ Failed to log activity:', activityError);
+    }
+
+    res.json({
+      success: true,
+      breakdown: {
+        breakdown_id,
+        status: updateFields.status,
+        updated_at: updateTime.toISOString()
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error updating engineer status:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update engineer status'
     });
   }
 });
@@ -353,36 +492,45 @@ router.post('/assign', async (req, res) => {
 router.post('/auto-assign', async (req, res) => {
   try {
     const { breakdown_id, depot_id } = req.body;
-    
+
     if (!breakdown_id || !depot_id) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'breakdown_id and depot_id are required' 
+      return res.status(400).json({
+        success: false,
+        error: 'breakdown_id and depot_id are required'
       });
     }
 
-    // For now, simulate auto-assignment
-    // In production, this would use location data and availability
-    const assignedEngineer = {
-      id: 'ENG001',
-      name: 'John Smith',
-      badge_number: 'JS001',
+    // Get available engineers from depot
+    const { data: availableEngineers } = await from('engineers')
+      .select('*')
+      .eq('depot', depot_id)
+      .eq('status', 'available')
+      .eq('is_active', true)
+      .limit(1)
+      .execute();
+
+    const assignedEngineer = availableEngineers?.[0] || {
+      id: 'AUTO',
+      name: 'Auto-assigned Engineer',
+      badge_number: 'AUTO001',
       depot: depot_id
     };
 
     // Update breakdown
-    const { data: breakdown, error: updateError } = await supabase
-      .from('breakdowns')
-      .update({
+    await update(
+      'breakdowns',
+      {
         status: 'dispatched',
-        dispatched_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .eq('breakdown_id', breakdown_id)
-      .select()
-      .single();
+        dispatched_at: new Date(),
+        engineer_id: assignedEngineer.badge_number,
+        engineer_name: assignedEngineer.name,
+        updated_at: new Date()
+      },
+      { breakdown_id }
+    );
 
-    if (updateError) throw updateError;
+    // Get updated breakdown
+    const [breakdown] = await select('breakdowns', { breakdown_id });
 
     res.json({
       success: true,
@@ -397,9 +545,9 @@ router.post('/auto-assign', async (req, res) => {
     });
   } catch (error) {
     console.error('Error auto-assigning engineer:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to auto-assign engineer' 
+    res.status(500).json({
+      success: false,
+      error: 'Failed to auto-assign engineer'
     });
   }
 });
@@ -409,12 +557,12 @@ router.put('/assignment/:id/status', async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
-    
+
     const validStatuses = ['dispatched', 'on_site', 'repairing', 'completed'];
     if (!validStatuses.includes(status)) {
-      return res.status(400).json({ 
-        success: false, 
-        error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` 
+      return res.status(400).json({
+        success: false,
+        error: `Invalid status. Must be one of: ${validStatuses.join(', ')}`
       });
     }
 
@@ -422,40 +570,33 @@ router.put('/assignment/:id/status', async (req, res) => {
     let breakdownStatus = 'in_progress';
     let updateFields = {
       status: breakdownStatus,
-      updated_at: new Date().toISOString()
+      updated_at: new Date()
     };
 
     switch (status) {
       case 'dispatched':
-        breakdownStatus = 'dispatched';
-        updateFields.status = breakdownStatus;
-        updateFields.dispatched_at = new Date().toISOString();
+        updateFields.status = 'dispatched';
+        updateFields.dispatched_at = new Date();
         break;
       case 'on_site':
-        breakdownStatus = 'on_site';
-        updateFields.status = breakdownStatus;
-        updateFields.on_site_at = new Date().toISOString();
+        updateFields.status = 'on_site';
+        updateFields.engineer_on_site_at = new Date();
         break;
       case 'repairing':
-        breakdownStatus = 'in_progress';
-        updateFields.status = breakdownStatus;
+        updateFields.status = 'in_progress';
+        updateFields.engineer_fixing_at = new Date();
         break;
       case 'completed':
-        breakdownStatus = 'cleared';
-        updateFields.status = breakdownStatus;
-        updateFields.cleared_at = new Date().toISOString();
+        updateFields.status = 'cleared';
+        updateFields.cleared_at = new Date();
         break;
     }
 
-    // Update breakdown status
-    const { data: breakdown, error } = await supabase
-      .from('breakdowns')
-      .update(updateFields)
-      .eq('id', id)
-      .select()
-      .single();
+    // Update breakdown status by ID
+    await update('breakdowns', updateFields, { id: parseInt(id) });
 
-    if (error) throw error;
+    // Get updated breakdown
+    const [breakdown] = await select('breakdowns', { id: parseInt(id) });
 
     res.json({
       success: true,
@@ -469,9 +610,9 @@ router.put('/assignment/:id/status', async (req, res) => {
     });
   } catch (error) {
     console.error('Error updating assignment status:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to update assignment status' 
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update assignment status'
     });
   }
 });
@@ -482,13 +623,7 @@ router.get('/breakdown/:id/assignments', async (req, res) => {
     const { id } = req.params;
 
     // Get breakdown details
-    const { data: breakdown, error } = await supabase
-      .from('breakdowns')
-      .select('*')
-      .eq('breakdown_id', id)
-      .single();
-
-    if (error) throw error;
+    const [breakdown] = await select('breakdowns', { breakdown_id: id });
 
     if (!breakdown) {
       return res.status(404).json({
@@ -498,28 +633,33 @@ router.get('/breakdown/:id/assignments', async (req, res) => {
     }
 
     // Get assignment history from events
-    const { data: events, error: eventsError } = await supabase
-      .from('breakdown_events')
-      .select('*')
-      .eq('breakdown_id', breakdown.id)
-      .eq('event_type', 'engineer_assigned')
-      .order('created_at', { ascending: false });
-
-    if (eventsError) throw eventsError;
+    const sql = `
+      SELECT * FROM breakdown_events
+      WHERE breakdown_id = ?
+      AND event_type = 'engineer_assigned'
+      ORDER BY created_at DESC
+    `;
+    const events = await query(sql, [breakdown.id]);
 
     // Format assignments
-    const assignments = events?.map(event => ({
-      id: event.id,
-      engineer_id: event.event_data?.engineer_id,
-      engineer_name: event.event_data?.engineer_name || 'Unknown',
-      status: breakdown.status,
-      assigned_at: event.created_at,
-      arrival_at: breakdown.on_site_at,
-      completed_at: breakdown.cleared_at,
-      travel_time_minutes: breakdown.on_site_at && event.created_at
-        ? Math.round((new Date(breakdown.on_site_at) - new Date(event.created_at)) / 60000)
-        : null
-    })) || [];
+    const assignments = events.map(event => {
+      const eventData = typeof event.event_data === 'string'
+        ? JSON.parse(event.event_data)
+        : event.event_data;
+
+      return {
+        id: event.id,
+        engineer_id: eventData?.engineer_id,
+        engineer_name: eventData?.engineer_name || 'Unknown',
+        status: breakdown.status,
+        assigned_at: event.created_at,
+        arrival_at: breakdown.engineer_on_site_at,
+        completed_at: breakdown.cleared_at,
+        travel_time_minutes: breakdown.engineer_on_site_at && event.created_at
+          ? Math.round((new Date(breakdown.engineer_on_site_at) - new Date(event.created_at)) / 60000)
+          : null
+      };
+    });
 
     res.json({
       success: true,
@@ -558,17 +698,15 @@ router.get('/performance', async (req, res) => {
     }
 
     // Build query
-    let query = supabase
-      .from('breakdowns')
-      .select('*')
-      .gte('created_at', startDate.toISOString());
+    let sql = 'SELECT * FROM breakdowns WHERE created_at >= ?';
+    let params = [startDate];
 
     if (depot) {
-      query = query.eq('depot', depot);
+      sql += ' AND depot = ?';
+      params.push(depot);
     }
 
-    const { data: breakdowns, error } = await query;
-    if (error) throw error;
+    const breakdowns = await query(sql, params);
 
     // Calculate performance metrics
     const totalBreakdowns = breakdowns.length;
@@ -629,6 +767,14 @@ router.get('/performance', async (req, res) => {
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
 
+    // Get engineer count for productivity calculation
+    const { data: engineers } = await from('engineers')
+      .select('id')
+      .eq('is_active', true)
+      .execute();
+
+    const engineerCount = engineers?.length || 10;
+
     res.json({
       success: true,
       performance: {
@@ -645,8 +791,8 @@ router.get('/performance', async (req, res) => {
         bySeverity,
         topIssues,
         engineerProductivity: {
-          breakdownsPerEngineer: Math.round(totalBreakdowns / 10), // Simulated
-          avgJobsPerDay: Math.round(totalBreakdowns / 7) // Simulated
+          breakdownsPerEngineer: Math.round(totalBreakdowns / engineerCount),
+          avgJobsPerDay: Math.round(totalBreakdowns / 7)
         }
       },
       timestamp: new Date().toISOString()
@@ -682,17 +828,15 @@ router.get('/sla', async (req, res) => {
     }
 
     // Get breakdowns for SLA analysis
-    let query = supabase
-      .from('breakdowns')
-      .select('*')
-      .gte('created_at', startDate.toISOString());
+    let sql = 'SELECT * FROM breakdowns WHERE created_at >= ?';
+    let params = [startDate];
 
     if (depot) {
-      query = query.eq('depot', depot);
+      sql += ' AND depot = ?';
+      params.push(depot);
     }
 
-    const { data: breakdowns, error } = await query;
-    if (error) throw error;
+    const breakdowns = await query(sql, params);
 
     // Define SLA targets (in minutes)
     const slaTargets = {
@@ -801,11 +945,11 @@ router.get('/sla', async (req, res) => {
 // GET /api/engineering/teams - Get team availability and status
 router.get('/teams', async (req, res) => {
   try {
-    // Get all depots
-    const { data: depots, error: depotError } = await supabase
-      .from('depots')
+    // Get all active depots
+    const { data: depots, error: depotError } = await from('depots')
       .select('*')
-      .eq('is_active', true);
+      .eq('is_active', true)
+      .execute();
 
     if (depotError) throw depotError;
 
@@ -814,44 +958,43 @@ router.get('/teams', async (req, res) => {
 
     for (const depot of depots) {
       // Get active breakdowns for this depot
-      const { data: activeBreakdowns, error: breakdownError } = await supabase
-        .from('breakdowns')
-        .select('*')
+      const sql = `
+        SELECT * FROM breakdowns
+        WHERE depot = ?
+        AND status IN ('active', 'pending', 'in_progress', 'dispatched', 'on_site')
+      `;
+      const activeBreakdowns = await query(sql, [depot.code]);
+
+      // Get engineer data for this depot
+      const { data: depotEngineers } = await from('engineers')
+        .select('status')
         .eq('depot', depot.code)
-        .in('status', ['active', 'pending', 'in_progress', 'dispatched', 'on_site']);
+        .eq('is_active', true)
+        .execute();
 
-      if (breakdownError) throw breakdownError;
-
-      // Simulated engineer data (would come from engineers table in production)
-      const engineerData = {
-        'WAS': { total: 5, available: 3, onSite: 2, onBreak: 0 },
-        'NCL': { total: 4, available: 2, onSite: 2, onBreak: 0 },
-        'CON': { total: 3, available: 1, onSite: 1, onBreak: 1 },
-        'HEX': { total: 2, available: 1, onSite: 1, onBreak: 0 },
-        'GTS': { total: 3, available: 2, onSite: 1, onBreak: 0 },
-        'DAR': { total: 4, available: 2, onSite: 1, onBreak: 1 }
-      };
-
-      const engineers = engineerData[depot.code] || { total: 2, available: 1, onSite: 1, onBreak: 0 };
+      const total = depotEngineers?.length || 0;
+      const available = depotEngineers?.filter(e => e.status === 'available').length || 0;
+      const onSite = depotEngineers?.filter(e => e.status === 'on_job').length || 0;
+      const onBreak = depotEngineers?.filter(e => e.status === 'off_duty').length || 0;
 
       teams.push({
         depot: depot.name,
         depotCode: depot.code,
-        status: engineers.available > 0 ? 'operational' : 'limited',
+        status: available > 0 ? 'operational' : 'limited',
         engineers: {
-          total: engineers.total,
-          available: engineers.available,
-          onSite: engineers.onSite,
-          onBreak: engineers.onBreak
+          total,
+          available,
+          onSite,
+          onBreak
         },
         workload: {
           activeBreakdowns: activeBreakdowns.length,
           criticalBreakdowns: activeBreakdowns.filter(b => b.severity === 'STOP').length,
-          avgPerEngineer: engineers.total > 0
-            ? Math.round(activeBreakdowns.length / engineers.total * 10) / 10 : 0
+          avgPerEngineer: total > 0
+            ? Math.round(activeBreakdowns.length / total * 10) / 10 : 0
         },
-        capacity: engineers.available > activeBreakdowns.length ? 'good' :
-                 engineers.available >= activeBreakdowns.length / 2 ? 'moderate' : 'strained'
+        capacity: available > activeBreakdowns.length ? 'good' :
+                 available >= activeBreakdowns.length / 2 ? 'moderate' : 'strained'
       });
     }
 
@@ -903,35 +1046,36 @@ router.post('/accept-job', async (req, res) => {
       });
     }
 
+    const acceptTime = new Date();
+
     // Update breakdown with engineer assignment
-    const { data: breakdown, error: updateError } = await supabase
-      .from('breakdowns')
-      .update({
+    await update(
+      'breakdowns',
+      {
         engineer_id: engineer_badge,
         engineer_name: engineer_name || 'Engineer',
         engineer_badge: engineer_badge,
         engineer_eta_minutes: eta_minutes || null,
-        engineer_accepted_at: new Date().toISOString(),
+        engineer_accepted_at: acceptTime,
         status: 'dispatched',
-        updated_at: new Date().toISOString()
-      })
-      .eq('breakdown_id', breakdown_id)
-      .select()
-      .single();
+        updated_at: acceptTime
+      },
+      { breakdown_id }
+    );
 
-    if (updateError) throw updateError;
+    // Get updated breakdown
+    const [breakdown] = await select('breakdowns', { breakdown_id });
 
     // Update engineer status
-    const { error: engineerError } = await supabase
-      .from('engineers')
-      .update({
+    await update(
+      'engineers',
+      {
         status: 'on_job',
         current_breakdown_id: breakdown_id,
-        updated_at: new Date().toISOString()
-      })
-      .eq('badge_number', engineer_badge);
-
-    if (engineerError) console.error('Error updating engineer status:', engineerError);
+        updated_at: acceptTime
+      },
+      { badge_number: engineer_badge }
+    );
 
     // Broadcast WebSocket event
     broadcastEngineeringEvent('job_accepted', {
@@ -948,7 +1092,7 @@ router.post('/accept-job', async (req, res) => {
         engineer_badge,
         engineer_name,
         status: 'dispatched',
-        accepted_at: breakdown.engineer_accepted_at,
+        accepted_at: acceptTime.toISOString(),
         eta_minutes: eta_minutes
       },
       timestamp: new Date().toISOString()
@@ -982,51 +1126,51 @@ router.put('/update-status', async (req, res) => {
       });
     }
 
+    const updateTime = new Date();
+
     // Prepare update fields based on status
     let updateFields = {
       status: status === 'fixing' || status === 'testing' ? 'in_progress' : status,
-      updated_at: new Date().toISOString()
+      updated_at: updateTime
     };
 
     // Add timestamp fields based on status
     switch (status) {
       case 'on_site':
-        updateFields.engineer_on_site_at = new Date().toISOString();
+        updateFields.engineer_on_site_at = updateTime;
         break;
       case 'fixing':
-        updateFields.engineer_fixing_at = new Date().toISOString();
+        updateFields.engineer_fixing_at = updateTime;
         break;
     }
 
     // Add notes if provided
     if (notes) {
       // Get existing notes first
-      const { data: existing } = await supabase
-        .from('breakdowns')
-        .select('engineer_notes')
-        .eq('breakdown_id', breakdown_id)
-        .single();
+      const [existing] = await select('breakdowns', { breakdown_id }, ['engineer_notes']);
 
-      const existingNotes = existing?.engineer_notes || [];
+      let existingNotes = [];
+      if (existing?.engineer_notes) {
+        existingNotes = typeof existing.engineer_notes === 'string'
+          ? JSON.parse(existing.engineer_notes)
+          : existing.engineer_notes;
+      }
+
       const newNote = {
-        timestamp: new Date().toISOString(),
+        timestamp: updateTime.toISOString(),
         engineer: engineer_badge || 'Unknown',
         note: notes,
         status: status
       };
 
-      updateFields.engineer_notes = [...existingNotes, newNote];
+      updateFields.engineer_notes = JSON.stringify([...existingNotes, newNote]);
     }
 
     // Update breakdown
-    const { data: breakdown, error } = await supabase
-      .from('breakdowns')
-      .update(updateFields)
-      .eq('breakdown_id', breakdown_id)
-      .select()
-      .single();
+    await update('breakdowns', updateFields, { breakdown_id });
 
-    if (error) throw error;
+    // Get updated breakdown
+    const [breakdown] = await select('breakdowns', { breakdown_id });
 
     // Broadcast WebSocket event
     broadcastEngineeringEvent('status_updated', {
@@ -1069,10 +1213,10 @@ router.post('/complete-job', async (req, res) => {
       returned_to_service
     } = req.body;
 
-    if (!breakdown_id || !engineer_badge || !resolution_type) {
+    if (!breakdown_id || !resolution_type) {
       return res.status(400).json({
         success: false,
-        error: 'breakdown_id, engineer_badge, and resolution_type are required'
+        error: 'breakdown_id and resolution_type are required'
       });
     }
 
@@ -1084,46 +1228,48 @@ router.post('/complete-job', async (req, res) => {
       });
     }
 
+    const completionTime = new Date();
+
     // Update breakdown as completed
-    const { data: breakdown, error: updateError } = await supabase
-      .from('breakdowns')
-      .update({
+    await update(
+      'breakdowns',
+      {
         status: 'resolved',
-        engineer_completed_at: new Date().toISOString(),
-        resolved_at: new Date().toISOString(),
-        resolved_by: engineer_badge,
+        engineer_completed_at: completionTime,
+        resolved_at: completionTime,
+        resolved_by: engineer_badge || 'Engineering Team',
         resolution_type: resolution_type,
         resolution_notes: resolution_notes || '',
-        parts_used: parts_used || null,
+        parts_used: parts_used ? JSON.stringify(parts_used) : null,
         labor_hours: labor_hours || null,
         repair_category: repair_category || null,
         root_cause: root_cause || '',
         returned_to_service: returned_to_service !== false,
-        updated_at: new Date().toISOString()
-      })
-      .eq('breakdown_id', breakdown_id)
-      .select()
-      .single();
+        updated_at: completionTime
+      },
+      { breakdown_id }
+    );
 
-    if (updateError) throw updateError;
+    // Get updated breakdown
+    const [breakdown] = await select('breakdowns', { breakdown_id });
 
-    // Update engineer status back to available
-    const { error: engineerError } = await supabase
-      .from('engineers')
-      .update({
-        status: 'available',
-        current_breakdown_id: null,
-        updated_at: new Date().toISOString()
-      })
-      .eq('badge_number', engineer_badge);
-
-    if (engineerError) console.error('Error updating engineer status:', engineerError);
+    // Update engineer status back to available (only if engineer_badge provided)
+    if (engineer_badge) {
+      await update(
+        'engineers',
+        {
+          status: 'available',
+          current_breakdown_id: null,
+          updated_at: completionTime
+        },
+        { badge_number: engineer_badge }
+      );
+    }
 
     // Broadcast WebSocket event
     broadcastEngineeringEvent('job_completed', {
       breakdown_id,
       engineer_badge,
-      engineer_name: engineerName,
       resolution_type,
       breakdown
     });
@@ -1134,7 +1280,7 @@ router.post('/complete-job', async (req, res) => {
         breakdown_id,
         engineer_badge,
         resolution_type,
-        completed_at: breakdown.engineer_completed_at,
+        completed_at: completionTime.toISOString(),
         labor_hours: labor_hours,
         returned_to_service: returned_to_service !== false
       },
@@ -1155,38 +1301,37 @@ router.get('/jobs', async (req, res) => {
     const { filter = 'all', engineer_badge } = req.query;
 
     // Base query for active breakdowns
-    let query = supabase
-      .from('breakdowns')
-      .select('*')
-      .neq('status', 'resolved')
-      .order('created_at', { ascending: false });
+    let sql = "SELECT * FROM breakdowns WHERE status != 'resolved'";
+    let params = [];
 
     // Apply filters
     switch (filter) {
       case 'unassigned':
-        query = query.is('engineer_id', null);
+        sql += ' AND engineer_id IS NULL';
         break;
       case 'my_jobs':
         if (engineer_badge) {
-          query = query.eq('engineer_badge', engineer_badge);
+          sql += ' AND engineer_badge = ?';
+          params.push(engineer_badge);
         }
         break;
       case 'dispatched':
-        query = query.eq('status', 'dispatched');
+        sql += " AND status = 'dispatched'";
         break;
       case 'on_site':
-        query = query.eq('status', 'on_site');
+        sql += " AND status = 'on_site'";
         break;
       case 'priority':
-        query = query.or('severity.eq.STOP,wizard_decision.eq.STOP');
+        sql += " AND (severity = 'STOP' OR wizard_decision = 'STOP')";
         break;
     }
 
-    const { data: breakdowns, error } = await query;
-    if (error) throw error;
+    sql += ' ORDER BY created_at DESC';
+
+    const breakdowns = await query(sql, params);
 
     // Process breakdowns with calculated fields
-    const jobs = (breakdowns || []).map(b => {
+    const jobs = breakdowns.map(b => {
       const created = new Date(b.created_at);
       const now = new Date();
       const elapsedMinutes = Math.floor((now - created) / 60000);
@@ -1228,13 +1373,7 @@ router.get('/job/:breakdown_id', async (req, res) => {
     const { breakdown_id } = req.params;
 
     // Get breakdown with all details
-    const { data: breakdown, error } = await supabase
-      .from('breakdowns')
-      .select('*')
-      .eq('breakdown_id', breakdown_id)
-      .single();
-
-    if (error) throw error;
+    const [breakdown] = await select('breakdowns', { breakdown_id });
 
     if (!breakdown) {
       return res.status(404).json({
@@ -1266,12 +1405,20 @@ router.get('/job/:breakdown_id', async (req, res) => {
       total_elapsed: Math.floor((new Date() - new Date(breakdown.created_at)) / 60000)
     };
 
+    // Parse wizard assessment data
+    let wizardData = {};
+    if (breakdown.wizard_assessment_data) {
+      wizardData = typeof breakdown.wizard_assessment_data === 'string'
+        ? JSON.parse(breakdown.wizard_assessment_data)
+        : breakdown.wizard_assessment_data;
+    }
+
     res.json({
       success: true,
       job: {
         ...breakdown,
         timeline,
-        wizard_responses: breakdown.wizard_assessment_data || {},
+        wizard_responses: wizardData,
         assessment_summary: parseAssessmentSummary(breakdown)
       },
       timestamp: new Date().toISOString()
@@ -1297,7 +1444,9 @@ function parseAssessmentSummary(breakdown) {
 
   // Parse wizard assessment data if available
   if (breakdown.wizard_assessment_data) {
-    const data = breakdown.wizard_assessment_data;
+    const data = typeof breakdown.wizard_assessment_data === 'string'
+      ? JSON.parse(breakdown.wizard_assessment_data)
+      : breakdown.wizard_assessment_data;
 
     // Extract symptoms
     if (data.symptoms) {
@@ -1319,5 +1468,112 @@ function parseAssessmentSummary(breakdown) {
 
   return summary;
 }
+
+// GET /api/engineering/vehicle-history/:fleet_no - Get breakdown history for a vehicle
+router.get('/vehicle-history/:fleet_no', async (req, res) => {
+  try {
+    const { fleet_no } = req.params;
+    const { limit = 10 } = req.query;
+
+    if (!fleet_no) {
+      return res.status(400).json({
+        success: false,
+        error: 'fleet_no is required'
+      });
+    }
+
+    // Get breakdown history for this fleet number
+    const sql = `
+      SELECT * FROM breakdowns
+      WHERE fleet_no = ?
+      ORDER BY created_at DESC
+      LIMIT ?
+    `;
+    const breakdowns = await query(sql, [fleet_no, parseInt(limit)]);
+
+    // Calculate statistics
+    const totalBreakdowns = breakdowns.length;
+    const last30Days = breakdowns.filter(b => {
+      const created = new Date(b.created_at);
+      const daysAgo = (new Date() - created) / (1000 * 60 * 60 * 24);
+      return daysAgo <= 30;
+    }).length;
+
+    const last90Days = breakdowns.filter(b => {
+      const created = new Date(b.created_at);
+      const daysAgo = (new Date() - created) / (1000 * 60 * 60 * 24);
+      return daysAgo <= 90;
+    }).length;
+
+    // Identify recurring issues
+    const issueCounts = {};
+    breakdowns.forEach(b => {
+      const issue = b.issue_category || 'Other';
+      issueCounts[issue] = (issueCounts[issue] || 0) + 1;
+    });
+
+    const recurringIssues = Object.entries(issueCounts)
+      .filter(([issue, count]) => count > 1)
+      .map(([issue, count]) => ({ issue, count }))
+      .sort((a, b) => b.count - a.count);
+
+    // Most recent breakdown
+    const mostRecent = breakdowns.length > 0 ? breakdowns[0] : null;
+
+    // Calculate average resolution time
+    const resolvedBreakdowns = breakdowns.filter(b => b.cleared_at && b.created_at);
+    let avgResolutionMinutes = 0;
+    if (resolvedBreakdowns.length > 0) {
+      const totalMinutes = resolvedBreakdowns.reduce((sum, b) => {
+        const created = new Date(b.created_at);
+        const cleared = new Date(b.cleared_at);
+        return sum + (cleared - created) / 60000;
+      }, 0);
+      avgResolutionMinutes = Math.round(totalMinutes / resolvedBreakdowns.length);
+    }
+
+    // Problem vehicle flag (>3 breakdowns in 90 days)
+    const isProblemVehicle = last90Days > 3;
+
+    res.json({
+      success: true,
+      fleet_no,
+      history: {
+        breakdowns: breakdowns.map(b => ({
+          breakdown_id: b.breakdown_id,
+          created_at: b.created_at,
+          issue_category: b.issue_category,
+          severity: b.severity || b.wizard_decision,
+          status: b.status,
+          resolved_at: b.cleared_at,
+          resolution_type: b.resolution_type,
+          engineer_name: b.engineer_name,
+          depot: b.depot
+        })),
+        statistics: {
+          totalBreakdowns,
+          last30Days,
+          last90Days,
+          avgResolutionMinutes,
+          isProblemVehicle
+        },
+        recurringIssues,
+        mostRecent: mostRecent ? {
+          breakdown_id: mostRecent.breakdown_id,
+          created_at: mostRecent.created_at,
+          issue_category: mostRecent.issue_category,
+          status: mostRecent.status
+        } : null
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error fetching vehicle history:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch vehicle history'
+    });
+  }
+});
 
 export default router;

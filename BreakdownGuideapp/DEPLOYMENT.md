@@ -1,8 +1,36 @@
 # Deployment Guide - Breakdown Management System
 
-## Overview
+---
+
+## ⚠️ **LEGACY DOCUMENTATION WARNING** ⚠️
+
+**This document is OUTDATED and maintained for historical reference only.**
+
+**Current deployment information:**
+- ✅ **Use:** `docs/CPANEL_ONLY_DEPLOYMENT_GUIDE.md` (primary guide)
+- ✅ **Quick Start:** `docs/CPANEL_QUICK_START_10MIN.md`
+- ✅ **Master Index:** `docs/MASTER_CPANEL_DOCUMENTATION_INDEX.md`
+
+**What changed:**
+- ❌ **Render.com** → ✅ **cPanel** (self-hosted)
+- ❌ **Supabase** → ✅ **MySQL** (cPanel database)
+- ❌ **Supabase Auth** → ✅ **JWT + bcrypt**
+
+**Production URLs (Current):**
+- Frontend: https://breakdowns.gobarry.co.uk
+- Backend API: https://breakdowns.gobarry.co.uk/api
+- WebSocket: wss://breakdowns.gobarry.co.uk/ws
+- Database: MySQL (localhost on cPanel)
+
+**Last Updated:** October 27, 2025 - System migrated to cPanel
+
+---
+
+## Overview (LEGACY - For Historical Reference)
 
 This document explains the complete deployment workflow for the Breakdown Management System, including the dual-repository setup and how to properly deploy changes to production.
+
+**NOTE:** The information below describes the OLD deployment architecture (Render.com + Supabase). This is kept for reference purposes only.
 
 ## Quick Reference
 
@@ -72,10 +100,7 @@ git checkout main
 git add .
 
 # Commit changes
-git commit -m "feat: Add new feature
-
-🤖 Generated with Claude Code
-Co-Authored-By: Claude <noreply@anthropic.com>"
+git commit -m "feat: Add new feature"
 ```
 
 ### 2. Deploy to Production (Render.com)

@@ -1,10 +1,10 @@
 /**
- * SDC Guide Compliant Diagnostic Flows - PART 3
- * Remaining categories with exact SDC Guide text - Version 1.3
- * NO modifications allowed - legal compliance required
+ * Industry Best-Practice Compliant Diagnostic Flows - PART 3
+ * Remaining categories with operational best practice guidelines - Version 1.3
+ * Following recognised safety standards
  */
 
-// Additional flows with exact SDC Guide text
+// Additional flows with operational best practice guidelines
 const additionalFlows = {
     'broken-windows': {
         title: 'Broken Windows',
@@ -155,7 +155,7 @@ const additionalFlows = {
             },
             {
                 type: 'action',
-                title: 'Step 3: Refer to SDC Guide (if applicable)',
+                title: 'Step 3: Refer to operational procedures (if applicable)',
                 content: 'Consult this guide (if applicable):',
                 instructions: [
                     'If any buzzers referenced in this guide are shown, refer to the guidance given and determine whether it is safe to continue to the next convenient changeover point.'
@@ -576,4 +576,4 @@ if (typeof diagnosticFlows !== 'undefined') {
     window.diagnosticFlows = additionalFlows;
 }
 
-console.log('SDC Guide Part 3 diagnostic flows loaded - Exact text compliance maintained');
+console.log('Industry best-practice diagnostic flows loaded - Exact text compliance maintained');

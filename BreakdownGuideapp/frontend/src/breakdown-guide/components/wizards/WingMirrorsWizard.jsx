@@ -4,7 +4,7 @@ import constants from '../common/constants.js';
 
 // Wing Mirrors Wizard Component - SAFETY CRITICAL VISION
 // Uses icons and constants from common components
-// Follows SDC Engineering Issues Guide - Wing Mirrors Section (Page 27)
+// Follows operational safety procedures - Wing Mirrors Section (Page 27)
 
 const WingMirrorsWizard = ({ currentStep, responses, updateResponse, onNext, onPrevious, onComplete }) => {
     // Get icons from imported Icons
@@ -32,7 +32,7 @@ const WingMirrorsWizard = ({ currentStep, responses, updateResponse, onNext, onP
                             <AlertTriangle className="w-8 h-8 text-red-400" />
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">🪞 WING MIRRORS - SAFETY ASSESSMENT</h2>
-                        <p className="text-gray-300">Following SDC Engineering Issues Guide procedure for wing mirror damage evaluation.</p>
+                        <p className="text-gray-300">Following standard operational safety checks procedure for wing mirror damage evaluation.</p>
                     </div>
                     
                     <div className="bg-red-500/30 backdrop-blur-sm rounded-lg p-6 border border-red-400/50">

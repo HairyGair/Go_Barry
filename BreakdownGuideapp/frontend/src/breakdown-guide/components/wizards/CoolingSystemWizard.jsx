@@ -3,7 +3,7 @@ import * as Icons from '../common/icons.jsx';
 import constants from '../common/constants.js';
 
 // Cooling System (Overheating) Wizard Component
-// Follows SDC Guide To Engineering Issues v1.3 Section: "Overheating" (Page 11)
+// Follows operational safety procedures Section: "Overheating" (Page 11)
 // Ensures full compliance with DVSA standards and Tranzaura system integration
 
 const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, onPrevious, onComplete }) => {
@@ -11,12 +11,12 @@ const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, o
     // Get icons from imported Icons
     const { AlertTriangle, ArrowLeft, ArrowRight, Home, CheckCircle, XCircle, FileText, Tool, Gauge } = Icons;
     
-    // Determine final decision based on SDC Guide v1.3 and complete assessment
+    // Determine final decision based on operational safety procedures and complete assessment
     const handleCompleteAssessment = () => {
         let finalDecision = 'CONTINUE';
-        let notes = 'Overheating assessment completed per SDC Guide v1.3. ';
+        let notes = 'Overheating assessment completed per standard operational procedures v1.3. ';
         
-        // Decision logic based on SDC Guide
+        // Decision logic based on operational safety procedures
         if (responses.temperature_reading === '80_100_continue') {
             finalDecision = 'CONTINUE';
             notes += 'Temperature within normal range (80-100°C). Vehicle may continue to convenient changeover point.';
@@ -62,13 +62,13 @@ const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, o
                             <Gauge className="w-8 h-8 text-red-400" />
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">🌡️ Overheating Assessment</h2>
-                        <p className="text-gray-300">Following SDC Guide v1.3 Step 1: Check the Temperature Gauge - ensuring engine protection and safe operation.</p>
+                        <p className="text-gray-300">Following standard operational safety checks Guide v1.3 Step 1: Check the Temperature Gauge - ensuring engine protection and safe operation.</p>
                     </div>
                     
                     <div className="bg-red-500/20 backdrop-blur-sm rounded-lg p-6 border border-red-400/30">
                         <h3 className="text-lg font-semibold text-red-200 mb-4">🔥 Critical Engine Protection System</h3>
                         <p className="text-red-300/80 text-sm leading-relaxed">
-                            Overheating can cause catastrophic engine damage. SDC Guide v1.3 provides specific temperature thresholds and actions to prevent engine failure and ensure DVSA compliance.
+                            Overheating can cause catastrophic engine damage. operational safety procedures provides specific temperature thresholds and actions to prevent engine failure and ensure DVSA compliance.
                         </p>
                     </div>
 
@@ -226,7 +226,7 @@ const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, o
                             <FileText className="w-8 h-8 text-orange-400" />
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">🔍 SDC Step 2: Identify the Cause</h2>
-                        <p className="text-gray-300">Following SDC Guide v1.3: Determine whether the issue is Low Water or Overheating to guide appropriate response.</p>
+                        <p className="text-gray-300">Following standard operational safety checks Guide v1.3: Determine whether the issue is Low Water or Overheating to guide appropriate response.</p>
                     </div>
 
                     <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/20">
@@ -356,7 +356,7 @@ const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, o
                             <FileText className="w-8 h-8 text-yellow-400" />
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">🔊 SDC Step 3: Determine if the Water Buzzer is Sounding</h2>
-                        <p className="text-gray-300">Following SDC Guide v1.3: Check if the water buzzer is sounding to guide next actions.</p>
+                        <p className="text-gray-300">Following standard operational safety checks Guide v1.3: Check if the water buzzer is sounding to guide next actions.</p>
                     </div>
 
                     <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/20">
@@ -457,13 +457,13 @@ const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, o
                             <Tool className="w-8 h-8 text-purple-400" />
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">🔍 SDC Step 4: Inspect for Water Leaks</h2>
-                        <p className="text-gray-300">Following SDC Guide v1.3: Safe visual inspection for water leaks - NEVER ask a driver to step into the highway.</p>
+                        <p className="text-gray-300">Following standard operational safety checks Guide v1.3: Safe visual inspection for water leaks - NEVER ask a driver to step into the highway.</p>
                     </div>
 
                     <div className="bg-red-500/20 backdrop-blur-sm rounded-lg p-6 border border-red-400/30">
                         <h3 className="text-lg font-semibold text-red-200 mb-4">⚠️ CRITICAL SAFETY PROTOCOL</h3>
                         <p className="text-red-300/80 text-sm leading-relaxed">
-                            SDC Guide v1.3: "NEVER ask a driver to step into the highway, ensure they stay safe at all times." Only inspect areas safely accessible from the kerb.
+                            operational safety procedures: "NEVER ask a driver to step into the highway, ensure they stay safe at all times." Only inspect areas safely accessible from the kerb.
                         </p>
                     </div>
 
@@ -523,7 +523,7 @@ const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, o
                                 <div className="flex-1">
                                     <h3 className="text-xl font-bold text-red-200 mb-3">🛑 COOLANT LEAK DETECTED</h3>
                                     <div className="text-red-300/90 space-y-2">
-                                        <p className="font-semibold">SDC Guide v1.3: Advise the driver to stop immediately and await engineering assistance</p>
+                                        <p className="font-semibold">operational safety procedures: Advise the driver to stop immediately and await engineering assistance</p>
                                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mt-4">
                                             <h4 className="font-semibold text-red-200 mb-2">Immediate Actions Required:</h4>
                                             <ul className="list-disc list-inside space-y-1 text-red-300/90 text-sm">
@@ -578,13 +578,13 @@ const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, o
                             <Tool className="w-8 h-8 text-blue-400" />
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">🔥 SDC Step 5: Mitigate the Issue Using Heaters and Demisters</h2>
-                        <p className="text-gray-300">Following SDC Guide v1.3: Instruct the driver to turn on the heaters and demisters to disperse heat in the system.</p>
+                        <p className="text-gray-300">Following standard operational safety checks Guide v1.3: Instruct the driver to turn on the heaters and demisters to disperse heat in the system.</p>
                     </div>
 
                     <div className="bg-blue-500/20 backdrop-blur-sm rounded-lg p-6 border border-blue-400/30">
                         <h3 className="text-lg font-semibold text-blue-200 mb-4">🌡️ Heat Distribution Strategy</h3>
                         <p className="text-blue-300/80 text-sm leading-relaxed">
-                            SDC Guide v1.3: "Instruct the driver to turn on the heaters and demisters to disperse heat in the system." This helps reduce engine temperature by using the cabin heating system as an additional radiator.
+                            operational safety procedures: "Instruct the driver to turn on the heaters and demisters to disperse heat in the system." This helps reduce engine temperature by using the cabin heating system as an additional radiator.
                         </p>
                     </div>
 
@@ -644,7 +644,7 @@ const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, o
                                 <div className="flex-1">
                                     <h3 className="text-xl font-bold text-green-200 mb-3">✅ HEAT MITIGATION SUCCESSFUL</h3>
                                     <div className="text-green-300/90 space-y-2">
-                                        <p className="font-semibold">SDC Guide v1.3: Advise the driver to continue to the next convenient changeover point</p>
+                                        <p className="font-semibold">operational safety procedures: Advise the driver to continue to the next convenient changeover point</p>
                                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mt-4">
                                             <h4 className="font-semibold text-green-200 mb-2">Actions Required:</h4>
                                             <ul className="list-disc list-inside space-y-1 text-green-300/90 text-sm">
@@ -668,7 +668,7 @@ const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, o
                                 <div className="flex-1">
                                     <h3 className="text-xl font-bold text-red-200 mb-3">🛑 HEAT MITIGATION FAILED</h3>
                                     <div className="text-red-300/90 space-y-2">
-                                        <p className="font-semibold">SDC Guide v1.3: Instruct the driver to stop and await engineering assistance</p>
+                                        <p className="font-semibold">operational safety procedures: Instruct the driver to stop and await engineering assistance</p>
                                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mt-4">
                                             <h4 className="font-semibold text-red-200 mb-2">Immediate Actions Required:</h4>
                                             <ul className="list-disc list-inside space-y-1 text-red-300/90 text-sm">

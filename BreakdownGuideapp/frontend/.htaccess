@@ -5,12 +5,16 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteBase /
-    
+
+    # Don't rewrite /api requests - let them pass through to the backend
+    # This prevents React Router from catching API calls
+    RewriteCond %{REQUEST_URI} !^/api/
+
     # Handle React Router - Don't rewrite files that exist
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME} !-l
-    
+
     # Send all non-existent paths to index.html
     RewriteRule ^ index.html [L]
 </IfModule>

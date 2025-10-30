@@ -117,6 +117,45 @@
   50% { opacity: 0.6; }
 }
 
+.resolving-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+  animation: pulse-resolving 2s ease-in-out infinite;
+}
+
+.resolving-badge .spinner {
+  display: inline-block;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes pulse-resolving {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.03);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .expand-toggle {
   background: #f3f4f6;
   border: none;

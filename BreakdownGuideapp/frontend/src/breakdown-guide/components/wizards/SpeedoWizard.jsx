@@ -3,7 +3,7 @@ import * as Icons from '../common/icons.jsx';
 import constants from '../common/constants.js';
 
 // Speedo Wizard Component
-// Follows SDC Engineering Issues Guide - Section 25
+// Follows operational safety procedures - Section 25
 
 const SpeedoWizard = ({ currentStep, responses, updateResponse, onNext, onPrevious, onComplete }) => {
     // Get icons from global scope

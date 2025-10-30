@@ -1,13 +1,11 @@
-// SDC Engineering Issues Guide v1.3 Reference
-// This file provides a complete mapping of all SDC Guide sections for quick reference
+// Operational Safety Procedures v1.3 Reference
+// This file provides a complete mapping of all operational procedure sections for quick reference
 
 export const SDC_GUIDE_REFERENCE = {
   // Safety Critical Issues - STOP Required
   CRITICAL_DEFECTS: {
     'Steering': {
       icon: '🚗',
-      section: 'Section 8',
-      page: 8,
       dvsa_category: 'Dangerous',
       immediate_action: 'STOP - Await engineering',
       key_checks: [
@@ -20,8 +18,6 @@ export const SDC_GUIDE_REFERENCE = {
     },
     'Brakes': {
       icon: '🛑',
-      section: 'Section 7',
-      page: 7,
       dvsa_category: 'Dangerous',
       immediate_action: 'STOP - Await engineering',
       key_checks: [
@@ -34,8 +30,6 @@ export const SDC_GUIDE_REFERENCE = {
     },
     'Non Starter': {
       icon: '🔑',
-      section: 'Section 19',
-      page: 9,
       immediate_action: 'Follow 3-step process',
       steps: [
         '1. Initial troubleshooting',
@@ -45,8 +39,6 @@ export const SDC_GUIDE_REFERENCE = {
     },
     'Oil Warning Light': {
       icon: '🛢️',
-      section: 'Section 20',
-      page: 22,
       dvsa_category: 'Dangerous',
       immediate_action: 'STOP immediately',
       key_checks: [
@@ -57,8 +49,6 @@ export const SDC_GUIDE_REFERENCE = {
     },
     'Loose Wheel Nuts': {
       icon: '⚠️',
-      section: 'Section 17',
-      page: 28,
       dvsa_category: 'Dangerous',
       immediate_action: 'STOP immediately - Do not continue',
       reporting: 'Notify depot manager, general manager, engineering director'
@@ -69,8 +59,6 @@ export const SDC_GUIDE_REFERENCE = {
   CONDITIONAL_DEFECTS: {
     'ABS Light': {
       icon: '⚠️',
-      section: 'Section 3',
-      page: 14,
       process: {
         'Amber ABS': {
           reset_successful: 'Continue with monitoring',
@@ -84,8 +72,6 @@ export const SDC_GUIDE_REFERENCE = {
     },
     'Battery Light': {
       icon: '🔋',
-      section: 'Section 4',
-      page: 13,
       process: {
         'Belts off': 'STOP (can move short distance if safe)',
         'Master switch not engaged': 'Engage and continue',
@@ -95,8 +81,6 @@ export const SDC_GUIDE_REFERENCE = {
     },
     'Overheating': {
       icon: '🌡️',
-      section: 'Section 21',
-      page: 11,
       temperature_ranges: {
         '80-100°C': 'Continue to changeover point',
         'Over 100°C': 'Check for leaks',
@@ -106,8 +90,6 @@ export const SDC_GUIDE_REFERENCE = {
     },
     'Low Water': {
       icon: '💧',
-      section: 'Section 18',
-      page: 16,
       process: {
         'No leaks + No buzzer': 'Continue to changeover',
         'No leaks + Buzzer': 'Top up en route',
@@ -120,8 +102,6 @@ export const SDC_GUIDE_REFERENCE = {
   SERVICE_DEFECTS: {
     'Doors': {
       icon: '🚪',
-      section: 'Section 10',
-      page: 17,
       stop_conditions: [
         'Doors jammed closed',
         'Cannot retain closed position',
@@ -131,15 +111,11 @@ export const SDC_GUIDE_REFERENCE = {
     },
     'Wipers/Screenwash': {
       icon: '🌧️',
-      section: 'Section 30',
-      page: 12,
       assessment: 'Vision impairment determines action',
       priority_routes: 'A19, A1M require immediate changeover'
     },
     'Exterior Lights': {
       icon: '💡',
-      section: 'Section 11',
-      page: 35,
       headlights: {
         'During darkness': 'Cannot continue',
         'During daylight': 'Change before dark'
@@ -152,22 +128,16 @@ export const SDC_GUIDE_REFERENCE = {
     },
     'Interior Lights': {
       icon: '💡',
-      section: 'Section 15',
-      page: 33,
       requirement: 'At least 50% per deck must work',
       step_light: 'Must work when doors open'
     },
     'Demisters/Heaters': {
       icon: '🌬️',
-      section: 'Section 9',
-      page: 15,
       temperature_threshold: '16°C minimum',
       vision_priority: 'If vision affected, do not continue'
     },
     'Ramp': {
       icon: '♿',
-      section: 'Section 23',
-      page: 20,
       stuck_out: {
         'Reset vehicle': 'Try first',
         'Manual retraction': 'Only if risk assessed',
@@ -180,8 +150,6 @@ export const SDC_GUIDE_REFERENCE = {
   SPECIAL_PROCEDURES: {
     'Road Traffic Incidents': {
       icon: '🚨',
-      section: 'Section 2',
-      page: 4,
       priority_checks: [
         'Driver wellbeing',
         'Passenger injuries',
@@ -193,8 +161,6 @@ export const SDC_GUIDE_REFERENCE = {
     },
     'Puncture': {
       icon: '🔧',
-      section: 'Section 22',
-      page: 32,
       immediate_action: 'STOP - Identify position',
       information_needed: [
         'Inner or outer tyre',
@@ -204,8 +170,6 @@ export const SDC_GUIDE_REFERENCE = {
     },
     'Repeat Defects': {
       icon: '🔄',
-      section: 'Section 24',
-      page: 23,
       escalation: {
         same_day: 'Report to Engineering Delivery Director',
         multi_day: 'Report to Engineering Delivery Director',
@@ -281,7 +245,7 @@ export const SDC_GUIDE_REFERENCE = {
   }
 };
 
-// Helper functions for quick SDC Guide reference
+// Helper functions for quick operational procedure reference
 export const getSDCGuidance = (issueType) => {
   // Search through all categories
   const allCategories = {

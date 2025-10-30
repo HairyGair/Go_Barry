@@ -2,7 +2,7 @@
  * Location Service Test - Quick validation of location conversion functionality
  * Test known landmarks and coordinates within Go North East operational area
  *
- * @author Claude Code
+ * @author Anthony Gair
  * @version 1.0.0
  */
 
@@ -106,7 +106,7 @@ const testDetailedLocation = async () => {
 const testNearbyLandmarks = async () => {
   console.log('\n🏢 Testing Nearby Landmarks Functionality...\n');
 
-  const testLat = 54.9750; // Newcastle city center
+  const testLat = 54.9750; // Newcastle city centre
   const testLng = -1.6130;
 
   try {

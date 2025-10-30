@@ -3,11 +3,13 @@
  * Step 7: Final Submission Component
  *
  * Copyright (c) 2025 Anthony Gair. All rights reserved.
+ *
+ * NOTE: Supabase removed - now uses backend MySQL API only
  */
 
 import React, { useState } from 'react';
 import storageService from '../../services/storageService';
-import { authHelpers } from '../../services/supabase-client';
+// Supabase import removed - now uses backend API only
 
 const Step7Submit = ({
   responses = {},
@@ -109,106 +111,12 @@ const Step7Submit = ({
     }
   };
 
-  // Submit to Supabase with proper field mapping
+  // Supabase submission removed - now uses backend API only
+  // TODO: Remove this function entirely once backend API is confirmed working
   const submitToSupabase = async (submissionData) => {
-    try {
-      // Map our data to Supabase column names
-      const supabaseData = {
-        // Basic Information
-        id: submissionData.id,
-        timestamp: submissionData.timestamp,
-        reported_at: submissionData.reportedAt,
-
-        // Fleet Information (new fields)
-        fleet_number: submissionData.fleetNumber,
-        route_number: submissionData.route,
-        route_name: submissionData.routeName,
-        depot: submissionData.depot,
-
-        // Location Information (new fields)
-        location_description: submissionData.locationDescription,
-        location_coordinates: submissionData.locationCoordinates ?
-          JSON.stringify(submissionData.locationCoordinates) : null,
-        location_lat: submissionData.locationCoordinates?.lat || null,
-        location_lng: submissionData.locationCoordinates?.lng || null,
-        use_gps: submissionData.useGPS || false,
-
-        // Assessment Information (new fields)
-        passengers_on_board: submissionData.passengersOnBoard,
-        safety_checks: submissionData.safetyChecks ? JSON.stringify(submissionData.safetyChecks) : null,
-        visual_inspection: submissionData.visualInspection ? JSON.stringify(submissionData.visualInspection) : null,
-        initial_observations: submissionData.initialObservations,
-
-        // Issue Details (enhanced fields)
-        issue_type: submissionData.issueType,
-        issue_description: submissionData.issueDescription,
-        additional_details: submissionData.additionalDetails,
-        driver_comments: submissionData.driverComments,
-
-        // Decision and Action
-        decision: submissionData.decision,
-        action_taken: submissionData.actionTaken,
-        notes: submissionData.notes,
-        engineer_assigned: submissionData.engineerAssigned || false,
-        estimated_repair_time: submissionData.estimatedRepairTime,
-
-        // Supervisor Information (enhanced)
-        reported_by: submissionData.reportedBy,
-        supervisor_id: submissionData.supervisorId,
-        supervisor_depot: submissionData.supervisorDepot,
-
-        // Status and Priority
-        status: submissionData.status || 'reported',
-        priority: submissionData.priority || 'normal',
-        severity: submissionData.severity || 'medium',
-
-        // Metadata
-        submitted_from: submissionData.submittedFrom || 'breakdown_guide',
-        user_agent: submissionData.userAgent,
-        session_id: submissionData.sessionId
-      };
-
-      const { data, error } = await authHelpers.supabase
-        .from('breakdowns')
-        .insert([supabaseData]);
-
-      if (error) {
-        console.error('Supabase submission error details:', error);
-
-        // If error is due to missing columns, try with minimal data
-        if (error.message.includes('column') && error.message.includes('does not exist')) {
-          console.log('🔄 Attempting submission with core fields only...');
-
-          const coreData = {
-            id: submissionData.id,
-            timestamp: submissionData.timestamp,
-            fleet_number: submissionData.fleetNumber,
-            issue_type: submissionData.issueType,
-            location_description: submissionData.locationDescription,
-            reported_by: submissionData.reportedBy,
-            status: submissionData.status || 'reported'
-          };
-
-          const { data: retryData, error: retryError } = await authHelpers.supabase
-            .from('breakdowns')
-            .insert([coreData]);
-
-          if (retryError) {
-            throw new Error(`Supabase retry failed: ${retryError.message}`);
-          }
-
-          console.log('✅ Submitted with core fields successfully');
-          return { success: true, data: retryData };
-        }
-
-        throw error;
-      }
-
-      return { success: true, data };
-    } catch (error) {
-      console.error('Supabase submission error:', error);
-      return { success: false, error: error.message };
-    }
+    // Supabase removed - backend API handles all data storage via MySQL
+    console.log('Supabase submission skipped - using backend API only');
+    return { success: false, error: 'Supabase deprecated' };
   };
 
   // Handle form submission
@@ -222,14 +130,11 @@ const Step7Submit = ({
       const submissionData = prepareSubmissionData();
       console.log('🚀 Submitting breakdown report:', submissionData);
 
-      // Submit to backend
+      // Submit to backend (Supabase backup removed - backend uses MySQL)
       const backendResult = await submitToBackend(submissionData);
 
-      // Submit to Supabase as backup
-      const supabaseResult = await submitToSupabase(submissionData);
-
-      // Check if at least one submission succeeded
-      if (backendResult.success || supabaseResult.success) {
+      // Check if submission succeeded
+      if (backendResult.success) {
         setSubmissionStatus('success');
         setSubmissionId(submissionData.id);
 
@@ -293,9 +198,9 @@ const Step7Submit = ({
         }, 2000);
 
       } else {
-        // Both submissions failed
+        // Backend submission failed
         throw new Error(
-          backendResult.error || supabaseResult.error || 'Submission failed'
+          backendResult.error || 'Submission failed'
         );
       }
 

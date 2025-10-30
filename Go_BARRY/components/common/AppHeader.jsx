@@ -18,15 +18,15 @@ const AppHeader = ({ onLoginSuccess }) => {
 
   // Supervisor options for the login form
   const SUPERVISOR_OPTIONS = [
-    { id: 'alex_woodcock', name: 'Alex Woodcock', badge: 'AW001' },
-    { id: 'andrew_cowley', name: 'Andrew Cowley', badge: 'AC002' },
-    { id: 'anthony_gair', name: 'Anthony Gair', badge: 'AG003', isAdmin: true },
-    { id: 'claire_fiddler', name: 'Claire Fiddler', badge: 'CF004' },
-    { id: 'david_hall', name: 'David Hall', badge: 'DH005' },
-    { id: 'james_daglish', name: 'James Daglish', badge: 'JD006' },
-    { id: 'john_paterson', name: 'John Paterson', badge: 'JP007' },
-    { id: 'simon_glass', name: 'Simon Glass', badge: 'SG008' },
-    { id: 'barry_perryman', name: 'Barry Perryman', badge: 'BP009', isAdmin: true },
+    { badge: 'AG001', name: 'Anthony Gair', isAdmin: true },
+    { badge: 'BP001', name: 'Barry Perryman', isAdmin: true },
+    { badge: 'AW001', name: 'Alex Woodcock' },
+    { badge: 'AC001', name: 'Andrew Cowley' },
+    { badge: 'CF001', name: 'Claire Fiddler' },
+    { badge: 'DH001', name: 'David Hall' },
+    { badge: 'JD001', name: 'James Daglish' },
+    { badge: 'JP001', name: 'John Paterson' },
+    { badge: 'SG001', name: 'Simon Glass' },
   ];
   
   // Duty options
@@ -59,10 +59,10 @@ const AppHeader = ({ onLoginSuccess }) => {
     }
 
     setLoginError('');
-    
+
     // Create login data object as expected by the hook
     const loginData = {
-      supervisorId: selectedSupervisor,
+      badge: selectedSupervisor,
       password: password,
       duty: selectedDuty,
       rememberMe: false
@@ -225,7 +225,7 @@ const AppHeader = ({ onLoginSuccess }) => {
                       >
                         <option value="">Select Supervisor</option>
                         {SUPERVISOR_OPTIONS.map(supervisor => (
-                          <option key={supervisor.id} value={supervisor.id}>
+                          <option key={supervisor.badge} value={supervisor.badge}>
                             {supervisor.name} ({supervisor.badge})
                           </option>
                         ))}

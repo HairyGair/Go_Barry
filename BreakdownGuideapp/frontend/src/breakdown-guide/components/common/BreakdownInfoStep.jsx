@@ -3,6 +3,7 @@
 
 import React, { useState } from 'react';
 import * as Icons from './icons.jsx';
+import DepotContactBadge from '../../../components/DepotContactBadge';
 
 const BreakdownInfoStep = ({ responses, updateResponse, onNext }) => {
     const { FileText, MapPin, User, Truck, Building, Search, CheckCircle } = Icons;
@@ -24,7 +25,7 @@ const BreakdownInfoStep = ({ responses, updateResponse, onNext }) => {
         
         try {
             // Use the correct backend URL
-            const backendUrl = import.meta.env.VITE_API_URL || 'https://breakdown-guide.onrender.com';
+            const backendUrl = import.meta.env.VITE_API_URL || 'https://breakdowns.gobarry.co.uk/api';
             const response = await fetch(`${backendUrl}/api/fleet/${fleetNumber}`);
             
             if (response.ok) {
@@ -138,6 +139,17 @@ const BreakdownInfoStep = ({ responses, updateResponse, onNext }) => {
                             <option key={depot} value={depot}>{depot}</option>
                         ))}
                     </select>
+                    {(responses.depot || responses.fleetNumber) && (
+                        <div className="mt-3">
+                            <DepotContactBadge
+                                fleetNumber={responses.fleetNumber}
+                                depot={responses.depot}
+                                size="medium"
+                                showDepotName={true}
+                                variant="dropdown"
+                            />
+                        </div>
+                    )}
                 </div>
                 
                 {/* Location */}

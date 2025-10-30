@@ -8,19 +8,19 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const { isAuthenticated, isSessionChecking } = useAuth();
 
-  // Redirect to homepage if already authenticated
+  // Redirect to breakdown guide if already authenticated
   useEffect(() => {
     if (!isSessionChecking && isAuthenticated) {
-      navigate('/', { replace: true });
+      navigate('/breakdown-guide', { replace: true });
     }
   }, [isAuthenticated, isSessionChecking, navigate]);
 
   // Handle successful login
   const handleLoginSuccess = (user) => {
-    console.log('Login successful, redirecting to homepage...', user);
+    console.log('Login successful, redirecting to breakdown guide...', user);
     // Small delay to ensure auth state updates
     setTimeout(() => {
-      navigate('/', { replace: true });
+      navigate('/breakdown-guide', { replace: true });
     }, 100);
   };
 

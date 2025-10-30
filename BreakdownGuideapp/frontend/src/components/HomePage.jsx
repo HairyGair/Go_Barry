@@ -1,3 +1,15 @@
+/**
+ * Go BARRY Breakdown Management System
+ *
+ * Copyright © 2025 Anthony Gair. All Rights Reserved.
+ *
+ * This software is proprietary and confidential. Unauthorized copying,
+ * distribution, modification, or use is strictly prohibited.
+ *
+ * @author Anthony Gair
+ * @license Proprietary
+ */
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
@@ -189,7 +201,7 @@ const HomePage = ({ onStatsChange }) => {
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         .homepage {
           padding: 24px;
           max-width: 1200px;

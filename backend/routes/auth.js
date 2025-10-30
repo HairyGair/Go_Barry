@@ -1,35 +1,38 @@
 import express from 'express';
-import { createClient } from '@supabase/supabase-js';
+import jwt from 'jsonwebtoken';
 import { verifyToken } from '../middleware/authMiddleware.js';
 
-// Initialize Supabase client
-const supabaseUrl = process.env.SUPABASE_URL || 'https://oieliubbvvdzhzvikzal.supabase.co';
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9pZWxpdWJidnZkemh6dmlremFsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU1NTA5OTUsImV4cCI6MjA3MTEyNjk5NX0.L0qUXBFOnzxoXt-ChhMAW8zqgprUXFdvqR2dxJ1GTU8';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// JWT secret for token generation
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const TOKEN_EXPIRY = '24h';
+
+// Supervisor database with credentials
+const SUPERVISOR_CREDENTIALS = {
+  'AG001': { name: 'Anthony Gair', password: 'demo123', role: 'admin', depot: 'SDC' },
+  'BP001': { name: 'Barry Perryman', password: 'demo123', role: 'admin', depot: 'SDC' },
+  'AW001': { name: 'Alex Woodcock', password: 'demo123', role: 'supervisor', depot: 'SDC' },
+  'AC001': { name: 'Andrew Cowley', password: 'demo123', role: 'supervisor', depot: 'SDC' },
+  'CF001': { name: 'Claire Fiddler', password: 'demo123', role: 'supervisor', depot: 'SDC' },
+  'DH001': { name: 'David Hall', password: 'demo123', role: 'supervisor', depot: 'SDC' },
+  'JD001': { name: 'James Daglish', password: 'demo123', role: 'supervisor', depot: 'SDC' },
+  'JP001': { name: 'John Paterson', password: 'demo123', role: 'supervisor', depot: 'SDC' },
+  'SG001': { name: 'Simon Glass', password: 'demo123', role: 'supervisor', depot: 'SDC' },
+};
 
 const router = express.Router();
 
 // GET /api/auth/supervisors - Get all supervisors
-router.get('/supervisors', async (req, res) => {
+router.get('/supervisors', (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('supervisors')
-      .select('id, name, email, role, depot, is_active')
-      .eq('is_active', true)
-      .order('name');
-
-    if (error) throw error;
-
-    // Map to match frontend expectations
-    const supervisors = (data || []).map(supervisor => ({
-      id: supervisor.id,
-      username: supervisor.name,
-      full_name: supervisor.name,
-      name: supervisor.name,
-      email: supervisor.email,
-      role: supervisor.role || 'supervisor',
-      depot: supervisor.depot,
-      is_active: supervisor.is_active
+    const supervisors = Object.entries(SUPERVISOR_CREDENTIALS).map(([badge, data]) => ({
+      id: badge,
+      badge: badge,
+      username: data.name,
+      full_name: data.name,
+      name: data.name,
+      role: data.role,
+      depot: data.depot,
+      is_active: true
     }));
 
     res.json(supervisors);
@@ -39,258 +42,89 @@ router.get('/supervisors', async (req, res) => {
   }
 });
 
-// GET /api/auth/user/:id - Get specific user
-router.get('/user/:id', async (req, res) => {
+// GET /api/auth/supervisor/:badge - Get supervisor by badge
+router.get('/supervisor/:badge', (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', req.params.id)
-      .single();
+    const supervisor = SUPERVISOR_CREDENTIALS[req.params.badge.toUpperCase()];
 
-    if (error) throw error;
-
-    if (!data) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    res.json(data);
-  } catch (error) {
-    console.error('Error fetching user:', error);
-    res.status(500).json({ error: 'Failed to fetch user' });
-  }
-});
-
-// GET /api/auth/supervisor/:username - Get supervisor by username  
-router.get('/supervisor/:username', async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('username', req.params.username)
-      .eq('role', 'supervisor')
-      .single();
-
-    if (error) throw error;
-
-    if (!data) {
+    if (!supervisor) {
       return res.status(404).json({ error: 'Supervisor not found' });
     }
 
-    res.json(data);
+    res.json({
+      badge: req.params.badge.toUpperCase(),
+      name: supervisor.name,
+      role: supervisor.role,
+      depot: supervisor.depot,
+      is_active: true
+    });
   } catch (error) {
     console.error('Error fetching supervisor:', error);
     res.status(500).json({ error: 'Failed to fetch supervisor' });
   }
 });
 
-
-// POST /api/auth/supervisor-signup - Existing supervisor account activation
-router.post('/supervisor-signup', async (req, res) => {
+// POST /api/auth/login - Local JWT authentication
+router.post('/login', (req, res) => {
   try {
-    const { email, password } = req.body;
-
-    console.log(`📝 Signup attempt for email: ${email}`);
+    const { badge, password } = req.body;
 
     // Validate required fields
-    if (!email || !password) {
+    if (!badge || !password) {
       return res.status(400).json({
-        error: 'Email and password are required',
-        code: 'MISSING_FIELDS'
-      });
-    }
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email.toLowerCase())) {
-      return res.status(400).json({
-        error: 'Please enter a valid email address',
-        code: 'INVALID_EMAIL'
-      });
-    }
-
-    // Validate password strength
-    if (password.length < 8) {
-      return res.status(400).json({
-        error: 'Password must be at least 8 characters long',
-        code: 'WEAK_PASSWORD'
-      });
-    }
-
-    // Check if supervisor exists in our database
-    const { data: existingSupervisor, error: checkError } = await supabase
-      .from('supervisors')
-      .select('*')
-      .eq('email', email.toLowerCase())
-      .eq('is_active', true)
-      .single();
-
-    if (checkError || !existingSupervisor) {
-      console.log(`❌ Signup failed: No supervisor found with email ${email}`);
-      return res.status(404).json({
-        error: 'No supervisor account found with this email address. Please contact your administrator.',
-        code: 'SUPERVISOR_NOT_FOUND'
-      });
-    }
-
-    // Check if already linked to an auth user
-    if (existingSupervisor.auth_user_id) {
-      console.log(`❌ Signup failed: Supervisor already has auth account`);
-      return res.status(409).json({
-        error: 'Account already activated. Please use the login page.',
-        code: 'ACCOUNT_EXISTS'
-      });
-    }
-
-    // Create admin client with service key for user creation
-    const supabaseAdmin = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_KEY, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    });
-
-    // Create Supabase Auth user using admin API
-    const { data: authData, error: signUpError } = await supabaseAdmin.auth.admin.createUser({
-      email: email.toLowerCase(),
-      password: password,
-      email_confirm: true, // Auto-confirm email for internal users
-      user_metadata: {
-        name: existingSupervisor.name,
-        depot: existingSupervisor.depot,
-        role: existingSupervisor.role || 'supervisor',
-        badge_number: existingSupervisor.badge_number
-      }
-    });
-
-    if (signUpError) {
-      console.error('❌ Failed to create auth user:', signUpError);
-      return res.status(500).json({
-        error: 'Failed to create authentication account. Please try again.',
-        code: 'AUTH_CREATE_FAILED',
-        details: signUpError.message
-      });
-    }
-
-    // Link the auth user to the supervisor record
-    const { error: updateError } = await supabase
-      .from('supervisors')
-      .update({
-        auth_user_id: authData.user.id,
-        signup_date: new Date().toISOString(),
-        pending_approval: false,
-        approved_date: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', existingSupervisor.id);
-
-    if (updateError) {
-      console.error('❌ Failed to link supervisor to auth user:', updateError);
-      // Try to delete the auth user we just created
-      await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
-      return res.status(500).json({
-        error: 'Failed to complete account setup. Please try again.',
-        code: 'LINK_FAILED'
-      });
-    }
-
-    console.log(`✅ Account activated successfully for ${existingSupervisor.name} (${email})`);
-
-    res.json({
-      success: true,
-      message: 'Account activated successfully! You can now log in.',
-      supervisor: {
-        id: existingSupervisor.id,
-        name: existingSupervisor.name,
-        email: existingSupervisor.email,
-        badge_number: existingSupervisor.badge_number,
-        depot: existingSupervisor.depot,
-        role: existingSupervisor.role
-      }
-    });
-
-  } catch (error) {
-    console.error('❌ Supervisor signup error:', error);
-    res.status(500).json({
-      error: 'Account activation failed. Please try again.',
-      code: 'INTERNAL_ERROR',
-      details: error.message
-    });
-  }
-});
-
-// POST /api/auth/login - Supabase authentication login
-router.post('/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    // Validate required fields
-    if (!email || !password) {
-      return res.status(400).json({
-        error: 'Email and password are required',
+        error: 'Badge and password are required',
         code: 'MISSING_CREDENTIALS'
       });
     }
 
-    // Attempt Supabase authentication
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: email.toLowerCase().trim(),
-      password: password
-    });
+    const badgeUpper = badge.toUpperCase();
+    const supervisor = SUPERVISOR_CREDENTIALS[badgeUpper];
 
-    if (error || !data.user) {
-      // Log failed attempt with generic response
-      console.warn(`Failed login attempt for email: ${email}`);
-
+    // Check if supervisor exists
+    if (!supervisor) {
+      console.warn(`❌ Failed login attempt for badge: ${badgeUpper}`);
       return res.status(401).json({
-        error: 'Invalid credentials. Please check your email and password.',
+        error: 'Invalid badge or password',
         code: 'AUTH_FAILED'
       });
     }
 
-    // Check if user is authorized supervisor
-    const { data: supervisor, error: supervisorError } = await supabase
-      .from('supervisors')
-      .select('*')
-      .eq('email', email.toLowerCase())
-      .single();
-
-    if (supervisorError || !supervisor) {
-      // User authenticated with Supabase but not authorized in our system
-      console.warn(`Unauthorized authenticated user: ${email}`);
-
-      // Sign them out of Supabase
-      await supabase.auth.signOut();
-
+    // Verify password
+    if (supervisor.password !== password) {
+      console.warn(`❌ Failed login attempt for badge: ${badgeUpper} (wrong password)`);
       return res.status(401).json({
-        error: 'Invalid credentials. Please check your email and password.',
+        error: 'Invalid badge or password',
         code: 'AUTH_FAILED'
       });
     }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      {
+        badge: badgeUpper,
+        name: supervisor.name,
+        role: supervisor.role,
+        depot: supervisor.depot
+      },
+      JWT_SECRET,
+      { expiresIn: TOKEN_EXPIRY }
+    );
 
     // Successful authentication
     const sessionData = {
-      user_id: data.user.id,
-      supervisorId: supervisor.id,
-      username: supervisor.name,
-      full_name: supervisor.name,
+      badge: badgeUpper,
       name: supervisor.name,
-      email: supervisor.email,
-      depot: supervisor.depot,
       role: supervisor.role,
-      login_time: new Date().toISOString(),
-      access_token: data.session.access_token,
-      refresh_token: data.session.refresh_token,
-      expires_at: data.session.expires_at
+      depot: supervisor.depot,
+      login_time: new Date().toISOString()
     };
 
-    // Log successful authentication
-    console.log(`✅ Successful login: ${supervisor.name} (${supervisor.email})`);
+    console.log(`✅ Successful login: ${supervisor.name} (${badgeUpper})`);
 
     res.json({
       success: true,
+      token: token,
       user: sessionData,
-      session: data.session,
       message: 'Login successful'
     });
   } catch (error) {
@@ -302,188 +136,11 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// POST /api/auth/signup - Supervisor signup endpoint
-router.post('/signup', async (req, res) => {
-  try {
-    const { email, password, fullName, badgeNumber, depot, role = 'supervisor' } = req.body;
-
-    // Validate required fields
-    if (!email || !password || !fullName || !badgeNumber) {
-      return res.status(400).json({
-        error: 'Email, password, full name, and badge number are required',
-        code: 'MISSING_FIELDS'
-      });
-    }
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return res.status(400).json({
-        error: 'Please enter a valid email address',
-        code: 'INVALID_EMAIL'
-      });
-    }
-
-    // Validate badge number format (e.g., AG003, BP009)
-    const badgeRegex = /^[A-Z]{2}\d{3}$/;
-    if (!badgeRegex.test(badgeNumber)) {
-      return res.status(400).json({
-        error: 'Badge number must be in format: AB123',
-        code: 'INVALID_BADGE'
-      });
-    }
-
-    // Check if supervisor already exists in supervisors table
-    const { data: existingSupervisor, error: checkError } = await supabase
-      .from('supervisors')
-      .select('email, badge_number')
-      .or(`email.eq.${email.toLowerCase()},badge_number.eq.${badgeNumber.toUpperCase()}`);
-
-    if (checkError && checkError.code !== 'PGRST116') {
-      // PGRST116 means no rows found, which is expected for new users
-      console.error('Error checking existing supervisor:', checkError);
-      return res.status(500).json({
-        error: 'Failed to validate signup data. Please try again.',
-        code: 'VALIDATION_ERROR'
-      });
-    }
-
-    if (existingSupervisor && existingSupervisor.length > 0) {
-      const existing = existingSupervisor[0];
-      if (existing.email === email.toLowerCase()) {
-        return res.status(409).json({
-          error: 'An account with this email address already exists',
-          code: 'EMAIL_EXISTS'
-        });
-      }
-      if (existing.badge_number === badgeNumber.toUpperCase()) {
-        return res.status(409).json({
-          error: 'An account with this badge number already exists',
-          code: 'BADGE_EXISTS'
-        });
-      }
-    }
-
-    // Create auth user in Supabase (will be pending until approved)
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: email.toLowerCase(),
-      password: password,
-      options: {
-        data: {
-          full_name: fullName,
-          badge_number: badgeNumber.toUpperCase(),
-          depot: depot || 'SDC',
-          role: role,
-          signup_date: new Date().toISOString(),
-          pending_approval: true
-        }
-      }
-    });
-
-    if (authError) {
-      console.error('Supabase auth user creation error:', authError);
-      
-      // Handle specific auth errors
-      if (authError.status === 422 && authError.code === 'user_already_exists') {
-        return res.status(409).json({
-          error: 'An account with this email address already exists. Please use a different email or try logging in.',
-          code: 'EMAIL_EXISTS'
-        });
-      }
-      
-      // Handle other auth errors
-      let errorMessage = 'Failed to create user account. Please try again.';
-      if (authError.message && authError.message.includes('Invalid email')) {
-        errorMessage = 'Please enter a valid email address.';
-      } else if (authError.message && authError.message.includes('Password')) {
-        errorMessage = 'Password must be at least 6 characters long.';
-      }
-      
-      return res.status(500).json({
-        error: errorMessage,
-        code: 'AUTH_CREATE_FAILED'
-      });
-    }
-
-    // Add supervisor to supervisors table with pending approval status
-    const { data: supervisorData, error: supervisorError } = await supabase
-      .from('supervisors')
-      .insert({
-        email: email.toLowerCase(),
-        name: fullName,
-        badge_number: badgeNumber.toUpperCase(),
-        depot: depot || 'SDC',
-        role: role,
-        is_active: false, // Pending approval
-        pending_approval: true,
-        signup_date: new Date().toISOString(),
-        auth_user_id: authData.user.id
-      })
-      .select()
-      .single();
-
-    if (supervisorError) {
-      console.error('Supervisor table insert error:', supervisorError);
-
-      // Clean up auth user if supervisor creation fails
-      try {
-        // We can't easily delete the auth user with anon key, so just log the issue
-        console.warn('Auth user created but supervisor record failed. Manual cleanup may be needed for:', email);
-      } catch (cleanupError) {
-        console.error('Failed to cleanup auth user:', cleanupError);
-      }
-
-      return res.status(500).json({
-        error: 'Failed to create supervisor record. Please try again.',
-        code: 'SUPERVISOR_CREATE_FAILED'
-      });
-    }
-
-    // Log successful signup
-    console.log(`🆕 New supervisor signup: ${fullName} (${email}) - Badge: ${badgeNumber}`);
-
-    // TODO: Send email notification to admins about new signup
-    // This could be enhanced to send email notifications to administrators
-
-    res.status(201).json({
-      success: true,
-      message: 'Signup successful! Your account is pending approval.',
-      supervisor: {
-        id: supervisorData.id,
-        name: supervisorData.name,
-        email: supervisorData.email,
-        badge_number: supervisorData.badge_number,
-        depot: supervisorData.depot,
-        pending_approval: true
-      }
-    });
-
-  } catch (error) {
-    console.error('Signup error:', error);
-    res.status(500).json({
-      error: 'An unexpected error occurred during signup. Please try again.',
-      code: 'SIGNUP_ERROR'
-    });
-  }
-});
 
 // POST /api/auth/logout - Logout endpoint
-router.post('/logout', async (req, res) => {
+router.post('/logout', (req, res) => {
   try {
-    // Extract token from Authorization header
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7);
-
-      // Sign out from Supabase
-      const { error } = await supabase.auth.signOut(token);
-      if (error) {
-        console.warn('Supabase logout error:', error.message);
-      }
-    }
-
     console.log('👋 User logged out successfully');
-
     res.json({
       success: true,
       message: 'Logout successful'
@@ -497,460 +154,35 @@ router.post('/logout', async (req, res) => {
   }
 });
 
-// POST /api/auth/verify - Verify session (alias for validate)
-router.post('/verify', async (req, res) => {
-  try {
-    const { session_token, username } = req.body;
-    
-    if (!username) {
-      return res.status(400).json({ error: 'Username is required for verification' });
-    }
-
-    // Verify user exists and is active
-    const { data: supervisor, error } = await supabase
-      .from('users')
-      .select('id, username, full_name, role, is_active')
-      .eq('username', username)
-      .eq('role', 'supervisor')
-      .eq('is_active', true)
-      .single();
-
-    if (error || !supervisor) {
-      return res.status(401).json({ 
-        valid: false, 
-        error: 'Invalid session' 
-      });
-    }
-
-    res.json({
-      valid: true,
-      user: {
-        id: supervisor.id,
-        username: supervisor.username,
-        full_name: supervisor.full_name,
-        role: supervisor.role
-      },
-      message: 'Session verified'
-    });
-  } catch (error) {
-    console.error('Error verifying session:', error);
-    res.status(500).json({ error: 'Session verification failed' });
-  }
-});
-
-// GET /api/auth/validate - Validate session/token
-router.get('/validate', async (req, res) => {
+// GET /api/auth/validate - Validate JWT token
+router.get('/validate', (req, res) => {
   try {
     const authHeader = req.headers.authorization;
-    
-    if (!authHeader) {
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({ error: 'No authorization header' });
     }
 
-    // In a full implementation, validate JWT token here
-    // For now, return success for development
-    res.json({
-      valid: true,
-      message: 'Session valid'
-    });
+    const token = authHeader.substring(7);
+
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      res.json({
+        valid: true,
+        user: decoded,
+        message: 'Token valid'
+      });
+    } catch (err) {
+      res.status(401).json({
+        valid: false,
+        error: 'Invalid or expired token'
+      });
+    }
   } catch (error) {
     console.error('Error validating session:', error);
     res.status(500).json({ error: 'Session validation failed' });
   }
 });
 
-// GET /api/auth/depots - Get list of depots from users
-router.get('/depots', async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('depot')
-      .not('depot', 'is', null);
-
-    if (error) throw error;
-
-    // Get unique depots
-    const depots = [...new Set(data.map(user => user.depot))].sort();
-
-    res.json(depots);
-  } catch (error) {
-    console.error('Error fetching depots:', error);
-    res.status(500).json({ error: 'Failed to fetch depots' });
-  }
-});
-
-// GET /api/auth/recent-sessions - Get recent authentication sessions
-router.get('/recent-sessions', async (req, res) => {
-  try {
-    const { limit = 10 } = req.query;
-
-    // Since sessions are managed in memory, we'll provide basic session info
-    // This could be enhanced to track actual session data if needed
-    const { data, error } = await supabase
-      .from('users')
-      .select('id, full_name, username, depot')
-      .eq('is_active', true)
-      .eq('role', 'supervisor')
-      .limit(parseInt(limit));
-
-    if (error) throw error;
-
-    res.json({
-      success: true,
-      data: data || [],
-      count: data ? data.length : 0
-    });
-  } catch (error) {
-    console.error('Error fetching recent sessions:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch recent sessions',
-      data: []
-    });
-  }
-});
-
-// GET /api/auth/pending-signups - Get all pending supervisor signups (Admin only)
-router.get('/pending-signups', async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from('supervisors')
-      .select('*')
-      .eq('pending_approval', true)
-      .order('signup_date', { ascending: false });
-
-    if (error) throw error;
-
-    res.json({
-      success: true,
-      data: data || [],
-      count: data ? data.length : 0
-    });
-  } catch (error) {
-    console.error('Error fetching pending signups:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch pending signups'
-    });
-  }
-});
-
-// POST /api/auth/approve-signup - Approve a pending supervisor signup (Admin only)
-router.post('/approve-signup', async (req, res) => {
-  try {
-    const { supervisorId, approved = true } = req.body;
-
-    if (!supervisorId) {
-      return res.status(400).json({
-        error: 'Supervisor ID is required',
-        code: 'MISSING_SUPERVISOR_ID'
-      });
-    }
-
-    // Get the supervisor record
-    const { data: supervisor, error: fetchError } = await supabase
-      .from('supervisors')
-      .select('*')
-      .eq('id', supervisorId)
-      .single();
-
-    if (fetchError || !supervisor) {
-      return res.status(404).json({
-        error: 'Supervisor not found',
-        code: 'SUPERVISOR_NOT_FOUND'
-      });
-    }
-
-    if (!supervisor.pending_approval) {
-      return res.status(400).json({
-        error: 'Supervisor is not pending approval',
-        code: 'NOT_PENDING'
-      });
-    }
-
-    if (approved) {
-      // Approve the supervisor
-      const { error: updateError } = await supabase
-        .from('supervisors')
-        .update({
-          is_active: true,
-          pending_approval: false,
-          approved_date: new Date().toISOString()
-        })
-        .eq('id', supervisorId);
-
-      if (updateError) throw updateError;
-
-      // Update auth user to confirm email
-      if (supervisor.auth_user_id) {
-        try {
-          await supabase.auth.admin.updateUserById(supervisor.auth_user_id, {
-            email_confirm: true,
-            user_metadata: {
-              ...supervisor,
-              pending_approval: false,
-              approved: true,
-              approved_date: new Date().toISOString()
-            }
-          });
-        } catch (authUpdateError) {
-          console.warn('Failed to update auth user:', authUpdateError);
-        }
-      }
-
-      console.log(`✅ Supervisor approved: ${supervisor.name} (${supervisor.email})`);
-
-      res.json({
-        success: true,
-        message: 'Supervisor approved successfully',
-        supervisor: {
-          id: supervisor.id,
-          name: supervisor.name,
-          email: supervisor.email,
-          is_active: true,
-          pending_approval: false
-        }
-      });
-    } else {
-      // Reject the supervisor - delete from both tables
-      // Delete from supervisors table
-      const { error: deleteError } = await supabase
-        .from('supervisors')
-        .delete()
-        .eq('id', supervisorId);
-
-      if (deleteError) throw deleteError;
-
-      // Delete auth user
-      if (supervisor.auth_user_id) {
-        try {
-          await supabase.auth.admin.deleteUser(supervisor.auth_user_id);
-        } catch (authDeleteError) {
-          console.warn('Failed to delete auth user:', authDeleteError);
-        }
-      }
-
-      console.log(`❌ Supervisor rejected: ${supervisor.name} (${supervisor.email})`);
-
-      res.json({
-        success: true,
-        message: 'Supervisor signup rejected and removed',
-        supervisor: {
-          id: supervisor.id,
-          name: supervisor.name,
-          email: supervisor.email,
-          rejected: true
-        }
-      });
-    }
-
-  } catch (error) {
-    console.error('Error processing signup approval:', error);
-    res.status(500).json({
-      error: 'Failed to process signup approval',
-      code: 'APPROVAL_ERROR'
-    });
-  }
-});
-
-// PUT /api/auth/supervisor/:id - Update supervisor details (Admin only)
-router.put('/supervisor/:id', async (req, res) => {
-  try {
-    const supervisorId = req.params.id;
-    const { name, email, depot, role, is_active } = req.body;
-
-    const updateData = {};
-    if (name !== undefined) updateData.name = name;
-    if (email !== undefined) updateData.email = email.toLowerCase();
-    if (depot !== undefined) updateData.depot = depot;
-    if (role !== undefined) updateData.role = role;
-    if (is_active !== undefined) updateData.is_active = is_active;
-
-    const { data, error } = await supabase
-      .from('supervisors')
-      .update(updateData)
-      .eq('id', supervisorId)
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    if (!data) {
-      return res.status(404).json({
-        error: 'Supervisor not found',
-        code: 'SUPERVISOR_NOT_FOUND'
-      });
-    }
-
-    console.log(`🔄 Supervisor updated: ${data.name} (${data.email})`);
-
-    res.json({
-      success: true,
-      message: 'Supervisor updated successfully',
-      supervisor: data
-    });
-
-  } catch (error) {
-    console.error('Error updating supervisor:', error);
-    res.status(500).json({
-      error: 'Failed to update supervisor',
-      code: 'UPDATE_ERROR'
-    });
-  }
-});
-
-// POST /api/auth/change-password - Change password for logged-in supervisor
-router.post('/change-password', verifyToken, async (req, res) => {
-  try {
-    const { currentPassword, newPassword } = req.body;
-    // Get email from authenticated user or from request body
-    const email = req.body.email || req.user?.email;
-
-    // Validate required fields
-    if (!email || !currentPassword || !newPassword) {
-      return res.status(400).json({
-        error: 'Email, current password, and new password are required',
-        code: 'MISSING_FIELDS'
-      });
-    }
-
-    // Validate password strength
-    if (newPassword.length < 8) {
-      return res.status(400).json({
-        error: 'New password must be at least 8 characters long',
-        code: 'WEAK_PASSWORD'
-      });
-    }
-
-    // Verify current password by attempting to sign in
-    const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
-      email: email.toLowerCase(),
-      password: currentPassword
-    });
-
-    if (signInError || !authData.user) {
-      return res.status(401).json({
-        error: 'Current password is incorrect',
-        code: 'INVALID_PASSWORD'
-      });
-    }
-
-    // Create admin client to update password
-    const supabaseAdmin = createClient(supabaseUrl, process.env.SUPABASE_SERVICE_KEY, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    });
-
-    // Update password using admin API
-    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
-      authData.user.id,
-      { password: newPassword }
-    );
-
-    if (updateError) {
-      console.error('❌ Failed to update password:', updateError);
-      return res.status(500).json({
-        error: 'Failed to update password. Please try again.',
-        code: 'UPDATE_FAILED',
-        details: updateError.message
-      });
-    }
-
-    console.log(`🔑 Password changed for ${email}`);
-
-    res.json({
-      success: true,
-      message: 'Password changed successfully'
-    });
-
-  } catch (error) {
-    console.error('❌ Password change error:', error);
-    res.status(500).json({
-      error: 'Password change failed. Please try again.',
-      code: 'INTERNAL_ERROR',
-      details: error.message
-    });
-  }
-});
-
-// GET /api/supervisors/:id/stats - Get supervisor-specific statistics
-router.get('/supervisors/:id/stats', async (req, res) => {
-  try {
-    const supervisorId = req.params.id;
-    
-    // Get supervisor details first
-    const { data: supervisor, error: supervisorError } = await supabase
-      .from('supervisors')
-      .select('*')
-      .or(`id.eq.${supervisorId},badge_number.eq.${supervisorId}`)
-      .single();
-    
-    if (supervisorError || !supervisor) {
-      console.log(`Supervisor not found: ${supervisorId}`);
-      return res.status(404).json({
-        error: 'Supervisor not found',
-        code: 'SUPERVISOR_NOT_FOUND'
-      });
-    }
-    
-    // Get breakdown counts for this supervisor
-    const today = new Date().toISOString().split('T')[0];
-    
-    // Get active breakdowns
-    const { data: activeBreakdowns, error: activeError } = await supabase
-      .from('breakdowns')
-      .select('id', { count: 'exact' })
-      .eq('supervisor_id', supervisor.id)
-      .in('status', ['in_progress', 'pending', 'dispatched']);
-    
-    // Get today's breakdowns
-    const { data: todayBreakdowns, error: todayError } = await supabase
-      .from('breakdowns')
-      .select('id', { count: 'exact' })
-      .eq('supervisor_id', supervisor.id)
-      .gte('created_at', `${today}T00:00:00`);
-    
-    // Get resolved breakdowns
-    const { data: resolvedBreakdowns, error: resolvedError } = await supabase
-      .from('breakdowns')
-      .select('id', { count: 'exact' })
-      .eq('supervisor_id', supervisor.id)
-      .eq('status', 'completed');
-    
-    // Calculate response time (mock for now)
-    const avgResponseMinutes = Math.floor(Math.random() * 15) + 5;
-    const responseTime = `00:${String(avgResponseMinutes).padStart(2, '0')}`;
-    
-    // Fleet health metrics (mock for now)
-    const fleetHealth = 85 + Math.floor(Math.random() * 15);
-    const onRoute = Math.floor(Math.random() * 50) + 150;
-    const depotCount = Math.floor(Math.random() * 10) + 5;
-    
-    const stats = {
-      active: activeBreakdowns?.length || 0,
-      today: todayBreakdowns?.length || 0,
-      resolved: resolvedBreakdowns?.length || 0,
-      responseTime,
-      fleetHealth,
-      onRoute,
-      depot: depotCount,
-      avgResponseTime: avgResponseMinutes,
-      supervisorName: supervisor.name,
-      supervisorDepot: supervisor.depot
-    };
-    
-    console.log(`📊 Supervisor stats fetched for ${supervisor.name} (${supervisorId})`);
-    res.json(stats);
-    
-  } catch (error) {
-    console.error('Error fetching supervisor stats:', error);
-    res.status(500).json({
-      error: 'Failed to fetch supervisor statistics',
-      code: 'STATS_ERROR'
-    });
-  }
-});
 
 export default router;

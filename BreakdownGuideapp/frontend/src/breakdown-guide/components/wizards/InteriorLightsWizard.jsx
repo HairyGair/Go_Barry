@@ -18,7 +18,7 @@ const InteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, 
                             <FileText className="w-8 h-8 text-blue-400" />
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">🔦 Interior Lights Assessment</h2>
-                        <p className="text-gray-300">Following SDC guidance for interior lighting issues - 50% illumination rule and step light requirements.</p>
+                        <p className="text-gray-300">Following standard operational safety checks guidance for interior lighting issues - 50% illumination rule and step light requirements.</p>
                     </div>
                     
                     <div className="bg-yellow-500/20 backdrop-blur-sm rounded-lg p-6 border border-yellow-400/30">

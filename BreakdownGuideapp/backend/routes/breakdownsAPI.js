@@ -7,7 +7,7 @@ import express from 'express';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { supabase } from '../server.js';
+import { from, query, insert, update } from '../utils/queryHelpers.js';
 import webSocketHandler from './webSocketHandler.js';
 import Joi from 'joi';
 import {
@@ -76,14 +76,14 @@ const logAuditEvent = (event) => {
 router.get('/live', async (req, res) => {
   try {
     console.log('📊 SDC API: Fetching live breakdowns');
-    
-    // Query Supabase for active breakdowns (exclude resolved)
-    const { data: breakdowns, error: breakdownError } = await supabase
-      .from('breakdowns')
+
+    // Query database for active breakdowns (exclude resolved)
+    const { data: breakdowns, error: breakdownError } = await from('breakdowns')
       .select('*')
       .neq('status', 'resolved')
-      .order('created_at', { ascending: false })
-      .limit(100);
+      .order('created_at', 'DESC')
+      .limit(100)
+      .execute();
 
     if (breakdownError) {
       console.error('Error fetching breakdowns from Supabase:', breakdownError);
@@ -211,7 +211,22 @@ router.get('/live', async (req, res) => {
         engineer_assigned: breakdown.engineer_assigned || null,
         engineer_name: breakdown.engineer_name || null,
         dispatched_at: breakdown.dispatched_at || null,
-        
+
+        // Engineering lifecycle tracking
+        engineer_accepted_at: breakdown.engineer_accepted_at || null,
+        engineer_on_site_at: breakdown.engineer_on_site_at || null,
+        engineer_fixing_started_at: breakdown.engineer_fixing_started_at || null,
+        engineer_completed_at: breakdown.engineer_completed_at || null,
+        engineer_notes: breakdown.engineer_notes || null,
+        parts_used: breakdown.parts_used || null,
+        labor_hours: breakdown.labor_hours || null,
+        repair_category: breakdown.repair_category || null,
+        root_cause: breakdown.root_cause || null,
+        resolution_type: breakdown.resolution_type || null,
+        resolution_notes: breakdown.resolution_notes || null,
+        returned_to_service: breakdown.returned_to_service !== undefined ? breakdown.returned_to_service : null,
+        estimated_arrival_time: breakdown.estimated_arrival_time || null,
+
         // Dashboard flags
         isCritical: decision === 'STOP' || breakdown.severity === 'STOP',
         isPending: !breakdown.acknowledged_at,
@@ -782,17 +797,18 @@ router.post('/acknowledge', validateBody(acknowledgeBreakdownSchema), sanitizeNo
 
     const acknowledgedAt = new Date().toISOString();
 
-    // Update breakdown in Supabase
-    const { data: breakdown, error: updateError } = await supabase
-      .from('breakdowns')
-      .update({
-        acknowledged_at: acknowledgedAt,
-        acknowledged_by: acknowledged_by || supervisor_badge || 'SDC',
-        sdc_notes: notes || null,
-        status: 'acknowledged'
-      })
+    // Update breakdown in database
+    await update('breakdowns', { breakdown_id }, {
+      acknowledged_at: acknowledgedAt,
+      acknowledged_by: acknowledged_by || supervisor_badge || 'SDC',
+      sdc_notes: notes || null,
+      status: 'acknowledged'
+    });
+
+    // Fetch updated breakdown
+    const { data: breakdown, error: updateError } = await from('breakdowns')
+      .select('*')
       .eq('breakdown_id', breakdown_id)
-      .select()
       .single();
 
     if (updateError) {
@@ -905,19 +921,20 @@ router.post('/decision', validateBody(recordDecisionSchema), sanitizeNotes, asyn
     const decisionAt = new Date().toISOString();
     const normalizedDecision = decision.toUpperCase();
 
-    // Update breakdown in Supabase
-    const { data: breakdown, error: updateError } = await supabase
-      .from('breakdowns')
-      .update({
-        decision_at: decisionAt,
-        decided_by: decided_by || supervisor_badge || 'SDC',
-        sdc_decision: normalizedDecision,
-        decision_notes: decision_notes || notes || null,
-        severity: normalizedDecision,
-        status: 'decision_made'
-      })
+    // Update breakdown in database
+    await update('breakdowns', { breakdown_id }, {
+      decision_at: decisionAt,
+      decided_by: decided_by || supervisor_badge || 'SDC',
+      sdc_decision: normalizedDecision,
+      decision_notes: decision_notes || notes || null,
+      severity: normalizedDecision,
+      status: 'decision_made'
+    });
+
+    // Fetch updated breakdown
+    const { data: breakdown, error: updateError } = await from('breakdowns')
+      .select('*')
       .eq('breakdown_id', breakdown_id)
-      .select()
       .single();
 
     if (updateError) {
@@ -1029,8 +1046,7 @@ router.post('/add-note', validateBody(addNoteSchema), sanitizeNotes, async (req,
     const noteTimestamp = new Date().toISOString();
 
     // Get current breakdown to append note
-    const { data: currentBreakdown, error: fetchError } = await supabase
-      .from('breakdowns')
+    const { data: currentBreakdown, error: fetchError } = await from('breakdowns')
       .select('sdc_notes, fleet_number, location')
       .eq('breakdown_id', breakdown_id)
       .single();
@@ -1071,15 +1087,16 @@ router.post('/add-note', validateBody(addNoteSchema), sanitizeNotes, async (req,
       updatedNotes = updatedNotes.slice(0, 50);
     }
 
-    // Update breakdown in Supabase
-    const { data: breakdown, error: updateError } = await supabase
-      .from('breakdowns')
-      .update({
-        sdc_notes: updatedNotes,
-        last_note_at: noteTimestamp
-      })
+    // Update breakdown in database
+    await update('breakdowns', { breakdown_id }, {
+      sdc_notes: JSON.stringify(updatedNotes),
+      last_note_at: noteTimestamp
+    });
+
+    // Fetch updated breakdown
+    const { data: breakdown, error: updateError } = await from('breakdowns')
+      .select('*')
       .eq('breakdown_id', breakdown_id)
-      .select()
       .single();
 
     if (updateError) {
@@ -1197,8 +1214,7 @@ router.post('/request-engineering', validateBody(requestEngineeringSchema), sani
     }
 
     // Get breakdown details
-    const { data: currentBreakdown, error: fetchError } = await supabase
-      .from('breakdowns')
+    const { data: currentBreakdown, error: fetchError } = await from('breakdowns')
       .select('*')
       .eq('breakdown_id', breakdown_id)
       .single();
@@ -1226,17 +1242,18 @@ router.post('/request-engineering', validateBody(requestEngineeringSchema), sani
       issue_category: currentBreakdown.issue_category
     };
 
-    // Update breakdown in Supabase
-    const { data: breakdown, error: updateError } = await supabase
-      .from('breakdowns')
-      .update({
-        engineering_requested_at: requestedAt,
-        engineering_request_priority: requestPriority,
-        engineering_notes: notes || null,
-        status: 'engineering_requested'
-      })
+    // Update breakdown in database
+    await update('breakdowns', { breakdown_id }, {
+      engineering_requested_at: requestedAt,
+      engineering_request_priority: requestPriority,
+      engineering_notes: notes || null,
+      status: 'engineering_requested'
+    });
+
+    // Fetch updated breakdown
+    const { data: breakdown, error: updateError } = await from('breakdowns')
+      .select('*')
       .eq('breakdown_id', breakdown_id)
-      .select()
       .single();
 
     if (updateError) {
@@ -1387,8 +1404,7 @@ router.post('/resolve', validateBody(Joi.object({
     console.log(`✅ SDC API: Resolving breakdown ${breakdown_id}`);
 
     // Verify breakdown exists
-    const { data: currentBreakdown, error: fetchError } = await supabase
-      .from('breakdowns')
+    const { data: currentBreakdown, error: fetchError } = await from('breakdowns')
       .select('*')
       .eq('breakdown_id', breakdown_id)
       .single();
@@ -1419,18 +1435,19 @@ router.post('/resolve', validateBody(Joi.object({
     const resolvingUser = resolved_by || supervisor_badge || 'SDC';
 
     // Update breakdown status to resolved in database
-    const { data: breakdown, error: updateError } = await supabase
-      .from('breakdowns')
-      .update({
-        status: 'cleared',
-        resolved_at: resolvedAt,
-        resolved_by: resolvingUser,
-        resolution_notes: resolution_notes || null,
-        resolution_type: resolution_type,
-        returned_to_service: returned_to_service
-      })
+    await update('breakdowns', { breakdown_id }, {
+      status: 'cleared',
+      resolved_at: resolvedAt,
+      resolved_by: resolvingUser,
+      resolution_notes: resolution_notes || null,
+      resolution_type: resolution_type,
+      returned_to_service: returned_to_service
+    });
+
+    // Fetch updated breakdown
+    const { data: breakdown, error: updateError } = await from('breakdowns')
+      .select('*')
       .eq('breakdown_id', breakdown_id)
-      .select()
       .single();
 
     if (updateError) {

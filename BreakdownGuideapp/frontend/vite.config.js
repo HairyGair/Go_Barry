@@ -37,14 +37,37 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
-    sourcemap: false,
+    sourcemap: false, // Never expose source code in production
+    minify: 'terser', // Use terser for better minification
+    terserOptions: {
+      compress: {
+        drop_console: true, // Remove all console.log statements
+        drop_debugger: true, // Remove debugger statements
+        pure_funcs: ['console.log', 'console.info', 'console.debug'], // Remove specific console methods
+        passes: 2 // Multiple passes for better compression
+      },
+      mangle: {
+        toplevel: true, // Mangle top-level variable names
+        safari10: true // Safari 10 compatibility
+      },
+      format: {
+        comments: false // Remove all comments
+      }
+    },
     rollupOptions: {
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
           supabase: ['@supabase/supabase-js']
-        }
+        },
+        // Obfuscate output filenames
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]'
       }
-    }
+    },
+    // Additional security settings
+    reportCompressedSize: false, // Don't report file sizes (security through obscurity)
+    chunkSizeWarningLimit: 1000 // Increase warning limit
   }
 })

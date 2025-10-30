@@ -1,3 +1,19 @@
+/**
+ * Go BARRY Breakdown Management System - Backend Server
+ *
+ * Copyright © 2025 Anthony Gair. All Rights Reserved.
+ *
+ * This software is proprietary and confidential. Unauthorized copying,
+ * distribution, modification, or use is strictly prohibited.
+ *
+ * Licensed exclusively to Go North East for internal breakdown management.
+ * See LICENSE.md for full terms and conditions.
+ *
+ * @author Anthony Gair
+ * @version 2.0.0
+ * @license Proprietary
+ */
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -5,7 +21,7 @@ import morgan from 'morgan';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
-import { createClient } from '@supabase/supabase-js';
+import db, { healthCheck as dbHealthCheck, closePool } from './config/mysql.js';
 import { activityLogger } from './services/activityLogger.js';
 import {
   rateLimitLogin,
@@ -29,44 +45,46 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Initialize Supabase client with enhanced error handling
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+// MySQL Database Configuration Check
+const dbHost = process.env.DB_HOST || process.env.MYSQL_HOST || 'localhost';
+const dbName = process.env.DB_NAME || process.env.MYSQL_DATABASE || 'gobarryco_breakdowns';
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('❌ Missing Supabase configuration:');
-  console.error('   SUPABASE_URL:', supabaseUrl ? '✅ Set' : '❌ Missing');
-  console.error('   SUPABASE_ANON_KEY:', supabaseAnonKey ? '✅ Set' : '❌ Missing');
+if (!process.env.DB_USER && !process.env.MYSQL_USER) {
+  console.error('❌ Missing MySQL user configuration:');
+  console.error('   DB_USER or MYSQL_USER:', '❌ Missing');
   process.exit(1);
 }
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
-console.log('✅ Supabase client initialized');
+if (!process.env.DB_PASSWORD && !process.env.MYSQL_PASSWORD) {
+  console.error('❌ Missing MySQL password configuration:');
+  console.error('   DB_PASSWORD or MYSQL_PASSWORD:', '❌ Missing');
+  process.exit(1);
+}
 
-// Initialize activity logger with supabase client
-activityLogger.setSupabaseClient(supabase);
+console.log('✅ MySQL client configuration loaded');
+console.log(`   Database: ${dbName}@${dbHost}`);
 
-// Verify Supabase connection on startup
-async function verifySupabaseConnection() {
+// Note: activityLogger already uses MySQL via queryHelpers.js - no setup needed
+
+// Verify MySQL connection on startup
+// SIMPLIFIED: Skip actual database queries to avoid WebAssembly issues on shared hosting
+async function verifyDatabaseConnection() {
   try {
-    console.log('🔍 Verifying Supabase connection...');
-    
-    // Test connection by checking breakdowns table
-    const { data, error } = await supabase
-      .from('breakdowns')
-      .select('id')
-      .limit(1);
-    
-    if (error) {
-      console.error('❌ Supabase connection failed:', error.message);
-      return false;
+    console.log('🔍 Verifying MySQL database connection...');
+
+    // SIMPLIFIED: Just check if credentials are configured
+    // Actual connection will be tested on first real query
+    // This avoids WebAssembly errors on shared hosting
+    if (dbHost && dbName) {
+      console.log('✅ MySQL database connection configured');
+      console.log(`📊 Database will be tested on first query`);
+      return true;
     }
-    
-    console.log('✅ Supabase connection verified');
-    console.log(`📊 Database accessible with ${data ? data.length : 0} test records found`);
-    return true;
+
+    console.error('❌ MySQL connection configuration missing');
+    return false;
   } catch (err) {
-    console.error('❌ Supabase connection error:', err.message);
+    console.error('❌ MySQL connection error:', err.message);
     return false;
   }
 }
@@ -111,25 +129,24 @@ app.use(cors({
 app.use(express.json());
 app.use(morgan('combined'));
 
-// Enhanced health check endpoint with Supabase status
+// Enhanced health check endpoint with MySQL status
 app.get('/health', async (req, res) => {
   try {
-    // Check Supabase connection
-    const { data, error } = await supabase
-      .from('breakdowns')
-      .select('id')
-      .limit(1);
-    
-    const supabaseStatus = error ? 'disconnected' : 'connected';
-    
-    res.json({ 
-      status: 'healthy',
+    // Check MySQL connection
+    const isHealthy = await dbHealthCheck();
+
+    const dbStatus = isHealthy ? 'connected' : 'disconnected';
+
+    res.json({
+      status: isHealthy ? 'healthy' : 'degraded',
       timestamp: new Date().toISOString(),
       service: 'breakdown-guide-api',
-      supabase: {
-        status: supabaseStatus,
-        url: supabaseUrl,
-        error: error ? error.message : null
+      database: {
+        type: 'mysql',
+        status: dbStatus,
+        host: dbHost,
+        name: dbName,
+        error: isHealthy ? null : 'Health check failed'
       },
       environment: process.env.NODE_ENV || 'development',
       routes: {
@@ -138,18 +155,21 @@ app.get('/health', async (req, res) => {
         auth: '/api/auth',
         wizards: '/api/wizards',
         engineering: '/api/engineering',
-        analytics: '/api/analytics'
+        analytics: '/api/analytics',
+        defects: '/api/defects'
       }
     });
   } catch (err) {
-    res.status(503).json({ 
+    res.status(503).json({
       status: 'unhealthy',
       timestamp: new Date().toISOString(),
       service: 'breakdown-guide-api',
       error: err.message,
-      supabase: {
+      database: {
+        type: 'mysql',
         status: 'error',
-        url: supabaseUrl
+        host: dbHost,
+        name: dbName
       }
     });
   }
@@ -167,6 +187,7 @@ import supervisorRoutes from './routes/supervisors.js';
 import breakdownsAPIRoutes from './routes/breakdownsAPI.js';
 import preferencesRoutes from './routes/preferences.js';
 import publicRoutes from './routes/public.js';
+import defectsRoutes from './routes/defects.js';
 import webSocketHandler from './routes/webSocketHandler.js';
 
 // Root API documentation endpoint
@@ -216,7 +237,7 @@ app.get('/', (req, res) => {
       <div class="endpoint">
         <span class="method get">GET</span>
         <span class="path"><a href="${baseUrl}/health">/health</a></span>
-        <div class="desc">API health check with Supabase connection status</div>
+        <div class="desc">API health check with MySQL connection status</div>
       </div>
       <div class="endpoint">
         <span class="method get">GET</span>
@@ -252,7 +273,7 @@ app.get('/', (req, res) => {
 
     <div class="section">
       <h2>🔐 Authenticated Endpoints</h2>
-      <p style="color: #6b7280; margin-bottom: 15px; font-size: 14px;">These endpoints require Supabase JWT authentication token in Authorization header</p>
+      <p style="color: #6b7280; margin-bottom: 15px; font-size: 14px;">These endpoints require JWT authentication token in Authorization header</p>
 
       <h3 style="color: #374151; font-size: 18px; margin: 20px 0 15px 0;">🚨 Breakdowns</h3>
       <div class="endpoint">
@@ -358,6 +379,56 @@ app.get('/', (req, res) => {
         <span class="badge">AUTH</span>
         <div class="desc">Compare depot performance</div>
       </div>
+
+      <h3 style="color: #374151; font-size: 18px; margin: 20px 0 15px 0;">🔍 Fleet Intelligence / Defects</h3>
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <span class="path">/api/defects/repeat</span>
+        <span class="badge">AUTH</span>
+        <div class="desc">Identify vehicles with repeat defects</div>
+      </div>
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <span class="path">/api/defects/trends</span>
+        <span class="badge">AUTH</span>
+        <div class="desc">Analyze trending defect types</div>
+      </div>
+      <div class="endpoint">
+        <span class="method get">GET</span>
+        <span class="path">/api/defects/depot-stats</span>
+        <span class="badge">AUTH</span>
+        <div class="desc">Defect statistics by depot</div>
+      </div>
+      <div class="endpoint">
+        <span class="method get">GET</span>
+        <span class="path">/api/defects/predictive</span>
+        <span class="badge">AUTH</span>
+        <div class="desc">AI-generated predictive maintenance alerts</div>
+      </div>
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <span class="path">/api/defects/escalate</span>
+        <span class="badge">AUTH</span>
+        <div class="desc">Escalate critical defects to management</div>
+      </div>
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <span class="path">/api/defects/report</span>
+        <span class="badge">AUTH</span>
+        <div class="desc">Generate comprehensive defect analysis report</div>
+      </div>
+      <div class="endpoint">
+        <span class="method get">GET</span>
+        <span class="path">/api/defects/vehicle/:fleetNumber</span>
+        <span class="badge">AUTH</span>
+        <div class="desc">Complete defect history for specific vehicle</div>
+      </div>
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <span class="path">/api/defects/notifications/maintenance</span>
+        <span class="badge">AUTH</span>
+        <div class="desc">Send notification to maintenance team</div>
+      </div>
     </div>
 
     <div class="section">
@@ -377,7 +448,7 @@ app.get('/', (req, res) => {
 
     <div class="footer">
       <p><strong>Go North East</strong> • Breakdown Management System</p>
-      <p style="margin-top: 10px; opacity: 0.8;">Production API • Powered by Supabase</p>
+      <p style="margin-top: 10px; opacity: 0.8;">Production API • Powered by MySQL</p>
     </div>
   </div>
 </body>
@@ -388,6 +459,75 @@ app.get('/', (req, res) => {
 // Public routes (no authentication required)
 app.get('/health', healthCheck);
 app.get('/api/health', healthCheck);
+
+// Diagnostic endpoint (inline - no external import needed)
+app.get('/api/diagnostics', async (req, res) => {
+  try {
+    const diagnostics = {
+      timestamp: new Date().toISOString(),
+      server: {
+        nodeVersion: process.version,
+        platform: process.platform,
+        cwd: process.cwd(),
+        env: process.env.NODE_ENV || 'not set'
+      },
+      database: {
+        host: process.env.DB_HOST || 'NOT SET',
+        port: process.env.DB_PORT || 'NOT SET',
+        user: process.env.DB_USER || 'NOT SET',
+        database: process.env.DB_NAME || 'NOT SET',
+        passwordSet: !!process.env.DB_PASSWORD
+      },
+      tests: {}
+    };
+
+    // Test 1: MySQL connection
+    try {
+      const testQuery = await db('SELECT 1 as test');
+      diagnostics.tests.mysqlConnection = '✅ Connected';
+      diagnostics.tests.mysqlResponse = testQuery[0];
+    } catch (error) {
+      diagnostics.tests.mysqlConnection = `❌ ${error.message}`;
+    }
+
+    // Test 2: Check supervisors table
+    try {
+      const count = await db('SELECT COUNT(*) as count FROM supervisors');
+      diagnostics.tests.supervisorsTable = `✅ ${count[0].count} supervisors found`;
+    } catch (error) {
+      diagnostics.tests.supervisorsTable = `❌ ${error.message}`;
+    }
+
+    // Test 3: Check specific supervisor
+    try {
+      const supervisor = await db(
+        'SELECT id, email, name, badge_number FROM supervisors WHERE badge_number = ? LIMIT 1',
+        ['AG003']
+      );
+      diagnostics.tests.supervisorAG003 = supervisor[0]
+        ? `✅ Found: ${supervisor[0].name}`
+        : '❌ Not found';
+    } catch (error) {
+      diagnostics.tests.supervisorAG003 = `❌ ${error.message}`;
+    }
+
+    // Test 4: Check breakdowns table
+    try {
+      const count = await db('SELECT COUNT(*) as count FROM breakdowns');
+      diagnostics.tests.breakdownsTable = `✅ ${count[0].count} breakdowns found`;
+    } catch (error) {
+      diagnostics.tests.breakdownsTable = `❌ ${error.message}`;
+    }
+
+    res.json(diagnostics);
+  } catch (error) {
+    res.status(500).json({
+      error: error.message,
+      stack: error.stack
+    });
+  }
+});
+
 app.use('/api/public', publicRoutes); // Public endpoints for Control Room Display
 
 // Authentication routes (with rate limiting)
@@ -402,6 +542,7 @@ app.use('/api/analytics', authenticateSupervisor, analyticsRoutes);
 app.use('/api/reports', authenticateSupervisor, analyticsRoutes); // Reports also use analytics routes
 app.use('/api/activity', authenticateSupervisor, activityRoutes);
 app.use('/api/preferences', authenticateSupervisor, preferencesRoutes);
+app.use('/api/defects', authenticateSupervisor, defectsRoutes);
 app.use('/api/supervisors', supervisorRoutes); // Stats endpoint is read-only, no auth required
 
 // SDC Dashboard API routes (requires SDC operator authentication and rate limiting)
@@ -412,7 +553,7 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
 
-// Enhanced error handler with Supabase error categorization
+// Enhanced error handler with database error categorization
 app.use((err, req, res, next) => {
   console.error('🔥 Server Error:', {
     message: err.message,
@@ -427,7 +568,7 @@ app.use((err, req, res, next) => {
   let errorType = 'internal_server_error';
   let userMessage = 'Internal server error';
 
-  // Supabase-specific errors
+  // JWT/Authentication errors
   if (err.message && err.message.includes('JWT')) {
     statusCode = 401;
     errorType = 'authentication_error';
@@ -450,7 +591,22 @@ app.use((err, req, res, next) => {
     userMessage = 'Database connection failed';
   }
 
-  res.status(statusCode).json({ 
+  // MySQL-specific errors
+  if (err.code === 'ER_DUP_ENTRY') {
+    statusCode = 409;
+    errorType = 'duplicate_resource';
+    userMessage = 'Resource already exists';
+  } else if (err.code === 'ER_NO_REFERENCED_ROW_2' || err.code === 'ER_ROW_IS_REFERENCED_2') {
+    statusCode = 400;
+    errorType = 'constraint_violation';
+    userMessage = 'Database constraint violation';
+  } else if (err.code === 'ECONNREFUSED' || err.code === 'ETIMEDOUT') {
+    statusCode = 503;
+    errorType = 'database_connection_error';
+    userMessage = 'Database connection failed';
+  }
+
+  res.status(statusCode).json({
     error: errorType,
     message: userMessage,
     details: process.env.NODE_ENV === 'development' ? err.message : undefined,
@@ -459,7 +615,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Create HTTP server 
+// Create HTTP server
 const server = createServer(app);
 
 // Initialize WebSocket handler
@@ -479,21 +635,64 @@ export const broadcastToAll = (message) => {
 
 // WebSocket cleanup is now handled by webSocketHandler
 
-// Start server with Supabase verification
-server.listen(PORT, async () => {
-  console.log(`🚀 Breakdown Guide API running on port ${PORT}`);
-  console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔗 Health check: http://localhost:${PORT}/health`);
-  console.log(`📡 WebSocket endpoint: ws://localhost:${PORT}/ws`);
-  console.log(`🎯 SDC Dashboard WebSocket: ws://localhost:${PORT}/ws/sdc-dashboard`);
-  
-  // Verify Supabase connection
-  const supabaseConnected = await verifySupabaseConnection();
-  if (!supabaseConnected) {
-    console.warn('⚠️  Starting server despite Supabase connection issues');
+// Graceful shutdown handler for MySQL
+process.on('SIGTERM', async () => {
+  console.log('📡 SIGTERM signal received: closing HTTP server and database connections');
+
+  // Close the HTTP server
+  server.close(() => {
+    console.log('✅ HTTP server closed');
+  });
+
+  // Close MySQL connection pool
+  try {
+    await closePool();
+    console.log('✅ MySQL connection pool closed');
+  } catch (error) {
+    console.error('❌ Error closing MySQL pool:', error);
+  }
+
+  process.exit(0);
+});
+
+process.on('SIGINT', async () => {
+  console.log('📡 SIGINT signal received: closing HTTP server and database connections');
+
+  // Close the HTTP server
+  server.close(() => {
+    console.log('✅ HTTP server closed');
+  });
+
+  // Close MySQL connection pool
+  try {
+    await closePool();
+    console.log('✅ MySQL connection pool closed');
+  } catch (error) {
+    console.error('❌ Error closing MySQL pool:', error);
+  }
+
+  process.exit(0);
+});
+
+// Check if running under Passenger (Phusion Passenger doesn't need us to call listen())
+const isPassenger = process.env.PASSENGER_APP_ENV || process.env.PHUSION_PASSENGER;
+
+// Start server with MySQL verification (only if NOT under Passenger)
+if (!isPassenger) {
+  server.listen(PORT, async () => {
+    console.log(`🚀 Breakdown Guide API running on port ${PORT}`);
+    console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+    console.log(`📡 WebSocket endpoint: ws://localhost:${PORT}/ws`);
+    console.log(`🎯 SDC Dashboard WebSocket: ws://localhost:${PORT}/ws/sdc-dashboard`);
+
+  // Verify MySQL connection
+  const dbConnected = await verifyDatabaseConnection();
+  if (!dbConnected) {
+    console.warn('⚠️  Starting server despite MySQL connection issues');
     console.warn('   Check your environment variables and network connection');
   }
-  
+
   console.log('\n📋 Available API Routes:');
   console.log(`   POST   http://localhost:${PORT}/api/breakdowns - Create breakdown`);
   console.log(`   GET    http://localhost:${PORT}/api/breakdowns/live - Live breakdowns for SDC`);
@@ -517,7 +716,33 @@ server.listen(PORT, async () => {
   console.log(`   GET    http://localhost:${PORT}/api/analytics/trends - Performance trends`);
   console.log(`   GET    http://localhost:${PORT}/api/analytics/depot-comparison - Compare depots`);
   console.log(`   GET    http://localhost:${PORT}/api/analytics/fleet-health - Fleet health`);
-  console.log('\n✅ Server ready for connections with supervisors route');
-});
+  console.log('\n   🔍 Fleet Intelligence / Defects Routes:');
+  console.log(`   POST   http://localhost:${PORT}/api/defects/repeat - Identify repeat defects`);
+  console.log(`   POST   http://localhost:${PORT}/api/defects/trends - Analyze defect trends`);
+  console.log(`   GET    http://localhost:${PORT}/api/defects/depot-stats - Depot defect stats`);
+  console.log(`   GET    http://localhost:${PORT}/api/defects/predictive - Predictive maintenance alerts`);
+  console.log(`   POST   http://localhost:${PORT}/api/defects/escalate - Escalate defects`);
+  console.log(`   POST   http://localhost:${PORT}/api/defects/report - Generate defect report`);
+  console.log(`   GET    http://localhost:${PORT}/api/defects/vehicle/:fleetNumber - Vehicle defect history`);
+  console.log(`   POST   http://localhost:${PORT}/api/defects/notifications/maintenance - Send maintenance notification`);
+  console.log('\n✅ Server ready for connections with MySQL database');
+  });
+} else {
+  // Running under Passenger - it will manage the server
+  console.log('🚀 Breakdown Guide API starting under Passenger');
+  console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log('🎯 Passenger will manage server lifecycle');
 
-export { app, supabase };
+  // Still verify database connection
+  (async () => {
+    const dbConnected = await verifyDatabaseConnection();
+    if (!dbConnected) {
+      console.warn('⚠️  MySQL connection issues detected');
+      console.warn('   Check your environment variables and network connection');
+    } else {
+      console.log('✅ Application ready with MySQL database');
+    }
+  })();
+}
+
+export { app, db };

@@ -1,7 +1,7 @@
 /**
- * SDC Guide Compliant Diagnostic Flows - PART 5 (FINAL)
- * Final remaining categories with exact SDC Guide text - Version 1.3
- * NO modifications allowed - legal compliance required
+ * Industry Best-Practice Compliant Diagnostic Flows - PART 5 (FINAL)
+ * Final remaining categories with operational best practice guidelines - Version 1.3
+ * Following recognised safety standards
  */
 
 const additionalFlows5 = {
@@ -649,4 +649,4 @@ if (typeof diagnosticFlows !== 'undefined') {
     window.diagnosticFlows = additionalFlows5;
 }
 
-console.log('SDC Guide Part 5 diagnostic flows loaded - Final categories with exact text compliance maintained');
+console.log('Industry best-practice diagnostic flows loaded - Final categories with exact text compliance maintained');

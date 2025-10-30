@@ -1,7 +1,6 @@
 // Enhanced Authentication Service with Fallback Support
-// This provides both Supabase and local authentication methods
-
-import { supabase, authHelpers, supabaseHelpers } from './supabase-client.js';
+// This provides local authentication methods
+// Supabase removed - now uses backend MySQL API
 
 // Hardcoded supervisor list for fallback authentication
 // These are the authorized supervisors who can access the system
@@ -57,21 +56,9 @@ class AuthService {
 
     // Check if Supabase is available
     async checkSupabaseAvailability() {
-        try {
-            // Quick test to see if Supabase is reachable
-            const { error } = await Promise.race([
-                supabase.from('supervisors').select('count', { count: 'exact', head: true }),
-                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000))
-            ]);
-            
-            this.supabaseAvailable = !error;
-            console.log('Supabase availability:', this.supabaseAvailable ? '✅ Available' : '❌ Not available');
-            return this.supabaseAvailable;
-        } catch (error) {
-            console.log('Supabase check failed:', error.message);
-            this.supabaseAvailable = false;
-            return false;
-        }
+        // Supabase removed - now uses backend MySQL API
+        this.supabaseAvailable = false;
+        return false;
     }
 
     // Main authentication method
@@ -127,55 +114,12 @@ class AuthService {
 
     // Supabase authentication
     async authenticateWithSupabase(email, password) {
-        try {
-            const authResult = await authHelpers.signInWithPassword(email, password);
-            
-            if (!authResult.supervisor) {
-                // If no supervisor profile, check if we can create one
-                const localSupervisor = FALLBACK_SUPERVISORS.find(s => s.email === email);
-                if (localSupervisor && localSupervisor.password === password) {
-                    // Create a session with local data
-                    return {
-                        success: true,
-                        session: {
-                            id: localSupervisor.id,
-                            supervisorId: localSupervisor.id,
-                            name: localSupervisor.name,
-                            email: localSupervisor.email,
-                            depot: localSupervisor.depot,
-                            role: localSupervisor.role,
-                            isAdmin: localSupervisor.role === 'admin',
-                            timestamp: new Date().toISOString(),
-                            authenticated: true,
-                            authMethod: 'supabase-fallback'
-                        }
-                    };
-                }
-                throw new Error('Supervisor profile not found');
-            }
-            
-            return {
-                success: true,
-                session: {
-                    id: authResult.supervisor.id,
-                    supervisorId: authResult.supervisor.id,
-                    name: authResult.supervisor.name,
-                    email: authResult.supervisor.email,
-                    depot: authResult.supervisor.depot,
-                    role: authResult.supervisor.role,
-                    isAdmin: authResult.supervisor.role === 'admin',
-                    timestamp: new Date().toISOString(),
-                    authenticated: true,
-                    authMethod: 'supabase',
-                    supabaseSession: authResult.session
-                }
-            };
-        } catch (error) {
-            return {
-                success: false,
-                error: error.message
-            };
-        }
+        // Supabase removed - now uses backend MySQL API
+        // This method is no longer used
+        return {
+            success: false,
+            error: 'Supabase authentication not available'
+        };
     }
 
     // Local fallback authentication
@@ -253,49 +197,22 @@ class AuthService {
     // Sign out
     async signOut() {
         this.clearSession();
-        
-        if (this.supabaseAvailable) {
-            try {
-                await authHelpers.signOut();
-            } catch (error) {
-                console.warn('Supabase sign out failed:', error);
-            }
-        }
+
+        // Supabase removed - now uses backend MySQL API
+        // No Supabase sign out needed
     }
 
-    // Get current session (check both saved and Supabase)
+    // Get current session (check saved session only)
     async getCurrentSession() {
-        // First check saved session
+        // Check saved session
         const savedSession = this.getSavedSession();
         if (savedSession) {
             return { success: true, session: savedSession };
         }
-        
-        // Then check Supabase if available
-        if (this.supabaseAvailable) {
-            try {
-                const { session, supervisor } = await authHelpers.getCurrentSession();
-                if (session && supervisor) {
-                    const sessionData = {
-                        id: supervisor.id,
-                        supervisorId: supervisor.id,
-                        name: supervisor.name,
-                        email: supervisor.email,
-                        depot: supervisor.depot,
-                        role: supervisor.role,
-                        isAdmin: supervisor.role === 'admin',
-                        timestamp: new Date().toISOString(),
-                        authenticated: true,
-                        authMethod: 'supabase',
-                        supabaseSession: session
-                    };
-                    return { success: true, session: sessionData };
-                }
-            } catch (error) {
-                console.warn('Failed to get Supabase session:', error);
-            }
-        }
-        
+
+        // Supabase removed - now uses backend MySQL API
+        // No Supabase session check needed
+
         return { success: false, session: null };
     }
 

@@ -4,7 +4,7 @@ import constants from '../common/constants.js';
 
 // ABS Light Wizard Component - Safety-Critical ABS System Assessment
 // Uses icons and constants from common components
-// Follows SDC Engineering Issues Guide v1.3 - ABS Light Section (Page 14)
+// Follows operational safety procedures v1.3 - ABS Light Section (Page 14)
 // Updated to align with DVSA Categorisation of Defects guidance
 
 const ABSLightWizard = ({ currentStep, responses, updateResponse, onNext, onPrevious, onComplete }) => {
@@ -20,7 +20,7 @@ const ABSLightWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                             <img src="/icons/ABS_light.png" alt="ABS Light" className="w-full h-full object-contain" />
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">ABS Light Assessment</h2>
-                        <p className="text-gray-300">Critical safety evaluation following SDC Engineering Issues Guide v1.3 - Anti-lock Braking System diagnostics.</p>
+                        <p className="text-gray-300">Critical safety evaluation following operational safety procedures v1.3 - Anti-lock Braking System diagnostics.</p>
                     </div>
                     
                     <div className="bg-amber-500/20 backdrop-blur-sm rounded-lg p-6 border border-amber-400/30">
@@ -30,7 +30,7 @@ const ABSLightWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                             Safety is the priority. Any light regarding an ABS fault must be checked over by an engineer.
                         </p>
                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                            <h4 className="font-semibold text-amber-200 mb-2">SDC ABS Light Protocol:</h4>
+                            <h4 className="font-semibold text-amber-200 mb-2">Standard ABS Light Protocol:</h4>
                             <ul className="list-disc list-inside space-y-1 text-amber-300/90 text-sm">
                                 <li>All ABS faults require full system reset attempt</li>
                                 <li>AMBER ABS: May continue if reset successful</li>
@@ -100,7 +100,7 @@ const ABSLightWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                                     <div className="text-red-300/90 space-y-2">
                                         <p className="font-semibold">Red ABS light indicates serious braking system fault</p>
                                         <div className="bg-white/10 backdrop-blur-sm rounded p-4 mt-4">
-                                            <h4 className="font-semibold text-red-200 mb-2">Immediate SDC Requirements:</h4>
+                                            <h4 className="font-semibold text-red-200 mb-2">Immediate operational requirements:</h4>
                                             <ul className="list-disc list-inside space-y-1 text-red-300/90 text-sm">
                                                 <li>Reset procedure must be attempted immediately</li>
                                                 <li>If reset fails, vehicle must stop immediately</li>
@@ -354,7 +354,7 @@ const ABSLightWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
             const wasReset = responses.resetCompleted === 'yes';
             const stillOn = responses.lightStillOn === 'yes';
             
-            // Determine action based on SDC guide logic
+            // Determine action based on operational safety procedures
             let action = '';
             let severity = '';
             let bgColor = '';
@@ -400,7 +400,7 @@ const ABSLightWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                 <div className="space-y-6">
                     <div className="text-center">
                         <h2 className="text-2xl font-bold text-white mb-2">📋 ABS System Assessment Complete</h2>
-                        <p className="text-gray-300">Safety decision based on SDC Engineering Issues Guide v1.3</p>
+                        <p className="text-gray-300">Safety decision based on operational safety procedures v1.3</p>
                     </div>
                     
                     {/* Assessment Summary */}

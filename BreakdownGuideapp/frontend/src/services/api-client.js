@@ -1,10 +1,10 @@
 // API Client for Go North East Breakdown Guide
-// Connects to production Supabase via backend API
+// Connects to MySQL backend API via cPanel
 // Automatically injects Authorization headers for authenticated requests
 
-import enhancedAuthService from './enhanced-auth-service.js';
+import backendAuthService from './backend-auth-service.js';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://breakdown-guide.onrender.com';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
 // Mock data system removed - using real API data only
 
 // API Client class with automatic authentication
@@ -15,8 +15,11 @@ class APIClient {
   }
 
   async request(endpoint, options = {}) {
-    // Get access token from enhanced auth service
-    const token = await enhancedAuthService.getAccessToken();
+    // Get access token from backend auth service
+    const session = await backendAuthService.getCurrentSession();
+    const token = session.success ? session.session?.access_token : null;
+
+    console.log(`🔍 API Client Request - Endpoint: ${endpoint}, Has Token: ${!!token}`);
 
     // If no token and endpoint can use public fallback, convert to public endpoint
     let actualEndpoint = endpoint;
@@ -36,8 +39,10 @@ class APIClient {
         actualEndpoint = queryString ? `${publicFallbacks[path]}?${queryString}` : publicFallbacks[path];
         console.log(`🔓 No auth token - using public endpoint: ${actualEndpoint}`);
       } else {
-        console.log(`⚠️ No public fallback for: ${path}`);
+        console.log(`⚠️ No public fallback for: ${path} - will send without auth`);
       }
+    } else {
+      console.log(`🔒 Using authenticated endpoint: ${endpoint}`);
     }
 
     const url = `${this.baseURL}${actualEndpoint}`;
@@ -65,14 +70,16 @@ class APIClient {
     try {
       const response = await fetch(url, config);
 
-      // Handle 401 Unauthorized - try to refresh token once
+      // Handle 401 Unauthorized - try to refresh session once
       if (response.status === 401 && token && !this.isRefreshing) {
-        console.log('🔄 401 Unauthorized - attempting token refresh');
+        console.log('🔄 401 Unauthorized - attempting session refresh');
         this.isRefreshing = true;
 
         try {
-          // Try to get a fresh token
-          const newToken = await enhancedAuthService.getAccessToken();
+          // Try to refresh the session
+          await backendAuthService.refreshSession();
+          const newSession = await backendAuthService.getCurrentSession();
+          const newToken = newSession.success ? newSession.session?.access_token : null;
 
           if (newToken && newToken !== token) {
             // Retry request with new token
@@ -88,10 +95,10 @@ class APIClient {
 
             return await retryResponse.json();
           } else {
-            console.warn('⚠️ Token refresh did not provide new token');
+            console.warn('⚠️ Session refresh did not provide new token');
           }
         } catch (refreshError) {
-          console.error('Token refresh failed:', refreshError);
+          console.error('Session refresh failed:', refreshError);
         } finally {
           this.isRefreshing = false;
         }

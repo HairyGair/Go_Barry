@@ -1,5 +1,25 @@
+/**
+ * Go BARRY Analytics API Routes (MySQL Version)
+ *
+ * Provides analytics, KPIs, trends, and reporting endpoints
+ * Migrated from Supabase to MySQL
+ *
+ * Endpoints:
+ * - GET /api/analytics/kpis - Key performance indicators
+ * - GET /api/analytics/trends - Performance trends over time
+ * - GET /api/analytics/depot-comparison - Compare depot performance
+ * - GET /api/analytics/fleet-health - Fleet health overview
+ * - GET /api/analytics/activity/feed - Activity feed
+ * - GET /api/reports/tracerit - Tracerit report data
+ *
+ * @author Anthony Gair
+ * @version 2.0.0 (MySQL)
+ * @license Proprietary
+ */
+
 import express from 'express';
-import { supabase } from '../server.js';
+import { query } from '../config/mysql.js';
+import { from } from '../utils/queryHelpers.js';
 
 const router = express.Router();
 
@@ -7,11 +27,11 @@ const router = express.Router();
 router.get('/kpis', async (req, res) => {
   try {
     const { period = 'today' } = req.query;
-    
+
     // Calculate date range
     let startDate = new Date();
     let previousStartDate = new Date();
-    
+
     switch (period) {
       case 'week':
         startDate.setDate(startDate.getDate() - 7);
@@ -36,38 +56,23 @@ router.get('/kpis', async (req, res) => {
     }
 
     // Get current period breakdowns
-    const { data: currentBreakdowns, error: currentError } = await supabase
-      .from('breakdowns')
-      .select('*')
-      .gte('created_at', startDate.toISOString());
-
-    if (currentError) throw currentError;
+    const currentBreakdowns = await query(
+      'SELECT * FROM breakdowns WHERE created_at >= ?',
+      [startDate]
+    );
 
     // Get previous period breakdowns for comparison
-    const { data: previousBreakdowns, error: previousError } = await supabase
-      .from('breakdowns')
-      .select('*')
-      .gte('created_at', previousStartDate.toISOString())
-      .lt('created_at', startDate.toISOString());
+    const previousBreakdowns = await query(
+      'SELECT * FROM breakdowns WHERE created_at >= ? AND created_at < ?',
+      [previousStartDate, startDate]
+    );
 
-    if (previousError) throw previousError;
-
-    // Get fleet data - fallback if table doesn't exist or column missing
+    // Get fleet data - with error handling
     let vehicles = [];
     try {
-      const { data: vehicleData, error: fleetError } = await supabase
-        .from('fleet_vehicles')
-        .select('*');
-
-      if (fleetError) {
-        console.warn('Fleet error:', fleetError.message);
-        vehicles = [];
-      } else {
-        vehicles = vehicleData || [];
-      }
+      vehicles = await query('SELECT * FROM fleet_vehicles');
     } catch (err) {
       console.warn('Fleet vehicles table not accessible:', err.message);
-      // Use fallback fleet data
       vehicles = [];
     }
 
@@ -78,7 +83,7 @@ router.get('/kpis', async (req, res) => {
 
     // Calculate MTBF (Mean Time Between Failures)
     const hoursInPeriod = (new Date() - startDate) / (1000 * 60 * 60);
-    const mtbf = currentBreakdowns.length > 0 
+    const mtbf = currentBreakdowns.length > 0
       ? Math.round(hoursInPeriod / currentBreakdowns.length)
       : hoursInPeriod;
 
@@ -86,7 +91,7 @@ router.get('/kpis', async (req, res) => {
     let totalResponseTime = 0;
     let responseCount = 0;
     let slaMetCount = 0;
-    
+
     for (const breakdown of currentBreakdowns) {
       if (breakdown.acknowledged_at && breakdown.received_at) {
         const responseTime = (new Date(breakdown.acknowledged_at) - new Date(breakdown.received_at)) / 60000;
@@ -102,7 +107,7 @@ router.get('/kpis', async (req, res) => {
     // Calculate trends
     const previousCount = previousBreakdowns.length;
     const currentCount = currentBreakdowns.length;
-    const breakdownTrend = previousCount > 0 
+    const breakdownTrend = previousCount > 0
       ? ((currentCount - previousCount) / previousCount) * 100
       : 0;
 
@@ -162,9 +167,9 @@ router.get('/kpis', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching KPIs:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to fetch KPI data' 
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch KPI data'
     });
   }
 });
@@ -173,11 +178,11 @@ router.get('/kpis', async (req, res) => {
 router.get('/trends', async (req, res) => {
   try {
     const { period = 'today' } = req.query;
-    
+
     // Generate time ranges based on period
     const timeRanges = [];
     const now = new Date();
-    
+
     switch (period) {
       case 'today':
         // Hourly buckets for today
@@ -232,20 +237,17 @@ router.get('/trends', async (req, res) => {
     const criticalCounts = [];
     const responseTimes = [];
     const slaRates = [];
-    
+
     for (const range of timeRanges) {
       // Get breakdowns for this range
-      const { data: breakdowns, error } = await supabase
-        .from('breakdowns')
-        .select('*')
-        .gte('created_at', range.start.toISOString())
-        .lt('created_at', range.end.toISOString());
-
-      if (error) throw error;
+      const breakdowns = await query(
+        'SELECT * FROM breakdowns WHERE created_at >= ? AND created_at < ?',
+        [range.start, range.end]
+      );
 
       // Count total and critical
       breakdownCounts.push(breakdowns.length);
-      criticalCounts.push(breakdowns.filter(b => 
+      criticalCounts.push(breakdowns.filter(b =>
         b.severity === 'STOP' || b.status === 'critical'
       ).length);
 
@@ -253,7 +255,7 @@ router.get('/trends', async (req, res) => {
       let totalResponse = 0;
       let responseCount = 0;
       let slaMetCount = 0;
-      
+
       for (const breakdown of breakdowns) {
         if (breakdown.acknowledged_at && breakdown.received_at) {
           const responseMinutes = (new Date(breakdown.acknowledged_at) - new Date(breakdown.received_at)) / 60000;
@@ -262,10 +264,10 @@ router.get('/trends', async (req, res) => {
           if (responseMinutes <= 30) slaMetCount++;
         }
       }
-      
+
       const avgResponse = responseCount > 0 ? Math.round(totalResponse / responseCount) : 0;
       const slaRate = responseCount > 0 ? Math.round((slaMetCount / responseCount) * 100) : 100;
-      
+
       responseTimes.push(avgResponse);
       slaRates.push(slaRate);
     }
@@ -319,9 +321,9 @@ router.get('/trends', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching trends:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to fetch trend data' 
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch trend data'
     });
   }
 });
@@ -330,7 +332,7 @@ router.get('/trends', async (req, res) => {
 router.get('/depot-comparison', async (req, res) => {
   try {
     const { period = 'today' } = req.query;
-    
+
     // Calculate date range
     let startDate = new Date();
     switch (period) {
@@ -350,48 +352,38 @@ router.get('/depot-comparison', async (req, res) => {
         startDate.setHours(0, 0, 0, 0);
     }
 
-    // Get all depots
-    const { data: depots, error: depotError } = await supabase
-      .from('depots')
-      .select('*')
-      .eq('is_active', true);
-
-    if (depotError) throw depotError;
+    // Get all active depots
+    const depots = await query(
+      'SELECT * FROM depots WHERE is_active = ?',
+      [true]
+    );
 
     const depotData = [];
-    
+
     for (const depot of depots) {
       // Get breakdowns for this depot
-      const { data: breakdowns, error: breakdownError } = await supabase
-        .from('breakdowns')
-        .select('*')
-        .eq('depot', depot.code)
-        .gte('created_at', startDate.toISOString());
-
-      if (breakdownError) throw breakdownError;
+      const breakdowns = await query(
+        'SELECT * FROM breakdowns WHERE depot = ? AND created_at >= ?',
+        [depot.code, startDate]
+      );
 
       // Get vehicles for this depot
       let vehicles = [];
       try {
-        const { data: vehicleData, error: vehicleError } = await supabase
-          .from('fleet_vehicles')
-          .select('*')
-          .eq('depot', depot.code);
-
-        if (vehicleError) throw vehicleError;
-        vehicles = vehicleData || [];
+        vehicles = await query(
+          'SELECT * FROM fleet_vehicles WHERE depot = ?',
+          [depot.code]
+        );
       } catch (err) {
         console.warn('Fleet vehicles table not accessible for depot:', err.message);
         vehicles = [];
       }
 
-      if (vehicleError) throw vehicleError;
-
       // Calculate metrics
       let totalResponseTime = 0;
       let responseCount = 0;
       let slaMetCount = 0;
-      
+
       for (const breakdown of breakdowns) {
         if (breakdown.acknowledged_at && breakdown.received_at) {
           const responseMinutes = (new Date(breakdown.acknowledged_at) - new Date(breakdown.received_at)) / 60000;
@@ -403,7 +395,7 @@ router.get('/depot-comparison', async (req, res) => {
 
       const avgResponse = responseCount > 0 ? Math.round(totalResponseTime / responseCount) : 0;
       const slaCompliance = responseCount > 0 ? Math.round((slaMetCount / responseCount) * 100) : 100;
-      
+
       // Determine performance status
       let performance = 'good';
       if (slaCompliance < 90 || avgResponse > 35) {
@@ -438,9 +430,9 @@ router.get('/depot-comparison', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching depot comparison:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to fetch depot comparison data' 
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch depot comparison data'
     });
   }
 });
@@ -451,34 +443,25 @@ router.get('/fleet-health', async (req, res) => {
     // Get all vehicles
     let vehicles = [];
     try {
-      const { data: vehicleData, error: vehicleError } = await supabase
-        .from('fleet_vehicles')
-        .select('*');
-
-      if (vehicleError) throw vehicleError;
-      vehicles = vehicleData || [];
+      vehicles = await query('SELECT * FROM fleet_vehicles');
     } catch (err) {
       console.warn('Fleet vehicles table not accessible:', err.message);
       vehicles = [];
     }
 
-    if (vehicleError) throw vehicleError;
-
     // Get recent breakdowns (last 30 days)
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
-    const { data: recentBreakdowns, error: breakdownError } = await supabase
-      .from('breakdowns')
-      .select('*')
-      .gte('created_at', thirtyDaysAgo.toISOString());
 
-    if (breakdownError) throw breakdownError;
+    const recentBreakdowns = await query(
+      'SELECT * FROM breakdowns WHERE created_at >= ?',
+      [thirtyDaysAgo]
+    );
 
     // Calculate vehicle statuses
     const totalVehicles = vehicles.length;
     const inMaintenance = vehicles.filter(v => v.health_score < 50).length;
-    const breakdown = recentBreakdowns.filter(b => 
+    const breakdown = recentBreakdowns.filter(b =>
       ['active', 'pending', 'in_progress'].includes(b.status)
     ).length;
     const operational = totalVehicles - inMaintenance - breakdown;
@@ -539,9 +522,9 @@ router.get('/fleet-health', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching fleet health:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to fetch fleet health data' 
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch fleet health data'
     });
   }
 });
@@ -578,70 +561,83 @@ router.get('/tracerit', async (req, res) => {
     }
 
     // Get breakdowns for the period
-    let query = supabase
-      .from('breakdowns')
-      .select('*')
-      .gte('created_at', startDate.toISOString())
-      .lte('created_at', endDate.toISOString())
-      .order('created_at', { ascending: false });
-
+    let breakdowns;
     if (depot) {
-      query = query.eq('depot', depot);
+      breakdowns = await query(
+        'SELECT * FROM breakdowns WHERE created_at >= ? AND created_at <= ? AND depot = ? ORDER BY created_at DESC',
+        [startDate, endDate, depot]
+      );
+    } else {
+      breakdowns = await query(
+        'SELECT * FROM breakdowns WHERE created_at >= ? AND created_at <= ? ORDER BY created_at DESC',
+        [startDate, endDate]
+      );
     }
 
-    const { data: breakdowns, error } = await query;
-    if (error) throw error;
-
     // Format for Tracerit report
-    const reportData = breakdowns.map(b => ({
-      // Tracerit required fields
-      incidentNumber: b.breakdown_id,
-      vehicleNumber: b.fleet_no || 'Unknown',
-      registration: b.registration || 'Unknown',
-      depot: b.depot || 'Unknown',
-      dateReported: new Date(b.created_at).toISOString(),
-      timeReported: new Date(b.created_at).toTimeString().substring(0, 8),
+    const reportData = breakdowns.map(b => {
+      // Parse location_coords if it's stored as JSON string
+      let locationCoords = null;
+      if (b.location_coords) {
+        try {
+          locationCoords = typeof b.location_coords === 'string'
+            ? JSON.parse(b.location_coords)
+            : b.location_coords;
+        } catch (e) {
+          // Ignore parse errors
+        }
+      }
 
-      // Location information
-      location: b.location_description || b.location || 'Not specified',
-      gridReference: b.location_coords ?
-        `${b.location_coords.lat},${b.location_coords.lng}` : '',
-      w3wLocation: b.w3w_location || '',
+      return {
+        // Tracerit required fields
+        incidentNumber: b.breakdown_id,
+        vehicleNumber: b.fleet_no || 'Unknown',
+        registration: b.registration || 'Unknown',
+        depot: b.depot || 'Unknown',
+        dateReported: new Date(b.created_at).toISOString(),
+        timeReported: new Date(b.created_at).toTimeString().substring(0, 8),
 
-      // Issue details
-      issueCategory: b.issue_category || 'General',
-      issueDescription: b.description || 'No description',
-      severity: b.severity || 'AMBER',
-      wizardAssessment: b.wizard_decision || '',
+        // Location information
+        location: b.location_description || b.location || 'Not specified',
+        gridReference: locationCoords ?
+          `${locationCoords.lat},${locationCoords.lng}` : '',
+        w3wLocation: b.w3w_location || '',
 
-      // Supervisor information
-      reportedBy: b.supervisor_name || 'Unknown',
-      supervisorBadge: b.supervisor_badge || '',
+        // Issue details
+        issueCategory: b.issue_category || 'General',
+        issueDescription: b.description || 'No description',
+        severity: b.severity || 'AMBER',
+        wizardAssessment: b.wizard_decision || '',
 
-      // Engineer information
-      engineerDispatched: b.dispatched_at ? 'Yes' : 'No',
-      dispatchTime: b.dispatched_at ?
-        new Date(b.dispatched_at).toTimeString().substring(0, 8) : '',
-      onSiteTime: b.on_site_at ?
-        new Date(b.on_site_at).toTimeString().substring(0, 8) : '',
-      resolvedTime: b.cleared_at ?
-        new Date(b.cleared_at).toTimeString().substring(0, 8) : '',
+        // Supervisor information
+        reportedBy: b.supervisor_name || 'Unknown',
+        supervisorBadge: b.supervisor_badge || '',
 
-      // Status and timings
-      status: b.status,
-      totalDowntime: b.cleared_at && b.created_at ?
-        Math.round((new Date(b.cleared_at) - new Date(b.created_at)) / 60000) : null,
-      responseTime: b.acknowledged_at && b.received_at ?
-        Math.round((new Date(b.acknowledged_at) - new Date(b.received_at)) / 60000) : null,
-      repairTime: b.cleared_at && b.dispatched_at ?
-        Math.round((new Date(b.cleared_at) - new Date(b.dispatched_at)) / 60000) : null,
+        // Engineer information
+        engineerDispatched: b.dispatched_at ? 'Yes' : 'No',
+        dispatchTime: b.dispatched_at ?
+          new Date(b.dispatched_at).toTimeString().substring(0, 8) : '',
+        onSiteTime: b.on_site_at ?
+          new Date(b.on_site_at).toTimeString().substring(0, 8) : '',
+        resolvedTime: b.cleared_at ?
+          new Date(b.cleared_at).toTimeString().substring(0, 8) : '',
 
-      // Additional fields
-      passengerCount: b.passenger_count || 0,
-      replacementVehicle: b.replacement_vehicle_required ? 'Yes' : 'No',
-      engineeringRequired: b.engineering_required ? 'Yes' : 'No',
-      notes: b.resolution_notes || ''
-    }));
+        // Status and timings
+        status: b.status,
+        totalDowntime: b.cleared_at && b.created_at ?
+          Math.round((new Date(b.cleared_at) - new Date(b.created_at)) / 60000) : null,
+        responseTime: b.acknowledged_at && b.received_at ?
+          Math.round((new Date(b.acknowledged_at) - new Date(b.received_at)) / 60000) : null,
+        repairTime: b.cleared_at && b.dispatched_at ?
+          Math.round((new Date(b.cleared_at) - new Date(b.dispatched_at)) / 60000) : null,
+
+        // Additional fields
+        passengerCount: b.passenger_count || 0,
+        replacementVehicle: b.replacement_vehicle_required ? 'Yes' : 'No',
+        engineeringRequired: b.engineering_required ? 'Yes' : 'No',
+        notes: b.resolution_notes || ''
+      };
+    });
 
     // Calculate summary statistics
     const summary = {
@@ -734,19 +730,19 @@ router.get('/activity/feed', async (req, res) => {
   try {
     const { limit = 20, offset = 0, depot } = req.query;
 
-    // Get recent breakdowns with supervisor info
-    let breakdownQuery = supabase
-      .from('breakdowns')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
-
+    // Get recent breakdowns with depot filter if specified
+    let breakdowns;
     if (depot) {
-      breakdownQuery = breakdownQuery.eq('depot', depot);
+      breakdowns = await query(
+        'SELECT * FROM breakdowns WHERE depot = ? ORDER BY created_at DESC LIMIT ? OFFSET ?',
+        [depot, parseInt(limit), parseInt(offset)]
+      );
+    } else {
+      breakdowns = await query(
+        'SELECT * FROM breakdowns ORDER BY created_at DESC LIMIT ? OFFSET ?',
+        [parseInt(limit), parseInt(offset)]
+      );
     }
-
-    const { data: breakdowns, error: breakdownError } = await breakdownQuery;
-    if (breakdownError) throw breakdownError;
 
     // Format activities from breakdowns
     const activities = breakdowns.map(breakdown => {

@@ -1,19 +1,95 @@
+/**
+ * Go BARRY Supervisors API Routes
+ *
+ * Handles supervisor/user management endpoints
+ * Migrated from Supabase to MySQL
+ *
+ * @author Anthony Gair
+ * @version 2.0.0 - MySQL Migration
+ */
+
 import express from 'express';
 import dotenv from 'dotenv';
-import { createClient } from '@supabase/supabase-js';
+import { query } from '../config/mysql.js';
 
 // Load environment variables
 dotenv.config();
 
 const router = express.Router();
 
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
-);
+/**
+ * GET /api/supervisors
+ * Get all active supervisors
+ *
+ * Query params:
+ * - include_inactive: boolean (default: false)
+ * - depot: string (filter by depot)
+ * - role: string (filter by role)
+ */
+router.get('/', async (req, res) => {
+  try {
+    const { include_inactive, depot, role } = req.query;
 
-// GET /api/supervisors/:id/stats - Get supervisor statistics
+    // Build SQL query with dynamic WHERE conditions
+    let sql = `
+      SELECT id, email, name, badge_number, depot, role, is_active,
+             pending_approval, signup_date, approved_date, created_at, updated_at
+      FROM supervisors
+      WHERE 1=1
+    `;
+    const params = [];
+
+    // Filter by active status (default: only active)
+    if (include_inactive !== 'true') {
+      sql += ` AND is_active = ?`;
+      params.push(1);
+    }
+
+    // Filter by depot if provided
+    if (depot) {
+      sql += ` AND depot = ?`;
+      params.push(depot);
+    }
+
+    // Filter by role if provided
+    if (role) {
+      sql += ` AND role = ?`;
+      params.push(role);
+    }
+
+    // Order by name
+    sql += ` ORDER BY name ASC`;
+
+    const supervisors = await query(sql, params);
+
+    res.json({
+      success: true,
+      data: supervisors,
+      count: supervisors.length
+    });
+  } catch (error) {
+    console.error('Error fetching supervisors:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch supervisors'
+    });
+  }
+});
+
+/**
+ * GET /api/supervisors/:id/stats
+ * Get supervisor statistics (MUST come before /:id route!)
+ *
+ * Query params:
+ * - period: 'today' | 'week' | 'month' (default: 'today')
+ *
+ * Returns:
+ * - Supervisor info
+ * - Performance metrics (total breakdowns, critical, resolved, etc.)
+ * - Average response time
+ * - Resolution rate
+ * - Breakdown categories breakdown
+ */
 router.get('/:id/stats', async (req, res) => {
   try {
     const { id } = req.params;
@@ -34,20 +110,15 @@ router.get('/:id/stats', async (req, res) => {
         break;
     }
 
-    // Get supervisor info
-    const { data: supervisor, error: supervisorError } = await supabase
-      .from('supervisors')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle();
-
-    if (supervisorError) {
-      console.error('Error fetching supervisor:', supervisorError);
-      return res.status(500).json({
-        success: false,
-        error: 'Database error while fetching supervisor'
-      });
-    }
+    // Get supervisor info (excluding password_hash)
+    const supervisorSql = `
+      SELECT id, email, name, badge_number, depot, role, shift_start, shift_end
+      FROM supervisors
+      WHERE id = ? OR email = ? OR badge_number = ?
+      LIMIT 1
+    `;
+    const supervisorResults = await query(supervisorSql, [id, id, id]);
+    const supervisor = supervisorResults[0];
 
     if (!supervisor) {
       return res.status(404).json({
@@ -57,19 +128,16 @@ router.get('/:id/stats', async (req, res) => {
     }
 
     // Get breakdowns handled by this supervisor
-    const { data: breakdowns, error: breakdownError } = await supabase
-      .from('breakdowns')
-      .select('*')
-      .eq('supervisor_badge', supervisor.badge_number)
-      .gte('created_at', startDate.toISOString());
-
-    if (breakdownError) {
-      console.error('Error fetching breakdowns:', breakdownError);
-      return res.status(500).json({
-        success: false,
-        error: 'Failed to fetch breakdown data'
-      });
-    }
+    const breakdownsSql = `
+      SELECT *
+      FROM breakdowns
+      WHERE supervisor_badge = ? AND created_at >= ?
+      ORDER BY created_at DESC
+    `;
+    const breakdowns = await query(breakdownsSql, [
+      supervisor.badge_number,
+      startDate.toISOString().slice(0, 19).replace('T', ' ')
+    ]);
 
     // Calculate supervisor statistics
     const totalBreakdowns = breakdowns.length;
@@ -108,7 +176,8 @@ router.get('/:id/stats', async (req, res) => {
         name: supervisor.name,
         badge: supervisor.badge_number,
         depot: supervisor.depot,
-        shift: supervisor.shift_pattern
+        shift_start: supervisor.shift_start,
+        shift_end: supervisor.shift_end
       },
       performance: {
         totalBreakdowns: totalBreakdowns,
@@ -139,24 +208,237 @@ router.get('/:id/stats', async (req, res) => {
   }
 });
 
-// GET /api/supervisors/:id - Get supervisor profile
+/**
+ * GET /api/supervisors/by-badge/:badge
+ * Get supervisor by badge number
+ *
+ * Useful for quick lookups during breakdown logging
+ */
+router.get('/by-badge/:badge', async (req, res) => {
+  try {
+    const { badge } = req.params;
+
+    const sql = `
+      SELECT id, email, name, badge_number, depot, role, is_active
+      FROM supervisors
+      WHERE badge_number = ? AND is_active = 1
+      LIMIT 1
+    `;
+    const results = await query(sql, [badge]);
+    const supervisor = results[0];
+
+    if (!supervisor) {
+      return res.status(404).json({
+        success: false,
+        error: 'Supervisor not found with this badge number'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: supervisor
+    });
+  } catch (error) {
+    console.error('Error fetching supervisor by badge:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch supervisor'
+    });
+  }
+});
+
+/**
+ * GET /api/supervisors/depot/:depot
+ * Get all supervisors for a specific depot
+ */
+router.get('/depot/:depot', async (req, res) => {
+  try {
+    const { depot } = req.params;
+    const { include_inactive } = req.query;
+
+    let sql = `
+      SELECT id, email, name, badge_number, depot, role, is_active, created_at, updated_at
+      FROM supervisors
+      WHERE depot = ?
+    `;
+    const params = [depot];
+
+    if (include_inactive !== 'true') {
+      sql += ` AND is_active = 1`;
+    }
+
+    sql += ` ORDER BY name ASC`;
+
+    const supervisors = await query(sql, params);
+
+    res.json({
+      success: true,
+      data: supervisors,
+      count: supervisors.length,
+      depot: depot
+    });
+  } catch (error) {
+    console.error('Error fetching supervisors by depot:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch supervisors'
+    });
+  }
+});
+
+/**
+ * GET /api/supervisors/search
+ * Search supervisors by name, email, or badge
+ *
+ * Query params:
+ * - q: search query (required)
+ * - limit: max results (default: 20)
+ */
+router.get('/search', async (req, res) => {
+  try {
+    const { q, limit = 20 } = req.query;
+
+    if (!q || q.trim().length < 2) {
+      return res.status(400).json({
+        success: false,
+        error: 'Search query must be at least 2 characters'
+      });
+    }
+
+    const searchTerm = `%${q.trim()}%`;
+
+    // Search across name, email, and badge_number
+    const sql = `
+      SELECT id, email, name, badge_number, depot, role, is_active
+      FROM supervisors
+      WHERE (
+        name LIKE ? OR
+        email LIKE ? OR
+        badge_number LIKE ?
+      )
+      AND is_active = true
+      ORDER BY name ASC
+      LIMIT ?
+    `;
+
+    const results = await query(sql, [searchTerm, searchTerm, searchTerm, parseInt(limit)]);
+
+    res.json({
+      success: true,
+      data: results,
+      count: results.length,
+      query: q
+    });
+  } catch (error) {
+    console.error('Error searching supervisors:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to search supervisors'
+    });
+  }
+});
+
+/**
+ * GET /api/supervisors/role/:role
+ * Get supervisors by role (admin, supervisor, manager, engineering)
+ */
+router.get('/role/:role', async (req, res) => {
+  try {
+    const { role } = req.params;
+    const { include_inactive } = req.query;
+
+    // Validate role
+    const validRoles = ['admin', 'supervisor', 'manager', 'engineering'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid role. Must be one of: ${validRoles.join(', ')}`
+      });
+    }
+
+    let sql = `
+      SELECT id, email, name, badge_number, depot, role, is_active, created_at, updated_at
+      FROM supervisors
+      WHERE role = ?
+    `;
+    const params = [role];
+
+    if (include_inactive !== 'true') {
+      sql += ` AND is_active = 1`;
+    }
+
+    sql += ` ORDER BY name ASC`;
+
+    const supervisors = await query(sql, params);
+
+    res.json({
+      success: true,
+      data: supervisors,
+      count: supervisors.length,
+      role: role
+    });
+  } catch (error) {
+    console.error('Error fetching supervisors by role:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch supervisors'
+    });
+  }
+});
+
+/**
+ * GET /api/supervisors/pending
+ * Get supervisors pending approval
+ *
+ * Admin-only endpoint
+ */
+router.get('/pending', async (req, res) => {
+  try {
+    const sql = `
+      SELECT id, email, name, badge_number, depot, role, signup_date, created_at
+      FROM supervisors
+      WHERE pending_approval = 1 AND is_active = 0
+      ORDER BY signup_date DESC
+    `;
+    const supervisors = await query(sql);
+
+    res.json({
+      success: true,
+      data: supervisors,
+      count: supervisors.length
+    });
+  } catch (error) {
+    console.error('Error fetching pending supervisors:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch pending supervisors'
+    });
+  }
+});
+
+/**
+ * GET /api/supervisors/:id
+ * Get supervisor profile by ID
+ *
+ * Returns supervisor info WITHOUT password_hash
+ *
+ * NOTE: This route MUST come LAST as it's a catch-all for any ID
+ * More specific routes (like /:id/stats) must be defined above
+ */
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { data: supervisor, error } = await supabase
-      .from('supervisors')
-      .select('*')
-      .eq('id', id)
-      .maybeSingle();
-
-    if (error) {
-      console.error('Error fetching supervisor:', error);
-      return res.status(500).json({
-        success: false,
-        error: 'Database error while fetching supervisor'
-      });
-    }
+    // Fetch supervisor excluding password_hash for security
+    const sql = `
+      SELECT id, email, name, badge_number, depot, role, is_active,
+             pending_approval, signup_date, approved_date, created_at, updated_at
+      FROM supervisors
+      WHERE id = ? OR email = ? OR badge_number = ?
+      LIMIT 1
+    `;
+    const results = await query(sql, [id, id, id]);
+    const supervisor = results[0];
 
     if (!supervisor) {
       return res.status(404).json({
@@ -174,36 +456,6 @@ router.get('/:id', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch supervisor'
-    });
-  }
-});
-
-// GET /api/supervisors - Get all supervisors
-router.get('/', async (req, res) => {
-  try {
-    const { data: supervisors, error } = await supabase
-      .from('supervisors')
-      .select('*')
-      .eq('is_active', true)
-      .order('name');
-
-    if (error) {
-      console.error('Error fetching supervisors:', error);
-      return res.status(500).json({
-        success: false,
-        error: 'Failed to fetch supervisors'
-      });
-    }
-
-    res.json({
-      success: true,
-      data: supervisors
-    });
-  } catch (error) {
-    console.error('Error fetching supervisors:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to fetch supervisors'
     });
   }
 });

@@ -1,3 +1,15 @@
+/**
+ * Go BARRY Breakdown Management System
+ *
+ * Copyright © 2025 Anthony Gair. All Rights Reserved.
+ *
+ * This software is proprietary and confidential. Unauthorized copying,
+ * distribution, modification, or use is strictly prohibited.
+ *
+ * @author Anthony Gair
+ * @license Proprietary
+ */
+
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import DashboardLayout from '../components/DashboardLayout';
@@ -7,6 +19,7 @@ import SDCBreakdownCardEnhanced from './SDCBreakdownCardEnhanced';
 import { getSDCGuidance, getSLAForIssue } from './utils/sdcGuideReference';
 import PriorityAlerts from './PriorityAlerts';
 import StatusWidget from './StatusWidget';
+import TrendsDefectsPanel from './TrendsDefectsPanel';
 import RecentDecisions from './RecentDecisions';
 import AssessmentProgressTracker from './AssessmentProgressTracker';
 import AssessmentProgressCard from './AssessmentProgressCard';
@@ -1078,12 +1091,12 @@ const SDCDashboard = () => {
     window.location.href = '/breakdown-guide';
   }, []);
 
-  // Enhanced card handler for viewing SDC Guide sections
+  // Enhanced card handler for viewing standard procedure sections
   const handleViewGuide = useCallback((section, page) => {
-    console.log(`📖 Opening SDC Guide ${section}, Page ${page}`);
-    // In a real implementation, this would open the SDC Guide to the specific section
+    console.log(`📖 Opening standard procedure ${section}, Page ${page}`);
+    // In a real implementation, this would open the standard procedure to the specific section
     // For now, we'll show an alert with the guide reference
-    alert(`SDC Guide Reference: ${section}, Page ${page}\n\nThis would open the digital SDC Engineering Issues Guide to the specified section.`);
+    alert(`standard procedure Reference: ${section}, Page ${page}\n\nThis would open the digital operational safety procedures to the specified section.`);
   }, []);
 
   // Enhanced card handler for adding notes to breakdowns
@@ -1125,28 +1138,94 @@ const SDCDashboard = () => {
 
   const handleAcknowledge = async (breakdownId) => {
     try {
+      // Optimistic update
+      const acknowledgeTime = new Date().toISOString();
+      setBreakdowns(prev => prev.map(b =>
+        b.breakdown_id === breakdownId
+          ? {
+              ...b,
+              acknowledged_at: acknowledgeTime,
+              isPending: false
+            }
+          : b
+      ));
+
+      // Update stats immediately
+      setStats(prev => ({
+        ...prev,
+        pending: Math.max(0, prev.pending - 1)
+      }));
+
+      // Call API in background
       await apiClient.post('/api/sdc/acknowledge', {
         breakdown_id: breakdownId,
-        acknowledged_at: new Date().toISOString()
+        acknowledged_at: acknowledgeTime
       });
 
-      fetchBreakdowns(); // Refresh data
+      console.log(`✅ Breakdown ${breakdownId} acknowledged`);
     } catch (error) {
       console.error('Error acknowledging breakdown:', error);
+
+      // Revert optimistic update on error
+      setBreakdowns(prev => prev.map(b =>
+        b.breakdown_id === breakdownId
+          ? { ...b, acknowledged_at: null, isPending: true }
+          : b
+      ));
+
+      setStats(prev => ({
+        ...prev,
+        pending: prev.pending + 1
+      }));
+
+      alert('Failed to acknowledge breakdown. Please try again.');
     }
   };
 
   const handleMakeDecision = async (breakdownId, decision) => {
     try {
+      // Optimistic update
+      const decisionTime = new Date().toISOString();
+      setBreakdowns(prev => prev.map(b =>
+        b.breakdown_id === breakdownId
+          ? {
+              ...b,
+              decision,
+              decision_at: decisionTime,
+              severity: decision,
+              isCritical: decision === 'STOP'
+            }
+          : b
+      ));
+
+      // Update stats if decision changed critical status
+      if (decision === 'STOP') {
+        setStats(prev => ({
+          ...prev,
+          critical: prev.critical + 1
+        }));
+      }
+
+      // Call API in background
       await apiClient.post('/api/sdc/decision', {
         breakdown_id: breakdownId,
         decision: decision,
-        decision_at: new Date().toISOString()
+        decision_at: decisionTime
       });
 
-      fetchBreakdowns(); // Refresh data
+      console.log(`✅ Decision ${decision} made for breakdown ${breakdownId}`);
     } catch (error) {
       console.error('Error making decision:', error);
+
+      // Revert optimistic update on error
+      const oldBreakdown = breakdowns.find(b => b.breakdown_id === breakdownId);
+      setBreakdowns(prev => prev.map(b =>
+        b.breakdown_id === breakdownId
+          ? { ...b, decision: oldBreakdown?.decision, decision_at: oldBreakdown?.decision_at, severity: oldBreakdown?.severity, isCritical: oldBreakdown?.isCritical }
+          : b
+      ));
+
+      alert('Failed to make decision. Please try again.');
     }
   };
 
@@ -1161,31 +1240,63 @@ const SDCDashboard = () => {
 
   // Confirm breakdown resolution
   const handleConfirmResolution = async (resolutionData) => {
-    try {
-      console.log('✅ Resolving breakdown:', resolutionData.breakdown_id);
+    const breakdownId = resolutionData.breakdown_id;
 
-      // Use breakdowns API endpoint which works with supervisor auth
+    try {
+      console.log('✅ Resolving breakdown:', breakdownId);
+
+      // Optimistic UI update - mark as resolving immediately
+      setBreakdowns(prev => prev.map(b =>
+        b.breakdown_id === breakdownId
+          ? { ...b, isResolving: true, status: 'resolving' }
+          : b
+      ));
+
+      // Close dialog immediately for better UX
+      setResolutionDialog({ isOpen: false, breakdown: null });
+
+      // Call API in background
       const response = await apiClient.post('/api/breakdowns/resolve', resolutionData);
 
       if (response.success) {
         console.log('✅ Breakdown resolved successfully');
 
-        // Close dialog
-        setResolutionDialog({ isOpen: false, breakdown: null });
+        // Remove from local state with fade-out effect
+        setBreakdowns(prev => prev.map(b =>
+          b.breakdown_id === breakdownId
+            ? { ...b, isFadingOut: true }
+            : b
+        ));
 
-        // Remove from local state immediately for instant feedback
-        setBreakdowns(prev => prev.filter(b => b.breakdown_id !== resolutionData.breakdown_id));
+        // Actually remove after animation (300ms)
+        setTimeout(() => {
+          setBreakdowns(prev => prev.filter(b => b.breakdown_id !== breakdownId));
+
+          // Update stats
+          setStats(prevStats => ({
+            ...prevStats,
+            total: Math.max(0, prevStats.total - 1)
+          }));
+        }, 300);
 
         // Show success notification
-        // TODO: Add toast notification here
+        console.log(`🎉 Breakdown ${breakdownId} resolved successfully`);
 
-        // Refresh data to sync
-        setTimeout(() => fetchBreakdowns(), 1000);
+        // No need to refresh - WebSocket will handle any new breakdowns
+        // This eliminates the 10-second wait and full page refresh
       } else {
         throw new Error(response.error || 'Failed to resolve breakdown');
       }
     } catch (error) {
       console.error('❌ Error resolving breakdown:', error);
+
+      // Revert optimistic update on error
+      setBreakdowns(prev => prev.map(b =>
+        b.breakdown_id === breakdownId
+          ? { ...b, isResolving: false, status: 'active', isFadingOut: false }
+          : b
+      ));
+
       alert(`Failed to resolve breakdown: ${error.message || 'Unknown error'}`);
     }
   };
@@ -1456,7 +1567,9 @@ const SDCDashboard = () => {
                   <div
                     key={breakdown.breakdown_id}
                     ref={(el) => setBreakdownRef(breakdown.breakdown_id, el)}
-                    className="breakdown-card-container"
+                    className={`breakdown-card-container ${
+                      breakdown.isFadingOut ? 'fading-out' : ''
+                    } ${breakdown.isResolving ? 'resolving' : ''}`}
                   >
                     <SDCBreakdownCardEnhanced
                       breakdown={{
@@ -1492,9 +1605,13 @@ const SDCDashboard = () => {
           </div>
         </div>
 
-        {/* Sidebar - 1/3 width */}
-        <div>
-          <StatusWidget stats={stats} />
+        {/* Right sidebar - Replace the old Current Status with new Intelligence Panel */}
+        <div className="right-sidebar">
+          <TrendsDefectsPanel />
+
+          {/* Original StatusWidget - uncomment to revert to basic status display */}
+          {/* <StatusWidget stats={stats} /> */}
+
           <RecentDecisions decisions={recentDecisions} />
         </div>
       </div>
@@ -1560,6 +1677,44 @@ const SDCDashboard = () => {
         .breakdown-card-container {
           margin-bottom: 16px;
           scroll-margin-top: 120px; /* Offset for header during auto-scroll */
+          transition: opacity 0.3s ease-out, transform 0.3s ease-out, max-height 0.3s ease-out;
+        }
+
+        /* Fade-out animation when resolving */
+        .breakdown-card-container.fading-out {
+          opacity: 0;
+          transform: translateX(20px) scale(0.95);
+          max-height: 0;
+          margin-bottom: 0;
+          overflow: hidden;
+        }
+
+        /* Resolving state overlay */
+        .breakdown-card-container.resolving {
+          position: relative;
+        }
+
+        .breakdown-card-container.resolving::after {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(16, 185, 129, 0.1);
+          backdrop-filter: blur(2px);
+          border-radius: 12px;
+          pointer-events: none;
+          animation: pulse-success 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-success {
+          0%, 100% {
+            opacity: 0.3;
+          }
+          50% {
+            opacity: 0.6;
+          }
         }
 
         .no-breakdowns {

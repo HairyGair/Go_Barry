@@ -1,24 +1,23 @@
-// Authentication middleware for validating Supabase JWT tokens
+// Authentication middleware for validating JWT tokens with MySQL database
+// Migrated from Supabase Auth to MySQL-based authentication
 // Ensures all protected routes require valid authentication and proper authorization
 
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
-import { createClient } from '@supabase/supabase-js';
+import { from } from '../utils/queryHelpers.js';
 
 // Load environment variables
 dotenv.config();
 
-// Fail fast if required credentials are missing
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+// JWT configuration
+const JWT_SECRET = process.env.JWT_SECRET || process.env.SUPABASE_JWT_SECRET;
+const JWT_EXPIRATION = process.env.JWT_EXPIRATION || '24h';
 
-if (!supabaseUrl || !supabaseAnonKey) {
-    console.error('❌ FATAL: Missing required Supabase credentials');
-    console.error('   Set SUPABASE_URL and SUPABASE_ANON_KEY environment variables');
+if (!JWT_SECRET) {
+    console.error('❌ FATAL: Missing required JWT_SECRET');
+    console.error('   Set JWT_SECRET environment variable');
     process.exit(1);
 }
-
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Rate limiting storage (in-memory for now)
 const loginAttempts = new Map();
@@ -173,7 +172,7 @@ export const rateLimitSDC = (req, res, next) => {
     next();
 };
 
-// Middleware to verify JWT token from Supabase
+// Middleware to verify JWT token
 export const verifyToken = async (req, res, next) => {
     try {
         const authHeader = req.headers.authorization;
@@ -188,41 +187,65 @@ export const verifyToken = async (req, res, next) => {
 
         const token = authHeader.substring(7); // Remove 'Bearer ' prefix
 
-        // Verify token with Supabase
-        const { data: user, error } = await supabase.auth.getUser(token);
-
-        if (error || !user) {
-            console.warn('Invalid token provided:', error?.message || 'User not found');
+        // Verify token signature and expiration
+        let decoded;
+        try {
+            decoded = jwt.verify(token, JWT_SECRET);
+        } catch (jwtError) {
+            if (jwtError.name === 'TokenExpiredError') {
+                return res.status(401).json({
+                    error: 'Token has expired',
+                    code: 'AUTH_TOKEN_EXPIRED'
+                });
+            }
+            console.warn('Invalid token provided:', jwtError.message);
             return res.status(401).json({
                 error: 'Invalid or expired token',
                 code: 'AUTH_TOKEN_INVALID'
             });
         }
 
-        // Decode token to get additional claims
-        const decoded = jwt.decode(token);
-        if (!decoded) {
+        // Extract user ID from token
+        const userId = decoded.sub || decoded.id || decoded.user_id;
+        if (!userId) {
             return res.status(401).json({
                 error: 'Invalid token format',
                 code: 'AUTH_TOKEN_MALFORMED'
             });
         }
 
-        // Check token expiration
-        const now = Math.floor(Date.now() / 1000);
-        if (decoded.exp && decoded.exp < now) {
+        // Fetch user from database to verify they still exist and are active
+        const { data: supervisor, error } = await from('supervisors')
+            .select('id, email, name, depot, role, is_active, badge_number')
+            .eq('id', userId)
+            .single();
+
+        if (error || !supervisor) {
+            console.warn('User not found for token:', userId);
             return res.status(401).json({
-                error: 'Token has expired',
-                code: 'AUTH_TOKEN_EXPIRED'
+                error: 'User not found',
+                code: 'AUTH_USER_NOT_FOUND'
+            });
+        }
+
+        // Check if user is active
+        if (!supervisor.is_active) {
+            console.warn('Inactive user attempted access:', supervisor.email);
+            return res.status(403).json({
+                error: 'Account is inactive',
+                code: 'AUTH_USER_INACTIVE'
             });
         }
 
         // Attach user info to request
         req.user = {
-            id: user.user.id,
-            email: user.user.email,
-            role: user.user.user_metadata?.role || 'user',
-            aud: decoded.aud,
+            id: supervisor.id,
+            email: supervisor.email,
+            name: supervisor.name,
+            role: supervisor.role || 'supervisor',
+            depot: supervisor.depot,
+            badge_number: supervisor.badge_number,
+            aud: decoded.aud || 'authenticated',
             exp: decoded.exp,
             iat: decoded.iat
         };
@@ -230,21 +253,24 @@ export const verifyToken = async (req, res, next) => {
         next();
     } catch (error) {
         console.error('Token verification error:', error);
-        
+
         // Development fallback to prevent crashes
         if (process.env.NODE_ENV === 'development') {
             console.log('🔧 Development mode: Auth error fallback for', req.path);
             req.user = {
                 id: '1646c9a7-58fe-4ea6-bff2-8b5c3bbe54a0',
                 email: 'anthony.gair@gonortheast.co.uk',
+                name: 'Anthony Gair',
                 role: 'admin',
+                depot: 'Washington',
+                badge_number: 'AG003',
                 aud: 'authenticated',
                 exp: Math.floor(Date.now() / 1000) + 3600,
                 iat: Math.floor(Date.now() / 1000)
             };
             return next();
         }
-        
+
         return res.status(401).json({
             error: 'Authentication failed',
             code: 'AUTH_VERIFICATION_FAILED'
@@ -263,10 +289,10 @@ export const requireSupervisor = async (req, res, next) => {
         }
 
         // Check if user exists in supervisors table
-        const { data: supervisor, error } = await supabase
-            .from('supervisors')
-            .select('id, email, name, depot, role')
+        const { data: supervisor, error } = await from('supervisors')
+            .select('id, email, name, depot, role, badge_number')
             .eq('email', req.user.email.toLowerCase())
+            .eq('is_active', true)
             .single();
 
         if (error || !supervisor) {
@@ -281,11 +307,12 @@ export const requireSupervisor = async (req, res, next) => {
         req.supervisor = supervisor;
         req.user.supervisorRole = supervisor.role;
         req.user.depot = supervisor.depot;
+        req.user.badge_number = supervisor.badge_number;
 
         next();
     } catch (error) {
         console.error('Supervisor authorization error:', error);
-        
+
         // Development fallback to prevent crashes
         if (process.env.NODE_ENV === 'development') {
             console.log('🔧 Development mode: Supervisor check fallback for', req.path);
@@ -293,14 +320,16 @@ export const requireSupervisor = async (req, res, next) => {
                 id: '1646c9a7-58fe-4ea6-bff2-8b5c3bbe54a0',
                 email: 'anthony.gair@gonortheast.co.uk',
                 name: 'Anthony Gair',
-                depot: 'SDC',
-                role: 'admin'
+                depot: 'Washington',
+                role: 'admin',
+                badge_number: 'AG003'
             };
             req.user.supervisorRole = 'admin';
-            req.user.depot = 'SDC';
+            req.user.depot = 'Washington';
+            req.user.badge_number = 'AG003';
             return next();
         }
-        
+
         return res.status(500).json({
             error: 'Authorization check failed',
             code: 'AUTH_CHECK_FAILED'
@@ -374,11 +403,12 @@ export const authenticateSDC = async (req, res, next) => {
 
         const token = authHeader.substring(7);
 
-        // Verify token with Supabase
-        const { data: user, error } = await supabase.auth.getUser(token);
-
-        if (error || !user) {
-            console.warn('Invalid SDC authentication:', error?.message);
+        // Verify token
+        let decoded;
+        try {
+            decoded = jwt.verify(token, JWT_SECRET);
+        } catch (jwtError) {
+            console.warn('Invalid SDC authentication:', jwtError.message);
             return res.status(401).json({
                 success: false,
                 error: 'Invalid authentication token',
@@ -386,22 +416,23 @@ export const authenticateSDC = async (req, res, next) => {
             });
         }
 
+        const userId = decoded.sub || decoded.id || decoded.user_id;
+
         // Check if user has SDC/supervisor privileges
-        const { data: supervisor, error: supervisorError } = await supabase
-            .from('supervisors')
-            .select('id, email, name, role, depot')
-            .eq('email', user.user.email.toLowerCase())
-            .in('role', ['admin', 'sdc_operator', 'manager', 'supervisor'])
+        const { data: supervisor, error: supervisorError } = await from('supervisors')
+            .select('id, email, name, role, depot, badge_number')
+            .eq('id', userId)
+            .eq('is_active', true)
             .single();
 
         if (supervisorError || !supervisor) {
-            console.warn(`Unauthorized SDC access attempt by ${user.user.email}`);
+            console.warn(`Unauthorized SDC access attempt by user ${userId}`);
 
             // Log security event
             const securityEvent = {
                 eventType: 'unauthorized_sdc_access',
                 timestamp: new Date().toISOString(),
-                email: user.user.email,
+                userId: userId,
                 ip: req.ip || req.connection.remoteAddress,
                 userAgent: req.get('User-Agent'),
                 path: req.path
@@ -415,10 +446,24 @@ export const authenticateSDC = async (req, res, next) => {
             });
         }
 
+        // Verify user has appropriate role for SDC operations
+        const allowedRoles = ['admin', 'sdc_operator', 'manager', 'supervisor'];
+        if (!allowedRoles.includes(supervisor.role)) {
+            console.warn(`SDC access denied for role: ${supervisor.role}`);
+            return res.status(403).json({
+                success: false,
+                error: 'Insufficient privileges for SDC operations',
+                code: 'SDC_AUTH_FORBIDDEN'
+            });
+        }
+
         req.user = {
-            id: user.user.id,
-            email: user.user.email,
-            role: supervisor.role
+            id: supervisor.id,
+            email: supervisor.email,
+            name: supervisor.name,
+            role: supervisor.role,
+            depot: supervisor.depot,
+            badge_number: supervisor.badge_number
         };
         req.supervisor = supervisor;
 
@@ -443,7 +488,8 @@ export const healthCheck = (req, res) => {
     res.json({
         status: 'healthy',
         timestamp: new Date().toISOString(),
-        auth: 'configured',
-        rateLimit: 'active'
+        auth: 'mysql-configured',
+        rateLimit: 'active',
+        jwtSecret: JWT_SECRET ? 'configured' : 'missing'
     });
 };

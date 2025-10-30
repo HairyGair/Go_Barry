@@ -1,5 +1,5 @@
 import express from 'express';
-import { supabase } from '../server.js';
+import { from, query } from '../utils/queryHelpers.js';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -13,11 +13,11 @@ const router = express.Router();
 // This endpoint does NOT require authentication - it's for public wall displays
 router.get('/breakdowns/live', async (req, res) => {
   try {
-    // Query from breakdowns table
-    const { data: allBreakdowns, error } = await supabase
-      .from('breakdowns')
+    // Query from breakdowns table using MySQL
+    const { data: allBreakdowns, error } = await from('breakdowns')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('created_at', 'DESC')
+      .execute();
 
     if (error) throw error;
 
@@ -167,11 +167,12 @@ router.get('/activity/feed', async (req, res) => {
   try {
     const { limit = 25, offset = 0 } = req.query;
 
-    const { data, error } = await supabase
-      .from('activities')
+    const { data, error } = await from('activities')
       .select('*')
-      .order('created_at', { ascending: false })
-      .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
+      .order('created_at', 'DESC')
+      .limit(parseInt(limit))
+      .offset(parseInt(offset))
+      .execute();
 
     if (error) throw error;
 
@@ -216,10 +217,10 @@ router.get('/breakdowns/stats', async (req, res) => {
         startDate.setHours(0, 0, 0, 0);
     }
 
-    const { data, error } = await supabase
-      .from('breakdowns')
+    const { data, error } = await from('breakdowns')
       .select('status')
-      .gte('created_at', startDate.toISOString());
+      .gte('created_at', startDate.toISOString())
+      .execute();
 
     if (error) throw error;
 

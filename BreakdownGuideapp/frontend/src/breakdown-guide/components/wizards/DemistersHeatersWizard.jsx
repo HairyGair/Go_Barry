@@ -3,7 +3,7 @@ import * as Icons from '../common/icons.jsx';
 import constants from '../common/constants.js';
 
 // Demisters/Heaters Wizard Component
-// Follows SDC Guide Section: "Demisters / Heaters Not Working" (Page 15)
+// Follows operational procedure Section: "Demisters / Heaters Not Working" (Page 15)
 // Uses icons and constants from common components
 
 const DemistersHeatersWizard = ({ currentStep, responses, updateResponse, onNext, onPrevious, onComplete }) => {
@@ -12,7 +12,7 @@ const DemistersHeatersWizard = ({ currentStep, responses, updateResponse, onNext
     
     const handleCompleteAssessment = () => {
         let finalDecision = 'CONTINUE';
-        let notes = 'Demisters/Heaters assessment completed per SDC Guide. ';
+        let notes = 'Demisters/Heaters assessment completed per standard operational procedures. ';
         
         // Decision logic based on driver vision impact
         if (responses.driver_vision_affected === 'vision_severely_impaired') {
@@ -44,7 +44,7 @@ const DemistersHeatersWizard = ({ currentStep, responses, updateResponse, onNext
                             <Wind className="w-8 h-8 text-blue-400" />
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">❄️ Demisters / Heaters Assessment</h2>
-                        <p className="text-gray-300">Following SDC guidance Step 1: Check if the Demisters are Blowing - driver's vision is THE priority.</p>
+                        <p className="text-gray-300">Following standard operational safety checks guidance Step 1: Check if the Demisters are Blowing - driver's vision is THE priority.</p>
                     </div>
                     
                     <div className="bg-red-500/20 backdrop-blur-sm rounded-lg p-6 border border-red-400/30">
@@ -261,7 +261,7 @@ const DemistersHeatersWizard = ({ currentStep, responses, updateResponse, onNext
                             <FileText className="w-8 h-8 text-red-400" />
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">🌡️ SDC Step 2: Check the Saloon Temperature</h2>
-                        <p className="text-gray-300">SDC guidance requires saloon temperature of 16 degrees or above for passenger comfort.</p>
+                        <p className="text-gray-300">standard operational guidance requires saloon temperature of 16 degrees or above for passenger comfort.</p>
                     </div>
 
                     <div className="bg-yellow-500/20 backdrop-blur-sm rounded-lg p-6 border border-yellow-400/30">

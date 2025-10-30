@@ -443,7 +443,7 @@ class StorageService {
   }
 
   /**
-   * Save favorite routes for quick access
+   * Save favourite routes for quick access
    */
   saveFavoriteRoutes(routes) {
     try {
@@ -460,20 +460,20 @@ class StorageService {
       localStorage.setItem('gne_favorite_routes', JSON.stringify(favorites));
       return { success: true };
     } catch (error) {
-      console.error('Error saving favorite routes:', error);
+      console.error('Error saving favourite routes:', error);
       return { success: false, error };
     }
   }
 
   /**
-   * Get favorite routes
+   * Get favourite routes
    */
   getFavoriteRoutes() {
     try {
       const favorites = localStorage.getItem('gne_favorite_routes');
       return favorites ? JSON.parse(favorites).routes : [];
     } catch (error) {
-      console.error('Error getting favorite routes:', error);
+      console.error('Error getting favourite routes:', error);
       return [];
     }
   }

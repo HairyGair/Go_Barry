@@ -1,5 +1,28 @@
 # System Architecture - Breakdown Management System
 
+---
+
+## ⚠️ **LEGACY DOCUMENTATION - SUPABASE MIGRATION** ⚠️
+
+**This document describes the OLD architecture using Supabase.**
+
+**System Status:** ✅ **Migrated to MySQL (October 2025)**
+
+**Current Information:**
+- ✅ Database: MySQL (cPanel)
+- ✅ Authentication: JWT + bcrypt
+- ✅ Real-time: Native WebSocket (ws library)
+- ✅ Deployment: cPanel self-hosted
+
+**For current documentation, see:**
+- Main Guide: `docs/CPANEL_ONLY_DEPLOYMENT_GUIDE.md`
+- Quick Start: `docs/CPANEL_QUICK_START_10MIN.md`
+- Master Index: `docs/MASTER_CPANEL_DOCUMENTATION_INDEX.md`
+
+**Last Updated:** October 27, 2025 - Supabase fully removed
+
+---
+
 **Document Version:** 1.0
 **Last Updated:** October 1, 2025
 **Author:** Anthony Gair

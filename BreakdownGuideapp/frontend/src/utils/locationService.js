@@ -6,9 +6,9 @@
  * - Landmark proximity detection
  * - Major road/junction identification
  * - Transport hub recognition
- * - Shopping center and depot location mapping
+ * - Shopping centre and depot location mapping
  *
- * @author Claude Code
+ * @author Anthony Gair
  * @version 1.0.0
  */
 

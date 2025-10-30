@@ -12,7 +12,7 @@ class AssessmentWebSocketService {
   constructor() {
     // Use the configured WebSocket endpoint for assessments
     this.endpoint = websocketConfig.endpoints.assessments || '/ws/assessments';
-    this.baseUrl = websocketConfig.url || 'wss://breakdown-guide.onrender.com';
+    this.baseUrl = websocketConfig.url || 'wss://breakdowns.gobarry.co.uk/ws';
     this.fullUrl = `${this.baseUrl}${this.endpoint}`;
     this.isConnected = false;
     this.subscribers = new Map();

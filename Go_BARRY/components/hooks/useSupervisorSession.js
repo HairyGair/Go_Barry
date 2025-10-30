@@ -397,87 +397,44 @@ export const useSupervisorSession = () => {
   const login = useCallback(async (loginData) => {
     setIsLoading(true);
     setError(null);
-    
+
     try {
-      // Validate supervisor
-      const supervisor = SUPERVISOR_DB[loginData.supervisorId];
-      if (!supervisor) {
-        throw new Error('Supervisor not found');
+      // Validate required fields
+      if (!loginData.badge || !loginData.password) {
+        throw new Error('Badge and password are required');
       }
 
-      // Validate password with backend API
-      if (!loginData.password) {
-        throw new Error('Password is required');
+      // Call backend authentication endpoint
+      const authResponse = await fetch(`${API_BASE_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          badge: loginData.badge,
+          password: loginData.password
+        })
+      });
+
+      const authData = await authResponse.json();
+
+      // Handle errors
+      if (!authResponse.ok || !authData.success) {
+        throw new Error(authData.error || 'Authentication failed');
       }
 
-      // Get backend mapping first
-      const backendSupervisor = BACKEND_MAPPING[loginData.supervisorId];
-      if (!backendSupervisor) {
-        throw new Error('Backend mapping not found for supervisor');
-      }
-
-      // Use new secure authentication endpoint
-      let authResponse;
-      let passwordInfo = null;
-      try {
-        authResponse = await fetch(`${API_BASE_URL}/api/auth/login`, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json'
-          },
-          credentials: 'include', // Important: include cookies for HttpOnly JWT
-          body: JSON.stringify({
-            badge: backendSupervisor.badge,
-            password: loginData.password
-          })
-        });
-
-        const authData = await authResponse.json();
-        
-        // Handle rate limiting
-        if (authResponse.status === 429) {
-          throw new Error('Too many login attempts. Please wait before trying again.');
-        }
-        
-        if (!authResponse.ok || !authData.success) {
-          if (authData.needsSetup) {
-            // First time user - needs password setup
-            setNeedsPasswordSetup(true);
-            setPendingLoginData(loginData);
-            setIsLoading(false);
-            return { success: false, needsPasswordSetup: true };
-          } else {
-            throw new Error(authData.error || 'Authentication failed');
+      // Store JWT token for future requests
+      if (authData.token) {
+        try {
+          if (typeof window !== 'undefined' && window.localStorage) {
+            window.localStorage.setItem('barry_auth_token', authData.token);
           }
-        }
-
-        // Check if password change is required
-        if (authData.supervisor?.passwordInfo?.mustChange) {
-          setPasswordStatus({
-            mustChange: true,
-            daysUntilExpiry: authData.supervisor.passwordInfo.daysUntilExpiry || 0,
-            isExpired: authData.supervisor.passwordInfo.isExpired || false
-          });
-          console.warn('Password change required');
-        }
-        
-        // Store password info from response
-        passwordInfo = authData.supervisor?.passwordInfo || null;
-        
-        // JWT tokens are now in HttpOnly cookies, so we don't handle them client-side
-        console.log('✅ Secure authentication successful');
-        
-      } catch (apiError) {
-        // For backwards compatibility, fall back to local password check
-        console.warn('Secure authentication failed, using fallback:', apiError.message);
-        
-        const isValidPassword = passwordStorageService.checkPassword(loginData.supervisorId, loginData.password) ||
-          (supervisor.defaultPassword && ['barry_perryman', 'anthony_gair', 'james_daglish', 'john_paterson', 'simon_glass'].includes(loginData.supervisorId) && loginData.password === supervisor.defaultPassword);
-
-        if (!isValidPassword) {
-          throw new Error('Incorrect password');
+        } catch (e) {
+          console.warn('Could not save token to localStorage:', e);
         }
       }
+
+      console.log('✅ Authentication successful for:', authData.user?.name);
       
       // Find the selected duty
       let finalDuty;
@@ -492,45 +449,43 @@ export const useSupervisorSession = () => {
       console.log('✅ Duty selected:', finalDuty);
       
       // Create session
+      const isAdmin = authData.user?.role === 'admin';
       const session = {
         sessionId: `session-${Date.now()}`,
         supervisor: {
-          id: loginData.supervisorId,
-          name: supervisor.name,
-          role: supervisor.role,
+          badge: authData.user?.badge,
+          name: authData.user?.name,
+          role: authData.user?.role,
+          depot: authData.user?.depot,
           duty: finalDuty,
-          isAdmin: supervisor.isAdmin || false,
-          permissions: supervisor.isAdmin ? 
-            ['dismiss_alerts', 'view_all_activity', 'manage_supervisors', 'create_incidents', 'send_messages'] : 
-            ['dismiss_alerts', 'create_incidents'],
-          backendId: backendSupervisor.id,
-          badge: backendSupervisor.badge,
-          passwordInfo: passwordInfo || null
+          isAdmin: isAdmin,
+          permissions: isAdmin ?
+            ['dismiss_alerts', 'view_all_activity', 'manage_supervisors', 'create_incidents', 'send_messages'] :
+            ['dismiss_alerts', 'create_incidents']
         },
         loginTime: new Date().toISOString(),
         lastActivity: Date.now(),
       };
-      
+
       // Save and set session with remember me option
       sessionStorageService.saveSession(session, loginData.rememberMe);
       setSupervisorSession(session);
-      
-      // Force a state update to ensure all components re-render
+
       console.log('✅ Session state updated:', session.supervisor.name);
-      
+
       // Log activity
-      logActivity('LOGIN', `${supervisor.name} logged in on ${finalDuty.name}`);
-      
+      logActivity('LOGIN', `${authData.user?.name} logged in on ${finalDuty.name}`);
+
       // Try Convex sync (non-blocking)
       try {
         console.log('🔄 Syncing with Convex...');
         const convexResult = await convexLogin({
-          supervisorId: backendSupervisor.id,
-          badge: backendSupervisor.badge,
-          password: loginData.password,
+          badge: authData.user?.badge,
+          name: authData.user?.name,
+          role: authData.user?.role,
           duty: finalDuty
         });
-        
+
         if (convexResult?.success) {
           console.log('✅ Convex sync successful');
           const updatedSession = { ...session, convexSessionId: convexResult.sessionId };
@@ -540,10 +495,8 @@ export const useSupervisorSession = () => {
       } catch (convexError) {
         console.warn('⚠️ Convex sync error (non-blocking):', convexError.message);
       }
-      
-      // JWT authentication is handled by the secure endpoint above
-      // Tokens are stored in HttpOnly cookies automatically
-      console.log('✅ Using secure JWT authentication with HttpOnly cookies');
+
+      console.log('✅ Using JWT token authentication');
       
       return { success: true, session };
       

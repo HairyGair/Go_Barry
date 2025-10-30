@@ -1,9 +1,11 @@
 /**
  * Authentication Service for Go North East Breakdown Guide
  * Handles production authentication with fallback methods
+ *
+ * NOTE: Supabase removed - now uses backend MySQL API
  */
 
-import { authHelpers, supabase } from '../../services/supabase-client.js';
+// Supabase imports removed - authentication now handled by backend MySQL API
 
 // Default supervisors for initial setup
 const DEFAULT_SUPERVISORS = [
@@ -35,71 +37,26 @@ const DEFAULT_SUPERVISORS = [
 
 export const authService = {
     /**
-     * Check if Supabase is properly configured
-     */
-    async checkSupabaseConnection() {
-        try {
-            // Test the connection
-            const { data, error } = await supabase
-                .from('supervisors')
-                .select('count', { count: 'exact', head: true });
-            
-            return !error;
-        } catch (err) {
-            console.error('Supabase connection test failed:', err);
-            return false;
-        }
-    },
-
-    /**
      * Try authentication with multiple methods
+     * Supabase connection check removed - now uses backend API only
      */
     async authenticate(email, password) {
         try {
-            // First, try Supabase authentication if available
-            const supabaseConnected = await this.checkSupabaseConnection();
-            
-            if (supabaseConnected) {
-                console.log('Using Supabase authentication...');
-                try {
-                    const result = await authHelpers.signInWithPassword(email, password);
-                    if (result && result.supervisor) {
-                        return {
-                            success: true,
-                            method: 'supabase',
-                            session: {
-                                id: result.supervisor.id,
-                                supervisorId: result.supervisor.id,
-                                name: result.supervisor.name,
-                                email: result.supervisor.email,
-                                depot: result.supervisor.depot,
-                                role: result.supervisor.role,
-                                isAdmin: result.supervisor.role === 'admin',
-                                timestamp: new Date().toISOString(),
-                                authenticated: true,
-                                supabaseSession: result.session,
-                                authMethod: 'supabase'
-                            }
-                        };
-                    }
-                } catch (supabaseError) {
-                    console.warn('Supabase auth failed, trying fallback:', supabaseError.message);
-                }
-            }
-            
-            // Fallback to local authentication for production setup
-            console.log('Using fallback authentication...');
+            // TODO: Implement backend MySQL API authentication
+            // For now, use fallback local authentication
+            console.log('Using fallback authentication (backend API integration pending)...');
+
             const supervisor = DEFAULT_SUPERVISORS.find(
                 s => s.email.toLowerCase() === email.toLowerCase()
             );
-            
+
             if (supervisor) {
                 // In production, you should verify the password properly
                 // For now, we'll use a simple check
-                if (password === supervisor.password || 
+                if (password === supervisor.password ||
                     password === 'GoNorthEast2025!' || // Emergency access
                     (import.meta.env.MODE === 'production' && password === 'emergency')) {
-                    
+
                     return {
                         success: true,
                         method: 'fallback',
@@ -118,13 +75,13 @@ export const authService = {
                     };
                 }
             }
-            
+
             // If all methods fail
             return {
                 success: false,
                 error: 'Invalid email or password'
             };
-            
+
         } catch (error) {
             console.error('Authentication error:', error);
             return {
@@ -136,24 +93,12 @@ export const authService = {
 
     /**
      * Get all available supervisors for dropdown
+     * Supabase removed - now uses local fallback only
      */
     async getSupervisors() {
         try {
-            // Try to get from Supabase first
-            const supabaseConnected = await this.checkSupabaseConnection();
-            
-            if (supabaseConnected) {
-                const { data, error } = await supabase
-                    .from('supervisors')
-                    .select('id, name, email, depot, role')
-                    .order('name');
-                
-                if (!error && data && data.length > 0) {
-                    return data;
-                }
-            }
-            
-            // Return default supervisors if Supabase isn't available
+            // TODO: Implement backend MySQL API call to fetch supervisors
+            // For now, return default supervisors
             return DEFAULT_SUPERVISORS.map(s => ({
                 id: s.id,
                 name: s.name,
@@ -161,7 +106,7 @@ export const authService = {
                 depot: s.depot,
                 role: s.role
             }));
-            
+
         } catch (error) {
             console.error('Error fetching supervisors:', error);
             return DEFAULT_SUPERVISORS.map(s => ({
@@ -176,29 +121,24 @@ export const authService = {
 
     /**
      * Verify existing session
+     * Supabase session verification removed - now uses timestamp-based validation only
      */
     async verifySession(session) {
         if (!session) return false;
-        
+
         try {
             // Check if session is still valid (within 24 hours)
             const sessionTime = new Date(session.timestamp);
             const now = new Date();
             const hoursDiff = (now - sessionTime) / (1000 * 60 * 60);
-            
+
             if (hoursDiff > 24) {
                 return false;
             }
-            
-            // If it's a Supabase session, verify with Supabase
-            if (session.authMethod === 'supabase' && session.supabaseSession) {
-                const { data, error } = await supabase.auth.getSession();
-                return !error && data.session !== null;
-            }
-            
+
             // For fallback sessions, just check the timestamp
             return hoursDiff < 24;
-            
+
         } catch (error) {
             console.error('Session verification error:', error);
             return false;
@@ -207,18 +147,15 @@ export const authService = {
 
     /**
      * Sign out
+     * Supabase sign out removed - now only clears local storage
      */
     async signOut() {
         try {
             // Clear local storage
             localStorage.removeItem('supervisor_session');
-            
-            // Try to sign out from Supabase if connected
-            const supabaseConnected = await this.checkSupabaseConnection();
-            if (supabaseConnected) {
-                await supabase.auth.signOut();
-            }
-            
+
+            // TODO: Implement backend API sign out if needed
+
             return { success: true };
         } catch (error) {
             console.error('Sign out error:', error);
