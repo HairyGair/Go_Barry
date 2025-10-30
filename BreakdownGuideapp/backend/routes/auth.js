@@ -15,7 +15,7 @@ import dotenv from 'dotenv';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
-import { from, insert, update, remove } from '../utils/queryHelpers.js';
+import { from, insert, update, remove, query } from '../utils/queryHelpers.js';
 import { authenticateAdmin, rateLimitLogin, clearLoginAttempts, verifyToken } from '../middleware/authMiddleware.js';
 import { activityLogger, ACTIVITY_TYPES, ACTOR_TYPES, SEVERITY_LEVELS } from '../services/activityLogger.js';
 import dutyManager from '../services/dutyManager.js';
