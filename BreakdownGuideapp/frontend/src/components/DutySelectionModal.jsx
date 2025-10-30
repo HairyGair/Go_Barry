@@ -20,9 +20,8 @@ const DutySelectionModal = ({ onDutySelected, onSkip }) => {
 
     const fetchDuties = async () => {
         try {
-            const apiUrl = process.env.NODE_ENV === 'development'
-                ? 'http://localhost:3001'
-                : 'https://api.breakdowns.gobarry.co.uk';
+            // Use Vite environment variable (not process.env)
+            const apiUrl = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
 
             const response = await fetch(`${apiUrl}/api/auth/duties`);
             const result = await response.json();
