@@ -1248,10 +1248,17 @@ router.get('/shift-history', async (req, res) => {
 // POST /api/auth/set-duty
 router.post('/set-duty', verifyToken, async (req, res) => {
   try {
+    console.log('🔄 [set-duty] Request received');
+    console.log('📦 [set-duty] Body:', req.body);
+    console.log('👤 [set-duty] User:', req.user);
+
     const { duty } = req.body;
     const supervisorId = req.user.id;
 
+    console.log(`📋 [set-duty] Duty: ${duty}, Supervisor ID: ${supervisorId}`);
+
     if (!duty) {
+      console.error('❌ [set-duty] No duty provided');
       return res.status(400).json({
         success: false,
         error: 'Duty code is required'
@@ -1259,7 +1266,9 @@ router.post('/set-duty', verifyToken, async (req, res) => {
     }
 
     // Validate duty code
+    console.log(`🔍 [set-duty] Validating duty code: ${duty}`);
     if (!dutyManager.DUTY_SHIFTS[duty]) {
+      console.error(`❌ [set-duty] Invalid duty code: ${duty}`);
       return res.status(400).json({
         success: false,
         error: `Invalid duty code: ${duty}`
@@ -1267,12 +1276,16 @@ router.post('/set-duty', verifyToken, async (req, res) => {
     }
 
     // Get supervisor details
+    console.log(`🔍 [set-duty] Fetching supervisor details for ID: ${supervisorId}`);
     const supervisorResult = await query(
       'SELECT id, name, badge_number FROM supervisors WHERE id = ?',
       [supervisorId]
     );
 
+    console.log(`📊 [set-duty] Supervisor query result:`, supervisorResult);
+
     if (supervisorResult.length === 0) {
+      console.error(`❌ [set-duty] Supervisor not found: ${supervisorId}`);
       return res.status(404).json({
         success: false,
         error: 'Supervisor not found'
@@ -1280,8 +1293,10 @@ router.post('/set-duty', verifyToken, async (req, res) => {
     }
 
     const supervisor = supervisorResult[0];
+    console.log(`👤 [set-duty] Supervisor found: ${supervisor.name} (${supervisor.badge_number})`);
 
     // Start the shift
+    console.log(`🚀 [set-duty] Starting shift for ${supervisor.name}...`);
     const shiftInfo = await dutyManager.startShift({
       supervisorId: supervisor.id,
       supervisorName: supervisor.name,
@@ -1289,6 +1304,7 @@ router.post('/set-duty', verifyToken, async (req, res) => {
       duty: duty
     });
 
+    console.log(`✅ [set-duty] Shift started successfully:`, shiftInfo);
     console.log(`✅ Duty set after login: ${supervisor.name} -> ${duty}`);
 
     res.json({
@@ -1302,10 +1318,14 @@ router.post('/set-duty', verifyToken, async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error setting duty:', error);
+    console.error('❌ [set-duty] ERROR:', error);
+    console.error('❌ [set-duty] Error stack:', error.stack);
+    console.error('❌ [set-duty] Error name:', error.name);
+    console.error('❌ [set-duty] Error message:', error.message);
     res.status(500).json({
       success: false,
-      error: 'Failed to set duty'
+      error: 'Failed to set duty',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
