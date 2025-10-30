@@ -51,23 +51,33 @@ const DutySelectionModal = ({ onDutySelected, onSkip }) => {
         setError('');
 
         try {
+            console.log('🔄 Submitting duty selection:', selectedDuty);
+            console.log('🔑 Current session:', backendAuthService.currentSession);
+
             // Use authenticated fetch from backend auth service
             const response = await backendAuthService.authenticatedFetch('/api/auth/set-duty', {
                 method: 'POST',
                 body: JSON.stringify({ duty: selectedDuty })
             });
 
+            console.log('📡 Response status:', response.status);
             const result = await response.json();
+            console.log('📦 Response data:', result);
 
             if (result.success) {
                 console.log('✅ Duty set successfully:', selectedDuty);
                 onDutySelected(selectedDuty, result.shiftInfo);
             } else {
+                console.error('❌ Backend error:', result.error);
                 setError(result.error || 'Failed to set duty');
             }
         } catch (err) {
-            console.error('Error setting duty:', err);
-            setError('Could not set duty. Please try again.');
+            console.error('❌ Error setting duty:', err);
+            console.error('Error details:', {
+                message: err.message,
+                stack: err.stack
+            });
+            setError(err.message || 'Could not set duty. Please try again.');
         } finally {
             setSubmitting(false);
         }

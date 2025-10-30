@@ -117,7 +117,7 @@ export async function startShift({ supervisorId, supervisorName, supervisorBadge
   const { data: existingShift, error: checkError } = await from('supervisors')
     .select('current_duty, duty_start_time')
     .eq('id', supervisorId)
-    .not('current_duty', 'is', null)
+    .notNull('current_duty')
     .single();
 
   if (existingShift && !checkError) {
@@ -197,7 +197,7 @@ export async function endShift(supervisorId) {
     .eq('supervisor_id', supervisorId)
     .eq('duty', supervisor.current_duty)
     .gte('shift_start', supervisor.duty_start_time)
-    .is('shift_end', null)
+    .isNull('shift_end')
     .order('shift_start', 'DESC')
     .limit(1)
     .execute();
@@ -279,7 +279,7 @@ export async function checkShiftEndingWarning(supervisorId) {
 export async function getActiveSupervisors(dutyCode = null) {
   let query = from('supervisors')
     .select('id, name, email, badge_number, current_duty, duty_start_time, duty_end_time')
-    .not('current_duty', 'is', null);
+    .notNull('current_duty');
 
   if (dutyCode) {
     query = query.eq('current_duty', dutyCode);
