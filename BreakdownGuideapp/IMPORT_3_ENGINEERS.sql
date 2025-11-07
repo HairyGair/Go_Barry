@@ -1,7 +1,0 @@
-INSERT INTO `engineers` (`id`, `badge_number`, `name`, `email`, `phone`, `depot`, `skills`, `certifications`, `status`, `current_breakdown_id`, `shift_start`, `shift_end`, `is_active`, `created_at`, `updated_at`) VALUES
-  ('4756d3b8-dce6-4db4-802c-84659747e021', 'ENG001', 'John Smith', 'john.smith@gonortheast.co.uk', NULL, 'Washington', '["electrical","mechanical"]', '[]', 'available', NULL, NULL, NULL, 1, '2025-10-04 22:12:12', '2025-10-04 22:12:12'),
-  ('4830be9c-d340-47b6-a409-548ae74b4818', 'ENG002', 'Sarah Johnson', 'sarah.johnson@gonortheast.co.uk', NULL, 'Riverside', '["hvac","mechanical"]', '[]', 'available', NULL, NULL, NULL, 1, '2025-10-04 22:12:12', '2025-10-04 22:12:12'),
-  ('d6f20759-5e85-4f16-ab27-cc86156a597a', 'ENG003', 'Mike Williams', 'mike.williams@gonortheast.co.uk', NULL, 'Consett', '["electrical","diagnostics"]', '[]', 'available', NULL, NULL, NULL, 1, '2025-10-04 22:12:12', '2025-10-04 22:12:12'),
-  ('727b5f0c-7a2d-4ef0-aefb-5338eb85965f', 'ENG004', 'Emma Brown', 'emma.brown@gonortheast.co.uk', NULL, 'Washington', '["mechanical","hydraulics"]', '[]', 'available', NULL, NULL, NULL, 1, '2025-10-04 22:12:12', '2025-10-04 22:12:12'),
-  ('4cf8bd93-ab06-45fa-b1f2-e9e6a377520e', 'ENG005', 'David Wilson', 'david.wilson@gonortheast.co.uk', NULL, 'Deptford', '["electrical","mechanical","hvac"]', '[]', 'available', NULL, NULL, NULL, 1, '2025-10-04 22:12:12', '2025-10-04 22:12:12');
-

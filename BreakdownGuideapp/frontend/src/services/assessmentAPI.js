@@ -149,7 +149,7 @@ class AssessmentAPIService {
   tryAutoAuthentication() {
     if (typeof window !== 'undefined') {
       const token = localStorage.getItem('auth_token') || 
-                   sessionStorage.getItem('supervisor_token') ||
+                   sessionStorage.getItem('authToken') ||
                    localStorage.getItem('supervisor_auth_token');
       if (token) {
         this.setAuthToken(token);
@@ -651,7 +651,7 @@ const assessmentAPI = new AssessmentAPIService();
 
 // Auto-configure authentication if available
 if (typeof window !== 'undefined') {
-  const token = localStorage.getItem('auth_token') || sessionStorage.getItem('supervisor_token');
+  const token = localStorage.getItem('auth_token') || sessionStorage.getItem('authToken');
   if (token) {
     assessmentAPI.setAuthToken(token);
     console.log('🔐 Assessment API: Auto-configured with stored token');

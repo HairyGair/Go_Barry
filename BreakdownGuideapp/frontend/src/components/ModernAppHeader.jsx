@@ -3,12 +3,13 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { apiConfig } from '../breakdown-guide/components/common/constants';
 import notificationService from '../services/notificationService';
 import EnhancedNotifications from './notifications/EnhancedNotifications';
-import { useAuth } from '../contexts/AuthContext.jsx';
 import ChangePasswordModal from './ChangePasswordModal.jsx';
+import DepotSelectionModal from './DepotSelectionModal.jsx';
 import apiClient from '../services/api-client';
+import { useAuth } from '../contexts/AuthContext.jsx';
 import './ModernAppHeader.css';
 
-const ModernAppHeader = ({ 
+const ModernAppHeader = ({
   variant = 'full',
   activeBreakdowns: propActiveBreakdowns = 0,
   isAuthenticated = false,
@@ -18,9 +19,7 @@ const ModernAppHeader = ({
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  
-  // Get auth context
-  const { logout, currentUser } = useAuth();
+  const { currentUser, isAuthenticated: authIsAuthenticated, logout } = useAuth();
   const headerRef = useRef(null);
   const searchInputRef = useRef(null);
   const lastScrollY = useRef(0);
@@ -51,6 +50,7 @@ const ModernAppHeader = ({
   });
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
+  const [showDepotModal, setShowDepotModal] = useState(false);
 
   // Quick actions for command palette
   const quickActions = [
@@ -96,15 +96,14 @@ const ModernAppHeader = ({
         { path: '/dashboards/engineering', label: 'Engineering' }
       ]
     },
-    { 
-      path: '/dashboards/sdc', 
+    {
+      path: '/dashboards/sdc',
       label: 'SDC',
-      fullLabel: 'SDC Operations', 
+      fullLabel: 'SDC Operations',
       icon: '🎯',
       color: '#3b82f6',
       description: 'Control centre',
       priority: 3,
-      comingSoon: true, // Add coming soon flag
       stats: { label: 'On Route', value: liveStats.onRoute },
       quickLinks: [
         { path: '/dashboards/sdc', label: 'Control Centre' },
@@ -189,44 +188,20 @@ const ModernAppHeader = ({
           // Handle the actual response format from the API
           if (result.success && result.data) {
             const { performance } = result.data;
-            setLiveStats(prev => ({ 
+            setLiveStats(prev => ({
               ...prev,
               active: performance.totalBreakdowns - performance.resolvedBreakdowns,
               today: performance.totalBreakdowns,
               resolved: performance.resolvedBreakdowns,
               responseTime: `00:${String(performance.avgResponseTime || 0).padStart(2, '0')}`,
               fleetHealth: performance.resolutionRate || 92,
-              onRoute: Math.floor(Math.random() * 50) + 150,
-              depot: Math.floor(Math.random() * 10) + 5
-            }));
-          } else {
-            // Fallback to mock data
-            setLiveStats(prev => ({ 
-              ...prev, 
-              active: Math.floor(Math.random() * 3),
-              today: Math.floor(Math.random() * 8) + 2,
-              resolved: Math.floor(Math.random() * 15) + 5,
-              responseTime: `00:${String(Math.floor(Math.random() * 59)).padStart(2, '0')}`
+              onRoute: 0,
+              depot: 0
             }));
           }
-        } else {
-          // Use mock data if endpoint doesn't exist
-          setLiveStats(prev => ({ 
-            ...prev, 
-            activeBreakdowns: Math.floor(Math.random() * 3),
-            todayAssessments: Math.floor(Math.random() * 8) + 2,
-            avgResponseTime: Math.floor(Math.random() * 15) + 5
-          }));
         }
       } catch (error) {
         console.log('Stats fetch error:', error);
-        // Use mock data on error
-        setLiveStats(prev => ({ 
-          ...prev, 
-          activeBreakdowns: 0,
-          todayAssessments: 3,
-          avgResponseTime: 8
-        }));
       }
     };
 
@@ -235,16 +210,6 @@ const ModernAppHeader = ({
     return () => clearInterval(interval);
   }, [supervisorData]);
 
-  // Fetch weather (mock for now)
-  useEffect(() => {
-    // Mock weather data - replace with actual API
-    setWeatherData({
-      temp: '12°C',
-      condition: 'Partly Cloudy',
-      icon: '⛅',
-      alerts: []
-    });
-  }, []);
 
   // Initialize notification service
   useEffect(() => {
@@ -350,34 +315,30 @@ const ModernAppHeader = ({
     }
   }, [showCommandPalette]);
 
-  // Enhanced logout handler
+  // Logout handler - uses AuthContext
   const handleLogout = useCallback(async () => {
     if (isLoggingOut) return; // Prevent double-clicks
-    
+
     setIsLoggingOut(true);
     setShowProfileMenu(false); // Close profile menu
-    
+
     try {
       console.log('🚪 ModernAppHeader: Initiating logout...');
-      
-      // Use AuthContext logout if available, otherwise fallback to onSignOut prop or basic logout
-      if (logout && typeof logout === 'function') {
-        await logout(true, '/'); // Show message and redirect to home
-        console.log('✅ ModernAppHeader: AuthContext logout completed');
-      } else if (onSignOut && typeof onSignOut === 'function') {
-        await onSignOut();
-        console.log('✅ ModernAppHeader: onSignOut prop called');
-      } else {
-        // Fallback logout method
-        console.log('⚠️ ModernAppHeader: Using fallback logout method');
-        localStorage.removeItem('supervisor_session');
-        localStorage.removeItem('auth_session');
-        localStorage.removeItem('auth_user');
-        navigate('/');
-      }
+
+      // Call AuthContext logout to clear user state
+      logout();
+
+      // Clear any additional storage items
+      localStorage.clear();
+      sessionStorage.clear();
+
+      console.log('✅ ModernAppHeader: Logout complete, forcing page reload...');
+
+      // Force page reload to show login page
+      window.location.href = '/';
     } catch (error) {
       console.error('❌ ModernAppHeader logout error:', error);
-      
+
       // Emergency logout fallback
       localStorage.clear();
       sessionStorage.clear();
@@ -385,7 +346,7 @@ const ModernAppHeader = ({
     } finally {
       setIsLoggingOut(false);
     }
-  }, [logout, onSignOut, navigate, isLoggingOut]);
+  }, [logout, isLoggingOut]);
 
   const isActive = (path) => location.pathname === path || location.pathname.startsWith(path);
 
@@ -411,6 +372,12 @@ const ModernAppHeader = ({
   const filteredActions = quickActions.filter(action =>
     action.label.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Handle depot selection for engineering display
+  const handleDepotSelection = (depot) => {
+    const displayId = `${depot.code.toLowerCase()}-yard-1`;
+    window.open(`/dashboards/engineering/display?displayId=${displayId}&depot=${depot.code}`, '_blank');
+  };
 
   return (
     <>
@@ -438,17 +405,6 @@ const ModernAppHeader = ({
             <span className="fleet-status">
               Fleet: {liveStats.fleetHealth}% • Active: {liveStats.active}
             </span>
-            <span className="separator">|</span>
-            <span className="dev-notice" style={{
-              color: '#ffc107',
-              fontSize: '11px',
-              fontWeight: '500',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px'
-            }}>
-              🔨 Some features under construction
-            </span>
           </div>
           <div className="status-bar-right">
             <span className="current-time">
@@ -473,55 +429,46 @@ const ModernAppHeader = ({
             <nav className="nav-center compact">
               {navigationItems.slice(0, 4).map((item) => (
                 <div key={item.path} className="nav-item-modern">
-                  {item.comingSoon ? (
-                    <div
-                      className={`nav-link-modern compact coming-soon ${isActive(item.path) ? 'active' : ''}`}
-                      style={{ '--nav-color': item.color }}
-                      title={`${item.fullLabel} - Coming Soon`}
-                    >
-                      <span className="nav-icon-modern">{item.icon}</span>
-                      <span className="nav-label-modern">{item.label}</span>
-                      <span className="coming-soon-indicator">🚧</span>
-                    </div>
-                  ) : (
-                    <Link
-                      to={item.path}
-                      className={`nav-link-modern compact ${isActive(item.path) ? 'active' : ''}`}
-                      style={{ '--nav-color': item.color }}
-                      title={item.fullLabel}
-                    >
-                      <span className="nav-icon-modern">{item.icon}</span>
-                      <span className="nav-label-modern">{item.label}</span>
-                      {item.stats && item.stats.value > 0 && (
-                        <span className="nav-stat mini">{item.stats.value}</span>
-                      )}
-                    </Link>
-                  )}
-                  
-                  {/* Dropdown on hover */}
-                  <div className="nav-dropdown-modern compact">
-                    <div className="dropdown-header">
-                      <h4>{item.fullLabel}</h4>
-                      <p>{item.description}</p>
-                    </div>
-                    {item.stats && (
-                      <div className="dropdown-stats">
-                        <span className="dropdown-stat-label">{item.stats.label}:</span>
-                        <span className="dropdown-stat-value">{item.stats.value}</span>
-                      </div>
+                  <Link
+                    to={item.comingSoon ? '#' : item.path}
+                    className={`nav-link-modern compact ${isActive(item.path) ? 'active' : ''} ${item.comingSoon ? 'coming-soon' : ''}`}
+                    style={{ '--nav-color': item.color }}
+                    title={item.comingSoon ? `${item.fullLabel} - Coming Soon` : item.fullLabel}
+                    onClick={(e) => item.comingSoon && e.preventDefault()}
+                  >
+                    <span className="nav-icon-modern">{item.icon}</span>
+                    <span className="nav-label-modern">{item.label}</span>
+                    {!item.comingSoon && item.stats && item.stats.value > 0 && (
+                      <span className="nav-stat mini">{item.stats.value}</span>
                     )}
-                    <div className="dropdown-links">
-                      {item.quickLinks.map(link => (
-                        <Link 
-                          key={link.path} 
-                          to={link.path} 
-                          className="dropdown-link"
-                        >
-                          {link.label}
-                        </Link>
-                      ))}
+                  </Link>
+
+                  {/* Dropdown on hover - only for active features */}
+                  {!item.comingSoon && (
+                    <div className="nav-dropdown-modern compact">
+                      <div className="dropdown-header">
+                        <h4>{item.fullLabel}</h4>
+                        <p>{item.description}</p>
+                      </div>
+                      {item.stats && (
+                        <div className="dropdown-stats">
+                          <span className="dropdown-stat-label">{item.stats.label}:</span>
+                          <span className="dropdown-stat-value">{item.stats.value}</span>
+                        </div>
+                      )}
+                      <div className="dropdown-links">
+                        {item.quickLinks.map(link => (
+                          <Link
+                            key={link.path}
+                            to={link.path}
+                            className="dropdown-link"
+                          >
+                            {link.label}
+                          </Link>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               ))}
             </nav>
@@ -549,8 +496,18 @@ const ModernAppHeader = ({
                 )}
               </button>
 
+              {/* Engineering Display Button */}
+              <button
+                className="engineering-display-btn"
+                onClick={() => setShowDepotModal(true)}
+                title="Open Engineering Display (Choose Depot)"
+              >
+                <span className="display-icon">📺</span>
+                <span className="display-label">Display</span>
+              </button>
+
               {/* Report Breakdown Button - Always Visible */}
-              <button 
+              <button
                 className="report-breakdown-btn"
                 onClick={() => navigate('/breakdown-guide')}
                 title="Report New Breakdown"
@@ -561,13 +518,13 @@ const ModernAppHeader = ({
 
               {/* User Menu with All Settings */}
               <div className="profile-section-modern">
-                <button 
+                <button
                   className="profile-btn-modern compact"
                   onClick={() => setShowProfileMenu(!showProfileMenu)}
-                  title={supervisorData?.name || 'Menu'}
+                  title={currentUser?.name || supervisorData?.name || 'Menu'}
                 >
                   <div className="profile-avatar-modern compact">
-                    {supervisorData?.name?.charAt(0) || 'U'}
+                    {currentUser?.name?.charAt(0) || supervisorData?.name?.charAt(0) || 'U'}
                   </div>
                   <span className="profile-arrow">▼</span>
                 </button>
@@ -577,12 +534,12 @@ const ModernAppHeader = ({
                   <div className="profile-dropdown-modern compact">
                     <div className="profile-header-modern">
                       <div className="profile-avatar-large">
-                        {supervisorData?.name?.charAt(0) || 'U'}
+                        {currentUser?.name?.charAt(0) || supervisorData?.name?.charAt(0) || 'U'}
                       </div>
                       <div className="profile-details">
-                        <h4>{supervisorData?.name || 'User'}</h4>
-                        <p>{supervisorData?.email || 'user@gonortheast.co.uk'}</p>
-                        <span className="profile-badge">{supervisorData?.depot || 'SDC'}</span>
+                        <h4>{currentUser?.name || supervisorData?.name || 'User'}</h4>
+                        <p>{currentUser?.email || supervisorData?.email || 'user@gonortheast.co.uk'}</p>
+                        <span className="profile-badge">{currentUser?.depot || supervisorData?.depot || 'SDC'}</span>
                       </div>
                     </div>
                     
@@ -638,7 +595,7 @@ const ModernAppHeader = ({
                     <div className="profile-nav-links">
                       <h5>Navigation</h5>
                       {navigationItems.map(item => (
-                        <button 
+                        <button
                           key={item.path}
                           onClick={() => {
                             if (!item.comingSoon) {
@@ -648,15 +605,12 @@ const ModernAppHeader = ({
                           }}
                           className={`profile-nav-item ${item.comingSoon ? 'coming-soon' : ''}`}
                           disabled={item.comingSoon}
+                          title={item.comingSoon ? `${item.fullLabel} - Coming Soon` : ''}
                         >
                           <span>{item.icon}</span>
                           <span>{item.fullLabel}</span>
-                          {item.comingSoon ? (
-                            <span className="nav-badge coming-soon">🚧</span>
-                          ) : (
-                            item.stats && item.stats.value > 0 && (
-                              <span className="nav-badge">{item.stats.value}</span>
-                            )
+                          {!item.comingSoon && item.stats && item.stats.value > 0 && (
+                            <span className="nav-badge">{item.stats.value}</span>
                           )}
                         </button>
                       ))}
@@ -697,29 +651,25 @@ const ModernAppHeader = ({
         {/* Mobile Navigation */}
         <div className={`mobile-nav-modern ${isMenuOpen ? 'open' : ''}`}>
           {navigationItems.map(item => (
-            item.comingSoon ? (
-              <div
-                key={item.path}
-                className={`mobile-nav-item coming-soon ${isActive(item.path) ? 'active' : ''}`}
-              >
-                <span className="nav-icon">{item.icon}</span>
-                <span className="nav-label">{item.fullLabel}</span>
-                <span className="coming-soon-mobile">🚧</span>
-              </div>
-            ) : (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`mobile-nav-item ${isActive(item.path) ? 'active' : ''}`}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <span className="nav-icon">{item.icon}</span>
-                <span className="nav-label">{item.fullLabel}</span>
-                {item.stats && item.stats.value > 0 && (
-                  <span className="nav-value">{item.stats.value}</span>
-                )}
-              </Link>
-            )
+            <Link
+              key={item.path}
+              to={item.comingSoon ? '#' : item.path}
+              className={`mobile-nav-item ${isActive(item.path) ? 'active' : ''} ${item.comingSoon ? 'coming-soon' : ''}`}
+              onClick={(e) => {
+                if (item.comingSoon) {
+                  e.preventDefault();
+                } else {
+                  setIsMenuOpen(false);
+                }
+              }}
+              title={item.comingSoon ? `${item.fullLabel} - Coming Soon` : item.fullLabel}
+            >
+              <span className="nav-icon">{item.icon}</span>
+              <span className="nav-label">{item.fullLabel}</span>
+              {!item.comingSoon && item.stats && item.stats.value > 0 && (
+                <span className="nav-value">{item.stats.value}</span>
+              )}
+            </Link>
           ))}
         </div>
       </header>
@@ -757,14 +707,11 @@ const ModernAppHeader = ({
                     }
                   }}
                   disabled={action.comingSoon}
+                  title={action.comingSoon ? `${action.label} - Coming Soon` : ''}
                 >
                   <span className="command-icon">{action.icon}</span>
                   <span className="command-label">{action.label}</span>
-                  {action.comingSoon ? (
-                    <span className="command-coming-soon">🚧 Soon</span>
-                  ) : (
-                    <span className="command-shortcut">{action.shortcut}</span>
-                  )}
+                  <span className="command-shortcut">{action.shortcut}</span>
                 </button>
               ))}
             </div>
@@ -799,6 +746,13 @@ const ModernAppHeader = ({
         isOpen={showChangePassword}
         onClose={() => setShowChangePassword(false)}
         userEmail={currentUser?.email}
+      />
+
+      {/* Depot Selection Modal */}
+      <DepotSelectionModal
+        isOpen={showDepotModal}
+        onClose={() => setShowDepotModal(false)}
+        onSelectDepot={handleDepotSelection}
       />
     </>
   );

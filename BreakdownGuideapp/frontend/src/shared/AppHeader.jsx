@@ -6,9 +6,7 @@ import { useAuth } from '../contexts/AuthContext.jsx';
 const AppHeader = ({ variant = 'full' }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  
-  // Get auth context
-  const { logout, currentUser, isAuthenticated } = useAuth();
+  const { currentUser, isAuthenticated, logout } = useAuth();
 
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -76,30 +74,10 @@ const AppHeader = ({ variant = 'full' }) => {
               today: performance.totalBreakdowns,
               resolved: performance.resolvedBreakdowns
             });
-          } else {
-            // Fallback to mock data
-            setStats({
-              active: Math.floor(Math.random() * 3),
-              today: Math.floor(Math.random() * 8) + 2,
-              resolved: Math.floor(Math.random() * 15) + 5
-            });
           }
-        } else {
-          // Use mock data if endpoint doesn't exist
-          setStats({
-            active: Math.floor(Math.random() * 5),
-            today: Math.floor(Math.random() * 20) + 5,
-            resolved: Math.floor(Math.random() * 15) + 3
-          });
         }
       } catch (error) {
         console.log('Stats fetch error:', error);
-        // Use mock data for now
-        setStats({
-          active: Math.floor(Math.random() * 5),
-          today: Math.floor(Math.random() * 20) + 5,
-          resolved: Math.floor(Math.random() * 15) + 3
-        });
       }
     };
 
@@ -157,31 +135,30 @@ const AppHeader = ({ variant = 'full' }) => {
     return () => document.removeEventListener('keydown', handleKeydown);
   }, [navigate, showShortcuts]);
 
-  // Enhanced logout handler
+  // Logout handler - uses AuthContext
   const handleLogout = useCallback(async () => {
     if (isLoggingOut) return; // Prevent double-clicks
-    
+
     setIsLoggingOut(true);
     setShowProfileMenu(false); // Close profile menu
-    
+
     try {
       console.log('🚪 AppHeader: Initiating logout...');
-      
-      // Use AuthContext logout if available, otherwise fallback to basic logout
-      if (logout && typeof logout === 'function') {
-        await logout(true, '/'); // Show message and redirect to home
-        console.log('✅ AppHeader: AuthContext logout completed');
-      } else {
-        // Fallback logout method
-        console.log('⚠️ AppHeader: Using fallback logout method');
-        localStorage.removeItem('supervisor_session');
-        localStorage.removeItem('auth_session');
-        localStorage.removeItem('auth_user');
-        navigate('/');
-      }
+
+      // Call AuthContext logout to clear user state
+      logout();
+
+      // Clear all storage to ensure clean logout
+      localStorage.clear();
+      sessionStorage.clear();
+
+      console.log('✅ AppHeader: Logout complete, redirecting to login...');
+
+      // Force page reload to show login page
+      window.location.href = '/';
     } catch (error) {
       console.error('❌ AppHeader logout error:', error);
-      
+
       // Emergency logout fallback
       localStorage.clear();
       sessionStorage.clear();
@@ -189,7 +166,7 @@ const AppHeader = ({ variant = 'full' }) => {
     } finally {
       setIsLoggingOut(false);
     }
-  }, [logout, navigate, isLoggingOut]);
+  }, [logout, isLoggingOut]);
 
   const navigationItems = [
     { 

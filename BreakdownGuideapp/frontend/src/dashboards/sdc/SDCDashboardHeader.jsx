@@ -1,23 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { apiConfig } from '../../breakdown-guide/components/common/constants';
 
-const SDCDashboardHeader = ({ 
-  stats, 
-  connectionManager, 
+const SDCDashboardHeader = ({
+  stats,
+  connectionManager,
   onReportBreakdown,
-  onRefresh 
+  onRefresh
 }) => {
   const [currentSupervisor, setCurrentSupervisor] = useState(null);
-  const [currentTime, setCurrentTime] = useState(new Date());
-
-  // Update time every second
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
 
   // Get current supervisor from auth
   useEffect(() => {
@@ -140,18 +130,8 @@ const SDCDashboardHeader = ({
 
         <div className="header-right">
           <div className="header-actions">
-            {/* Report Breakdown Button */}
-            <button 
-              className="action-btn report-breakdown"
-              onClick={handleReportBreakdown}
-              title="Report a new breakdown"
-            >
-              <span className="btn-icon">📱</span>
-              <span className="btn-text">Report Breakdown</span>
-            </button>
-
             {/* Refresh Button */}
-            <button 
+            <button
               className="action-btn refresh"
               onClick={onRefresh}
               title="Refresh dashboard data"
@@ -186,26 +166,6 @@ const SDCDashboardHeader = ({
           <div className="connection-status">
             <span className="connection-icon">{connectionStatus.icon}</span>
             <span className="connection-text">{connectionStatus.text}</span>
-          </div>
-        </div>
-
-        <div className="status-right">
-          {/* Current Time */}
-          <div className="current-time">
-            <div className="time-display">
-              {currentTime.toLocaleTimeString('en-GB', { 
-                hour: '2-digit', 
-                minute: '2-digit',
-                second: '2-digit'
-              })}
-            </div>
-            <div className="date-display">
-              {currentTime.toLocaleDateString('en-GB', { 
-                weekday: 'short',
-                day: 'numeric', 
-                month: 'short'
-              })}
-            </div>
           </div>
         </div>
       </div>

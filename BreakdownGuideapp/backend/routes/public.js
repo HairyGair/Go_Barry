@@ -9,6 +9,86 @@ const __dirname = dirname(__filename);
 
 const router = express.Router();
 
+// GET /api/public/breakdowns - Get breakdowns with optional depot filtering (for Engineering Display)
+// This endpoint does NOT require authentication - it's for public yard displays
+router.get('/breakdowns', async (req, res) => {
+  try {
+    const { depot } = req.query;
+
+    // Query from breakdowns table using MySQL
+    let queryBuilder = from('breakdowns').select('*');
+
+    // Apply depot filter if provided
+    if (depot) {
+      queryBuilder = queryBuilder.eq('depot', depot);
+    }
+
+    const { data: allBreakdowns, error } = await queryBuilder
+      .order('created_at', 'DESC')
+      .execute();
+
+    if (error) throw error;
+
+    console.log(`📊 /public/breakdowns: Found ${allBreakdowns?.length || 0} total breakdowns${depot ? ` for depot ${depot}` : ''}`);
+
+    // Filter out resolved/completed breakdowns
+    const breakdowns = allBreakdowns.filter(b =>
+      !['resolved', 'deleted', 'cancelled', 'completed'].includes(b.status)
+    );
+
+    console.log(`✅ /public/breakdowns: Returning ${breakdowns.length} active breakdowns after filtering`);
+
+    // Format breakdowns for display
+    const formattedBreakdowns = breakdowns.map(b => ({
+      // Core identifiers
+      breakdown_id: b.breakdown_id,
+      id: b.breakdown_id,
+
+      // Vehicle information
+      fleet_no: b.fleet_no,
+      registration: b.registration,
+      depot: b.depot,
+
+      // Location and issue information
+      location: b.location_description || b.location || 'Location TBC',
+      issue_category: b.issue_category,
+      description: b.description,
+
+      // Status and severity
+      status: b.status,
+      severity: b.severity,
+      wizard_decision: b.wizard_decision,
+
+      // Timing information
+      created_at: b.created_at,
+      updated_at: b.updated_at,
+
+      // Supervisor information
+      supervisor_badge: b.supervisor_badge,
+      supervisor_name: b.supervisor_name,
+
+      // Assessment data
+      wizard_type: b.wizard_type,
+      wizard_assessment_data: b.wizard_assessment_data
+    }));
+
+    res.json({
+      success: true,
+      breakdowns: formattedBreakdowns,
+      timestamp: new Date().toISOString(),
+      count: formattedBreakdowns.length
+    });
+  } catch (error) {
+    console.error('Error fetching public breakdowns:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch breakdowns',
+      timestamp: new Date().toISOString(),
+      breakdowns: [] // Return empty array for graceful degradation
+    });
+  }
+});
+
 // GET /api/public/breakdowns/live - Get active breakdowns for public displays (Control Room)
 // This endpoint does NOT require authentication - it's for public wall displays
 router.get('/breakdowns/live', async (req, res) => {

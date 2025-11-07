@@ -1,8 +1,6 @@
 /**
- * MySQL-Native Login Page
- *
- * Clean, purpose-built login screen for MySQL backend authentication.
- * No Supabase dependencies - connects directly to cPanel MySQL backend API.
+ * MySQL Login Page - Completely Rebuilt
+ * Clean, simple, centered design with glassmorphism effect
  */
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -12,30 +10,82 @@ import './MySQLLoginPage.css';
 
 const MySQLLoginPage = () => {
     const navigate = useNavigate();
-    const { login, isAuthenticated, isSessionChecking, error: authError, clearError } = useAuth();
+    const { login, isAuthenticated, isSessionChecking } = useAuth();
 
     // Form state
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [rememberMe, setRememberMe] = useState(true);
     const [showPassword, setShowPassword] = useState(false);
+    const [emailWasPrefilled, setEmailWasPrefilled] = useState(false);
 
     // UI state
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
-    const [loginStep, setLoginStep] = useState(''); // For showing what's happening
+    const [errorType, setErrorType] = useState('general'); // 'auth', 'connection', 'general'
+    const [currentDateTime, setCurrentDateTime] = useState(new Date());
+    const [capsLockOn, setCapsLockOn] = useState(false);
 
     // Refs
     const emailRef = useRef(null);
-    const passwordRef = useRef(null);
+    const errorTimerRef = useRef(null);
+
+    // Update date/time every second
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setCurrentDateTime(new Date());
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, []);
+
+    // Format date and time
+    const formatDateTime = () => {
+        const options = {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        };
+        return currentDateTime.toLocaleDateString('en-GB', options);
+    };
 
     // Redirect if already authenticated
     useEffect(() => {
         if (!isSessionChecking && isAuthenticated) {
-            console.log('Already authenticated, redirecting...');
-            navigate('/breakdown-guide', { replace: true });
+            // Set flag to show duty modal on homepage
+            sessionStorage.setItem('showDutyModal', 'true');
+            navigate('/', { replace: true });
         }
     }, [isAuthenticated, isSessionChecking, navigate]);
+
+    // Force light theme for login page
+    useEffect(() => {
+        // Save current theme
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+
+        // Set to light theme for login page
+        document.documentElement.setAttribute('data-theme', 'light');
+
+        // Cleanup: restore theme when component unmounts
+        return () => {
+            if (currentTheme) {
+                document.documentElement.setAttribute('data-theme', currentTheme);
+            }
+        };
+    }, []);
+
+    // Load saved email on mount
+    useEffect(() => {
+        const savedEmail = localStorage.getItem('lastLoginEmail');
+        if (savedEmail) {
+            setEmail(savedEmail);
+            setEmailWasPrefilled(true);
+        }
+    }, []);
 
     // Focus email on mount
     useEffect(() => {
@@ -44,89 +94,129 @@ const MySQLLoginPage = () => {
         }
     }, [isSessionChecking]);
 
+    // Auto-dismiss error after 5 seconds
+    useEffect(() => {
+        if (error) {
+            // Clear any existing timer
+            if (errorTimerRef.current) {
+                clearTimeout(errorTimerRef.current);
+            }
+
+            // Set new timer
+            errorTimerRef.current = setTimeout(() => {
+                setError('');
+                setErrorType('general');
+            }, 5000);
+        }
+
+        // Cleanup
+        return () => {
+            if (errorTimerRef.current) {
+                clearTimeout(errorTimerRef.current);
+            }
+        };
+    }, [error]);
+
+    // Detect error type from error message
+    const detectErrorType = (errorMessage) => {
+        const lowercaseError = errorMessage.toLowerCase();
+
+        // Authentication errors (red)
+        if (lowercaseError.includes('password') ||
+            lowercaseError.includes('credentials') ||
+            lowercaseError.includes('invalid email') ||
+            lowercaseError.includes('unauthorized') ||
+            lowercaseError.includes('authentication failed')) {
+            return 'auth';
+        }
+
+        // Connection errors (orange)
+        if (lowercaseError.includes('network') ||
+            lowercaseError.includes('connection') ||
+            lowercaseError.includes('timeout') ||
+            lowercaseError.includes('fetch') ||
+            lowercaseError.includes('server') ||
+            lowercaseError.includes('unavailable')) {
+            return 'connection';
+        }
+
+        // General errors (red)
+        return 'general';
+    };
+
+    // Handle clearing saved email
+    const handleClearEmail = () => {
+        setEmail('');
+        setEmailWasPrefilled(false);
+        localStorage.removeItem('lastLoginEmail');
+        if (emailRef.current) {
+            emailRef.current.focus();
+        }
+    };
+
     // Handle form submission
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        // Clear any previous errors
+        // Clear errors
         setError('');
-        clearError();
+        setErrorType('general');
 
         // Validation
         if (!email || !password) {
-            setError('Please enter both email and password');
+            const errorMsg = 'Please enter both email and password';
+            setError(errorMsg);
+            setErrorType(detectErrorType(errorMsg));
             return;
         }
 
         if (!email.includes('@')) {
-            setError('Please enter a valid email address');
-            emailRef.current?.focus();
+            const errorMsg = 'Please enter a valid email address';
+            setError(errorMsg);
+            setErrorType(detectErrorType(errorMsg));
             return;
         }
 
         setIsLoading(true);
-        setLoginStep('Connecting to server...');
 
         try {
-            console.log('🔐 Attempting login:', email);
-
-            setLoginStep('Verifying credentials...');
             const result = await login(email, password, rememberMe);
 
             if (result.success) {
-                console.log('✅ Login successful, redirecting...');
-                setLoginStep('Login successful! Redirecting...');
+                // Save email for next login
+                localStorage.setItem('lastLoginEmail', email);
 
-                // Small delay to show success message
+                // Set flag to show duty modal on homepage
+                sessionStorage.setItem('showDutyModal', 'true');
+
+                // Redirect to homepage where duty selection will appear
                 setTimeout(() => {
-                    navigate('/breakdown-guide', { replace: true });
-                }, 500);
+                    navigate('/', { replace: true });
+                }, 300);
             } else {
-                console.error('❌ Login failed:', result.error);
-                setError(result.error || 'Login failed. Please check your credentials.');
-                setLoginStep('');
+                const errorMsg = result.error || 'Login failed. Please check your credentials.';
+                setError(errorMsg);
+                setErrorType(detectErrorType(errorMsg));
                 setIsLoading(false);
-
-                // Focus email for retry
-                setTimeout(() => {
-                    emailRef.current?.select();
-                }, 100);
             }
         } catch (err) {
-            console.error('❌ Login error:', err);
-            setError('An unexpected error occurred. Please try again.');
-            setLoginStep('');
+            console.error('Login error:', err);
+            const errorMsg = err.message || 'An unexpected error occurred. Please try again.';
+            setError(errorMsg);
+            setErrorType(detectErrorType(errorMsg));
             setIsLoading(false);
         }
     };
 
-    // Handle Enter key
-    const handleKeyPress = (e) => {
-        if (e.key === 'Enter' && !isLoading) {
-            if (e.target === emailRef.current && password) {
-                handleSubmit(e);
-            } else if (e.target === emailRef.current) {
-                passwordRef.current?.focus();
-            } else {
-                handleSubmit(e);
-            }
-        }
-    };
-
-    // Show loading state while checking session
+    // Show loading screen while checking session
     if (isSessionChecking) {
         return (
-            <div className="mysql-login-page">
+            <div className="login-page">
+                <div className="login-background"></div>
                 <div className="login-container">
                     <div className="login-card">
-                        <div className="login-header">
-                            <img src="/gne-logo-horizontal-colour.png" alt="Go North East" className="brand-logo" />
-                            <h1>Checking Session...</h1>
-                        </div>
-                        <div className="loading-state">
-                            <div className="spinner"></div>
-                            <p>Verifying authentication...</p>
-                        </div>
+                        <div className="loading-spinner"></div>
+                        <p>Checking session...</p>
                     </div>
                 </div>
             </div>
@@ -134,188 +224,184 @@ const MySQLLoginPage = () => {
     }
 
     return (
-        <div className="mysql-login-page">
+        <div className="login-page">
             {/* Background */}
-            <div className="login-background">
-                <div className="bg-gradient"></div>
-                <div className="bg-pattern"></div>
-            </div>
+            <div className="login-background"></div>
 
-            {/* Login Container */}
+            {/* Centered Login Container */}
             <div className="login-container">
-                {/* Branding Side */}
-                <div className="brand-panel">
-                    <div className="brand-content">
-                        <img
-                            src="/GO_NORTHEAST_WHITE_RGB.png"
-                            alt="Go North East"
-                            className="brand-logo-large"
-                        />
-                        <h1>Breakdown Management System</h1>
-                        <p className="brand-subtitle">
-                            Secure supervisor access to breakdown assessment and fleet management tools
-                        </p>
-
-                        <div className="feature-list">
-                            <div className="feature">
-                                <span className="feature-icon">🚨</span>
-                                <div>
-                                    <h3>Rapid Assessment</h3>
-                                    <p>Step-by-step breakdown evaluation wizards</p>
-                                </div>
-                            </div>
-                            <div className="feature">
-                                <span className="feature-icon">📊</span>
-                                <div>
-                                    <h3>Real-Time Tracking</h3>
-                                    <p>Live breakdown status and fleet monitoring</p>
-                                </div>
-                            </div>
-                            <div className="feature">
-                                <span className="feature-icon">✅</span>
-                                <div>
-                                    <h3>Compliance Ready</h3>
-                                    <p>Meets operational safety standards</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="brand-footer">
-                            <p>© 2025 Go North East | Part of Go-Ahead Group</p>
-                        </div>
+                <div className="login-card">
+                    {/* Date/Time Display */}
+                    <div className="datetime-display">
+                        {formatDateTime()}
                     </div>
-                </div>
 
-                {/* Login Form Side */}
-                <div className="form-panel">
-                    <div className="login-card">
-                        <div className="login-header">
-                            <img
-                                src="/gne-logo-horizontal-colour.png"
-                                alt="Go North East"
-                                className="brand-logo"
-                            />
-                            <h2>Supervisor Login</h2>
-                            <p>Enter your credentials to access the system</p>
-                        </div>
+                    {/* Logo */}
+                    <div className="logo-section">
+                        <img
+                            src="/gne-logo-horizontal-colour.png"
+                            alt="Go North East"
+                            className="login-logo"
+                        />
+                    </div>
 
-                        <form onSubmit={handleSubmit} className="login-form">
-                            {/* Email Input */}
-                            <div className="form-group">
-                                <label htmlFor="email">Email Address</label>
-                                <div className="input-wrapper">
-                                    <input
-                                        ref={emailRef}
-                                        type="email"
-                                        id="email"
-                                        value={email}
-                                        onChange={(e) => {
-                                            setEmail(e.target.value);
-                                            setError('');
-                                            clearError();
-                                        }}
-                                        onKeyPress={handleKeyPress}
-                                        placeholder="your.name@gonortheast.co.uk"
-                                        disabled={isLoading}
-                                        className={error ? 'error' : ''}
-                                        autoComplete="email"
-                                        required
-                                    />
-                                    <span className="input-icon">📧</span>
-                                </div>
-                            </div>
+                    {/* Title */}
+                    <div className="title-section">
+                        <h1>Breakdown Management System</h1>
+                        <p className="subtitle-primary">SECURE SUPERVISOR ACCESS PORTAL</p>
+                        <p className="subtitle-secondary">Real-time Fleet Management & Assessment Tools</p>
+                    </div>
 
-                            {/* Password Input */}
-                            <div className="form-group">
-                                <label htmlFor="password">Password</label>
-                                <div className="input-wrapper">
-                                    <input
-                                        ref={passwordRef}
-                                        type={showPassword ? 'text' : 'password'}
-                                        id="password"
-                                        value={password}
-                                        onChange={(e) => {
-                                            setPassword(e.target.value);
-                                            setError('');
-                                            clearError();
-                                        }}
-                                        onKeyPress={handleKeyPress}
-                                        placeholder="Enter your password"
-                                        disabled={isLoading}
-                                        className={error ? 'error' : ''}
-                                        autoComplete="current-password"
-                                        required
-                                    />
+                    {/* Login Form */}
+                    <form onSubmit={handleSubmit} className="login-form">
+                        {/* Email Input */}
+                        <div className="form-group">
+                            <label htmlFor="email">
+                                Email Address
+                                {emailWasPrefilled && (
+                                    <span className="prefilled-badge">Saved</span>
+                                )}
+                            </label>
+                            <div className="input-wrapper">
+                                <input
+                                    ref={emailRef}
+                                    type="email"
+                                    id="email"
+                                    value={email}
+                                    onChange={(e) => {
+                                        setEmail(e.target.value);
+                                        setError('');
+                                        setErrorType('general');
+                                        if (emailWasPrefilled) {
+                                            setEmailWasPrefilled(false);
+                                        }
+                                    }}
+                                    placeholder="supervisor@gonortheast.co.uk"
+                                    disabled={isLoading}
+                                    autoComplete="email"
+                                    required
+                                />
+                                {emailWasPrefilled && email && (
                                     <button
                                         type="button"
-                                        className="password-toggle"
-                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="clear-email-btn"
+                                        onClick={handleClearEmail}
                                         disabled={isLoading}
-                                        tabIndex={-1}
+                                        title="Clear saved email"
                                     >
-                                        {showPassword ? '👁️' : '👁️‍🗨️'}
+                                        ✕
                                     </button>
-                                </div>
-                            </div>
-
-                            {/* Remember Me */}
-                            <div className="form-options">
-                                <label className="checkbox">
-                                    <input
-                                        type="checkbox"
-                                        checked={rememberMe}
-                                        onChange={(e) => setRememberMe(e.target.checked)}
-                                        disabled={isLoading}
-                                    />
-                                    <span>Remember me for 24 hours</span>
-                                </label>
-                            </div>
-
-                            {/* Error Message */}
-                            {(error || authError) && (
-                                <div className="error-message">
-                                    <span className="error-icon">⚠️</span>
-                                    <span>{error || authError}</span>
-                                </div>
-                            )}
-
-                            {/* Login Step Info */}
-                            {loginStep && !error && !authError && (
-                                <div className="login-step">
-                                    <span className="step-spinner"></span>
-                                    <span>{loginStep}</span>
-                                </div>
-                            )}
-
-                            {/* Submit Button */}
-                            <button
-                                type="submit"
-                                className="submit-button"
-                                disabled={isLoading || !email || !password}
-                            >
-                                {isLoading ? (
-                                    <>
-                                        <span className="button-spinner"></span>
-                                        <span>Signing In...</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <span>🔐</span>
-                                        <span>Sign In</span>
-                                    </>
                                 )}
-                            </button>
-                        </form>
+                            </div>
+                        </div>
 
-                        {/* Footer */}
-                        <div className="login-footer">
-                            <p className="connection-info">
-                                <span className="status-indicator active"></span>
-                                Connected to MySQL Backend
-                            </p>
-                            <p className="help-text">
-                                Need help? Contact IT Support
-                            </p>
+                        {/* Password Input */}
+                        <div className="form-group">
+                            <label htmlFor="password">Password</label>
+                            <div className="password-wrapper">
+                                <input
+                                    type={showPassword ? 'text' : 'password'}
+                                    id="password"
+                                    value={password}
+                                    onChange={(e) => {
+                                        setPassword(e.target.value);
+                                        setError('');
+                                        setErrorType('general');
+                                    }}
+                                    onKeyDown={(e) => {
+                                        // Detect Caps Lock on keydown
+                                        if (e.getModifierState && e.getModifierState('CapsLock')) {
+                                            setCapsLockOn(true);
+                                        } else {
+                                            setCapsLockOn(false);
+                                        }
+                                    }}
+                                    onKeyUp={(e) => {
+                                        // Double-check on keyup
+                                        if (e.getModifierState && e.getModifierState('CapsLock')) {
+                                            setCapsLockOn(true);
+                                        } else {
+                                            setCapsLockOn(false);
+                                        }
+                                    }}
+                                    placeholder="Enter your password"
+                                    disabled={isLoading}
+                                    autoComplete="current-password"
+                                    required
+                                />
+                                <button
+                                    type="button"
+                                    className="password-toggle"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    disabled={isLoading}
+                                    tabIndex={-1}
+                                >
+                                    {showPassword ? '👁️' : '👁️‍🗨️'}
+                                </button>
+                            </div>
+                            {/* Caps Lock Warning */}
+                            {capsLockOn && (
+                                <div className="caps-lock-warning">
+                                    <span className="warning-icon">⚠️</span>
+                                    <span>Caps Lock is on</span>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Remember Me */}
+                        <div className="form-options">
+                            <label className="checkbox-label">
+                                <input
+                                    type="checkbox"
+                                    checked={rememberMe}
+                                    onChange={(e) => setRememberMe(e.target.checked)}
+                                    disabled={isLoading}
+                                />
+                                <span>Remember me for 24 hours</span>
+                            </label>
+                        </div>
+
+                        {/* Error Message with Color Coding */}
+                        {error && (
+                            <div className={`error-message error-${errorType}`}>
+                                <span className="error-icon">⚠️</span>
+                                <span>{error}</span>
+                            </div>
+                        )}
+
+                        {/* Submit Button */}
+                        <button
+                            type="submit"
+                            className="submit-button"
+                            disabled={isLoading || !email || !password}
+                        >
+                            {isLoading ? (
+                                <>
+                                    <span className="spinner"></span>
+                                    <span>Signing In...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <span>🔐</span>
+                                    <span>Sign In</span>
+                                </>
+                            )}
+                        </button>
+                    </form>
+
+                    {/* Security Badges */}
+                    <div className="security-badges">
+                        <div className="badge fade-in-badge" style={{ animationDelay: '0.2s' }}>
+                            <span className="badge-icon">🔒</span>
+                            <span className="badge-text">JWT Authentication</span>
+                        </div>
+                        <div className="badge fade-in-badge" style={{ animationDelay: '0.4s' }}>
+                            <span className="badge-icon">🛡️</span>
+                            <span className="badge-text">Secure Connection</span>
+                        </div>
+                        <div className="badge badge-online fade-in-badge" style={{ animationDelay: '0.6s' }}>
+                            <span className="badge-icon pulse-icon">✅</span>
+                            <span className="badge-text">System Online</span>
                         </div>
                     </div>
                 </div>

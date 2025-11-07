@@ -24,7 +24,6 @@ import RecentDecisions from './RecentDecisions';
 import AssessmentProgressTracker from './AssessmentProgressTracker';
 import AssessmentProgressCard from './AssessmentProgressCard';
 import EngineeringTimerAlert from './EngineeringTimerAlert';
-import ConnectionStatusIndicator from '../../components/ConnectionStatusIndicator';
 import SDCDashboardHeader from './SDCDashboardHeader';
 import BreakdownResolutionDialog from './components/BreakdownResolutionDialog';
 import { apiClient } from '../../services/api-client';
@@ -477,7 +476,9 @@ const SDCDashboard = () => {
     const getSupervisor = () => {
       try {
         const sources = [
-          localStorage.getItem('supervisor_session'), // Primary auth source
+          localStorage.getItem('currentUser'), // Primary auth source (AuthContext)
+          sessionStorage.getItem('currentUser'), // AuthContext sessionStorage
+          localStorage.getItem('supervisor_session'),
           localStorage.getItem('currentSupervisor'),
           localStorage.getItem('supervisorData'),
           sessionStorage.getItem('currentSupervisor')
@@ -1626,13 +1627,6 @@ const SDCDashboard = () => {
           {filteredBreakdowns.length} breakdown{filteredBreakdowns.length !== 1 ? 's' : ''} displayed
         </span>
       </div>
-
-      {/* Connection Status Indicator */}
-      <ConnectionStatusIndicator
-        connectionManager={connectionManager.manager}
-        showDetails={true}
-        position="bottom-right"
-      />
 
       {/* Breakdown Resolution Dialog */}
       <BreakdownResolutionDialog

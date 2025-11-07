@@ -1,0 +1,131 @@
+{
+  "name": "Go North East Breakdown Guide",
+  "short_name": "Breakdown Guide",
+  "description": "Mobile breakdown assessment system for Go North East supervisors",
+  "start_url": "/breakdown-guide/",
+  "display": "standalone",
+  "background_color": "#1e293b",
+  "theme_color": "#1e40af",
+  "orientation": "portrait-primary",
+  "scope": "/breakdown-guide/",
+  "lang": "en-GB",
+  "categories": ["productivity", "utilities", "business"],
+  "icons": [
+    {
+      "src": "./icons/icon-72x72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "./icons/icon-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "./icons/icon-128x128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "./icons/icon-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "./icons/icon-152x152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "./icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "./icons/icon-384x384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "./icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Quick Assessment",
+      "short_name": "Assess",
+      "description": "Start a quick vehicle assessment",
+      "url": "/breakdown-guide/?action=quick-assess",
+      "icons": [{ "src": "./icons/assess-96x96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Steering Check",
+      "short_name": "Steering",
+      "description": "Steering system safety check",
+      "url": "/breakdown-guide/?wizard=steering",
+      "icons": [{ "src": "./icons/steering-96x96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Brake Check",
+      "short_name": "Brakes",
+      "description": "Brake system assessment",
+      "url": "/breakdown-guide/?wizard=brakes",
+      "icons": [{ "src": "./icons/brakes-96x96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "View breakdown dashboard",
+      "url": "/breakdown-guide/dashboard/",
+      "icons": [{ "src": "./icons/dashboard-96x96.png", "sizes": "96x96" }]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "./screenshots/mobile-home.png",
+      "sizes": "375x667",
+      "type": "image/png",
+      "platform": "narrow",
+      "label": "Breakdown Guide home screen"
+    },
+    {
+      "src": "./screenshots/mobile-wizard.png",
+      "sizes": "375x667", 
+      "type": "image/png",
+      "platform": "narrow",
+      "label": "Mobile assessment wizard"
+    },
+    {
+      "src": "./screenshots/desktop-dashboard.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "platform": "wide",
+      "label": "Desktop dashboard view"
+    }
+  ],
+  "features": [
+    "offline-support",
+    "background-sync",
+    "push-notifications",
+    "geolocation"
+  ],
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "protocol_handlers": [
+    {
+      "protocol": "web+breakdown",
+      "url": "/breakdown-guide/?breakdown=%s"
+    }
+  ]
+}

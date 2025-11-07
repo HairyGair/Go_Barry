@@ -485,6 +485,28 @@ router.post('/', async (req, res) => {
     // Transform breakdown for frontend compatibility
     const transformedData = transformBreakdownForFrontend(data);
 
+    // Broadcast new breakdown to WebSocket clients (SDC dashboard and Control Room)
+    try {
+      const broadcastData = {
+        type: 'new_breakdown',
+        event: 'breakdown_reported',
+        breakdown_id: data.breakdown_id,
+        fleet_number: data.fleet_no || 'TBC',
+        location: data.location || 'Location to be added',
+        supervisor_name: data.supervisor_name || 'Supervisor',
+        issue_category: data.issue_category || 'General',
+        severity: data.severity || 'NORMAL',
+        depot: data.depot || 'Unknown',
+        timestamp: new Date().toISOString()
+      };
+      webSocketHandler.broadcast('sdc-dashboard', broadcastData);
+      webSocketHandler.broadcast('control-room', broadcastData);
+      console.log(`📡 Broadcasted breakdown ${data.breakdown_id} creation to WebSocket clients`);
+    } catch (broadcastError) {
+      console.error('⚠️ Failed to broadcast breakdown creation:', broadcastError);
+      // Don't fail the main request if broadcast fails
+    }
+
     // Check for critical patterns and broadcast to defect intelligence
     try {
       await detectAndBroadcastCriticalPatterns(
@@ -1417,18 +1439,21 @@ router.post('/resolve', async (req, res) => {
       });
     }
 
-    const resolvedAt = new Date().toISOString();
+    const resolvedAt = toMySQLDatetime(new Date());
     const resolvingUser = resolved_by || supervisor_badge || req.supervisor?.name || 'System';
 
     // Update breakdown status to resolved
-    await update('breakdowns', { breakdown_id }, {
-      status: 'resolved',
-      resolved_at: resolvedAt,
-      resolved_by: resolvingUser,
-      resolution_notes: resolution_notes || '',
-      resolution_type: resolution_type || 'fixed',
-      returned_to_service: returned_to_service
-    });
+    await update('breakdowns',
+      {
+        status: 'resolved',
+        resolved_at: resolvedAt,
+        resolved_by: resolvingUser,
+        resolution_notes: resolution_notes || '',
+        resolution_type: resolution_type || 'fixed',
+        returned_to_service: returned_to_service
+      },
+      { breakdown_id }
+    );
 
     // Fetch updated breakdown
     const { data: breakdown, error: updateError } = await from('breakdowns')

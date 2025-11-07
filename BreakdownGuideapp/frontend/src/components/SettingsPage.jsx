@@ -20,6 +20,7 @@ import AppearanceSettings from './settings/AppearanceSettings.jsx';
 import DashboardSettings from './settings/DashboardSettings.jsx';
 import DataManagement from './settings/DataManagement.jsx';
 import AdminSettings from './settings/AdminSettings.jsx';
+import LoginAnalyticsDashboard from './settings/LoginAnalyticsDashboard.jsx';
 import './SettingsPage.css';
 
 const SettingsPage = () => {
@@ -205,8 +206,11 @@ const SettingsPage = () => {
     { id: 'appearance', label: 'Appearance', icon: '🎨' },
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
     { id: 'data', label: 'Data & Storage', icon: '💾' },
-    // Admin tab - only show for admin users
-    ...(currentUser?.role === 'admin' ? [{ id: 'admin', label: 'Admin', icon: '🔐' }] : []),
+    // Admin tabs - only show for admin users
+    ...(currentUser?.role === 'admin' ? [
+      { id: 'admin', label: 'Admin', icon: '🔐' },
+      { id: 'analytics', label: 'Login Analytics', icon: '📈' }
+    ] : []),
     // Phase 2:
     // { id: 'notifications', label: 'Notifications', icon: '🔔' },
     // { id: 'security', label: 'Security', icon: '🔒' },
@@ -288,6 +292,10 @@ const SettingsPage = () => {
 
           {activeTab === 'admin' && (
             <AdminSettings />
+          )}
+
+          {activeTab === 'analytics' && (
+            <LoginAnalyticsDashboard />
           )}
         </div>
       </div>

@@ -30,6 +30,10 @@ class WebSocketHandler {
     this.channels = new Map();
     this.lastActivityTimestamp = null;
     this.fileWatchers = new Map();
+
+    // Display Management
+    this.displays = new Map(); // Track registered displays: displayId -> { clientId, depot, filters, registeredAt, lastSeen }
+    this.displaysByDepot = new Map(); // Track displays by depot: depot -> Set<displayId>
   }
 
   // Initialize WebSocket server
@@ -70,9 +74,9 @@ class WebSocketHandler {
     let user = null;
     let supervisor = null;
 
-    // Protected channels require authentication (control-room and defect-intelligence are public)
+    // Protected channels require authentication (control-room, defect-intelligence, and engineering-display are public)
     const protectedChannels = ['sdc-dashboard', 'breakdowns', 'assessment-progress'];
-    const publicChannels = ['control-room', 'defect-intelligence'];
+    const publicChannels = ['control-room', 'defect-intelligence', 'engineering-display'];
 
     if (protectedChannels.includes(channel)) {
       if (!token) {
@@ -170,12 +174,18 @@ class WebSocketHandler {
       }
     }
 
+    // Extract displayId from query parameters (for engineering displays)
+    const displayId = url.searchParams.get('displayId');
+    const depot = url.searchParams.get('depot');
+
     // Store client info with authentication details
     this.clients.set(clientId, {
       ws,
       channel,
       user,
       supervisor,
+      displayId, // Only present for engineering displays
+      depot, // Only present for engineering displays
       connectedAt: new Date().toISOString(),
       lastActivity: new Date().toISOString(),
       subscriptions: new Set([channel]),
@@ -187,6 +197,12 @@ class WebSocketHandler {
       this.channels.set(channel, new Set());
     }
     this.channels.get(channel).add(clientId);
+
+    // Register display if this is an engineering display
+    if (channel === 'engineering-display' && displayId) {
+      this.registerDisplay(displayId, clientId, depot);
+      console.log(`🖥️ Display registered: ${displayId} (Depot: ${depot || 'None'})`);
+    }
 
     // Set up client event handlers
     ws.on('message', (data) => {
@@ -245,6 +261,14 @@ class WebSocketHandler {
         case 'get_status':
           this.sendStatusUpdate(clientId);
           break;
+        case 'display_register':
+          // Dynamic display registration
+          this.handleDisplayRegistration(clientId, message);
+          break;
+        case 'display_update_filters':
+          // Display updates its own filters
+          this.handleDisplayFilterUpdate(clientId, message);
+          break;
         default:
           console.log(`Unknown message type: ${message.type}`);
       }
@@ -259,6 +283,12 @@ class WebSocketHandler {
     if (!client) return;
 
     console.log(`🔌 WebSocket disconnection: ${clientId}`);
+
+    // Unregister display if it was a display client
+    if (client.displayId) {
+      this.unregisterDisplay(client.displayId);
+      console.log(`🖥️ Display unregistered: ${client.displayId}`);
+    }
 
     // Remove from all channels
     client.subscriptions.forEach(channel => {
@@ -649,6 +679,320 @@ class WebSocketHandler {
     };
 
     return this.broadcastToChannel('defect-intelligence', message);
+  }
+
+  // =====================================================
+  // DISPLAY MANAGEMENT METHODS
+  // =====================================================
+
+  /**
+   * Register an engineering display
+   * @param {string} displayId - Unique display identifier (e.g., 'yard1', 'depot-washington')
+   * @param {string} clientId - WebSocket client ID
+   * @param {string} depot - Depot name (optional)
+   */
+  registerDisplay(displayId, clientId, depot = null) {
+    const displayInfo = {
+      clientId,
+      displayId,
+      depot,
+      filters: {
+        status: ['pending', 'in-progress'],
+        depot: depot || 'all'
+      },
+      registeredAt: new Date().toISOString(),
+      lastSeen: new Date().toISOString()
+    };
+
+    this.displays.set(displayId, displayInfo);
+
+    // Track by depot if depot is specified
+    if (depot) {
+      if (!this.displaysByDepot.has(depot)) {
+        this.displaysByDepot.set(depot, new Set());
+      }
+      this.displaysByDepot.get(depot).add(displayId);
+    }
+
+    console.log(`✅ Display registered: ${displayId}`, displayInfo);
+
+    // Send confirmation to display
+    this.sendToClient(clientId, {
+      type: 'display_registered',
+      displayId,
+      depot,
+      message: 'Display successfully registered',
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  /**
+   * Unregister a display
+   * @param {string} displayId - Display identifier
+   */
+  unregisterDisplay(displayId) {
+    const display = this.displays.get(displayId);
+    if (!display) return;
+
+    // Remove from depot tracking
+    if (display.depot && this.displaysByDepot.has(display.depot)) {
+      this.displaysByDepot.get(display.depot).delete(displayId);
+      if (this.displaysByDepot.get(display.depot).size === 0) {
+        this.displaysByDepot.delete(display.depot);
+      }
+    }
+
+    this.displays.delete(displayId);
+    console.log(`✅ Display unregistered: ${displayId}`);
+  }
+
+  /**
+   * Handle dynamic display registration from client
+   * @param {string} clientId - Client ID
+   * @param {Object} message - Registration message
+   */
+  handleDisplayRegistration(clientId, message) {
+    const { displayId, depot } = message;
+
+    if (!displayId) {
+      this.sendToClient(clientId, {
+        type: 'error',
+        error: 'displayId is required for registration',
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+
+    // Update client info
+    const client = this.clients.get(clientId);
+    if (client) {
+      client.displayId = displayId;
+      client.depot = depot;
+    }
+
+    // Register display
+    this.registerDisplay(displayId, clientId, depot);
+  }
+
+  /**
+   * Handle display filter updates from client
+   * @param {string} clientId - Client ID
+   * @param {Object} message - Filter update message
+   */
+  handleDisplayFilterUpdate(clientId, message) {
+    const client = this.clients.get(clientId);
+    if (!client || !client.displayId) {
+      this.sendToClient(clientId, {
+        type: 'error',
+        error: 'Client is not registered as a display',
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+
+    const display = this.displays.get(client.displayId);
+    if (!display) return;
+
+    // Update filters
+    display.filters = { ...display.filters, ...message.filters };
+    display.lastSeen = new Date().toISOString();
+
+    console.log(`🔧 Display filters updated: ${client.displayId}`, display.filters);
+
+    this.sendToClient(clientId, {
+      type: 'display_filters_updated',
+      displayId: client.displayId,
+      filters: display.filters,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  /**
+   * Send command to specific display
+   * @param {string} displayId - Display identifier
+   * @param {Object} command - Command object
+   * @returns {boolean} Success status
+   */
+  sendToDisplay(displayId, command) {
+    const display = this.displays.get(displayId);
+    if (!display) {
+      console.warn(`❌ Display not found: ${displayId}`);
+      return false;
+    }
+
+    const success = this.sendToClient(display.clientId, {
+      ...command,
+      displayId,
+      timestamp: new Date().toISOString()
+    });
+
+    if (success) {
+      display.lastSeen = new Date().toISOString();
+    }
+
+    return success;
+  }
+
+  /**
+   * Highlight a specific breakdown on a display
+   * @param {string} displayId - Display identifier
+   * @param {string} breakdownId - Breakdown ID to highlight
+   */
+  displayHighlight(displayId, breakdownId) {
+    console.log(`🎯 Highlighting breakdown ${breakdownId} on display ${displayId}`);
+    return this.sendToDisplay(displayId, {
+      type: 'display_highlight',
+      breakdownId,
+      action: 'highlight'
+    });
+  }
+
+  /**
+   * Change display filters remotely
+   * @param {string} displayId - Display identifier
+   * @param {Object} filters - New filters to apply
+   */
+  displayChangeFilters(displayId, filters) {
+    const display = this.displays.get(displayId);
+    if (!display) {
+      console.warn(`❌ Display not found: ${displayId}`);
+      return false;
+    }
+
+    // Update stored filters
+    display.filters = { ...display.filters, ...filters };
+
+    console.log(`🔧 Changing filters on display ${displayId}`, filters);
+    return this.sendToDisplay(displayId, {
+      type: 'display_filter',
+      filters
+    });
+  }
+
+  /**
+   * Change which depot a display shows
+   * @param {string} displayId - Display identifier
+   * @param {string} depot - New depot name
+   */
+  displayChangeDepot(displayId, depot) {
+    const display = this.displays.get(displayId);
+    if (!display) {
+      console.warn(`❌ Display not found: ${displayId}`);
+      return false;
+    }
+
+    // Remove from old depot tracking
+    if (display.depot && this.displaysByDepot.has(display.depot)) {
+      this.displaysByDepot.get(display.depot).delete(displayId);
+    }
+
+    // Add to new depot tracking
+    display.depot = depot;
+    if (!this.displaysByDepot.has(depot)) {
+      this.displaysByDepot.set(depot, new Set());
+    }
+    this.displaysByDepot.get(depot).add(displayId);
+
+    console.log(`🏢 Changing depot on display ${displayId} to ${depot}`);
+    return this.sendToDisplay(displayId, {
+      type: 'display_depot_change',
+      depot
+    });
+  }
+
+  /**
+   * Force a display to refresh its data
+   * @param {string} displayId - Display identifier
+   */
+  displayRefresh(displayId) {
+    console.log(`🔄 Forcing refresh on display ${displayId}`);
+    return this.sendToDisplay(displayId, {
+      type: 'display_refresh',
+      action: 'refresh'
+    });
+  }
+
+  /**
+   * Broadcast command to all displays in a depot
+   * @param {string} depot - Depot name
+   * @param {Object} command - Command to broadcast
+   */
+  broadcastToDepotDisplays(depot, command) {
+    const displays = this.displaysByDepot.get(depot);
+    if (!displays || displays.size === 0) {
+      console.warn(`❌ No displays found for depot: ${depot}`);
+      return 0;
+    }
+
+    let successCount = 0;
+    displays.forEach(displayId => {
+      if (this.sendToDisplay(displayId, command)) {
+        successCount++;
+      }
+    });
+
+    console.log(`📡 Broadcasted to ${successCount}/${displays.size} displays in ${depot}`);
+    return successCount;
+  }
+
+  /**
+   * Get list of active displays
+   * @returns {Array} Array of display information
+   */
+  getActiveDisplays() {
+    const displays = [];
+    this.displays.forEach((display, displayId) => {
+      displays.push({
+        displayId,
+        depot: display.depot,
+        filters: display.filters,
+        registeredAt: display.registeredAt,
+        lastSeen: display.lastSeen,
+        online: true
+      });
+    });
+    return displays;
+  }
+
+  /**
+   * Get displays by depot
+   * @param {string} depot - Depot name
+   * @returns {Array} Array of display IDs
+   */
+  getDisplaysByDepot(depot) {
+    const displayIds = this.displaysByDepot.get(depot);
+    if (!displayIds) return [];
+
+    return Array.from(displayIds).map(displayId => {
+      const display = this.displays.get(displayId);
+      return {
+        displayId,
+        depot: display.depot,
+        filters: display.filters,
+        registeredAt: display.registeredAt,
+        lastSeen: display.lastSeen,
+        online: true
+      };
+    });
+  }
+
+  /**
+   * Get display information
+   * @param {string} displayId - Display identifier
+   * @returns {Object|null} Display information or null
+   */
+  getDisplayInfo(displayId) {
+    const display = this.displays.get(displayId);
+    if (!display) return null;
+
+    return {
+      displayId,
+      depot: display.depot,
+      filters: display.filters,
+      registeredAt: display.registeredAt,
+      lastSeen: display.lastSeen,
+      online: true
+    };
   }
 
   // Cleanup

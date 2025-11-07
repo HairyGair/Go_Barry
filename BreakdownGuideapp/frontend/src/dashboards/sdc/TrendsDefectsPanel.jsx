@@ -45,7 +45,7 @@ const TrendsDefectsPanel = () => {
   const fetchDefectData = useCallback(async () => {
     try {
       setRefreshing(true);
-      const token = localStorage.getItem('supervisor_token');
+      const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
       const headers = {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
@@ -389,7 +389,7 @@ const TrendsDefectsPanel = () => {
       await fetch(`${apiConfig.baseUrl}/api/defects/escalate`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('supervisor_token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('authToken') || sessionStorage.getItem('authToken')}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -420,7 +420,7 @@ const TrendsDefectsPanel = () => {
       const response = await fetch(`${apiConfig.baseUrl}/api/defects/report`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('supervisor_token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('authToken') || sessionStorage.getItem('authToken')}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
@@ -459,7 +459,7 @@ const TrendsDefectsPanel = () => {
       await fetch(`${apiConfig.baseUrl}/api/defects/notifications/maintenance`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('supervisor_token')}`,
+          'Authorization': `Bearer ${localStorage.getItem('authToken') || sessionStorage.getItem('authToken')}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({

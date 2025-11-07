@@ -1,8 +1,5 @@
 // API Client for Go North East Breakdown Guide
 // Connects to MySQL backend API via cPanel
-// Automatically injects Authorization headers for authenticated requests
-
-import backendAuthService from './backend-auth-service.js';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
 // Mock data system removed - using real API data only
@@ -15,11 +12,10 @@ class APIClient {
   }
 
   async request(endpoint, options = {}) {
-    // Get access token from backend auth service
-    const session = await backendAuthService.getCurrentSession();
-    const token = session.success ? session.session?.access_token : null;
+    // Get authentication token from storage
+    const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
 
-    console.log(`🔍 API Client Request - Endpoint: ${endpoint}, Has Token: ${!!token}`);
+    console.log(`🔍 API Client Request - Endpoint: ${endpoint}`, token ? '(authenticated)' : '(unauthenticated)');
 
     // If no token and endpoint can use public fallback, convert to public endpoint
     let actualEndpoint = endpoint;
@@ -30,6 +26,7 @@ class APIClient {
 
       // Check if path has a public fallback
       const publicFallbacks = {
+        '/api/breakdowns': '/api/public/breakdowns',
         '/api/breakdowns/stats': '/api/public/breakdowns/stats',
         '/api/breakdowns/live': '/api/public/breakdowns/live',
         '/api/activity/feed': '/api/public/activity/feed'
@@ -70,39 +67,7 @@ class APIClient {
     try {
       const response = await fetch(url, config);
 
-      // Handle 401 Unauthorized - try to refresh session once
-      if (response.status === 401 && token && !this.isRefreshing) {
-        console.log('🔄 401 Unauthorized - attempting session refresh');
-        this.isRefreshing = true;
-
-        try {
-          // Try to refresh the session
-          await backendAuthService.refreshSession();
-          const newSession = await backendAuthService.getCurrentSession();
-          const newToken = newSession.success ? newSession.session?.access_token : null;
-
-          if (newToken && newToken !== token) {
-            // Retry request with new token
-            config.headers['Authorization'] = `Bearer ${newToken}`;
-            console.log('🔄 Retrying request with refreshed token');
-
-            const retryResponse = await fetch(url, config);
-            this.isRefreshing = false;
-
-            if (!retryResponse.ok) {
-              throw new Error(`HTTP error! status: ${retryResponse.status}`);
-            }
-
-            return await retryResponse.json();
-          } else {
-            console.warn('⚠️ Session refresh did not provide new token');
-          }
-        } catch (refreshError) {
-          console.error('Session refresh failed:', refreshError);
-        } finally {
-          this.isRefreshing = false;
-        }
-      }
+      // Auth refresh removed - 401 errors will propagate normally
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);

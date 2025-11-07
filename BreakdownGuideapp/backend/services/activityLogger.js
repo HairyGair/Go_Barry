@@ -71,8 +71,18 @@ class ActivityLoggerService {
     this.maxBatchSize = 10;
     this.batchTimeout = 5000; // 5 seconds
     this.batchTimer = null;
+    this.webSocketHandler = null; // WebSocket handler for real-time broadcasts
     // Auto-initialize with MySQL
     this.init();
+  }
+
+  /**
+   * Set WebSocket handler for broadcasting activity events
+   * Called by server.js after WebSocket initialization
+   */
+  setWebSocketHandler(wsHandler) {
+    this.webSocketHandler = wsHandler;
+    console.log('✅ WebSocket handler connected to Activity Logger');
   }
 
   /**
@@ -174,6 +184,12 @@ class ActivityLoggerService {
       const data = rows[0] || null;
 
       console.log(`📝 Activity logged: ${activityType} by ${actorName || actorId}`);
+
+      // Broadcast activity via WebSocket
+      if (this.webSocketHandler && data) {
+        this.broadcastActivity(data);
+      }
+
       return data;
     } catch (error) {
       console.error('❌ Failed to log activity:', error);
@@ -213,6 +229,12 @@ class ActivityLoggerService {
       const data = await query(selectSql, insertedIds);
 
       console.log(`📝 Batch logged ${activities.length} activities`);
+
+      // Broadcast each activity via WebSocket
+      if (this.webSocketHandler && data) {
+        data.forEach(activity => this.broadcastActivity(activity));
+      }
+
       return data;
     } catch (error) {
       console.error('❌ Failed to batch log activities:', error);
@@ -497,6 +519,47 @@ class ActivityLoggerService {
     if (this.batchTimer) {
       clearTimeout(this.batchTimer);
       this.batchTimer = null;
+    }
+  }
+
+  /**
+   * Broadcast activity to WebSocket clients
+   */
+  broadcastActivity(activity) {
+    if (!this.webSocketHandler) return;
+
+    try {
+      const broadcastData = {
+        type: 'activity_created',
+        event: 'new_activity',
+        activity: {
+          id: activity.id,
+          activity_type: activity.activity_type,
+          action: activity.action,
+          actor_type: activity.actor_type,
+          actor_id: activity.actor_id,
+          actor_name: activity.actor_name,
+          entity_type: activity.entity_type,
+          entity_id: activity.entity_id,
+          entity_details: activity.entity_details,
+          depot: activity.depot,
+          severity: activity.severity,
+          priority: activity.priority,
+          source: activity.source,
+          metadata: activity.metadata,
+          icon: activity.icon,
+          message: activity.message,
+          timestamp: activity.created_at,
+          created_at: activity.created_at
+        },
+        timestamp: new Date().toISOString()
+      };
+
+      // Broadcast to relevant channels
+      const broadcastCount = this.webSocketHandler.broadcast('breakdowns', broadcastData);
+      console.log(`📡 Activity broadcasted to ${broadcastCount} WebSocket clients`);
+    } catch (error) {
+      console.error('❌ Error broadcasting activity:', error);
     }
   }
 

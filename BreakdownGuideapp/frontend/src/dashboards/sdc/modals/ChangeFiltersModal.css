@@ -1,0 +1,197 @@
+/* Change Filters Modal Styling */
+@import './Modal.css';
+
+.change-filters-modal {
+  width: 90%;
+  max-width: 600px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.change-filters-modal .modal-info {
+  background: rgba(0, 102, 204, 0.1);
+  border: 1px solid #0066cc;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  color: #6db3f2;
+}
+
+.change-filters-modal .modal-info p {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* Presets Section */
+.presets-section {
+  margin-bottom: 20px;
+}
+
+.section-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ccc;
+  margin-bottom: 12px;
+}
+
+.preset-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.preset-btn {
+  background: #2a2a2a;
+  color: #ffffff;
+  border: 1px solid #444;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.preset-btn:hover {
+  background: #333;
+  border-color: #0066cc;
+  color: #0066cc;
+}
+
+/* Filters Section */
+.filters-section {
+  margin-bottom: 20px;
+}
+
+.filter-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Filter Checkbox */
+.filter-checkbox {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  background: #1a1a1a;
+  border: 2px solid #444;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.filter-checkbox:hover {
+  border-color: #0066cc;
+  background: #222;
+}
+
+.filter-checkbox input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: #0066cc;
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+
+.checkbox-content {
+  flex: 1;
+}
+
+.checkbox-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.checkbox-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.checkbox-description {
+  margin: 0;
+  font-size: 13px;
+  color: #888;
+  line-height: 1.4;
+}
+
+/* Status Badge (in ChangeFiltersModal) */
+.filter-checkbox .status-badge {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.filter-checkbox .status-badge.pending {
+  background: rgba(255, 193, 7, 0.2);
+  color: #ffc107;
+  border: 1px solid #ffc107;
+}
+
+.filter-checkbox .status-badge.in-progress {
+  background: rgba(0, 102, 204, 0.2);
+  color: #0066cc;
+  border: 1px solid #0066cc;
+}
+
+.filter-checkbox .status-badge.resolved {
+  background: rgba(40, 167, 69, 0.2);
+  color: #28a745;
+  border: 1px solid #28a745;
+}
+
+/* Validation Warning */
+.validation-warning {
+  background: rgba(220, 53, 69, 0.1);
+  border: 1px solid #dc3545;
+  color: #ff6b6b;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Selection Summary */
+.selection-summary {
+  background: #2a2a2a;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #ccc;
+  margin-bottom: 20px;
+}
+
+.selection-summary strong {
+  color: #fff;
+  font-weight: 600;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .change-filters-modal {
+    width: 95%;
+    max-height: 90vh;
+  }
+
+  .preset-buttons {
+    grid-template-columns: 1fr;
+  }
+
+  .checkbox-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+}

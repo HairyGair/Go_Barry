@@ -1,3 +1,4 @@
+// Build timestamp: 2025-11-04 22:05:00 - Cache buster
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'

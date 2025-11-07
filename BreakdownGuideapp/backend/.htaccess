@@ -25,6 +25,12 @@ Header always set Access-Control-Allow-Headers "Content-Type, Authorization"
 RewriteCond %{REQUEST_METHOD} OPTIONS
 RewriteRule ^(.*)$ $1 [R=200,L]
 
+# WebSocket proxy configuration
+# Detect WebSocket upgrade requests and proxy them with ws:// protocol
+RewriteCond %{HTTP:Upgrade} =websocket [NC]
+RewriteCond %{HTTP:Connection} =upgrade [NC]
+RewriteRule ^(.*)$ ws://localhost:3001/$1 [P,L]
+
 # Forward all other requests to the app
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d

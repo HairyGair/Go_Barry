@@ -2944,62 +2944,38 @@ body {
 }
 
 /* Login Page Styles */
-.login-page {
-  min-height: 100vh;
+/* Login page styles moved to MySQLLoginPage.css - DO NOT ADD STYLES HERE */
+/* All login styling is now in /components/MySQLLoginPage.css with winter theme */
+
+/* App Loading State */
+.app-loading {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-  padding: 20px;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #003B5C 0%, #0066A1 100%);
+  color: white;
 }
 
-.login-container {
-  background: white;
-  border-radius: 16px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-  padding: 40px;
-  width: 100%;
-  max-width: 450px;
-  text-align: center;
-}
-
-.login-header {
-  margin-bottom: 30px;
-}
-
-.login-logo {
+.app-loading .loading-spinner {
+  width: 60px;
   height: 60px;
-  width: auto;
+  border: 6px solid rgba(255, 255, 255, 0.2);
+  border-top: 6px solid white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
   margin-bottom: 20px;
 }
 
-.login-header h1 {
-  color: var(--gne-navy);
-  margin: 0 0 10px 0;
-  font-size: 24px;
-  font-weight: 700;
-}
-
-.login-header p {
-  color: #6b7280;
+.app-loading p {
+  font-size: 18px;
+  font-weight: 600;
   margin: 0;
-  font-size: 16px;
+  opacity: 0.9;
 }
 
-@media (max-width: 480px) {
-  .login-page {
-    padding: 12px;
-  }
-
-  .login-container {
-    padding: 24px 20px;
-  }
-
-  .login-logo {
-    height: 45px;
-  }
-
-  .login-header h1 {
-    font-size: 20px;
-  }
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }

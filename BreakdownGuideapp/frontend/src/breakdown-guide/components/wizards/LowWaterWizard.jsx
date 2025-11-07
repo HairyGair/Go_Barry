@@ -8,7 +8,7 @@ import constants from '../common/constants.js';
 
 const LowWaterWizard = ({ currentStep, responses, updateResponse, onNext, onPrevious, onComplete }) => {
     // Get icons from global scope
-    const { AlertTriangle, ArrowLeft, ArrowRight, Home, CheckCircle, XCircle, FileText, Droplets } = Icons;
+    const { AlertTriangle, ArrowLeft, ArrowRight, Home, CheckCircle, XCircle, FileText, Droplet } = Icons;
     
     switch (currentStep) {
         case 1:
@@ -16,7 +16,7 @@ const LowWaterWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                 <div className="space-y-6">
                     <div className="text-center">
                         <div className="mx-auto w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mb-4">
-                            <Droplets className="w-8 h-8 text-blue-400" />
+                            <Droplet className="w-8 h-8 text-blue-400" />
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">💧 Low Water Assessment</h2>
                         <p className="text-gray-300">Following standard operational safety checks guidance for low water issues - systematic approach to assess safety and continuity.</p>
@@ -159,7 +159,7 @@ const LowWaterWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                 <div className="space-y-6">
                     <div className="text-center">
                         <div className="mx-auto w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mb-4">
-                            <Droplets className="w-8 h-8 text-blue-400" />
+                            <Droplet className="w-8 h-8 text-blue-400" />
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">💧 Low Water Assessment</h2>
                         <p className="text-gray-300">Step 2: Check for water leaks to determine the severity of the issue.</p>

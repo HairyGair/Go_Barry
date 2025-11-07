@@ -2,10 +2,10 @@
 
 This file provides guidance to Claude Code and other AI assistants when working with the Go BARRY Breakdown Management System.
 
-**Last Updated:** October 30, 2025 (Post-Cleanup)
+**Last Updated:** November 2, 2025 (Authentication System Overhaul)
 **System Status:** Production-Ready ✅
-**Current Version:** 3.0.0 (MySQL + cPanel Deployment)
-**Documentation Status:** ✅ Cleaned and Organized (115+ legacy files removed)
+**Current Version:** 3.1.0 (MySQL + cPanel Deployment)
+**Documentation Status:** ✅ Cleaned and Organized (115+ legacy files removed, 231 lines mock data eliminated)
 
 ---
 
@@ -620,6 +620,125 @@ authHelpers.js
 - Moved from Render.com to cPanel + PM2
 - Direct database connection (no connection pooling service)
 
+---
+
+## 📋 Recent Updates - November 2025
+
+### Authentication System Overhaul (November 2, 2025)
+
+**1. Premium Login Page Created**
+- Complete redesign with glassmorphism and purple gradient background
+- **Files:**
+  - `/frontend/src/components/MySQLLoginPage.jsx`
+  - `/frontend/src/components/MySQLLoginPage.css`
+- **Features:**
+  - Password strength meter with real-time validation
+  - Email validation with visual feedback
+  - Floating label inputs with smooth animations
+  - Security badges (256-bit encryption, secure authentication)
+  - Responsive design for all screen sizes (mobile, tablet, desktop)
+  - Glassmorphism effects with backdrop blur
+  - Loading states and error handling
+- **Design:** Purple gradient background (#667eea to #764ba2) with glass-morphic login card
+
+**2. Duty Selection System Updated**
+- Updated all 4 duty shifts to match **Go North East standard operational times**
+- **File:** `/frontend/src/components/DutySelectionModal.jsx`
+- **New Duty Times:**
+  - **Duty 100: Early Shift (06:00-15:30)** - Blue gradient - 9h 30m duration
+  - **Duty 200: Day Shift (07:30-17:00)** - Green gradient - 9h 30m duration
+  - **Duty 400: Late Shift (12:30-22:00)** - Orange gradient - 9h 30m duration
+  - **Duty 500: Night Shift (14:45-00:15)** - Purple gradient - 9h 30m duration
+- **Features:**
+  - Each duty card shows color-coded gradients
+  - Comprehensive task lists for each shift
+  - Smooth modal animations
+  - Optional duty selection (can be skipped)
+  - Duty badge displayed in navigation after selection
+
+**3. Mock Data Elimination (231 Lines Removed)**
+- **Goal:** Remove ALL hardcoded/mock user data from frontend
+- **Approach:** Connect all components to real `AuthContext` for user information
+- **Total Lines Removed:** 231 lines of mock/demo data
+
+**Files Cleaned:**
+- **ModernAppHeader.jsx** - Removed mock user object, hardcoded stats, mock weather data
+- **AppHeader.jsx** - Removed mock authentication state and random statistics generation
+- **ChangePasswordModal.jsx** - Removed hardcoded mock user
+- **SettingsPage.jsx** - Removed hardcoded mock user
+- **HomePage.jsx** - Removed hardcoded mock user
+- **breakdown-guide/App.jsx** - Removed mock supervisor session
+- **Deleted:** `/frontend/src/utils/mockActivityData.js` (136 lines of mock activity data)
+
+**4. Real Authentication Integration**
+- All components now use `useAuth()` hook from `AuthContext`
+- User data flows from real login instead of hardcoded values
+- **Authentication Flow:**
+  1. User logs in via `MySQLLoginPage.jsx`
+  2. **Password Required:** `GoNorthEast2025!` (validates on every login attempt)
+  3. Accepts any valid email address with correct password
+  4. Login sets user object in `AuthContext`: `{ id, email, name, role, loginTime }`
+  5. Name is automatically derived from email (text before @ symbol)
+  6. All components access user via `const { user } = useAuth()`
+  7. Optional duty selection via `DutySelectionModal.jsx`
+
+**5. Database Schema Validation**
+- Verified supervisor data structure in MySQL:
+  - **supervisors table:** id, email, name, badge_number, depot, role, current_duty, password_hash
+  - **breakdowns table:** Stores supervisor info (badge, name) embedded in breakdown records
+- User authentication is currently **client-side only** (development mode)
+- Backend endpoints ready for future integration
+
+---
+
+### Important Notes for AI Assistants
+
+**Authentication & User Data:**
+- **NEVER create mock data** - Always use `AuthContext` for user information
+- User authentication is client-side only with password validation
+- **Required Password:** `GoNorthEast2025!` (all users must use this password)
+- Accepts any valid email address with the correct password
+- Real user data structure: `{ id, email, name, role, loginTime }`
+- Name is automatically derived from email (text before @ symbol)
+- Access user data: `const { user, login, logout } = useAuth()`
+
+**Login Page:**
+- Login page uses **premium glassmorphism design** - do not simplify
+- Maintains brand colors: Purple gradient (#667eea to #764ba2)
+- All animations and visual effects are intentional design choices
+- Responsive breakpoints: Mobile (<480px), Tablet (480-768px), Desktop (>768px)
+
+**Duty Selection:**
+- All duty times are in **24-hour format** matching Go North East standards
+- Each shift is exactly 9h 30m duration
+- Duty selection is **optional** (users can skip and select later)
+- Backend endpoint: `POST /api/auth/set-duty` (ready for integration)
+
+**Code Patterns:**
+```javascript
+// ✅ Correct - Use AuthContext
+import { useAuth } from '../contexts/AuthContext';
+
+function MyComponent() {
+  const { user } = useAuth();
+  return <div>Welcome, {user?.name}</div>;
+}
+
+// ❌ Wrong - Do not create mock data
+function MyComponent() {
+  const user = { name: 'Mock User', email: 'mock@example.com' };
+  return <div>Welcome, {user.name}</div>;
+}
+```
+
+**Files to Reference:**
+- Authentication Context: `/frontend/src/contexts/AuthContext.jsx`
+- Login Page: `/frontend/src/components/MySQLLoginPage.jsx`
+- Duty Selection: `/frontend/src/components/DutySelectionModal.jsx`
+- Main App Header: `/frontend/src/components/ModernAppHeader.jsx`
+
+---
+
 ### Known Limitations
 
 **Current Constraints:**
@@ -803,7 +922,7 @@ return res.status(500).json({
 
 ---
 
-**Last Updated:** October 30, 2025 (Post-Cleanup)
-**Document Version:** 3.1.0
+**Last Updated:** November 2, 2025 (Authentication System Overhaul)
+**Document Version:** 3.2.0
 **System Status:** Production-Ready ✅
 **Documentation:** Clean and Organized

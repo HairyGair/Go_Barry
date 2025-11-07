@@ -18,16 +18,14 @@ import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation } f
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import './App.css'
 
-// Import AuthContext and authentication components
+// Import AuthProvider
 import { AuthProvider, useAuth } from './contexts/AuthContext.jsx'
-import ProtectedRoute, { AdminRoute, SupervisorRoute } from './components/ProtectedRoute.jsx'
-import SupervisorLoginWithContext from './components/SupervisorLoginWithContext.jsx'
 
-// Import storage service
-import storageService from './services/storageService.js'
-
-// Import HeaderLogin component (for fallback)
-import HeaderLogin from './components/HeaderLogin.jsx'
+// Import Authentication Components
+import MySQLLoginPage from './components/MySQLLoginPage.jsx'
+import DutySelectionModal from './components/DutySelectionModal.jsx'
+import DutyIndicator from './components/DutyIndicator.jsx'
+import WelcomeMessage from './components/WelcomeMessage.jsx'
 
 // Import Modern Header Component
 import ModernAppHeader from './components/ModernAppHeader.jsx'
@@ -38,18 +36,20 @@ import BreakdownGuideApp from './breakdown-guide/App.jsx'
 // Import Dashboard Router
 import { DashboardRouter } from './dashboards'
 
-// Import HomePage and LoginPage components
+// Import Engineering Display (public standalone route)
+import EngineeringDisplay from './dashboards/engineering/EngineeringDisplay'
+
+// Import HomePage
 import HomePage from './components/HomePage.jsx'
-import MySQLLoginPage from './components/MySQLLoginPage.jsx'
 
 // Import NotificationPanel
 import NotificationPanel from './components/NotificationPanel.jsx'
 // Import Settings Page
 import SettingsPage from './components/SettingsPage.jsx'
-// Import DutySelectionModal
-import DutySelectionModal from './components/DutySelectionModal.jsx'
-// Import dashboard data fetcher
-import { fetchDashboardData } from './utils/fetchDashboardData.js'
+
+// Import QuickFeedback and ErrorBoundary
+import QuickFeedback from './components/QuickFeedback.jsx'
+import ErrorBoundary from './components/ErrorBoundary.jsx'
 
 const BreakdownGuide = () => {
   return <BreakdownGuideApp />
@@ -65,15 +65,15 @@ const ComingSoon = ({ title }) => (
 )
 
 // Main Navigation Component with Enhanced Design
-const Navigation = ({ hide = false, activeBreakdowns = 0 }) => {
+const Navigation = ({ hide = false, activeBreakdowns = 0, currentDuty, onDutyClick }) => {
   if (hide) return null;
 
-  const { isAuthenticated, currentUser, logout } = useAuth()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date())
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const location = useLocation()
+  const { currentUser, logout } = useAuth()
   
   // Update time every minute
   useEffect(() => {
@@ -127,9 +127,8 @@ const Navigation = ({ hide = false, activeBreakdowns = 0 }) => {
         </button>
         
         <div className={`nav-content ${isMenuOpen ? 'open' : ''}`}>
-          {isAuthenticated && currentUser ? (
-            <>
-              <ul className="nav-links">
+          <>
+            <ul className="nav-links">
                 <li>
                   <Link
                     to="/breakdown-guide"
@@ -186,11 +185,12 @@ const Navigation = ({ hide = false, activeBreakdowns = 0 }) => {
               </ul>
               <div className="nav-user-section">
                 <span className="nav-time">{formatTime()}</span>
-                {currentUser?.current_duty && (
-                  <span className="nav-duty-badge" title={`Current duty shift: ${currentUser.current_duty}`}>
-                    <span className="duty-icon">🕐</span>
-                    <span className="duty-text">{currentUser.current_duty}</span>
-                  </span>
+                {currentDuty && (
+                  <DutyIndicator
+                    currentDuty={currentDuty}
+                    onClick={onDutyClick}
+                    isAdmin={currentUser?.role === 'admin'}
+                  />
                 )}
                 <button
                   className="nav-notification-btn"
@@ -208,14 +208,14 @@ const Navigation = ({ hide = false, activeBreakdowns = 0 }) => {
                     onClick={() => setShowProfileMenu(!showProfileMenu)}
                   >
                     <span className="profile-icon">👤</span>
-                    <span className="profile-name">{currentUser.name}</span>
+                    <span className="profile-name">{currentUser?.name || 'User'}</span>
                     <span className="profile-arrow">▼</span>
                   </button>
                   {showProfileMenu && (
                     <div className="profile-dropdown">
                       <div className="dropdown-header">
-                        <strong>{currentUser.name}</strong>
-                        <span>{currentUser.email}</span>
+                        <strong>{currentUser?.name || 'User'}</strong>
+                        <span>{currentUser?.email || ''}</span>
                       </div>
                       <hr />
                       <Link to="/profile" onClick={() => setShowProfileMenu(false)}>
@@ -225,17 +225,14 @@ const Navigation = ({ hide = false, activeBreakdowns = 0 }) => {
                         <span>❓</span> Help & Support
                       </Link>
                       <hr />
-                      <button onClick={logout} className="dropdown-signout">
-                        <span>🚪</span> Sign Out
+                      <button onClick={() => logout()} className="dropdown-signout">
+                        <span>🚪</span> Logout
                       </button>
                     </div>
                   )}
                 </div>
               </div>
             </>
-          ) : (
-            <SupervisorLoginWithContext compact={true} />
-          )}
         </div>
       </div>
       <NotificationPanel 
@@ -246,23 +243,46 @@ const Navigation = ({ hide = false, activeBreakdowns = 0 }) => {
   )
 }
 
-// Main App Component - Now uses AuthContext
+// Main App Component - With Authentication
 const AppContent = () => {
-  const { isAuthenticated, isLoading: authLoading, currentUser, refreshSession } = useAuth()
+  const { isAuthenticated, currentUser, isSessionChecking } = useAuth()
   const [isOnline, setIsOnline] = useState(navigator.onLine)
   const [activeBreakdowns, setActiveBreakdowns] = useState(0)
   const [showDutyModal, setShowDutyModal] = useState(false)
-  const [dutyModalShown, setDutyModalShown] = useState(false)
+  const [currentDuty, setCurrentDuty] = useState(null)
+  const [showWelcome, setShowWelcome] = useState(false)
   const location = useLocation()
-  
+
+  // Check for existing duty on mount
+  useEffect(() => {
+    const existingDuty = sessionStorage.getItem('currentDuty')
+    if (existingDuty) {
+      try {
+        setCurrentDuty(JSON.parse(existingDuty))
+      } catch (error) {
+        console.error('Error parsing existing duty:', error)
+      }
+    }
+  }, [])
+
+  // Check for duty modal flag after login
+  useEffect(() => {
+    if (isAuthenticated && !isSessionChecking) {
+      const shouldShowDutyModal = sessionStorage.getItem('showDutyModal')
+      if (shouldShowDutyModal === 'true' && !currentDuty) {
+        setShowDutyModal(true)
+      }
+    }
+  }, [isAuthenticated, isSessionChecking, currentDuty])
+
   // Online/Offline monitoring
   useEffect(() => {
     const handleOnline = () => setIsOnline(true)
     const handleOffline = () => setIsOnline(false)
-    
+
     window.addEventListener('online', handleOnline)
     window.addEventListener('offline', handleOffline)
-    
+
     return () => {
       window.removeEventListener('online', handleOnline)
       window.removeEventListener('offline', handleOffline)
@@ -272,7 +292,7 @@ const AppContent = () => {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (!e.altKey || !isAuthenticated) return
+      if (!e.altKey) return
 
       const shortcuts = {
         '1': '/breakdown-guide',
@@ -290,56 +310,56 @@ const AppContent = () => {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isAuthenticated])
+  }, [])
   
   // Stats change handler for navigation badge
   const handleStatsChange = useCallback((count) => {
     setActiveBreakdowns(count)
   }, [])
 
-  // Show duty modal after login if no duty set
-  useEffect(() => {
-    if (isAuthenticated && currentUser && !currentUser.current_duty && !dutyModalShown) {
-      setShowDutyModal(true)
-      setDutyModalShown(true)
-    }
-  }, [isAuthenticated, currentUser, dutyModalShown])
-
-  // Handle duty selection
-  const handleDutySelected = useCallback(async (duty, shiftInfo) => {
+  // Duty selection handler
+  const handleDutySelected = useCallback((dutyData) => {
+    console.log('✅ Duty selected:', dutyData)
+    setCurrentDuty(dutyData)
     setShowDutyModal(false)
-    // Refresh session to get updated duty info
-    await refreshSession()
-    console.log('✅ Duty set:', duty)
-  }, [refreshSession])
-
-  const handleDutySkip = useCallback(() => {
-    setShowDutyModal(false)
-    console.log('ℹ️ User skipped duty selection')
+    setShowWelcome(true)
   }, [])
-  
-  if (authLoading) {
-    return (
-      <div className="auth-loading">
-        <div className="spinner"></div>
-        <p>Checking authentication...</p>
-      </div>
-    )
-  }
+
+  // Duty click handler (admin only)
+  const handleDutyClick = useCallback(() => {
+    if (currentUser?.role === 'admin') {
+      setShowDutyModal(true)
+    }
+  }, [currentUser])
 
   const hideNav = location.pathname === '/breakdown-guide' || location.pathname === '/dashboards/control-room'
 
   // Flag to toggle between classic and modern header
   const useModernHeader = true // Set to false to use classic header
 
+  // Show login page if not authenticated
+  if (!isAuthenticated && !isSessionChecking) {
+    return <MySQLLoginPage />
+  }
+
+  // Show loading while checking session
+  if (isSessionChecking) {
+    return (
+      <div className="app-loading">
+        <div className="loading-spinner"></div>
+        <p>Loading...</p>
+      </div>
+    )
+  }
+
   return (
     <div className={`app ${!isOnline ? 'offline' : ''}`}>
       {useModernHeader ? (
-        // Modern Header - Only show when authenticated and not on breakdown-guide page
-        isAuthenticated && !hideNav && (
+        // Modern Header - Show when not on breakdown-guide page
+        !hideNav && (
           <ModernAppHeader
             variant="full"
-            isAuthenticated={isAuthenticated}
+            isAuthenticated={true}
             activeBreakdowns={activeBreakdowns}
           />
         )
@@ -348,6 +368,8 @@ const AppContent = () => {
         <Navigation
           hide={hideNav}
           activeBreakdowns={activeBreakdowns}
+          currentDuty={currentDuty}
+          onDutyClick={handleDutyClick}
         />
       )}
 
@@ -357,77 +379,33 @@ const AppContent = () => {
         </div>
       )}
 
+      {/* Duty Selection Modal */}
+      {showDutyModal && (
+        <DutySelectionModal
+          onDutySelected={handleDutySelected}
+          currentUser={currentUser}
+        />
+      )}
+
+      {/* Welcome Message */}
+      {showWelcome && (
+        <WelcomeMessage
+          currentUser={currentUser}
+          currentDuty={currentDuty}
+          onClose={() => setShowWelcome(false)}
+        />
+      )}
+
       <main className={`main-container ${hideNav ? 'no-nav' : ''} ${useModernHeader && !hideNav ? 'with-modern-header' : ''}`}>
         <Routes>
-          <Route path="/login" element={<MySQLLoginPage />} />
-          <Route
-            path="/"
-            element={
-              isAuthenticated ? (
-                <ProtectedRoute>
-                  <HomePage onStatsChange={handleStatsChange} />
-                </ProtectedRoute>
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-          />
-          <Route
-            path="/breakdown-guide/*"
-            element={
-              <ProtectedRoute>
-                <BreakdownGuide />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/dashboards/*"
-            element={
-              <ProtectedRoute>
-                <DashboardRouter />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/fleet-intelligence"
-            element={
-              <ProtectedRoute>
-                <ComingSoon title="Fleet Intelligence" />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/management"
-            element={
-              <ProtectedRoute>
-                <ComingSoon title="Management Portal" />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/sdc-operations"
-            element={
-              <ProtectedRoute>
-                <Navigate to="/dashboards/sdc" replace />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <ProtectedRoute>
-                <Navigate to="/settings" replace />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/settings"
-            element={
-              <ProtectedRoute>
-                <SettingsPage />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/" element={<HomePage onStatsChange={handleStatsChange} />} />
+          <Route path="/breakdown-guide/*" element={<BreakdownGuide />} />
+          <Route path="/dashboards/*" element={<DashboardRouter />} />
+          <Route path="/fleet-intelligence" element={<ComingSoon title="Fleet Intelligence" />} />
+          <Route path="/management" element={<ComingSoon title="Management Portal" />} />
+          <Route path="/sdc-operations" element={<Navigate to="/dashboards/sdc" replace />} />
+          <Route path="/profile" element={<Navigate to="/settings" replace />} />
+          <Route path="/settings" element={<SettingsPage />} />
           <Route
             path="/help"
             element={<ComingSoon title="Help & Support" />}
@@ -445,24 +423,36 @@ const AppContent = () => {
         </Routes>
       </main>
 
-      {showDutyModal && (
-        <DutySelectionModal
-          onDutySelected={handleDutySelected}
-          onSkip={handleDutySkip}
-        />
-      )}
+      {/* Quick Feedback Widget - Always visible when logged in */}
+      {isAuthenticated && <QuickFeedback />}
     </div>
   )
 }
 
-// Main App Component with AuthProvider
+// Public Routes Component (no authentication required)
+const PublicRoutes = () => {
+  return (
+    <Routes>
+      <Route path="/dashboards/engineering/display" element={<EngineeringDisplay />} />
+    </Routes>
+  )
+}
+
+// Main App Component - With Auth Provider and Error Boundary
 function App() {
   return (
-    <Router>
+    <ErrorBoundary>
       <AuthProvider>
-        <AppContent />
+        <Router>
+          <Routes>
+            {/* Public routes - no authentication required */}
+            <Route path="/dashboards/engineering/display" element={<EngineeringDisplay />} />
+            {/* All other routes require authentication */}
+            <Route path="*" element={<AppContent />} />
+          </Routes>
+        </Router>
       </AuthProvider>
-    </Router>
+    </ErrorBoundary>
   )
 }
 

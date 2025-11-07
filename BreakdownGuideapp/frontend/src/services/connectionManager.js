@@ -4,7 +4,6 @@
  */
 
 import { apiConfig, websocketConfig } from '../breakdown-guide/components/common/constants';
-import enhancedAuthService from './enhanced-auth-service';
 
 // Connection states
 export const CONNECTION_STATES = {
@@ -113,34 +112,45 @@ class ConnectionManager {
 
   async connectWebSocket(endpoint) {
     try {
-      // Get authentication token for WebSocket from enhanced auth service
-      const token = await enhancedAuthService.getAccessToken();
+      // Get authentication token from storage
+      const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
 
       if (!token) {
-        this.log('❌ No authentication token available - cannot connect to WebSocket');
-        throw new Error('Authentication required for WebSocket connection');
+        this.log('⚠️ No authentication token found - WebSocket connection may fail for protected channels');
+      } else {
+        this.log('🔒 Found authentication token for WebSocket connection');
       }
 
-      // For development, use relative WebSocket URL to go through Vite proxy
-      // For production, use absolute URL from apiConfig
+      // Determine if we're in development or production
+      // Check actual hostname instead of relying on import.meta.env.DEV
       let wsUrl;
-      const isDevelopment = import.meta.env.DEV;
+      const isProductionDomain = window.location.hostname === 'breakdowns.gobarry.co.uk' ||
+                                 window.location.hostname === 'api.breakdowns.gobarry.co.uk';
+      const isLocalDevelopment = window.location.hostname === 'localhost' ||
+                                 window.location.hostname === '127.0.0.1';
 
-      if (isDevelopment) {
+      if (isLocalDevelopment) {
         // Use relative URL in development to go through Vite's WebSocket proxy
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         wsUrl = `${protocol}//${window.location.host}${endpoint}`;
         this.log('Development mode: Using relative WebSocket URL', { wsUrl, endpoint });
       } else {
-        // In production, use WebSocket-specific URL from config
+        // In production or on production domain, ALWAYS use WebSocket-specific URL from config
         wsUrl = `${websocketConfig.url}${endpoint}`;
-        this.log('Production mode: Using WebSocket URL from config', { wsUrl, websocketConfigUrl: websocketConfig.url });
+        this.log('Production mode: Using WebSocket URL from config', {
+          wsUrl,
+          websocketConfigUrl: websocketConfig.url,
+          hostname: window.location.hostname,
+          isProductionDomain
+        });
       }
 
-      // Add authentication token to URL
-      const separator = wsUrl.includes('?') ? '&' : '?';
-      wsUrl = `${wsUrl}${separator}token=${encodeURIComponent(token)}`;
-      this.log('✅ Added Supabase authentication token to WebSocket URL');
+      // Inject authentication token into WebSocket URL
+      if (token) {
+        const separator = wsUrl.includes('?') ? '&' : '?';
+        wsUrl += `${separator}token=${encodeURIComponent(token)}`;
+        this.log('🔒 Authentication token injected into WebSocket URL');
+      }
 
       this.log('Attempting WebSocket connection', {
         wsUrl: wsUrl.replace(/token=[^&]+/, 'token=***'), // Hide token in logs

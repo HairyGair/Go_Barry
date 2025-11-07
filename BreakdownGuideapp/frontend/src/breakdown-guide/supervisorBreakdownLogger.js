@@ -257,8 +257,8 @@ class SupervisorBreakdownLogger {
 
             // Fallback to common token storage keys
             if (!token) {
-                token = localStorage.getItem('auth_token') ||
-                       sessionStorage.getItem('supervisor_token');
+                token = localStorage.getItem('authToken') ||
+                       sessionStorage.getItem('authToken');
             }
 
             const headers = {

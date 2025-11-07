@@ -23,7 +23,7 @@ export const useAssessmentData = (options = {}) => {
     try {
       // Check for backend API authentication tokens
       const token = localStorage.getItem('auth_token') ||
-                    sessionStorage.getItem('supervisor_token') ||
+                    sessionStorage.getItem('authToken') ||
                     localStorage.getItem('supervisor_session');
       return Boolean(token);
     } catch (error) {

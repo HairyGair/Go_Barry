@@ -1,0 +1,528 @@
+/* ============================================================================
+   WIZARD UI/UX ENHANCEMENTS
+   Improved button states, animations, and mobile optimization
+   ============================================================================ */
+
+/* ============================================================================
+   1. ENHANCED BUTTON STATES
+   ============================================================================ */
+
+/* Base wizard button styling */
+.wizard-button,
+button[class*="w-full p-4"],
+button[class*="p-4 rounded-lg"],
+.choice-btn,
+.action-button {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+
+  /* Mobile-friendly touch targets */
+  min-height: 60px;
+  touch-action: manipulation;
+}
+
+/* Hover state - lift effect */
+.wizard-button:hover,
+button[class*="w-full p-4"]:hover,
+button[class*="p-4 rounded-lg"]:hover,
+.choice-btn:hover,
+.action-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  filter: brightness(1.1);
+}
+
+/* Active/pressed state - press down effect */
+.wizard-button:active,
+button[class*="w-full p-4"]:active,
+button[class*="p-4 rounded-lg"]:active,
+.choice-btn:active,
+.action-button:active {
+  transform: scale(0.98) translateY(0);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: all 0.1s ease;
+}
+
+/* Selected state - highlighted with glow */
+.wizard-button.selected,
+button[class*="border-green-500"],
+button[class*="border-orange-500"],
+button[class*="border-red-500"],
+.choice-btn.selected,
+.action-button.selected {
+  border-width: 2px;
+  box-shadow:
+    0 0 0 3px rgba(16, 185, 129, 0.2),
+    0 4px 12px rgba(16, 185, 129, 0.3);
+  animation: selected-pulse 2s infinite;
+}
+
+@keyframes selected-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 3px rgba(16, 185, 129, 0.2),
+      0 4px 12px rgba(16, 185, 129, 0.3);
+  }
+  50% {
+    box-shadow:
+      0 0 0 5px rgba(16, 185, 129, 0.3),
+      0 6px 16px rgba(16, 185, 129, 0.4);
+  }
+}
+
+/* Disabled state */
+.wizard-button:disabled,
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+  filter: grayscale(0.5);
+}
+
+.wizard-button:disabled:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+/* ============================================================================
+   2. SEVERITY-SPECIFIC BUTTON COLORS
+   ============================================================================ */
+
+/* Critical/STOP buttons - Red */
+.wizard-button.critical,
+.choice-btn.critical,
+button[class*="border-red-500"].selected {
+  border-color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.2);
+  box-shadow:
+    0 0 0 3px rgba(239, 68, 68, 0.2),
+    0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.wizard-button.critical:hover {
+  background-color: rgba(239, 68, 68, 0.3);
+  box-shadow:
+    0 0 0 4px rgba(239, 68, 68, 0.3),
+    0 6px 20px rgba(239, 68, 68, 0.4);
+}
+
+/* Warning/AMBER buttons - Orange */
+.wizard-button.warning,
+.choice-btn.warning,
+button[class*="border-orange-500"].selected {
+  border-color: #f59e0b;
+  background-color: rgba(245, 158, 11, 0.2);
+  box-shadow:
+    0 0 0 3px rgba(245, 158, 11, 0.2),
+    0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.wizard-button.warning:hover {
+  background-color: rgba(245, 158, 11, 0.3);
+  box-shadow:
+    0 0 0 4px rgba(245, 158, 11, 0.3),
+    0 6px 20px rgba(245, 158, 11, 0.4);
+}
+
+/* Safe/CONTINUE buttons - Green */
+.wizard-button.safe,
+.choice-btn.safe,
+button[class*="border-green-500"].selected {
+  border-color: #10b981;
+  background-color: rgba(16, 185, 129, 0.2);
+  box-shadow:
+    0 0 0 3px rgba(16, 185, 129, 0.2),
+    0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.wizard-button.safe:hover {
+  background-color: rgba(16, 185, 129, 0.3);
+  box-shadow:
+    0 0 0 4px rgba(16, 185, 129, 0.3),
+    0 6px 20px rgba(16, 185, 129, 0.4);
+}
+
+/* ============================================================================
+   3. LOADING STATES & SKELETON SCREENS
+   ============================================================================ */
+
+/* Skeleton loading animation */
+@keyframes skeleton-loading {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.05) 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    rgba(255, 255, 255, 0.05) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+  border-radius: 8px;
+}
+
+.skeleton-text {
+  height: 16px;
+  margin: 8px 0;
+}
+
+.skeleton-title {
+  height: 24px;
+  width: 60%;
+  margin: 12px 0;
+}
+
+.skeleton-button {
+  height: 60px;
+  margin: 8px 0;
+}
+
+.skeleton-card {
+  height: 120px;
+  margin: 16px 0;
+}
+
+/* Loading spinner */
+.spinner {
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: #10b981;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 0.8s linear infinite;
+  margin: 20px auto;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Button loading state */
+.wizard-button.loading,
+.action-button.loading {
+  pointer-events: none;
+  opacity: 0.7;
+  position: relative;
+}
+
+.wizard-button.loading::after,
+.action-button.loading::after {
+  content: "";
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  top: 50%;
+  left: 50%;
+  margin-left: -8px;
+  margin-top: -8px;
+  border: 2px solid transparent;
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+/* ============================================================================
+   4. MOBILE OPTIMIZATIONS
+   ============================================================================ */
+
+/* Larger touch targets for mobile */
+@media (max-width: 768px) {
+  .wizard-button,
+  button[class*="w-full p-4"],
+  button[class*="p-4 rounded-lg"],
+  .choice-btn,
+  .action-button {
+    min-height: 64px;
+    font-size: 16px;
+    padding: 16px 20px;
+  }
+
+  /* Increase spacing between buttons */
+  .space-y-3 > * + * {
+    margin-top: 20px;
+  }
+
+  /* Thumb-friendly navigation */
+  .wizard-footer {
+    position: sticky;
+    bottom: 0;
+    background: linear-gradient(180deg, transparent 0%, rgba(10, 10, 10, 0.95) 20%, rgba(10, 10, 10, 1) 100%);
+    padding: 20px;
+    margin: 0 -20px;
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+    backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .wizard-footer .btn-primary-large {
+    flex: 2;
+    min-height: 56px;
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  .wizard-footer .btn-secondary {
+    flex: 1;
+    min-height: 56px;
+  }
+}
+
+/* ============================================================================
+   5. RIPPLE EFFECT (Material Design)
+   ============================================================================ */
+
+.wizard-button,
+button[class*="w-full p-4"],
+button[class*="p-4 rounded-lg"] {
+  position: relative;
+  overflow: hidden;
+}
+
+.wizard-button::before,
+button[class*="w-full p-4"]::before,
+button[class*="p-4 rounded-lg"]::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.wizard-button:active::before,
+button[class*="w-full p-4"]:active::before,
+button[class*="p-4 rounded-lg"]:active::before {
+  width: 300px;
+  height: 300px;
+}
+
+/* ============================================================================
+   6. SMOOTH TRANSITIONS
+   ============================================================================ */
+
+/* Fade in animation for wizard steps */
+.wizard-step-container {
+  animation: fadeInUp 0.4s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Slide transition for step changes */
+.wizard-slide-enter {
+  opacity: 0;
+  transform: translateX(100%);
+}
+
+.wizard-slide-enter-active {
+  opacity: 1;
+  transform: translateX(0);
+  transition: all 0.3s ease-out;
+}
+
+.wizard-slide-exit {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.wizard-slide-exit-active {
+  opacity: 0;
+  transform: translateX(-100%);
+  transition: all 0.3s ease-out;
+}
+
+/* ============================================================================
+   7. FOCUS STATES (ACCESSIBILITY)
+   ============================================================================ */
+
+.wizard-button:focus,
+button[class*="w-full p-4"]:focus,
+button[class*="p-4 rounded-lg"]:focus,
+.choice-btn:focus,
+.action-button:focus {
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba(59, 130, 246, 0.5),
+    0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Keyboard navigation indicator */
+.wizard-button:focus-visible,
+button:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* ============================================================================
+   8. CARD HOVER EFFECTS
+   ============================================================================ */
+
+.wizard-card,
+.info-card,
+.safety-card {
+  transition: all 0.3s ease;
+}
+
+.wizard-card:hover,
+.info-card:hover,
+.safety-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* ============================================================================
+   9. ICON ANIMATIONS
+   ============================================================================ */
+
+/* Pulse animation for critical icons */
+.icon-pulse {
+  animation: icon-pulse 2s ease-in-out infinite;
+}
+
+@keyframes icon-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+}
+
+/* Bounce animation for success */
+.icon-bounce {
+  animation: icon-bounce 0.6s ease;
+}
+
+@keyframes icon-bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* ============================================================================
+   10. PROGRESS INDICATION
+   ============================================================================ */
+
+/* Progress dots */
+.progress-dots {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  padding: 16px 0;
+}
+
+.progress-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+}
+
+.progress-dot.active {
+  width: 24px;
+  border-radius: 4px;
+  background: #10b981;
+}
+
+.progress-dot.completed {
+  background: #10b981;
+  opacity: 0.6;
+}
+
+/* ============================================================================
+   11. UTILITY ANIMATIONS
+   ============================================================================ */
+
+/* Fade in */
+.fade-in {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Scale in */
+.scale-in {
+  animation: scaleIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Shake animation for errors */
+.shake {
+  animation: shake 0.4s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-10px); }
+  75% { transform: translateX(10px); }
+}
+
+/* ============================================================================
+   12. SMOOTH SCROLL BEHAVIOR
+   ============================================================================ */
+
+html {
+  scroll-behavior: smooth;
+}
+
+.wizard-container {
+  scroll-behavior: smooth;
+}
+
+/* ============================================================================
+   13. REDUCED MOTION (ACCESSIBILITY)
+   ============================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

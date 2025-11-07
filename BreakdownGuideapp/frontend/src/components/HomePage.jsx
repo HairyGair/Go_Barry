@@ -18,7 +18,8 @@ import { fetchDashboardData } from '../utils/fetchDashboardData.js';
 
 const HomePage = ({ onStatsChange }) => {
   const navigate = useNavigate();
-  const { isAuthenticated, currentUser, isLoading, isSessionChecking } = useAuth();
+  const { isAuthenticated, currentUser, isSessionChecking } = useAuth();
+  const isLoading = false;
   const [dashboardData, setDashboardData] = useState({
     stats: {
       activeBreakdowns: 0,

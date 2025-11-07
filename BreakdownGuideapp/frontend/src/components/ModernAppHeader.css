@@ -403,61 +403,35 @@
 
 /* Coming Soon Navigation Styles */
 .nav-link-modern.coming-soon {
-  opacity: 0.7;
+  opacity: 0.5;
   cursor: not-allowed;
   position: relative;
-  background: linear-gradient(135deg, rgba(255, 193, 7, 0.05), rgba(255, 152, 0, 0.05));
-  border: 1px solid rgba(255, 193, 7, 0.2);
+  filter: grayscale(0.6);
 }
 
 .nav-link-modern.coming-soon:hover {
-  background: linear-gradient(135deg, rgba(255, 193, 7, 0.1), rgba(255, 152, 0, 0.1));
-  border-color: rgba(255, 193, 7, 0.3);
+  opacity: 0.6;
   transform: none;
 }
 
 .nav-link-modern.coming-soon .nav-label-modern {
-  opacity: 0.8;
+  opacity: 0.7;
 }
 
+/* Remove old coming-soon-indicator styles - no longer used */
 .coming-soon-indicator {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  font-size: 10px;
-  background: linear-gradient(135deg, #ffc107, #ff9800);
-  padding: 2px;
-  border-radius: 50%;
-  width: 18px;
-  height: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 8px rgba(255, 193, 7, 0.4);
-  animation: pulse-indicator 2s ease-in-out infinite;
-  filter: grayscale(0);
+  display: none;
 }
 
-@keyframes pulse-indicator {
-  0%, 100% {
-    transform: scale(1);
-    box-shadow: 0 2px 8px rgba(255, 193, 7, 0.4);
-  }
-  50% {
-    transform: scale(1.1);
-    box-shadow: 0 4px 12px rgba(255, 193, 7, 0.6);
-  }
-}
-
-/* Tooltip for coming soon items */
+/* Simplified tooltip for coming soon items */
 .nav-link-modern.coming-soon:hover::after {
-  content: '🔨 Under Development';
+  content: 'Coming Soon';
   position: absolute;
   bottom: -32px;
   left: 50%;
   transform: translateX(-50%);
   background: rgba(0, 0, 0, 0.9);
-  color: #ffc107;
+  color: var(--text-secondary);
   padding: 6px 12px;
   border-radius: 6px;
   font-size: 11px;
@@ -780,6 +754,39 @@
 }
 
 .breakdown-label {
+  font-weight: 600;
+}
+
+/* Engineering Display Button */
+.engineering-display-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-bounce);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+  white-space: nowrap;
+}
+
+.engineering-display-btn:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
+  background: linear-gradient(135deg, #60a5fa, #3b82f6);
+}
+
+.display-icon {
+  font-size: 15px;
+}
+
+.display-label {
   font-weight: 600;
 }
 
@@ -1731,61 +1738,52 @@
 
 /* Mobile Navigation Coming Soon Styles */
 .mobile-nav-item.coming-soon {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
-  background: linear-gradient(135deg, rgba(255, 193, 7, 0.05), rgba(255, 152, 0, 0.05));
+  filter: grayscale(0.6);
   position: relative;
 }
 
 .mobile-nav-item.coming-soon:hover {
-  background: linear-gradient(135deg, rgba(255, 193, 7, 0.08), rgba(255, 152, 0, 0.08));
+  opacity: 0.6;
+  background: var(--hover-bg);
 }
 
+/* Remove old coming-soon-mobile indicator */
 .coming-soon-mobile {
-  margin-left: auto;
-  font-size: 14px;
-  background: linear-gradient(135deg, #ffc107, #ff9800);
-  padding: 2px 6px;
-  border-radius: 10px;
+  display: none;
 }
 
 /* Command Palette Coming Soon Styles */
 .command-item.coming-soon {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
-  background: linear-gradient(135deg, rgba(255, 193, 7, 0.02), rgba(255, 152, 0, 0.02));
+  filter: grayscale(0.6);
 }
 
 .command-item.coming-soon:hover {
-  background: linear-gradient(135deg, rgba(255, 193, 7, 0.05), rgba(255, 152, 0, 0.05));
+  opacity: 0.6;
   transform: none;
 }
 
+/* Remove old command-coming-soon indicator */
 .command-coming-soon {
-  margin-left: auto;
-  color: #ffc107;
-  font-size: 11px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 4px;
+  display: none;
 }
 
 /* Profile Navigation Coming Soon Styles */
 .profile-nav-item.coming-soon {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
-  background: linear-gradient(135deg, rgba(255, 193, 7, 0.05), rgba(255, 152, 0, 0.05));
+  filter: grayscale(0.6);
 }
 
 .profile-nav-item.coming-soon:hover {
-  background: linear-gradient(135deg, rgba(255, 193, 7, 0.08), rgba(255, 152, 0, 0.08));
+  opacity: 0.6;
   transform: none;
 }
 
+/* Remove old nav-badge coming-soon indicator */
 .nav-badge.coming-soon {
-  background: linear-gradient(135deg, #ffc107, #ff9800);
-  color: white;
-  font-size: 10px;
-  padding: 2px 5px;
+  display: none;
 }

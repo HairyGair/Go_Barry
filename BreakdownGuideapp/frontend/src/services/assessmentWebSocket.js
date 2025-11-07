@@ -6,13 +6,12 @@
 
 import websocketService from './websocket';
 import { websocketConfig } from '../breakdown-guide/components/common/constants';
-import enhancedAuthService from './enhanced-auth-service';
 
 class AssessmentWebSocketService {
   constructor() {
     // Use the configured WebSocket endpoint for assessments
     this.endpoint = websocketConfig.endpoints.assessments || '/ws/assessments';
-    this.baseUrl = websocketConfig.url || 'wss://breakdowns.gobarry.co.uk/ws';
+    this.baseUrl = websocketConfig.url || 'wss://api.breakdowns.gobarry.co.uk/ws';
     this.fullUrl = `${this.baseUrl}${this.endpoint}`;
     this.isConnected = false;
     this.subscribers = new Map();
@@ -50,18 +49,16 @@ class AssessmentWebSocketService {
   async connect() {
     try {
       console.log(`🔌 Connecting to Assessment WebSocket: ${this.fullUrl}`);
-      console.log('🔐 Assessment WebSocket: Authentication required');
 
-      // Get authentication token from enhanced auth service
-      const token = await enhancedAuthService.getAccessToken();
+      // Get authentication token from storage
+      const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+
       if (!token) {
-        console.error('❌ Assessment WebSocket: No Supabase authentication token available');
-        console.error('User must be logged in with Supabase to use WebSocket');
-        return false;
+        console.warn('⚠️ No authentication token found - Assessment WebSocket may fail');
+      } else {
+        console.log('🔒 Assessment WebSocket connecting with authentication');
       }
 
-      console.log('✅ Retrieved Supabase access token for WebSocket authentication');
-      
       const connectionOptions = {
         onMessage: this.handleMessage.bind(this),
         onOpen: this.handleConnectionOpen.bind(this),
@@ -72,10 +69,7 @@ class AssessmentWebSocketService {
         reconnectAttempts: websocketConfig.reconnectAttempts,
         reconnectInterval: websocketConfig.reconnectInterval,
         connectionTimeout: websocketConfig.connectionTimeout,
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'X-Connection-Source': 'sdc_dashboard'
-        }
+        requireAuth: true // Enable authentication for protected channels
       };
       
       const connection = websocketService.connect(this.endpoint, connectionOptions);
@@ -140,17 +134,10 @@ class AssessmentWebSocketService {
       return false;
     }
 
-    // Get fresh token for sending messages
-    const token = await enhancedAuthService.getAccessToken();
-    if (!token) {
-      console.error('❌ Assessment WebSocket: Cannot send message without authentication token');
-      return false;
-    }
-
+    // Auth removed - no token in payload
     const payload = {
       timestamp: new Date().toISOString(),
       source: 'sdc_dashboard',
-      auth_token: token,
       ...message
     };
 
@@ -727,8 +714,8 @@ class AssessmentWebSocketService {
    * Check if authentication token is available
    */
   async hasAuthToken() {
-    const token = await enhancedAuthService.getAccessToken();
-    return Boolean(token);
+    // Auth removed - always return false
+    return false;
   }
 
   /**

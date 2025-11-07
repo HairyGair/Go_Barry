@@ -7,7 +7,6 @@
 
 import React from 'react';
 import { websocketConfig, realtimeConfig } from '../breakdown-guide/components/common/constants';
-import enhancedAuthService from './enhanced-auth-service';
 
 class WebSocketService {
   constructor() {
@@ -110,28 +109,16 @@ class WebSocketService {
     // Build WebSocket URL with authentication token
     let fullUrl = `${websocketConfig.url}${endpoint}`;
 
-    // Add authentication token if required
-    if (requireAuth) {
-      try {
-        const token = await enhancedAuthService.getAccessToken();
-        if (token) {
-          const separator = fullUrl.includes('?') ? '&' : '?';
-          fullUrl = `${fullUrl}${separator}token=${encodeURIComponent(token)}`;
-          console.log(`🔐 Added authentication token to WebSocket URL: ${endpoint}`);
-        } else {
-          console.warn(`⚠️ No authentication token available for WebSocket: ${endpoint}`);
-          // For protected endpoints, fail if no token
-          if (endpoint.includes('sdc-dashboard') || endpoint.includes('breakdowns') || endpoint.includes('assessments')) {
-            console.error(`❌ Authentication required for WebSocket endpoint: ${endpoint}`);
-            onError(new Error('Authentication required'));
-            return null;
-          }
-        }
-      } catch (error) {
-        console.error(`Error getting authentication token for WebSocket:`, error);
-        onError(error);
-        return null;
-      }
+    // Get authentication token from storage
+    const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+
+    // Add token to URL for protected channels
+    if (requireAuth && token) {
+      const separator = endpoint.includes('?') ? '&' : '?';
+      fullUrl += `${separator}token=${encodeURIComponent(token)}`;
+      console.log('🔒 WebSocket connection includes auth token');
+    } else if (requireAuth && !token) {
+      console.warn('⚠️ WebSocket connection requires auth but no token found');
     }
 
     console.log(`🔌 Connecting to WebSocket: ${fullUrl.replace(/token=[^&]+/, 'token=***')}`);

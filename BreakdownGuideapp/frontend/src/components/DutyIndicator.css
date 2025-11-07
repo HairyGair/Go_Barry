@@ -1,0 +1,279 @@
+/**
+ * Duty Indicator Styles
+ * Glowing effect, pulse animations, and responsive design
+ */
+
+/* Main Container */
+.duty-indicator {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px 16px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.95) 100%);
+    backdrop-filter: blur(10px);
+    border-radius: 12px;
+    border: 2px solid rgba(0, 102, 161, 0.2);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    animation: glowPulse 3s ease-in-out infinite;
+}
+
+/* Glow Animation */
+@keyframes glowPulse {
+    0%, 100% {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1),
+                    0 0 20px var(--duty-color, #0066A1)40;
+    }
+    50% {
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15),
+                    0 0 30px var(--duty-color, #0066A1)60;
+    }
+}
+
+.duty-indicator.clickable {
+    cursor: pointer;
+}
+
+.duty-indicator.clickable:hover {
+    transform: translateY(-2px);
+    border-color: var(--duty-color, #0066A1);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15),
+                0 0 40px var(--duty-color, #0066A1)80;
+}
+
+/* Warning State - Orange */
+.duty-indicator.warning {
+    border-color: #F59E0B;
+    animation: warningPulse 2s ease-in-out infinite;
+}
+
+@keyframes warningPulse {
+    0%, 100% {
+        box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3),
+                    0 0 20px rgba(245, 158, 11, 0.4);
+    }
+    50% {
+        box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4),
+                    0 0 35px rgba(245, 158, 11, 0.6);
+    }
+}
+
+/* Urgent State - Red with stronger pulse */
+.duty-indicator.urgent {
+    border-color: #EF4444;
+    animation: urgentPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes urgentPulse {
+    0%, 100% {
+        box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4),
+                    0 0 30px rgba(239, 68, 68, 0.5);
+        transform: scale(1);
+    }
+    50% {
+        box-shadow: 0 8px 28px rgba(239, 68, 68, 0.6),
+                    0 0 45px rgba(239, 68, 68, 0.8);
+        transform: scale(1.02);
+    }
+}
+
+/* Content Layout */
+.duty-indicator-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.duty-indicator-icon {
+    font-size: 32px;
+    flex-shrink: 0;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.duty-indicator-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.duty-indicator-code {
+    font-size: 16px;
+    font-weight: 800;
+    color: #1a202c;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.duty-indicator-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #6B7280;
+    opacity: 0.9;
+}
+
+.duty-indicator-time {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--duty-color, #0066A1);
+    margin-top: 2px;
+}
+
+/* Progress Bar */
+.duty-progress-bar {
+    width: 100%;
+    height: 6px;
+    background: rgba(0, 0, 0, 0.08);
+    border-radius: 3px;
+    overflow: hidden;
+    position: relative;
+}
+
+.duty-progress-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.duty-progress-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.3) 50%,
+        transparent 100%
+    );
+    animation: shimmer 2s linear infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+/* Warning Pulse Badge */
+.warning-pulse {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 20px;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.warning-pulse.warning {
+    animation: warningBounce 1s ease-in-out infinite;
+}
+
+.warning-pulse.urgent {
+    animation: urgentBounce 0.5s ease-in-out infinite;
+}
+
+@keyframes warningBounce {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.1);
+        opacity: 0.8;
+    }
+}
+
+@keyframes urgentBounce {
+    0%, 100% {
+        transform: scale(1) rotate(0deg);
+        opacity: 1;
+    }
+    25% {
+        transform: scale(1.15) rotate(-5deg);
+        opacity: 0.9;
+    }
+    75% {
+        transform: scale(1.15) rotate(5deg);
+        opacity: 0.9;
+    }
+}
+
+/* Mobile Responsive - Hide text on small screens */
+@media (max-width: 768px) {
+    .duty-indicator {
+        padding: 10px 12px;
+        gap: 6px;
+    }
+
+    .duty-indicator-icon {
+        font-size: 28px;
+    }
+
+    .duty-indicator-code {
+        font-size: 14px;
+    }
+
+    .duty-indicator-time {
+        font-size: 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    .duty-indicator-name {
+        display: none;
+    }
+
+    .duty-indicator {
+        padding: 8px 10px;
+    }
+
+    .duty-indicator-icon {
+        font-size: 24px;
+    }
+
+    .duty-indicator-code {
+        font-size: 13px;
+    }
+
+    .duty-indicator-time {
+        font-size: 11px;
+    }
+
+    .duty-progress-bar {
+        height: 4px;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .duty-indicator {
+        border-width: 3px;
+    }
+
+    .duty-indicator.warning,
+    .duty-indicator.urgent {
+        border-width: 4px;
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    .duty-indicator,
+    .duty-indicator.warning,
+    .duty-indicator.urgent,
+    .warning-pulse,
+    .duty-progress-fill::after {
+        animation: none;
+    }
+
+    .duty-indicator.clickable:hover {
+        transform: none;
+    }
+}

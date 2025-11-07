@@ -1,0 +1,394 @@
+/* Bug Report Button - Floating Action Button */
+.bug-report-fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
+  color: white;
+  font-size: 24px;
+  border: none;
+  box-shadow: 0 4px 12px rgba(238, 90, 111, 0.4),
+              0 2px 6px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bug-report-fab:hover {
+  transform: scale(1.1) rotate(15deg);
+  box-shadow: 0 6px 20px rgba(238, 90, 111, 0.5),
+              0 3px 8px rgba(0, 0, 0, 0.3);
+}
+
+.bug-report-fab:active {
+  transform: scale(0.95);
+}
+
+/* Modal Overlay */
+.bug-report-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+  padding: 20px;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Modal Container */
+.bug-report-modal {
+  background: white;
+  border-radius: 12px;
+  max-width: 600px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Modal Header */
+.bug-report-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px;
+  border-bottom: 1px solid #e0e0e0;
+  position: sticky;
+  top: 0;
+  background: white;
+  z-index: 1;
+}
+
+.bug-report-header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.bug-report-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #666;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.bug-report-close:hover {
+  background: #f5f5f5;
+  color: #1a1a1a;
+}
+
+.bug-report-close:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Form Styles */
+.bug-report-form {
+  padding: 24px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+  flex: 1;
+}
+
+.form-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid #d0d0d0;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+  transition: all 0.2s;
+  background: white;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #ee5a6f;
+  box-shadow: 0 0 0 3px rgba(238, 90, 111, 0.1);
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.form-group select {
+  cursor: pointer;
+}
+
+/* Context Info */
+.bug-report-context-info {
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  margin-bottom: 20px;
+}
+
+.bug-report-context-info small {
+  font-size: 12px;
+  color: #666;
+  line-height: 1.6;
+}
+
+/* Actions */
+.bug-report-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding-top: 20px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.bug-report-actions button {
+  padding: 10px 24px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.btn-cancel {
+  background: #f5f5f5;
+  color: #666;
+}
+
+.btn-cancel:hover {
+  background: #e0e0e0;
+  color: #333;
+}
+
+.btn-submit {
+  background: linear-gradient(135deg, #ee5a6f, #d63031);
+  color: white;
+  box-shadow: 0 2px 8px rgba(238, 90, 111, 0.3);
+}
+
+.btn-submit:hover {
+  box-shadow: 0 4px 12px rgba(238, 90, 111, 0.4);
+  transform: translateY(-1px);
+}
+
+.btn-submit:disabled,
+.btn-cancel:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Success State */
+.bug-report-success {
+  padding: 60px 24px;
+  text-align: center;
+}
+
+.success-icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 24px;
+  background: linear-gradient(135deg, #00b894, #00cec9);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  color: white;
+  animation: scaleIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.bug-report-success h3 {
+  margin: 0 0 12px;
+  font-size: 24px;
+  color: #1a1a1a;
+}
+
+.bug-report-success p {
+  margin: 8px 0;
+  color: #666;
+  font-size: 15px;
+}
+
+.success-subtext {
+  font-size: 13px;
+  color: #999;
+}
+
+/* Mobile Responsive */
+@media (max-width: 640px) {
+  .bug-report-fab {
+    bottom: 16px;
+    right: 16px;
+    width: 48px;
+    height: 48px;
+    font-size: 20px;
+  }
+
+  .bug-report-modal {
+    max-height: 95vh;
+    margin: 10px;
+  }
+
+  .bug-report-header {
+    padding: 16px;
+  }
+
+  .bug-report-header h2 {
+    font-size: 18px;
+  }
+
+  .bug-report-form {
+    padding: 16px;
+  }
+
+  .form-row {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .bug-report-actions {
+    flex-direction: column-reverse;
+  }
+
+  .bug-report-actions button {
+    width: 100%;
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  .bug-report-modal {
+    background: #1e1e1e;
+    color: #e0e0e0;
+  }
+
+  .bug-report-header {
+    border-bottom-color: #333;
+    background: #1e1e1e;
+  }
+
+  .bug-report-header h2 {
+    color: #e0e0e0;
+  }
+
+  .bug-report-close {
+    color: #999;
+  }
+
+  .bug-report-close:hover {
+    background: #2a2a2a;
+    color: #e0e0e0;
+  }
+
+  .form-group label {
+    color: #d0d0d0;
+  }
+
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    background: #2a2a2a;
+    border-color: #444;
+    color: #e0e0e0;
+  }
+
+  .form-group input:focus,
+  .form-group select:focus,
+  .form-group textarea:focus {
+    border-color: #ee5a6f;
+    background: #333;
+  }
+
+  .bug-report-context-info {
+    background: #2a2a2a;
+  }
+
+  .bug-report-context-info small {
+    color: #999;
+  }
+
+  .bug-report-actions {
+    border-top-color: #333;
+  }
+
+  .btn-cancel {
+    background: #2a2a2a;
+    color: #999;
+  }
+
+  .btn-cancel:hover {
+    background: #333;
+    color: #e0e0e0;
+  }
+}

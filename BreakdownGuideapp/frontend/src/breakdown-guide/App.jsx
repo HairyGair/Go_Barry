@@ -23,14 +23,14 @@ import './styles/main.css';
 import './styles/tailwind.css';
 import './styles/fullwidth-override.css';  // Full width enhancements
 import './styles/RouteSelection.css';  // Route selection and new component styles
+import './styles/wizard-enhancements.css';  // UI/UX enhancements for wizard buttons and interactions
 
 // Import shared components
 import AppHeader from '../shared/AppHeader.jsx';
+import { useAuth } from '../contexts/AuthContext.jsx';
 
-// Import supervisorBreakdownLogger and authentication
+// Import supervisorBreakdownLogger
 import { supervisorBreakdownLogger } from './supervisorBreakdownLogger.js';
-import enhancedAuthService from '../services/enhanced-auth-service.js';
-import SupervisorLogin from './components/SupervisorLogin.jsx';  // MySQL backend authentication
 import assessmentBroadcaster from '../services/assessmentBroadcaster.js';
 
 // Import components
@@ -125,11 +125,8 @@ const wizardComponents = {
 
 const App = () => {
     const navigate = useNavigate();
-    
-    // Get authentication state from parent app via session storage/context
-    const [supervisorSession, setSupervisorSession] = useState(null);
-    const [authLoading, setAuthLoading] = useState(true);
-    
+    const { currentUser } = useAuth();
+
     // Assessment state
     const [currentWizard, setCurrentWizard] = useState(null);
     const [currentStep, setCurrentStep] = useState(1);
@@ -152,40 +149,15 @@ const App = () => {
     // Route information state
     const [selectedRoute, setSelectedRoute] = useState('');
     const [routeName, setRouteName] = useState('');
-    
-    // Check for authentication using enhanced auth service
+
+    // Initialize supervisor logger with real user session
     useEffect(() => {
-        const checkAuth = async () => {
-            try {
-                const { success, session } = await enhancedAuthService.getCurrentSession();
-                if (success && session) {
-                    setSupervisorSession(session);
-                }
-            } catch (error) {
-                console.error('Auth check error:', error);
-            } finally {
-                setAuthLoading(false);
-            }
-        };
-
-        checkAuth();
-
-        // Listen for session changes
-        const removeListener = enhancedAuthService.addSessionListener((session) => {
-            setSupervisorSession(session);
-        });
-
-        return removeListener;
-    }, []);
-    
-    // Initialize supervisor logger when authenticated
-    useEffect(() => {
-        if (supervisorSession) {
+        if (currentUser) {
             supervisorBreakdownLogger.init({
-                supervisorData: supervisorSession
+                supervisorData: currentUser
             });
         }
-    }, [supervisorSession]);
+    }, [currentUser]);
 
     // Track summary state changes
     useEffect(() => {
@@ -251,7 +223,7 @@ const App = () => {
                 breakdownId: breakdownId,
                 wizardType: pendingWizardType,
                 totalSteps: totalSteps,
-                supervisor: supervisorSession,
+                supervisor: currentUser,
                 vehicle: vehicle,
                 location: location,
                 route: route
@@ -287,7 +259,7 @@ const App = () => {
                                 routeName: routeName
                             }}
                             vehicle={selectedVehicle}
-                            supervisor={supervisorSession}
+                            supervisor={currentUser}
                             decision={assessmentDecision}
                             wizardType={wizards[currentWizard]?.title || currentWizard}
                             routeInfo={{
@@ -387,10 +359,10 @@ const App = () => {
                                     route_name: routeName || '',
                                     
                                     // Supervisor information
-                                    supervisor_name: supervisorSession?.name || 'Unknown Supervisor',
-                                    supervisor_badge: supervisorSession?.supervisorId || supervisorSession?.badge || 'Unknown',
-                                    supervisor_email: supervisorSession?.email || '',
-                                    supervisor_depot: supervisorSession?.depot || 'SDC',
+                                    supervisor_name: currentUser?.name || 'Unknown Supervisor',
+                                    supervisor_badge: currentUser?.supervisorId || currentUser?.badge || 'Unknown',
+                                    supervisor_email: currentUser?.email || '',
+                                    supervisor_depot: currentUser?.depot || 'SDC',
                                     
                                     // Assessment data
                                     wizard_type: wizards[currentWizard]?.title || currentWizard,
@@ -511,7 +483,7 @@ const App = () => {
                                             breakdownId: highlightBreakdownId,
                                             decision: assessmentDecision,
                                             wizardType: wizards[currentWizard]?.title || currentWizard,
-                                            supervisorBadge: supervisorSession?.supervisorId || supervisorSession?.badge,
+                                            supervisorBadge: currentUser?.supervisorId || currentUser?.badge,
                                             returnUrl: null // Will default to SDC dashboard
                                         });
                                         
@@ -784,31 +756,8 @@ const App = () => {
             </main>
         </div>
     );
-    
-    // Show loading while checking authentication
-    if (authLoading) {
-        return (
-            <div className="auth-loading">
-                <div className="loading-container">
-                    <div className="loading-spinner"></div>
-                    <p>Loading...</p>
-                </div>
-            </div>
-        );
-    }
-    
-    // Show login screen if not authenticated
-    if (!supervisorSession) {
-        return (
-            <SupervisorLogin
-                onLoginSuccess={(session) => {
-                    console.log('Login successful:', session);
-                    setSupervisorSession(session);
-                }}
-            />
-        );
-    }
-    
+
+    // Authentication removed - direct access
     return (
         <Routes>
             <Route path="/*" element={

@@ -188,6 +188,8 @@ import breakdownsAPIRoutes from './routes/breakdownsAPI.js';
 import preferencesRoutes from './routes/preferences.js';
 import publicRoutes from './routes/public.js';
 import defectsRoutes from './routes/defects.js';
+import bugReportsRoutes from './routes/bugReports.js';
+import displayRoutes from './routes/displays.js';
 import webSocketHandler from './routes/webSocketHandler.js';
 
 // Root API documentation endpoint
@@ -429,6 +431,50 @@ app.get('/', (req, res) => {
         <span class="badge">AUTH</span>
         <div class="desc">Send notification to maintenance team</div>
       </div>
+
+      <h3 style="color: #374151; font-size: 18px; margin: 20px 0 15px 0;">🖥️ Display Control</h3>
+      <div class="endpoint">
+        <span class="method get">GET</span>
+        <span class="path">/api/displays/active</span>
+        <span class="badge">AUTH</span>
+        <div class="desc">Get list of active engineering displays</div>
+      </div>
+      <div class="endpoint">
+        <span class="method get">GET</span>
+        <span class="path">/api/displays/depot/:depot</span>
+        <span class="badge">AUTH</span>
+        <div class="desc">Get displays for specific depot</div>
+      </div>
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <span class="path">/api/displays/control</span>
+        <span class="badge">AUTH</span>
+        <div class="desc">Send control command to display(s)</div>
+      </div>
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <span class="path">/api/displays/:displayId/highlight</span>
+        <span class="badge">AUTH</span>
+        <div class="desc">Highlight specific breakdown on display</div>
+      </div>
+      <div class="endpoint">
+        <span class="method post">POST</span>
+        <span class="path">/api/displays/:displayId/refresh</span>
+        <span class="badge">AUTH</span>
+        <div class="desc">Force display to refresh data</div>
+      </div>
+      <div class="endpoint">
+        <span class="method put">PUT</span>
+        <span class="path">/api/displays/:displayId/filters</span>
+        <span class="badge">AUTH</span>
+        <div class="desc">Update display filters remotely</div>
+      </div>
+      <div class="endpoint">
+        <span class="method put">PUT</span>
+        <span class="path">/api/displays/:displayId/depot</span>
+        <span class="badge">AUTH</span>
+        <div class="desc">Change which depot display shows</div>
+      </div>
     </div>
 
     <div class="section">
@@ -443,6 +489,11 @@ app.get('/', (req, res) => {
         <span class="method get" style="background: #8b5cf6;">WS</span>
         <span class="path">ws://${req.get('host')}/ws/control-room</span>
         <div class="desc">Real-time Control Room display updates (public)</div>
+      </div>
+      <div class="endpoint">
+        <span class="method get" style="background: #8b5cf6;">WS</span>
+        <span class="path">ws://${req.get('host')}/ws/engineering-display?displayId=yard1&depot=Washington</span>
+        <div class="desc">Engineering display connection with remote control support (public)</div>
       </div>
     </div>
 
@@ -543,6 +594,8 @@ app.use('/api/reports', authenticateSupervisor, analyticsRoutes); // Reports als
 app.use('/api/activity', authenticateSupervisor, activityRoutes);
 app.use('/api/preferences', authenticateSupervisor, preferencesRoutes);
 app.use('/api/defects', authenticateSupervisor, defectsRoutes);
+app.use('/api/displays', authenticateSupervisor, displayRoutes); // Display control - requires auth
+app.use('/api/bug-reports', bugReportsRoutes); // Bug reports - no auth required for submission, auth for viewing
 app.use('/api/supervisors', supervisorRoutes); // Stats endpoint is read-only, no auth required
 
 // SDC Dashboard API routes (requires SDC operator authentication and rate limiting)
@@ -620,6 +673,9 @@ const server = createServer(app);
 
 // Initialize WebSocket handler
 webSocketHandler.initialize(server);
+
+// Connect Activity Logger to WebSocket handler for real-time broadcasts
+activityLogger.setWebSocketHandler(webSocketHandler);
 
 // WebSocket connections are now handled by webSocketHandler
 

@@ -29,7 +29,7 @@ export const apiConfig = {
 
 // WebSocket Configuration
 export const websocketConfig = {
-    url: import.meta.env.VITE_WS_URL || 'wss://breakdowns.gobarry.co.uk/ws',
+    url: import.meta.env.VITE_WS_URL || 'wss://api.breakdowns.gobarry.co.uk/ws',
     endpoints: {
         sdcDashboard: '/ws?channel=sdc-dashboard',
         breakdowns: '/ws?channel=breakdowns',
