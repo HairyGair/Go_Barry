@@ -38,6 +38,7 @@ import {
   healthCheck,
   logSecurityEvent
 } from './middleware/authMiddleware.js';
+import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 
 // Load environment variables
 dotenv.config();
@@ -605,72 +606,11 @@ app.use('/api/supervisors', supervisorRoutes); // Stats endpoint is read-only, n
 // SDC Dashboard API routes (requires SDC operator authentication and rate limiting)
 app.use('/api/sdc', rateLimitSDC, authenticateSDC, breakdownsAPIRoutes);
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found' });
-});
+// 404 handler - must be before error handler
+app.use(notFoundHandler);
 
-// Enhanced error handler with database error categorization
-app.use((err, req, res, next) => {
-  console.error('🔥 Server Error:', {
-    message: err.message,
-    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
-    timestamp: new Date().toISOString(),
-    path: req.path,
-    method: req.method
-  });
-
-  // Categorize error types
-  let statusCode = 500;
-  let errorType = 'internal_server_error';
-  let userMessage = 'Internal server error';
-
-  // JWT/Authentication errors
-  if (err.message && err.message.includes('JWT')) {
-    statusCode = 401;
-    errorType = 'authentication_error';
-    userMessage = 'Authentication failed';
-  } else if (err.message && err.message.includes('permission')) {
-    statusCode = 403;
-    errorType = 'permission_denied';
-    userMessage = 'Access denied';
-  } else if (err.message && err.message.includes('not found')) {
-    statusCode = 404;
-    errorType = 'resource_not_found';
-    userMessage = 'Resource not found';
-  } else if (err.message && (err.message.includes('duplicate') || err.message.includes('unique'))) {
-    statusCode = 409;
-    errorType = 'duplicate_resource';
-    userMessage = 'Resource already exists';
-  } else if (err.message && err.message.includes('connection')) {
-    statusCode = 503;
-    errorType = 'database_connection_error';
-    userMessage = 'Database connection failed';
-  }
-
-  // MySQL-specific errors
-  if (err.code === 'ER_DUP_ENTRY') {
-    statusCode = 409;
-    errorType = 'duplicate_resource';
-    userMessage = 'Resource already exists';
-  } else if (err.code === 'ER_NO_REFERENCED_ROW_2' || err.code === 'ER_ROW_IS_REFERENCED_2') {
-    statusCode = 400;
-    errorType = 'constraint_violation';
-    userMessage = 'Database constraint violation';
-  } else if (err.code === 'ECONNREFUSED' || err.code === 'ETIMEDOUT') {
-    statusCode = 503;
-    errorType = 'database_connection_error';
-    userMessage = 'Database connection failed';
-  }
-
-  res.status(statusCode).json({
-    error: errorType,
-    message: userMessage,
-    details: process.env.NODE_ENV === 'development' ? err.message : undefined,
-    timestamp: new Date().toISOString(),
-    path: req.path
-  });
-});
+// Centralized error handling - must be last
+app.use(errorHandler);
 
 // Create HTTP server
 const server = createServer(app);

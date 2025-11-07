@@ -15,46 +15,82 @@ class APIClient {
     // NOTE: Token is NO LONGER retrieved from localStorage/sessionStorage
     // It's automatically sent by the browser via HTTP-only cookie (XSS protection)
 
-    console.log(`🔍 API Client Request - Endpoint: ${endpoint} (using HTTP-only cookie auth)`);
+    // Retry configuration
+    const maxRetries = options.retries ?? 3;
+    const retryDelay = options.retryDelay ?? 1000;
+    let lastError;
 
-    const url = `${this.baseURL}${endpoint}`;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`🔍 API Client Request (${attempt}/${maxRetries}) - Endpoint: ${endpoint} (using HTTP-only cookie auth)`);
 
-    const config = {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-      // IMPORTANT: credentials: 'include' tells browser to send HTTP-only cookies with request
-      // This is how authentication works now (secure, cannot be accessed by JavaScript)
-      credentials: 'include',
-      ...options,
-    };
+        const url = `${this.baseURL}${endpoint}`;
 
-    // NOTE: Authorization header removed - token is in HTTP-only cookie now
-    // The browser automatically sends the auth_token cookie with every request
-    // This prevents XSS attacks from stealing tokens via JavaScript
+        const config = {
+          headers: {
+            'Content-Type': 'application/json',
+            ...options.headers,
+          },
+          // IMPORTANT: credentials: 'include' tells browser to send HTTP-only cookies with request
+          // This is how authentication works now (secure, cannot be accessed by JavaScript)
+          credentials: 'include',
+          ...options,
+        };
 
-    if (config.body && typeof config.body === 'object') {
-      config.body = JSON.stringify(config.body);
-    }
+        // NOTE: Authorization header removed - token is in HTTP-only cookie now
+        // The browser automatically sends the auth_token cookie with every request
+        // This prevents XSS attacks from stealing tokens via JavaScript
 
-    try {
-      const response = await fetch(url, config);
+        if (config.body && typeof config.body === 'object') {
+          config.body = JSON.stringify(config.body);
+        }
 
-      // Auth refresh removed - 401 errors will propagate normally
+        const response = await fetch(url, config);
 
-      if (!response.ok) {
+        // Success - return data
+        if (response.ok) {
+          console.log(`✅ API Success: ${endpoint}`);
+          return await response.json();
+        }
+
+        // Client error (4xx) - don't retry
+        if (response.status >= 400 && response.status < 500) {
+          const error = await response.json().catch(() => ({ error: response.statusText }));
+          throw new Error(error.error || error.message || response.statusText);
+        }
+
+        // Server error (5xx) - retry
+        if (response.status >= 500) {
+          lastError = new Error(`Server error ${response.status}`);
+
+          if (attempt < maxRetries) {
+            console.warn(`⚠️ Server error, retrying in ${retryDelay * attempt}ms...`);
+            await new Promise(resolve => setTimeout(resolve, retryDelay * attempt));
+            continue;
+          }
+        }
+
         throw new Error(`HTTP error! status: ${response.status}`);
+
+      } catch (error) {
+        lastError = error;
+
+        // Network error - retry
+        if (error.name === 'TypeError' && attempt < maxRetries) {
+          console.warn(`⚠️ Network error, retrying in ${retryDelay * attempt}ms...`);
+          await new Promise(resolve => setTimeout(resolve, retryDelay * attempt));
+          continue;
+        }
+
+        // Don't retry on other errors
+        if (attempt === maxRetries) {
+          console.error(`❌ API failed after ${maxRetries} attempts: ${endpoint}`, error);
+          throw error;
+        }
       }
-
-      return await response.json();
-    } catch (error) {
-      console.error(`API request failed: ${endpoint}`, error);
-
-      // Mock data removed - no fallbacks
-
-      throw error;
     }
+
+    throw lastError;
   }
 
   // GET request

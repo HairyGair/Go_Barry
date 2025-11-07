@@ -106,6 +106,17 @@
   border: none;
 }
 
+.btn-retry {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-retry:hover {
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+  transform: translateY(-2px);
+}
+
 .btn-primary {
   background: linear-gradient(135deg, #ee5a6f, #d63031);
   color: white;

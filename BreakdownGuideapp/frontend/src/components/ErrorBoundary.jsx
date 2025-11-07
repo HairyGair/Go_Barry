@@ -13,7 +13,8 @@ class ErrorBoundary extends React.Component {
       hasError: false,
       error: null,
       errorInfo: null,
-      errorReported: false
+      errorReported: false,
+      retryCount: 0
     };
   }
 
@@ -77,6 +78,15 @@ class ErrorBoundary extends React.Component {
     }
   }
 
+  handleRetry = () => {
+    this.setState(prevState => ({
+      hasError: false,
+      error: null,
+      errorInfo: null,
+      retryCount: prevState.retryCount + 1
+    }));
+  };
+
   handleReload = () => {
     window.location.reload();
   };
@@ -109,6 +119,11 @@ class ErrorBoundary extends React.Component {
             )}
 
             <div className="error-actions">
+              {this.state.retryCount < 3 && (
+                <button onClick={this.handleRetry} className="btn-retry">
+                  Try Again ({3 - this.state.retryCount} attempts left)
+                </button>
+              )}
               <button onClick={this.handleReload} className="btn-primary">
                 Reload Page
               </button>
