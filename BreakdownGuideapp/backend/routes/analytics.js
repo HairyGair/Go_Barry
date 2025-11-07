@@ -20,11 +20,13 @@
 import express from 'express';
 import { query } from '../config/mysql.js';
 import { from } from '../utils/queryHelpers.js';
+import { validate } from '../middleware/validationMiddleware.js';
+import { analyticsSchemas } from '../validation/schemas.js';
 
 const router = express.Router();
 
 // GET /api/analytics/kpis - Get key performance indicators
-router.get('/kpis', async (req, res) => {
+router.get('/kpis', validate(analyticsSchemas.kpis), async (req, res) => {
   try {
     const { period = 'today' } = req.query;
 
@@ -175,7 +177,7 @@ router.get('/kpis', async (req, res) => {
 });
 
 // GET /api/analytics/trends - Get performance trends
-router.get('/trends', async (req, res) => {
+router.get('/trends', validate(analyticsSchemas.trends), async (req, res) => {
   try {
     const { period = 'today' } = req.query;
 
@@ -329,7 +331,7 @@ router.get('/trends', async (req, res) => {
 });
 
 // GET /api/analytics/depot-comparison - Get depot performance comparison
-router.get('/depot-comparison', async (req, res) => {
+router.get('/depot-comparison', validate(analyticsSchemas.summary), async (req, res) => {
   try {
     const { period = 'today' } = req.query;
 

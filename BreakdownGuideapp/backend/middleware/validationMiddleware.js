@@ -1,6 +1,7 @@
 /**
  * Input Validation Middleware using Joi
- * Validates request bodies for SDC operational endpoints
+ * Validates request bodies, query params, and URL params
+ * Extended to support auth, breakdown, analytics, and SDC endpoints
  */
 
 import Joi from 'joi';
@@ -8,6 +9,7 @@ import Joi from 'joi';
 /**
  * Generic validation middleware factory
  * Creates middleware that validates request body against a Joi schema
+ * @deprecated Use validate() instead for comprehensive validation
  */
 export const validateBody = (schema) => {
   return (req, res, next) => {
@@ -35,6 +37,119 @@ export const validateBody = (schema) => {
     req.body = value;
     next();
   };
+};
+
+/**
+ * Comprehensive validation middleware factory
+ * Validates request body, query params, and URL params
+ * @param {Object} schema - Joi schema object with body/query/params keys
+ * @returns {Function} Express middleware
+ */
+export const validate = (schema) => {
+  return (req, res, next) => {
+    const validationOptions = {
+      abortEarly: false, // Return all errors, not just first
+      allowUnknown: true, // Allow fields not in schema
+      stripUnknown: true // Remove fields not in schema
+    };
+
+    // Validate request body
+    if (schema.body) {
+      const { error, value } = schema.body.validate(req.body, validationOptions);
+      if (error) {
+        return res.status(400).json({
+          success: false,
+          error: 'Validation failed',
+          code: 'VALIDATION_ERROR',
+          details: error.details.map(detail => ({
+            field: detail.path.join('.'),
+            message: detail.message,
+            type: detail.type
+          })),
+          timestamp: new Date().toISOString()
+        });
+      }
+      req.body = value; // Use validated/sanitized value
+    }
+
+    // Validate query parameters
+    if (schema.query) {
+      const { error, value } = schema.query.validate(req.query, validationOptions);
+      if (error) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid query parameters',
+          code: 'VALIDATION_ERROR',
+          details: error.details.map(detail => ({
+            field: detail.path.join('.'),
+            message: detail.message,
+            type: detail.type
+          })),
+          timestamp: new Date().toISOString()
+        });
+      }
+      req.query = value;
+    }
+
+    // Validate URL parameters
+    if (schema.params) {
+      const { error, value } = schema.params.validate(req.params, validationOptions);
+      if (error) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid URL parameters',
+          code: 'VALIDATION_ERROR',
+          details: error.details.map(detail => ({
+            field: detail.path.join('.'),
+            message: detail.message,
+            type: detail.type
+          })),
+          timestamp: new Date().toISOString()
+        });
+      }
+      req.params = value;
+    }
+
+    next();
+  };
+};
+
+/**
+ * Common validation schemas (reusable across endpoints)
+ */
+export const commonSchemas = {
+  // Email - lowercase, trimmed, valid format
+  email: Joi.string().email().lowercase().trim().required(),
+
+  // Password - minimum 8 characters, maximum 128
+  password: Joi.string().min(8).max(128).required(),
+
+  // Fleet number - exactly 4 digits (e.g., 6377)
+  fleetNumber: Joi.string().pattern(/^\d{4}$/).required(),
+
+  // Badge number - 2 uppercase letters + 3 digits (e.g., AG003)
+  badgeNumber: Joi.string().pattern(/^[A-Z]{2}\d{3}$/).required(),
+
+  // UUID - standard UUID format
+  uuid: Joi.string().uuid().required(),
+
+  // Date - ISO 8601 format
+  date: Joi.date().iso().required(),
+
+  // Status - breakdown workflow states
+  status: Joi.string().valid('pending', 'in_progress', 'dispatched', 'completed', 'cancelled'),
+
+  // Depot - Go North East depots
+  depot: Joi.string().valid('Washington', 'Riverside', 'Consett', 'Deptford', 'Percy Main', 'Hexham'),
+
+  // Severity - breakdown severity levels
+  severity: Joi.string().valid('low', 'medium', 'high', 'critical'),
+
+  // Pagination - limit to prevent abuse
+  pagination: {
+    page: Joi.number().integer().min(1).default(1),
+    limit: Joi.number().integer().min(1).max(100).default(50) // Max 100 to prevent database overload
+  }
 };
 
 /**
@@ -278,7 +393,9 @@ export const sanitizeNotes = (req, res, next) => {
 };
 
 export default {
+  validate,
   validateBody,
+  commonSchemas,
   acknowledgeBreakdownSchema,
   recordDecisionSchema,
   addNoteSchema,

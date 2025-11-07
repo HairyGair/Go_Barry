@@ -15,6 +15,8 @@ import { from, query, insert, update } from '../utils/queryHelpers.js';
 import breakdownIdGenerator from '../services/breakdownIdGenerator.js';
 import { activityLogger } from '../services/activityLogger.js';
 import webSocketHandler from './webSocketHandler.js';
+import { validate } from '../middleware/validationMiddleware.js';
+import { breakdownSchemas } from '../validation/schemas.js';
 
 const router = express.Router();
 
@@ -145,7 +147,7 @@ const detectAndBroadcastCriticalPatterns = async (breakdown, issueCategory, flee
 };
 
 // GET /api/breakdowns - Get all breakdowns with pagination
-router.get('/', async (req, res) => {
+router.get('/', validate(breakdownSchemas.list), async (req, res) => {
   try {
     const { page = 1, limit = 50, status, depot } = req.query;
     const offset = (page - 1) * limit;
@@ -417,7 +419,7 @@ router.get('/stats', async (req, res) => {
 });
 
 // GET /api/breakdowns/:id - Get specific breakdown
-router.get('/:id', async (req, res) => {
+router.get('/:id', validate(breakdownSchemas.getById), async (req, res) => {
   try {
     const { data, error } = await from('breakdowns')
       .select('*')
@@ -441,7 +443,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/breakdowns - Create new breakdown
-router.post('/', async (req, res) => {
+router.post('/', validate(breakdownSchemas.create), async (req, res) => {
   try {
     // Generate unique breakdown ID with daily counter
     const idResult = await breakdownIdGenerator.generateId();
@@ -534,7 +536,7 @@ router.post('/', async (req, res) => {
 });
 
 // PUT /api/breakdowns/:id - Update breakdown
-router.put('/:id', async (req, res) => {
+router.put('/:id', validate(breakdownSchemas.update), async (req, res) => {
   try {
     const updateData = {
       ...req.body,

@@ -19,6 +19,8 @@ import { from, insert, update, remove, query } from '../utils/queryHelpers.js';
 import { authenticateAdmin, rateLimitLogin, clearLoginAttempts, verifyToken } from '../middleware/authMiddleware.js';
 import { activityLogger, ACTIVITY_TYPES, ACTOR_TYPES, SEVERITY_LEVELS } from '../services/activityLogger.js';
 import dutyManager from '../services/dutyManager.js';
+import { validate } from '../middleware/validationMiddleware.js';
+import { authSchemas } from '../validation/schemas.js';
 
 // Load environment variables
 dotenv.config();
@@ -246,7 +248,7 @@ router.post('/supervisor-signup', rateLimitLogin, async (req, res) => {
 });
 
 // POST /api/auth/login - MySQL + JWT authentication login
-router.post('/login', rateLimitLogin, async (req, res) => {
+router.post('/login', rateLimitLogin, validate(authSchemas.login), async (req, res) => {
   try {
     const { email, password, duty } = req.body;
 
@@ -410,7 +412,7 @@ router.post('/login', rateLimitLogin, async (req, res) => {
 });
 
 // POST /api/auth/signup - New supervisor signup endpoint
-router.post('/signup', rateLimitLogin, async (req, res) => {
+router.post('/signup', rateLimitLogin, validate(authSchemas.signup), async (req, res) => {
   try {
     const { email, password, fullName, badgeNumber, depot, role = 'supervisor' } = req.body;
 
@@ -530,7 +532,7 @@ router.post('/signup', rateLimitLogin, async (req, res) => {
 });
 
 // POST /api/auth/logout - Logout endpoint
-router.post('/logout', async (req, res) => {
+router.post('/logout', verifyToken, validate(authSchemas.logout), async (req, res) => {
   try {
     let supervisorInfo = null;
 
@@ -899,7 +901,7 @@ router.put('/supervisor/:id', authenticateAdmin, async (req, res) => {
 });
 
 // POST /api/auth/change-password - Change password for logged-in supervisor
-router.post('/change-password', async (req, res) => {
+router.post('/change-password', verifyToken, validate(authSchemas.changePassword), async (req, res) => {
   try {
     const { currentPassword, newPassword, email } = req.body;
 
@@ -1271,7 +1273,7 @@ router.get('/shift-history', async (req, res) => {
 
 // Set duty after login
 // POST /api/auth/set-duty
-router.post('/set-duty', verifyToken, async (req, res) => {
+router.post('/set-duty', verifyToken, validate(authSchemas.setDuty), async (req, res) => {
   try {
     console.log('🔄 [set-duty] Request received');
     console.log('📦 [set-duty] Body:', req.body);

@@ -2,9 +2,9 @@
 
 This file provides guidance to Claude Code and other AI assistants when working with the Go BARRY Breakdown Management System.
 
-**Last Updated:** November 2, 2025 (Authentication System Overhaul)
+**Last Updated:** November 7, 2025 (Phase 2: Input Validation Implementation)
 **System Status:** Production-Ready ✅
-**Current Version:** 3.1.0 (MySQL + cPanel Deployment)
+**Current Version:** 3.2.0 (MySQL + cPanel + Input Validation)
 **Documentation Status:** ✅ Cleaned and Organized (115+ legacy files removed, 231 lines mock data eliminated)
 
 ---
@@ -607,6 +607,21 @@ authHelpers.js
 ## 🔍 Important Context
 
 ### Recent Major Changes
+
+**November 7, 2025 - Phase 2: Input Validation (Security Enhancement):**
+- Implemented comprehensive Joi validation across 12+ critical endpoints
+- Created reusable validation schemas (email, password, badge numbers, fleet numbers)
+- Added pagination limits (max 100) to prevent database overload
+- Prevents SQL injection, parameter tampering, and invalid data
+- User-friendly validation error messages with detailed field-level feedback
+- **Files Created:**
+  - `/backend/validation/schemas.js` (490 lines - all validation rules)
+- **Files Enhanced:**
+  - `/backend/middleware/validationMiddleware.js` (added validate() function)
+  - `/backend/routes/auth.js` (5 endpoints protected)
+  - `/backend/routes/breakdowns.js` (4 endpoints protected)
+  - `/backend/routes/analytics.js` (3 endpoints protected)
+- **See:** `PHASE2_VALIDATION_IMPLEMENTATION_SUMMARY.md` for complete details
 
 **October 2025 - Duty Selection Flow:**
 - Added 3-step authentication: Login → Select Duty → Access
