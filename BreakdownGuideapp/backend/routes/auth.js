@@ -355,13 +355,15 @@ router.post('/login', rateLimitLogin, validate(authSchemas.login), async (req, r
 
     // Set JWT token in HTTP-only cookie (cannot be accessed by JavaScript - XSS protection)
     // This cookie will be automatically sent with all future requests to the API
+    // IMPORTANT: domain must ALWAYS be .gobarry.co.uk to share cookies across subdomains
+    // (frontend at breakdowns.gobarry.co.uk and backend at api.breakdowns.gobarry.co.uk)
     res.cookie('auth_token', token, {
       httpOnly: true, // Cookie cannot be accessed by client-side JavaScript
-      secure: process.env.NODE_ENV === 'production', // Only sent over HTTPS in production
-      sameSite: 'strict', // Cookie only sent for same-site requests (CSRF protection)
+      secure: true, // Always use HTTPS (required for cross-subdomain cookies)
+      sameSite: 'lax', // Changed from 'strict' to 'lax' to allow cross-subdomain requests
       maxAge: 24 * 60 * 60 * 1000, // 24 hours in milliseconds
       path: '/', // Cookie available for all routes
-      domain: process.env.NODE_ENV === 'production' ? '.gobarry.co.uk' : undefined // Share across subdomains in production
+      domain: '.gobarry.co.uk' // ALWAYS share across all subdomains
     });
 
     // Clear rate limit on successful login
@@ -583,12 +585,13 @@ router.post('/logout', verifyToken, validate(authSchemas.logout), async (req, re
 
     // Clear the HTTP-only cookie containing the JWT token
     // This prevents the browser from sending the token in future requests
+    // IMPORTANT: Must use same cookie options as login endpoint
     res.clearCookie('auth_token', {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: true, // Must match login cookie settings
+      sameSite: 'lax', // Must match login cookie settings
       path: '/',
-      domain: process.env.NODE_ENV === 'production' ? '.gobarry.co.uk' : undefined
+      domain: '.gobarry.co.uk' // Must match login cookie settings
     });
 
     console.log('🍪 Auth token cookie cleared');
