@@ -4,6 +4,7 @@
 
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
+import NodeCache from 'node-cache';
 import { from } from '../utils/queryHelpers.js';
 
 // Load environment variables
@@ -19,31 +20,51 @@ if (!JWT_SECRET) {
     process.exit(1);
 }
 
-// Rate limiting storage (in-memory for now)
-const loginAttempts = new Map();
-const sdcOperationAttempts = new Map();
-const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
+// Rate limiting configuration
+const RATE_LIMIT_WINDOW = 15 * 60; // 15 minutes in seconds
 const MAX_LOGIN_ATTEMPTS = 5;
-const MAX_SDC_OPERATIONS = 100; // 100 operations per 15 minutes per user
+const MAX_SDC_OPERATIONS = 100;
 
-// Clean up old rate limit entries
+// Create bounded caches with automatic cleanup
+// stdTTL: Time to live in seconds (auto-delete after this time)
+// checkperiod: How often to check for expired keys (in seconds)
+// maxKeys: Maximum keys allowed (prevents unbounded growth)
+const loginAttempts = new NodeCache({
+  stdTTL: RATE_LIMIT_WINDOW,  // Auto-delete after 15 minutes
+  checkperiod: 60,             // Check every 60 seconds
+  useClones: false,            // Performance optimization
+  maxKeys: 10000,              // Safety limit - prevent unbounded growth
+  deleteOnExpire: true         // Auto-cleanup
+});
+
+const sdcOperationAttempts = new NodeCache({
+  stdTTL: RATE_LIMIT_WINDOW,
+  checkperiod: 60,
+  useClones: false,
+  maxKeys: 10000,
+  deleteOnExpire: true
+});
+
+// Optional: Log cache statistics every 10 minutes for monitoring
 setInterval(() => {
-    const now = Date.now();
+  const loginStats = loginAttempts.getStats();
+  const sdcStats = sdcOperationAttempts.getStats();
 
-    // Clean login attempts
-    for (const [key, data] of loginAttempts.entries()) {
-        if (now - data.windowStart > RATE_LIMIT_WINDOW) {
-            loginAttempts.delete(key);
-        }
+  console.log('[CACHE STATS] Rate limiting caches:', {
+    login: {
+      keys: loginStats.keys,
+      hits: loginStats.hits,
+      misses: loginStats.misses,
+      ksize: loginStats.ksize
+    },
+    sdc: {
+      keys: sdcStats.keys,
+      hits: sdcStats.hits,
+      misses: sdcStats.misses,
+      ksize: sdcStats.ksize
     }
-
-    // Clean SDC operation attempts
-    for (const [key, data] of sdcOperationAttempts.entries()) {
-        if (now - data.windowStart > RATE_LIMIT_WINDOW) {
-            sdcOperationAttempts.delete(key);
-        }
-    }
-}, 5 * 60 * 1000); // Clean up every 5 minutes
+  });
+}, 10 * 60 * 1000); // Every 10 minutes
 
 // Rate limiting middleware for login attempts
 export const rateLimitLogin = (req, res, next) => {
@@ -55,18 +76,7 @@ export const rateLimitLogin = (req, res, next) => {
     const attempts = loginAttempts.get(identifier);
 
     if (!attempts) {
-        // First attempt
-        loginAttempts.set(identifier, {
-            count: 1,
-            windowStart: now,
-            lastAttempt: now
-        });
-        return next();
-    }
-
-    // Check if window has expired
-    if (now - attempts.windowStart > RATE_LIMIT_WINDOW) {
-        // Reset window
+        // First attempt - initialize counter
         loginAttempts.set(identifier, {
             count: 1,
             windowStart: now,
@@ -77,14 +87,16 @@ export const rateLimitLogin = (req, res, next) => {
 
     // Check if rate limit exceeded
     if (attempts.count >= MAX_LOGIN_ATTEMPTS) {
-        const resetTime = new Date(attempts.windowStart + RATE_LIMIT_WINDOW);
+        const resetTime = new Date(attempts.windowStart + (RATE_LIMIT_WINDOW * 1000));
+        const retryAfter = Math.ceil((resetTime.getTime() - now) / 1000);
 
-        console.warn(`Rate limit exceeded for ${identifier}. Reset at ${resetTime}`);
+        console.warn(`⚠️ Rate limit exceeded for ${identifier}. Reset at ${resetTime}`);
 
         return res.status(429).json({
             error: 'Too many login attempts. Please try again later.',
+            code: 'RATE_LIMIT_EXCEEDED',
             resetTime: resetTime.toISOString(),
-            retryAfter: Math.ceil((resetTime.getTime() - now) / 1000)
+            retryAfter: retryAfter
         });
     }
 
@@ -102,7 +114,8 @@ export const clearLoginAttempts = (req, res, next) => {
     const userAgent = req.get('User-Agent') || 'unknown';
     const identifier = `${clientIP}:${userAgent}`;
 
-    loginAttempts.delete(identifier);
+    // Use node-cache's delete method
+    loginAttempts.del(identifier);
     next();
 };
 
@@ -116,18 +129,7 @@ export const rateLimitSDC = (req, res, next) => {
     const attempts = sdcOperationAttempts.get(identifier);
 
     if (!attempts) {
-        // First operation
-        sdcOperationAttempts.set(identifier, {
-            count: 1,
-            windowStart: now,
-            lastOperation: now
-        });
-        return next();
-    }
-
-    // Check if window has expired
-    if (now - attempts.windowStart > RATE_LIMIT_WINDOW) {
-        // Reset window
+        // First operation - initialize counter
         sdcOperationAttempts.set(identifier, {
             count: 1,
             windowStart: now,
@@ -138,28 +140,17 @@ export const rateLimitSDC = (req, res, next) => {
 
     // Check if rate limit exceeded
     if (attempts.count >= MAX_SDC_OPERATIONS) {
-        const resetTime = new Date(attempts.windowStart + RATE_LIMIT_WINDOW);
+        const resetTime = new Date(attempts.windowStart + (RATE_LIMIT_WINDOW * 1000));
+        const retryAfter = Math.ceil((resetTime.getTime() - now) / 1000);
 
         console.warn(`⚠️ SDC rate limit exceeded for ${userEmail} from ${clientIP}. Reset at ${resetTime}`);
-
-        // Log security event
-        const securityEvent = {
-            eventType: 'sdc_rate_limit_exceeded',
-            timestamp: new Date().toISOString(),
-            email: userEmail,
-            ip: clientIP,
-            userAgent: req.get('User-Agent'),
-            path: req.path,
-            operationCount: attempts.count
-        };
-        console.log('🔒 Security Alert:', JSON.stringify(securityEvent, null, 2));
 
         return res.status(429).json({
             success: false,
             error: 'Too many SDC operations. Please try again later.',
             code: 'SDC_RATE_LIMIT_EXCEEDED',
             resetTime: resetTime.toISOString(),
-            retryAfter: Math.ceil((resetTime.getTime() - now) / 1000),
+            retryAfter: retryAfter,
             timestamp: new Date().toISOString()
         });
     }
