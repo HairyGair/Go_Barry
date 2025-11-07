@@ -29,6 +29,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { apiClient } from '../../services/api-client';
 import websocketService from '../../services/websocket';
+import GairWareLogo from '../../components/GairWareLogo';
 import './EngineeringDisplay.css';
 
 const EngineeringDisplay = () => {
@@ -368,7 +369,13 @@ const EngineeringDisplay = () => {
       {/* Footer */}
       <div className="engineering-footer">
         <div className="footer-info">
-          Display ID: {displayId} | Auto-refresh: 30s
+          <div className="footer-left">
+            Display ID: {displayId} | Auto-refresh: 30s
+          </div>
+          <div className="footer-watermark">
+            <GairWareLogo size={16} variant="minimal" color="rgba(255,255,255,0.15)" />
+            <span className="watermark-text">GairWare</span>
+          </div>
         </div>
       </div>
     </div>

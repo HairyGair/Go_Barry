@@ -134,7 +134,7 @@ function BuzzersWizard({ currentStep, responses, updateResponse, onNext, onPrevi
         return (
           <div className="space-y-6">
             <div className="text-center">
-              <h2 className="text-2xl font-bold text-white mb-2">SDC Step 1: Identify the Buzzer</h2>
+              <h2 className="text-2xl font-bold text-white mb-2">Step 1: Identify the Buzzer</h2>
               <p className="text-gray-300">Following standard operational safety checks - accurately identify which buzzer is sounding and its pattern.</p>
             </div>
 
@@ -213,7 +213,7 @@ function BuzzersWizard({ currentStep, responses, updateResponse, onNext, onPrevi
         return (
           <div className="space-y-6">
             <div className="text-center">
-              <h2 className="text-2xl font-bold text-white mb-2">SDC Step 2: Check for Warning Lights</h2>
+              <h2 className="text-2xl font-bold text-white mb-2">Step 2: Check for Warning Lights</h2>
               <p className="text-gray-300">Following standard operational safety checks - check if any warning lights are illuminated that correspond with the buzzer sound.</p>
             </div>
 
@@ -310,7 +310,7 @@ function BuzzersWizard({ currentStep, responses, updateResponse, onNext, onPrevi
         return (
           <div className="space-y-6">
             <div className="text-center">
-              <h2 className="text-2xl font-bold text-white mb-2">SDC Step 3: Take Action</h2>
+              <h2 className="text-2xl font-bold text-white mb-2">Step 3: Take Action</h2>
               <p className="text-gray-300">Following standard operational safety checks - determine whether it is safe to continue to the next convenient changeover point.</p>
             </div>
 
@@ -391,7 +391,7 @@ function BuzzersWizard({ currentStep, responses, updateResponse, onNext, onPrevi
                   <div className="flex-1">
                     <h3 className="text-xl font-bold text-red-200 mb-3">IMMEDIATE STOP REQUIRED</h3>
                     <div className="text-red-300/90 space-y-2">
-                      <p className="font-semibold">SDC Note: Some vehicles will not drive with a buzzer sounding</p>
+                      <p className="font-semibold">Operational Note: Some vehicles will not drive with a buzzer sounding</p>
                       <ul className="list-disc list-inside space-y-1">
                         <li>Stop immediately and seek assistance from engineering</li>
                         <li>Do not attempt to continue without engineering clearance</li>
@@ -405,7 +405,7 @@ function BuzzersWizard({ currentStep, responses, updateResponse, onNext, onPrevi
             )}
 
             <div className="bg-blue-500/20 backdrop-blur-sm rounded-lg p-6 border border-blue-400/30">
-              <h3 className="text-lg font-semibold text-blue-200 mb-4">🔧 Final SDC Guidance</h3>
+              <h3 className="text-lg font-semibold text-blue-200 mb-4">🔧 Final Operational Guidance</h3>
               <div className="text-blue-300/80 text-sm space-y-3">
                 <p className="font-semibold">operational safety procedures states:</p>
                 <ul className="list-disc list-inside space-y-2">

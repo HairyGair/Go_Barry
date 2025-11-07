@@ -36,12 +36,12 @@ const WingMirrorsWizard = ({ currentStep, responses, updateResponse, onNext, onP
                     </div>
                     
                     <div className="bg-red-500/30 backdrop-blur-sm rounded-lg p-6 border border-red-400/50">
-                        <h3 className="text-lg font-semibold text-red-200 mb-4">⚠️ SDC WING MIRROR PROTOCOL</h3>
+                        <h3 className="text-lg font-semibold text-red-200 mb-4">⚠️ Operational WING MIRROR PROTOCOL</h3>
                         <p className="text-red-300/80 text-sm leading-relaxed mb-4">
                             Wing mirrors are critical for safe vehicle operation. Assessment must evaluate damage extent and driver capability to operate safely.
                         </p>
                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                            <h4 className="font-semibold text-red-200 mb-2">SDC Assessment Priority:</h4>
+                            <h4 className="font-semibold text-red-200 mb-2">Operational Assessment Priority:</h4>
                             <ul className="list-disc list-inside space-y-1 text-red-300/90 text-sm">
                                 <li>Step 1: Assess extent of damage (glass vs glass and arm)</li>
                                 <li>Step 2: Determine which side of vehicle affected</li>
@@ -311,7 +311,7 @@ const WingMirrorsWizard = ({ currentStep, responses, updateResponse, onNext, onP
                         <div className="flex items-start space-x-4">
                             <Eye className="w-8 h-8 text-red-400 mt-1" />
                             <div className="flex-1">
-                                <h3 className="text-xl font-bold text-red-200 mb-4">🚨 SDC DRIVER CAPABILITY CHECK</h3>
+                                <h3 className="text-xl font-bold text-red-200 mb-4">🚨 Operational DRIVER CAPABILITY CHECK</h3>
                                 <p className="font-bold text-lg text-red-300/90">Can the driver continue using the mirror satisfactorily?</p>
                                 <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mt-4">
                                     <h4 className="font-bold text-red-200 mb-3">Consider these factors:</h4>
@@ -425,7 +425,7 @@ const WingMirrorsWizard = ({ currentStep, responses, updateResponse, onNext, onP
             );
 
         case 3:
-            // Determine final decision based on SDC logic
+            // Determine final decision based on Operational logic
             const mustStopEngineering = responses.driver_capability === 'cannot_use' ||
                                        responses.damage_type === 'completely_missing' ||
                                        responses.vehicle_side === 'both_sides' ||
@@ -442,7 +442,7 @@ const WingMirrorsWizard = ({ currentStep, responses, updateResponse, onNext, onP
                 <div className="space-y-6">
                     <div className="text-center">
                         <h2 className="text-2xl font-bold text-white mb-2">📋 WING MIRRORS - FINAL DECISION</h2>
-                        <p className="text-gray-300">SDC-compliant safety decision based on mirror damage assessment.</p>
+                        <p className="text-gray-300">compliant safety decision based on mirror damage assessment.</p>
                     </div>
                     
                     {mustStopEngineering ? (
@@ -587,7 +587,7 @@ const WingMirrorsWizard = ({ currentStep, responses, updateResponse, onNext, onP
                             <CheckCircle className="w-12 h-12 text-green-400" />
                             <div>
                                 <h3 className="text-xl font-bold text-green-200">Wing Mirrors Assessment Complete</h3>
-                                <p className="text-green-300/90 mt-2">SDC procedure followed. Safety decision based on driver capability and damage assessment.</p>
+                                <p className="text-green-300/90 mt-2">Operational procedure followed. Safety decision based on driver capability and damage assessment.</p>
                             </div>
                         </div>
                     </div>

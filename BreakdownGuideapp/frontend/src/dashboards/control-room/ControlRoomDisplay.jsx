@@ -26,6 +26,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { apiClient } from '../../services/api-client';
 import useConnectionManager from '../../hooks/useConnectionManager';
+import GairWareLogo from '../../components/GairWareLogo';
 import './ControlRoomDisplay.css';
 
 const ControlRoomDisplay = () => {
@@ -803,6 +804,10 @@ const ControlRoomDisplay = () => {
         </div>
         <div className="footer-refresh">
           Auto-refresh: 30s | Card rotation: 20s
+        </div>
+        <div className="footer-watermark">
+          <GairWareLogo size={16} variant="minimal" color="rgba(255,255,255,0.15)" />
+          <span className="watermark-text">GairWare</span>
         </div>
       </div>
     </div>

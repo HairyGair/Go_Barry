@@ -37,7 +37,7 @@ const CuttingOutFuelWizard = ({ currentStep, responses, updateResponse, onNext, 
                             Fuel system issues pose immediate fire and explosion risks. standard operational guidance prioritises detection of fuel leaks and prevention of ignition sources.
                         </p>
                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                            <h4 className="font-semibold text-red-200 mb-2">SDC Fuel Safety Protocol:</h4>
+                            <h4 className="font-semibold text-red-200 mb-2">Operational Fuel Safety Protocol:</h4>
                             <ul className="list-disc list-inside space-y-1 text-red-300/90 text-sm">
                                 <li>ANY fuel leak = immediate stop and engine shutdown</li>
                                 <li>Fire services may be required for severe spills</li>
@@ -48,7 +48,7 @@ const CuttingOutFuelWizard = ({ currentStep, responses, updateResponse, onNext, 
                     </div>
 
                     <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/20">
-                        <h3 className="text-lg font-semibold text-white mb-4">SDC Step 1: Check the Ignition</h3>
+                        <h3 className="text-lg font-semibold text-white mb-4">Step 1: Check the Ignition</h3>
                         <p className="text-gray-300 text-sm mb-4">First step per standard operational guidance: Confirm that the ignition is turned on.</p>
                         
                         <div className="space-y-3">
@@ -203,8 +203,8 @@ const CuttingOutFuelWizard = ({ currentStep, responses, updateResponse, onNext, 
             return (
                 <div className="space-y-6">
                     <div className="text-center">
-                        <h2 className="text-2xl font-bold text-white mb-2">🔍 SDC Step 2: Fuel Leak Inspection</h2>
-                        <p className="text-gray-300">Critical visual inspection for fuel leaks following SDC safety procedures - fire prevention priority.</p>
+                        <h2 className="text-2xl font-bold text-white mb-2">🔍 Step 2: Fuel Leak Inspection</h2>
+                        <p className="text-gray-300">Critical visual inspection for fuel leaks following Operational safety procedures - fire prevention priority.</p>
                     </div>
 
                     <div className="bg-red-500/30 backdrop-blur-sm rounded-lg p-6 border border-red-400/50">
@@ -213,9 +213,9 @@ const CuttingOutFuelWizard = ({ currentStep, responses, updateResponse, onNext, 
                             <div className="flex-1">
                                 <h3 className="text-xl font-bold text-red-200 mb-3">🔥 CRITICAL FIRE PREVENTION PROTOCOL</h3>
                                 <div className="text-red-300/90 space-y-2">
-                                    <p className="font-semibold">SDC Guidance: If driver suspects fuel leak, visual inspection required when safe</p>
+                                    <p className="font-semibold">Operational Guidance: If driver suspects fuel leak, visual inspection required when safe</p>
                                     <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mt-4">
-                                        <h4 className="font-semibold text-red-200 mb-2">SDC Inspection Areas:</h4>
+                                        <h4 className="font-semibold text-red-200 mb-2">Operational Inspection Areas:</h4>
                                         <ul className="list-disc list-inside space-y-1 text-red-300/90 text-sm">
                                             <li>Fuel tanks, hoses, and under the vehicle</li>
                                             <li>Strong smell of diesel</li>
@@ -306,7 +306,7 @@ const CuttingOutFuelWizard = ({ currentStep, responses, updateResponse, onNext, 
                                 <div className="flex-1">
                                     <h3 className="text-xl font-bold text-red-200 mb-3">🛑 EMERGENCY FUEL LEAK PROTOCOL</h3>
                                     <div className="text-red-300/90 space-y-2">
-                                        <p className="font-semibold">SDC Mandatory Actions for Fuel Leak:</p>
+                                        <p className="font-semibold">Operational Mandatory Actions for Fuel Leak:</p>
                                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mt-4">
                                             <h4 className="font-semibold text-red-200 mb-2">Immediate Actions Required:</h4>
                                             <ol className="list-decimal list-inside space-y-1 text-red-300/90 text-sm">
@@ -339,7 +339,7 @@ const CuttingOutFuelWizard = ({ currentStep, responses, updateResponse, onNext, 
                                 <div className="flex-1">
                                     <h3 className="text-xl font-bold text-green-200 mb-3">✅ No Fuel Leak Detected</h3>
                                     <div className="text-green-300/90 space-y-2">
-                                        <p className="font-semibold">SDC Guidance: Proceed to Step 3 - Assess the Situation</p>
+                                        <p className="font-semibold">Operational Guidance: Proceed to Step 3 - Assess the Situation</p>
                                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mt-4">
                                             <h4 className="font-semibold text-green-200 mb-2">Next Assessment Phase:</h4>
                                             <ul className="list-disc list-inside space-y-1 text-green-300/90 text-sm">
@@ -377,14 +377,14 @@ const CuttingOutFuelWizard = ({ currentStep, responses, updateResponse, onNext, 
             return (
                 <div className="space-y-6">
                     <div className="text-center">
-                        <h2 className="text-2xl font-bold text-white mb-2">📊 SDC Step 3: Assess the Situation</h2>
+                        <h2 className="text-2xl font-bold text-white mb-2">📊 Step 3: Assess the Situation</h2>
                         <p className="text-gray-300">Determine if this is first-time occurrence or persistent problem to guide response.</p>
                     </div>
 
                     <div className="bg-blue-500/20 backdrop-blur-sm rounded-lg p-6 border border-blue-400/30">
                         <h3 className="text-lg font-semibold text-blue-200 mb-4">📈 Occurrence Pattern Assessment</h3>
                         <p className="text-blue-300/80 text-sm leading-relaxed">
-                            SDC Guidance: First-time occurrence vs persistent problem determines the appropriate response level and urgency.
+                            Operational Guidance: First-time occurrence vs persistent problem determines the appropriate response level and urgency.
                         </p>
                     </div>
 
@@ -409,7 +409,7 @@ const CuttingOutFuelWizard = ({ currentStep, responses, updateResponse, onNext, 
                                     </div>
                                     <div>
                                         <span className="font-medium">🆕 First-time occurrence</span>
-                                        <p className="text-sm text-gray-300 mt-1">SDC Action: Continue to convenient changeover point</p>
+                                        <p className="text-sm text-gray-300 mt-1">Action: Continue to convenient changeover point</p>
                                     </div>
                                 </div>
                             </button>
@@ -430,7 +430,7 @@ const CuttingOutFuelWizard = ({ currentStep, responses, updateResponse, onNext, 
                                     </div>
                                     <div>
                                         <span className="font-medium">🔄 Persistent problem</span>
-                                        <p className="text-sm text-gray-300 mt-1">SDC Action: If continues to cut out, STOP and await engineering</p>
+                                        <p className="text-sm text-gray-300 mt-1">Action: If continues to cut out, STOP and await engineering</p>
                                     </div>
                                 </div>
                             </button>
@@ -523,7 +523,7 @@ const CuttingOutFuelWizard = ({ currentStep, responses, updateResponse, onNext, 
                                         </div>
                                         <div>
                                             <span className="font-medium">🚨 Vehicle continues to cut out</span>
-                                            <p className="text-sm text-gray-300 mt-1">SDC: STOP in safe location and await engineering</p>
+                                            <p className="text-sm text-gray-300 mt-1">Safety Protocol: STOP in safe location and await engineering</p>
                                         </div>
                                     </div>
                                 </button>
@@ -531,25 +531,25 @@ const CuttingOutFuelWizard = ({ currentStep, responses, updateResponse, onNext, 
                         </div>
                     )}
 
-                    {/* SDC Decision Logic Display */}
+                    {/* Operational Decision Logic Display */}
                     <div className="bg-purple-500/20 backdrop-blur-sm rounded-lg p-6 border border-purple-400/30">
-                        <h3 className="text-lg font-semibold text-purple-200 mb-4">📋 SDC Assessment Summary</h3>
+                        <h3 className="text-lg font-semibold text-purple-200 mb-4">📋 Operational Assessment Summary</h3>
                         {responses.occurrence_pattern === 'first_time' && (
                             <div className="text-purple-300/90">
                                 <p className="font-semibold text-green-300">✅ First-time Occurrence:</p>
-                                <p className="text-sm">SDC Action: Advise driver to continue to convenient changeover point</p>
+                                <p className="text-sm">Action: Advise driver to continue to convenient changeover point</p>
                             </div>
                         )}
                         {(responses.occurrence_pattern === 'persistent_problem' || responses.occurrence_pattern === 'worsening_condition') && responses.current_cutting_status === 'no_further_issues' && (
                             <div className="text-purple-300/90">
                                 <p className="font-semibold text-yellow-300">⚠️ Persistent Problem - Currently Stable:</p>
-                                <p className="text-sm">SDC Action: Continue with caution, arrange changeover, monitor closely</p>
+                                <p className="text-sm">Action: Continue with caution, arrange changeover, monitor closely</p>
                             </div>
                         )}
                         {(responses.occurrence_pattern === 'persistent_problem' || responses.occurrence_pattern === 'worsening_condition') && responses.current_cutting_status === 'continued_cutting_out' && (
                             <div className="text-purple-300/90">
                                 <p className="font-semibold text-red-300">🛑 Persistent Problem - Still Cutting Out:</p>
-                                <p className="text-sm">SDC Action: Driver must STOP in safe location and await engineering assistance</p>
+                                <p className="text-sm">Action: Driver must STOP in safe location and await engineering assistance</p>
                             </div>
                         )}
                     </div>
@@ -586,7 +586,7 @@ const CuttingOutFuelWizard = ({ currentStep, responses, updateResponse, onNext, 
                 <div className="space-y-6">
                     <div className="text-center">
                         <h2 className="text-2xl font-bold text-white mb-2">📋 Cutting Out/Fuel System Assessment Report</h2>
-                        <p className="text-gray-300">Complete fuel system safety assessment with SDC-compliant decision and actions.</p>
+                        <p className="text-gray-300">Complete fuel system safety assessment with compliant decision and actions.</p>
                     </div>
                     
                     {/* Assessment Summary */}

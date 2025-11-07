@@ -836,7 +836,7 @@ router.post('/report', async (req, res) => {
     // Section 4: Predictive Alerts
     if (includePredictive) {
       report.sections.predictiveAlerts = {
-        summary: 'AI-generated predictive maintenance recommendations',
+        summary: 'Data-driven predictive maintenance recommendations based on fleet analysis',
         note: 'Use /api/defects/predictive endpoint for detailed predictive analysis'
       };
     }

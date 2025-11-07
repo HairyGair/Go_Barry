@@ -211,7 +211,7 @@ const InteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, 
                             <FileText className="w-8 h-8 text-blue-400" />
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">💡 50% Illumination Rule Assessment</h2>
-                        <p className="text-gray-300">Apply the SDC 50% rule: at least 50% of lights on each deck must be illuminated (at least one side working).</p>
+                        <p className="text-gray-300">Apply the Operational 50% rule: at least 50% of lights on each deck must be illuminated (at least one side working).</p>
                     </div>
                     
                     <div className="bg-blue-500/20 backdrop-blur-sm rounded-lg p-6 border border-blue-400/30">

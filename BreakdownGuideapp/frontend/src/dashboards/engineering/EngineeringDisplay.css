@@ -373,8 +373,34 @@
 }
 
 .footer-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   font-size: 16px;
   color: #64748b;
+}
+
+.footer-left {
+  flex: 1;
+}
+
+/* Subtle GairWare Watermark */
+.footer-watermark {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  opacity: 0.25;
+  font-size: 0.7rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  transition: opacity 0.3s ease;
+}
+
+.footer-watermark:hover {
+  opacity: 0.5;
+}
+
+.watermark-text {
+  letter-spacing: -0.025em;
 }
 
 /* Animations for new cards */

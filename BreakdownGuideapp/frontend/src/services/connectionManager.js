@@ -112,14 +112,11 @@ class ConnectionManager {
 
   async connectWebSocket(endpoint) {
     try {
-      // Get authentication token from storage
-      const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+      // NOTE: Authentication now handled via HTTP-only cookies (XSS protection)
+      // The browser automatically sends the auth_token cookie with WebSocket upgrade request
+      // No need to retrieve or inject token manually
 
-      if (!token) {
-        this.log('⚠️ No authentication token found - WebSocket connection may fail for protected channels');
-      } else {
-        this.log('🔒 Found authentication token for WebSocket connection');
-      }
+      this.log('🔒 Using HTTP-only cookie authentication for WebSocket');
 
       // Determine if we're in development or production
       // Check actual hostname instead of relying on import.meta.env.DEV
@@ -145,19 +142,15 @@ class ConnectionManager {
         });
       }
 
-      // Inject authentication token into WebSocket URL
-      if (token) {
-        const separator = wsUrl.includes('?') ? '&' : '?';
-        wsUrl += `${separator}token=${encodeURIComponent(token)}`;
-        this.log('🔒 Authentication token injected into WebSocket URL');
-      }
+      // NOTE: No token injection needed - browser sends HTTP-only cookie automatically
+      // This is more secure as JavaScript cannot access the token (XSS protection)
 
       this.log('Attempting WebSocket connection', {
-        wsUrl: wsUrl.replace(/token=[^&]+/, 'token=***'), // Hide token in logs
+        wsUrl,
         baseUrl: apiConfig.baseUrl,
         endpoint,
-        hasToken: !!token,
-        isDevelopment
+        authMethod: 'HTTP-only cookie',
+        isLocalDevelopment
       });
 
       this.ws = new WebSocket(wsUrl);
@@ -299,6 +292,7 @@ class ConnectionManager {
       const response = await fetch(`${apiConfig.baseUrl}/api/activity/live${since ? `?since=${since}` : ''}`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Important: Send HTTP-only cookie with request
         signal: AbortSignal.timeout(8000)
       });
 

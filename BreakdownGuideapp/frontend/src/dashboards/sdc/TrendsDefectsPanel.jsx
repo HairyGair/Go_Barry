@@ -42,32 +42,36 @@ const TrendsDefectsPanel = () => {
   });
 
   // Fetch defect data from API (calls multiple endpoints and combines)
+  // NOTE: Authentication now uses HTTP-only cookies (XSS protection)
   const fetchDefectData = useCallback(async () => {
     try {
       setRefreshing(true);
-      const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
       const headers = {
-        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       };
 
       // Fetch from all defect intelligence endpoints in parallel
+      // IMPORTANT: credentials: 'include' sends HTTP-only cookies automatically
       const [repeatRes, trendsRes, depotRes, predictiveRes] = await Promise.all([
         fetch(`${apiConfig.baseUrl}/api/defects/repeat`, {
           method: 'POST',
           headers,
+          credentials: 'include', // Send HTTP-only cookie
           body: JSON.stringify({ timeframe })
         }),
         fetch(`${apiConfig.baseUrl}/api/defects/trends`, {
           method: 'POST',
           headers,
+          credentials: 'include', // Send HTTP-only cookie
           body: JSON.stringify({ timeframe, groupByType: true })
         }),
         fetch(`${apiConfig.baseUrl}/api/defects/depot-stats?timeframe=${timeframe}`, {
-          headers
+          headers,
+          credentials: 'include' // Send HTTP-only cookie
         }),
         fetch(`${apiConfig.baseUrl}/api/defects/predictive`, {
-          headers
+          headers,
+          credentials: 'include' // Send HTTP-only cookie
         })
       ]);
 
@@ -389,9 +393,9 @@ const TrendsDefectsPanel = () => {
       await fetch(`${apiConfig.baseUrl}/api/defects/escalate`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken') || sessionStorage.getItem('authToken')}`,
           'Content-Type': 'application/json'
         },
+        credentials: 'include', // Send HTTP-only cookie
         body: JSON.stringify({
           vehicleId: vehicle.fleetNumber,
           fleetNumber: vehicle.fleetNumber,
@@ -420,9 +424,9 @@ const TrendsDefectsPanel = () => {
       const response = await fetch(`${apiConfig.baseUrl}/api/defects/report`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken') || sessionStorage.getItem('authToken')}`,
           'Content-Type': 'application/json'
         },
+        credentials: 'include', // Send HTTP-only cookie
         body: JSON.stringify({
           timeframe,
           includeRepeatDefects: true,
@@ -459,9 +463,9 @@ const TrendsDefectsPanel = () => {
       await fetch(`${apiConfig.baseUrl}/api/defects/notifications/maintenance`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken') || sessionStorage.getItem('authToken')}`,
           'Content-Type': 'application/json'
         },
+        credentials: 'include', // Send HTTP-only cookie
         body: JSON.stringify({
           type: 'critical_repeat_defects',
           priority: 'high',

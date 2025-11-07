@@ -87,12 +87,12 @@ const BrokenWindowsWizard = ({ currentStep, responses, updateResponse, onNext, o
                     </div>
                     
                     <div className="bg-red-500/30 backdrop-blur-sm rounded-lg p-6 border border-red-400/50">
-                        <h3 className="text-lg font-semibold text-red-200 mb-4">⚠️ SDC BROKEN WINDOWS PROTOCOL</h3>
+                        <h3 className="text-lg font-semibold text-red-200 mb-4">⚠️ Operational BROKEN WINDOWS PROTOCOL</h3>
                         <p className="text-red-300/80 text-sm leading-relaxed mb-4">
-                            Safety assessment must follow the exact SDC procedure: Driver → Passengers → Vehicle safety evaluation.
+                            Safety assessment must follow the exact Operational procedure: Driver → Passengers → Vehicle safety evaluation.
                         </p>
                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                            <h4 className="font-semibold text-red-200 mb-2">SDC Assessment Order:</h4>
+                            <h4 className="font-semibold text-red-200 mb-2">Operational Assessment Order:</h4>
                             <ul className="list-disc list-inside space-y-1 text-red-300/90 text-sm">
                                 <li>Step 1: Is the driver fit and well to continue?</li>
                                 <li>Step 2: Are all passengers unharmed?</li>
@@ -225,7 +225,7 @@ const BrokenWindowsWizard = ({ currentStep, responses, updateResponse, onNext, o
                                     <div className="text-red-300/90 space-y-2">
                                         <p className="font-semibold">Critical safety situation - follow standard operational procedures immediately</p>
                                         <div className="bg-white/10 backdrop-blur-sm rounded p-4 mt-4">
-                                            <h4 className="font-semibold text-red-200 mb-2">Mandatory SDC Actions:</h4>
+                                            <h4 className="font-semibold text-red-200 mb-2">Mandatory Operational Actions:</h4>
                                             <ul className="list-disc list-inside space-y-1 text-red-300/90 text-sm">
                                                 {responses.driver_fit === 'no' && (
                                                     <>
@@ -265,14 +265,14 @@ const BrokenWindowsWizard = ({ currentStep, responses, updateResponse, onNext, o
                 <div className="space-y-6">
                     <div className="text-center">
                         <h2 className="text-2xl font-bold text-white mb-2">🚗 VEHICLE SAFETY ASSESSMENT</h2>
-                        <p className="text-gray-300">Critical SDC evaluation: driver vision and occupant danger assessment.</p>
+                        <p className="text-gray-300">Critical Operational evaluation: driver vision and occupant danger assessment.</p>
                     </div>
 
                     <div className="bg-red-500/30 backdrop-blur-sm rounded-lg p-6 border border-red-400/50">
                         <div className="flex items-start space-x-4">
                             <Eye className="w-8 h-8 text-red-400 mt-1" />
                             <div className="flex-1">
-                                <h3 className="text-xl font-bold text-red-200 mb-4">🚨 SDC CRITICAL ASSESSMENT</h3>
+                                <h3 className="text-xl font-bold text-red-200 mb-4">🚨 Operational CRITICAL ASSESSMENT</h3>
                                 <p className="font-bold text-lg text-red-300/90">Is the driver's view seriously impaired, or does it present a danger to occupants? Is detachment of loose articles likely?</p>
                             </div>
                         </div>
@@ -423,7 +423,7 @@ const BrokenWindowsWizard = ({ currentStep, responses, updateResponse, onNext, o
                 <div className="space-y-6">
                     <div className="text-center">
                         <h2 className="text-2xl font-bold text-white mb-2">📋 BROKEN WINDOWS - FINAL DECISION</h2>
-                        <p className="text-gray-300">SDC-compliant safety decision and action plan.</p>
+                        <p className="text-gray-300">compliant safety decision and action plan.</p>
                     </div>
                     
                     {mustStop ? (
@@ -432,7 +432,7 @@ const BrokenWindowsWizard = ({ currentStep, responses, updateResponse, onNext, o
                                 <div className="text-6xl mb-4">🛑</div>
                                 <h3 className="text-2xl font-bold text-red-200 mb-2">STOP IMMEDIATELY</h3>
                                 <p className="text-red-300/90 text-lg mb-6">
-                                    Vehicle cannot continue - SDC safety requirements not met
+                                    Vehicle cannot continue - Operational safety requirements not met
                                 </p>
                             </div>
                         </div>
@@ -515,7 +515,7 @@ const BrokenWindowsWizard = ({ currentStep, responses, updateResponse, onNext, o
                             <CheckCircle className="w-12 h-12 text-green-400" />
                             <div>
                                 <h3 className="text-xl font-bold text-green-200">Broken Windows Assessment Complete</h3>
-                                <p className="text-green-300/90 mt-2">SDC procedure followed. Safety decision implemented per engineering guidance.</p>
+                                <p className="text-green-300/90 mt-2">Operational procedure followed. Safety decision implemented per engineering guidance.</p>
                             </div>
                         </div>
                     </div>

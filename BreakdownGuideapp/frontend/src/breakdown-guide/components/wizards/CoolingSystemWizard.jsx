@@ -80,7 +80,7 @@ const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, o
                     </div>
 
                     <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/20">
-                        <h3 className="text-lg font-semibold text-white mb-4">SDC Step 1: Check the Temperature Gauge</h3>
+                        <h3 className="text-lg font-semibold text-white mb-4">Step 1: Check the Temperature Gauge</h3>
                         <p className="text-gray-300 text-sm mb-4">What is the current engine temperature reading?</p>
                         
                         <div className="space-y-3">
@@ -104,7 +104,7 @@ const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, o
                                     </div>
                                     <div>
                                         <span className="font-medium">✅ 80–100°C (Normal Range)</span>
-                                        <p className="text-sm text-gray-300 mt-1">SDC Action: Advise the driver they can continue to a convenient changeover point</p>
+                                        <p className="text-sm text-gray-300 mt-1">Action: Advise the driver they can continue to a convenient changeover point</p>
                                     </div>
                                 </div>
                             </button>
@@ -125,7 +125,7 @@ const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, o
                                     </div>
                                     <div>
                                         <span className="font-medium">🌡️ Over 100°C</span>
-                                        <p className="text-sm text-gray-300 mt-1">SDC Action: Proceed to Step 2</p>
+                                        <p className="text-sm text-gray-300 mt-1">Action: Proceed to Step 2</p>
                                     </div>
                                 </div>
                             </button>
@@ -160,9 +160,9 @@ const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, o
                                 <div className="flex-1">
                                     <h3 className="text-xl font-bold text-green-200 mb-3">✅ NORMAL TEMPERATURE RANGE</h3>
                                     <div className="text-green-300/90 space-y-2">
-                                        <p className="font-semibold">SDC Guidance: Temperature within acceptable range (80-100°C)</p>
+                                        <p className="font-semibold">Operational Guidance: Temperature within acceptable range (80-100°C)</p>
                                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mt-4">
-                                            <h4 className="font-semibold text-green-200 mb-2">SDC Action:</h4>
+                                            <h4 className="font-semibold text-green-200 mb-2">Action:</h4>
                                             <ul className="list-disc list-inside space-y-1 text-green-300/90 text-sm">
                                                 <li>Continue to convenient changeover point</li>
                                                 <li>Monitor temperature throughout journey</li>
@@ -183,11 +183,11 @@ const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, o
                                 <div className="flex-1">
                                     <h3 className="text-xl font-bold text-orange-200 mb-3">🌡️ ELEVATED TEMPERATURE</h3>
                                     <div className="text-orange-300/90 space-y-2">
-                                        <p className="font-semibold">SDC Guidance: Over 100°C requires cause identification</p>
+                                        <p className="font-semibold">Operational Guidance: Over 100°C requires cause identification</p>
                                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mt-4">
                                             <h4 className="font-semibold text-orange-200 mb-2">Next Step Required:</h4>
                                             <ul className="list-disc list-inside space-y-1 text-orange-300/90 text-sm">
-                                                <li>Proceed to SDC Step 2: Identify the Cause</li>
+                                                <li>Proceed to Step 2: Identify the Cause</li>
                                                 <li>Determine if issue is Low Water or Overheating</li>
                                                 <li>Follow systematic assessment process</li>
                                                 <li>Engine damage risk increases with temperature</li>
@@ -225,7 +225,7 @@ const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, o
                         <div className="mx-auto w-16 h-16 bg-orange-500/20 rounded-full flex items-center justify-center mb-4">
                             <FileText className="w-8 h-8 text-orange-400" />
                         </div>
-                        <h2 className="text-2xl font-bold text-white mb-2">🔍 SDC Step 2: Identify the Cause</h2>
+                        <h2 className="text-2xl font-bold text-white mb-2">🔍 Step 2: Identify the Cause</h2>
                         <p className="text-gray-300">Following standard operational safety checks Guide v1.3: Determine whether the issue is Low Water or Overheating to guide appropriate response.</p>
                     </div>
 
@@ -281,7 +281,7 @@ const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, o
                     {responses.cause_identification === 'low_water' && (
                         <div className="bg-blue-500/20 backdrop-blur-sm rounded-lg p-6 border border-blue-400/30">
                             <h3 className="text-lg font-semibold text-white mb-4">Low Water Assessment</h3>
-                            <p className="text-gray-300 text-sm mb-4">SDC Guidance: Can the driver safely reach the next location to top up the water?</p>
+                            <p className="text-gray-300 text-sm mb-4">Operational Guidance: Can the driver safely reach the next location to top up the water?</p>
                             
                             <div className="space-y-3">
                                 <button
@@ -355,7 +355,7 @@ const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, o
                         <div className="mx-auto w-16 h-16 bg-yellow-500/20 rounded-full flex items-center justify-center mb-4">
                             <FileText className="w-8 h-8 text-yellow-400" />
                         </div>
-                        <h2 className="text-2xl font-bold text-white mb-2">🔊 SDC Step 3: Determine if the Water Buzzer is Sounding</h2>
+                        <h2 className="text-2xl font-bold text-white mb-2">🔊 Step 3: Determine if the Water Buzzer is Sounding</h2>
                         <p className="text-gray-300">Following standard operational safety checks Guide v1.3: Check if the water buzzer is sounding to guide next actions.</p>
                     </div>
 
@@ -380,7 +380,7 @@ const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, o
                                     </div>
                                     <div>
                                         <span className="font-medium">🔇 No Buzzer</span>
-                                        <p className="text-sm text-gray-300 mt-1">SDC Action: Advise the driver to continue to the next changeover point</p>
+                                        <p className="text-sm text-gray-300 mt-1">Action: Advise the driver to continue to the next changeover point</p>
                                     </div>
                                 </div>
                             </button>
@@ -401,7 +401,7 @@ const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, o
                                     </div>
                                     <div>
                                         <span className="font-medium">🔊 Buzzer Sounding</span>
-                                        <p className="text-sm text-gray-300 mt-1">SDC Action: Proceed to Step 4</p>
+                                        <p className="text-sm text-gray-300 mt-1">Action: Proceed to Step 4</p>
                                     </div>
                                 </div>
                             </button>
@@ -415,9 +415,9 @@ const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, o
                                 <div className="flex-1">
                                     <h3 className="text-xl font-bold text-green-200 mb-3">✅ NO WATER BUZZER</h3>
                                     <div className="text-green-300/90 space-y-2">
-                                        <p className="font-semibold">SDC Guidance: Continue to next changeover point</p>
+                                        <p className="font-semibold">Operational Guidance: Continue to next changeover point</p>
                                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mt-4">
-                                            <h4 className="font-semibold text-green-200 mb-2">SDC Action:</h4>
+                                            <h4 className="font-semibold text-green-200 mb-2">Action:</h4>
                                             <ul className="list-disc list-inside space-y-1 text-green-300/90 text-sm">
                                                 <li>Proceed to next convenient changeover point</li>
                                                 <li>Continue monitoring temperature</li>
@@ -456,7 +456,7 @@ const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, o
                         <div className="mx-auto w-16 h-16 bg-purple-500/20 rounded-full flex items-center justify-center mb-4">
                             <Tool className="w-8 h-8 text-purple-400" />
                         </div>
-                        <h2 className="text-2xl font-bold text-white mb-2">🔍 SDC Step 4: Inspect for Water Leaks</h2>
+                        <h2 className="text-2xl font-bold text-white mb-2">🔍 Step 4: Inspect for Water Leaks</h2>
                         <p className="text-gray-300">Following standard operational safety checks Guide v1.3: Safe visual inspection for water leaks - NEVER ask a driver to step into the highway.</p>
                     </div>
 
@@ -488,7 +488,7 @@ const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, o
                                     </div>
                                     <div>
                                         <span className="font-medium">💦 Leaks Present</span>
-                                        <p className="text-sm text-gray-300 mt-1">SDC Action: Advise the driver to stop immediately and await engineering assistance</p>
+                                        <p className="text-sm text-gray-300 mt-1">Action: Advise the driver to stop immediately and await engineering assistance</p>
                                     </div>
                                 </div>
                             </button>
@@ -509,7 +509,7 @@ const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, o
                                     </div>
                                     <div>
                                         <span className="font-medium">✅ No Leaks</span>
-                                        <p className="text-sm text-gray-300 mt-1">SDC Action: Proceed to Step 5</p>
+                                        <p className="text-sm text-gray-300 mt-1">Action: Proceed to Step 5</p>
                                     </div>
                                 </div>
                             </button>
@@ -577,7 +577,7 @@ const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, o
                         <div className="mx-auto w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mb-4">
                             <Tool className="w-8 h-8 text-blue-400" />
                         </div>
-                        <h2 className="text-2xl font-bold text-white mb-2">🔥 SDC Step 5: Mitigate the Issue Using Heaters and Demisters</h2>
+                        <h2 className="text-2xl font-bold text-white mb-2">🔥 Step 5: Mitigate the Issue Using Heaters and Demisters</h2>
                         <p className="text-gray-300">Following standard operational safety checks Guide v1.3: Instruct the driver to turn on the heaters and demisters to disperse heat in the system.</p>
                     </div>
 
@@ -609,7 +609,7 @@ const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, o
                                     </div>
                                     <div>
                                         <span className="font-medium">✅ If this resolves the issue</span>
-                                        <p className="text-sm text-gray-300 mt-1">SDC Action: Advise the driver to continue to the next convenient changeover point</p>
+                                        <p className="text-sm text-gray-300 mt-1">Action: Advise the driver to continue to the next convenient changeover point</p>
                                     </div>
                                 </div>
                             </button>
@@ -630,7 +630,7 @@ const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, o
                                     </div>
                                     <div>
                                         <span className="font-medium">❌ If the problem persists</span>
-                                        <p className="text-sm text-gray-300 mt-1">SDC Action: Instruct the driver to stop and await engineering assistance</p>
+                                        <p className="text-sm text-gray-300 mt-1">Action: Instruct the driver to stop and await engineering assistance</p>
                                     </div>
                                 </div>
                             </button>

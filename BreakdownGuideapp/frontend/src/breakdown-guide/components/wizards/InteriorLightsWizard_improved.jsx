@@ -22,7 +22,7 @@ const InteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, 
                     </div>
                     
                     <div className="bg-yellow-500/20 backdrop-blur-sm rounded-lg p-6 border border-yellow-400/30">
-                        <h3 className="text-lg font-semibold text-yellow-200 mb-4">⚠️ SDC Requirements</h3>
+                        <h3 className="text-lg font-semibold text-yellow-200 mb-4">⚠️ Operational Requirements</h3>
                         <div className="text-yellow-300/80 text-sm space-y-2">
                             <p>The vehicle may continue ONLY if BOTH conditions are met:</p>
                             <ul className="list-disc list-inside ml-4 space-y-1">
@@ -447,7 +447,7 @@ const InteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, 
                                 <div className="flex-1">
                                     <h3 className="text-xl font-bold text-red-200 mb-3">🚫 ARRANGE IMMEDIATE CHANGEOVER</h3>
                                     <div className="text-red-300/90 space-y-2">
-                                        <p className="font-semibold">SDC requirement not met - changeover required</p>
+                                        <p className="font-semibold">Operational requirement not met - changeover required</p>
                                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mt-4">
                                             <h4 className="font-semibold text-red-200 mb-2">Failed Requirements:</h4>
                                             <ul className="list-disc list-inside space-y-1 text-red-300/90 text-sm">
@@ -472,9 +472,9 @@ const InteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, 
                         <div className="flex items-start space-x-3">
                             <Shield className="w-6 h-6 text-blue-400 mt-1" />
                             <div>
-                                <h4 className="font-semibold text-blue-200">SDC Compliance</h4>
+                                <h4 className="font-semibold text-blue-200">Operational Compliance</h4>
                                 <p className="text-sm text-blue-300/90 mt-1">
-                                    Per SDC Section 15: If either answer is "no," arrange for immediate changeover
+                                    Per Operational Standard 15: If either answer is "no," arrange for immediate changeover
                                 </p>
                             </div>
                         </div>

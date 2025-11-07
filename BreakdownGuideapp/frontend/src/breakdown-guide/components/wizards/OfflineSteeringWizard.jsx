@@ -179,7 +179,7 @@ const OfflineSteeringWizard = ({ currentStep, responses, updateResponse, onNext,
                             <div className="space-y-3">
                                 <p>Steering defects pose immediate danger. ANY compromise requires immediate action.</p>
                                 <div className="bg-white/10 rounded-lg p-3">
-                                    <p className="font-semibold mb-2">SDC Requirements:</p>
+                                    <p className="font-semibold mb-2">Operational Requirements:</p>
                                     <ul className="space-y-1 text-sm">
                                         <li>• Max 75mm play for power steering</li>
                                         <li>• ANY defect = immediate shutdown</li>

@@ -270,12 +270,12 @@ const SteeringWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                             Steering system defects pose immediate danger to vehicle control and directional stability. ANY compromise requires immediate action.
                         </p>
                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                            <h4 className="font-semibold text-red-200 mb-2">SDC Critical Requirements:</h4>
+                            <h4 className="font-semibold text-red-200 mb-2">Critical Safety Rules:</h4>
                             <ul className="list-disc list-inside space-y-1 text-red-300/90 text-sm">
-                                <li>DVSA expects no more than 75mm play at rim for power steering vehicles</li>
-                                <li>ANY steering defect = immediate vehicle shutdown</li>
+                                <li>ANY steering defect identified = immediate vehicle shutdown</li>
                                 <li>NO exceptions for "continuing to next changeover"</li>
                                 <li>Record all defects in Tranzaura System when stationary</li>
+                                <li>Next step: physical inspection using comprehensive checklist</li>
                             </ul>
                         </div>
                     </div>
@@ -361,7 +361,7 @@ const SteeringWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                             
                             <div className="space-y-4">
                                 <div className="bg-black/30 rounded-lg p-4">
-                                    <h3 className="font-semibold text-red-200 mb-2">SDC Mandate - STEERING DEFECTS:</h3>
+                                    <h3 className="font-semibold text-red-200 mb-2">Operational Mandate - STEERING DEFECTS:</h3>
                                     <p className="text-red-300 text-sm leading-relaxed">
                                         "If any of the following occur, advise the driver to switch off the vehicle and await engineering attendance"
                                     </p>
@@ -388,8 +388,8 @@ const SteeringWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                                 </div>
                             </div>
                             
-                            <button 
-                                onClick={() => onComplete('stop', 'Steering issue reported - SDC mandatory STOP')}
+                            <button
+                                onClick={() => onComplete('stop', 'Steering issue reported - safety-critical STOP required')}
                                 className="mt-6 w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-all duration-200 flex items-center justify-center gap-2"
                             >
                                 <AlertTriangle className="w-5 h-5" />
@@ -406,7 +406,7 @@ const SteeringWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                         
                         <div className="bg-blue-500/20 backdrop-blur-sm rounded-lg p-4 border border-blue-400/30">
                             <p className="text-blue-200 text-sm">
-                                Driver reports no issues. Proceed with SDC mandatory physical checks for any of these conditions:
+                                Driver reports no issues. Proceed with mandatory physical checks for any of these conditions:
                             </p>
                         </div>
                         
@@ -501,7 +501,7 @@ const SteeringWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                             
                             <div className="space-y-4">
                                 <div className="bg-black/30 rounded-lg p-4">
-                                    <h3 className="font-semibold text-red-200 mb-2">Operational safety procedures - Section 8:</h3>
+                                    <h3 className="font-semibold text-red-200 mb-2">Operational Safety Procedures:</h3>
                                     <p className="text-red-300 text-sm leading-relaxed">
                                         "If any of the following occur, advise the driver to switch off the vehicle and await engineering attendance"
                                     </p>
@@ -521,9 +521,9 @@ const SteeringWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                                 </div>
                                 
                                 <div className="bg-gray-800/50 backdrop-blur-sm rounded-lg p-4">
-                                    <h4 className="font-semibold text-gray-200 mb-2">Additional SDC Guidance:</h4>
+                                    <h4 className="font-semibold text-gray-200 mb-2">Key Safety Guidance:</h4>
                                     <p className="text-gray-300 text-sm">
-                                        "Record any defects immediately on the Tranzaura System when the bus is stationary and in a safe location."
+                                        "Record any defects immediately on the vehicle management system when the bus is stationary and in a safe location."
                                         <span className="block mt-2 text-red-300 font-semibold">
                                             ⚠️ Steering defects = NO continuation allowed - immediate stop required
                                         </span>
@@ -531,8 +531,8 @@ const SteeringWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                                 </div>
                             </div>
                             
-                            <button 
-                                onClick={() => onComplete('stop', 'Physical steering defect identified - SDC mandatory STOP')}
+                            <button
+                                onClick={() => onComplete('stop', 'Physical steering defect identified - safety-critical STOP required')}
                                 className="mt-6 w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-all duration-200 flex items-center justify-center gap-2"
                             >
                                 <AlertTriangle className="w-5 h-5" />
@@ -565,7 +565,7 @@ const SteeringWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                                         </li>
                                         <li className="flex items-center gap-2">
                                             <CheckCircle className="w-4 h-4" />
-                                            <span>Steering system meets SDC safety requirements</span>
+                                            <span>Steering system meets safety requirements</span>
                                         </li>
                                     </ul>
                                 </div>
@@ -585,8 +585,8 @@ const SteeringWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                                     <p className="text-blue-300 text-sm flex items-start gap-2">
                                         <FileText className="w-4 h-4 flex-shrink-0 mt-0.5" />
                                         <span>
-                                            This assessment has been logged with timestamp and supervisor details for compliance records. 
-                                            SDC Guidance: "Report to the depot management team if you feel a particular individual is persistently 
+                                            This assessment has been logged with timestamp and supervisor details for compliance records.
+                                            Management Guidance: "Report to the depot management team if you feel a particular individual is persistently
                                             reporting steering problems that, when investigated by engineering, reveal no fault."
                                         </span>
                                     </p>

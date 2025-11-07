@@ -232,51 +232,18 @@ class SupervisorBreakdownLogger {
 
         try {
             // Get JWT token from multiple possible sources
-            let token = null;
-
-            // Check supervisor session (direct access_token)
-            if (this.supervisor?.access_token) {
-                token = this.supervisor.access_token;
-            }
-            // Check supervisor session (nested in supabaseSession - legacy)
-            else if (this.supervisor?.supabaseSession?.access_token) {
-                token = this.supervisor.supabaseSession.access_token;
-            }
-            // Check localStorage for backend auth session
-            else {
-                try {
-                    const gobarrySession = localStorage.getItem('gobarry_session');
-                    if (gobarrySession) {
-                        const session = JSON.parse(gobarrySession);
-                        token = session.access_token;
-                    }
-                } catch (e) {
-                    console.warn('Failed to parse gobarry_session:', e);
-                }
-            }
-
-            // Fallback to common token storage keys
-            if (!token) {
-                token = localStorage.getItem('authToken') ||
-                       sessionStorage.getItem('authToken');
-            }
+            // NOTE: Authentication now uses HTTP-only cookies (XSS protection)
+            // No need to retrieve or send token manually - browser does it automatically
+            console.log('🔐 Using HTTP-only cookie authentication');
 
             const headers = {
                 'Content-Type': 'application/json',
             };
 
-            // Add Authorization header if token exists
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-                console.log('🔐 Sending request with JWT token');
-            } else {
-                console.warn('⚠️ No JWT token found - request may be rejected by backend');
-                console.warn('🔍 Checked sources: supervisor.access_token, supervisor.supabaseSession.access_token, gobarry_session, auth_token, supervisor_token');
-            }
-
             const response = await fetch(`${BACKEND_URL}/api/breakdowns/from-wizard`, {
                 method: 'POST',
                 headers,
+                credentials: 'include', // IMPORTANT: Send HTTP-only cookies with request
                 body: JSON.stringify(wizardData)
             });
 

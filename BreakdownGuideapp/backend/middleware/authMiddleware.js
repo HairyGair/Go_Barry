@@ -175,17 +175,33 @@ export const rateLimitSDC = (req, res, next) => {
 // Middleware to verify JWT token
 export const verifyToken = async (req, res, next) => {
     try {
-        const authHeader = req.headers.authorization;
+        // Check for token in HTTP-only cookie first (preferred secure method)
+        // Fallback to Authorization header for backward compatibility during migration
+        let token = req.cookies?.auth_token;
+        let tokenSource = 'cookie';
+
+        if (!token) {
+            // Fallback: Check Authorization header (legacy method, less secure)
+            const authHeader = req.headers.authorization;
+
+            if (authHeader && authHeader.startsWith('Bearer ')) {
+                token = authHeader.substring(7); // Remove 'Bearer ' prefix
+                tokenSource = 'header';
+            }
+        }
 
         // ALWAYS require authentication - no bypasses
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        if (!token) {
             return res.status(401).json({
                 error: 'Authentication required',
                 code: 'AUTH_TOKEN_MISSING'
             });
         }
 
-        const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+        // Log token source for debugging (remove in production)
+        if (process.env.NODE_ENV === 'development') {
+            console.log(`🔐 Token verified from: ${tokenSource}`);
+        }
 
         // Verify token signature and expiration
         let decoded;

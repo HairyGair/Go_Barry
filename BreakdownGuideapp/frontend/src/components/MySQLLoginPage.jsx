@@ -6,6 +6,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
+import GairWareLogo from './GairWareLogo.jsx';
 import './MySQLLoginPage.css';
 
 const MySQLLoginPage = () => {
@@ -402,6 +403,22 @@ const MySQLLoginPage = () => {
                         <div className="badge badge-online fade-in-badge" style={{ animationDelay: '0.6s' }}>
                             <span className="badge-icon pulse-icon">✅</span>
                             <span className="badge-text">System Online</span>
+                        </div>
+                    </div>
+
+                    {/* GairWare Attribution */}
+                    <div className="gairware-attribution fade-in-badge" style={{ animationDelay: '0.8s' }}>
+                        <div className="attribution-content">
+                            <GairWareLogo size={24} variant="terminal" color="#646CFF" />
+                            <div className="attribution-text">
+                                <span className="powered-by">Powered by</span>
+                                <span className="gairware-brand">
+                                    <strong>Gair</strong>Ware
+                                </span>
+                            </div>
+                        </div>
+                        <div className="copyright-text">
+                            © {new Date().getFullYear()} GairWare. All rights reserved.
                         </div>
                     </div>
                 </div>

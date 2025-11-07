@@ -33,7 +33,7 @@ const LooseWheelNutsWizard = ({ currentStep, responses, updateResponse, onNext, 
                                 <div className="text-red-200/90 space-y-4 text-lg">
                                     <p className="font-bold text-xl">Loose wheel nuts pose IMMEDIATE CATASTROPHIC DANGER</p>
                                     <div className="bg-red-600/60 backdrop-blur-sm rounded-lg p-6 mt-6">
-                                        <h4 className="font-bold text-2xl text-red-100 mb-4">SDC v1.3 MANDATORY ACTIONS - NO EXCEPTIONS:</h4>
+                                        <h4 className="font-bold text-2xl text-red-100 mb-4">Operational v1.3 MANDATORY ACTIONS - NO EXCEPTIONS:</h4>
                                         <ul className="list-disc list-inside space-y-3 text-red-200/90 text-lg">
                                             <li className="font-semibold">🛑 STOP IMMEDIATELY - Vehicle must stop safely at the earliest opportunity</li>
                                             <li className="font-semibold">🔧 SEEK ASSISTANCE FROM ENGINEERING - Contact Engineering immediately</li>
@@ -42,7 +42,7 @@ const LooseWheelNutsWizard = ({ currentStep, responses, updateResponse, onNext, 
                                             <li className="font-semibold">⚠️ DVSA DANGEROUS DEFECT - Risk of PG9 prohibition if found by authorities</li>
                                         </ul>
                                     </div>
-                                    <p className="font-bold text-2xl mt-6 text-red-100">Wheel detachment can cause fatal accidents - SDC ZERO TOLERANCE POLICY</p>
+                                    <p className="font-bold text-2xl mt-6 text-red-100">Wheel detachment can cause fatal accidents - Operational ZERO TOLERANCE POLICY</p>
                                     <p className="text-red-200/80 text-sm mt-2">Per DVSA guidance: Loose wheel nuts are classified as an IMMEDIATE PROHIBITION defect</p>
                                 </div>
                             </div>
@@ -336,11 +336,11 @@ const LooseWheelNutsWizard = ({ currentStep, responses, updateResponse, onNext, 
                             <div className="flex items-start space-x-6">
                                 <Shield className="w-16 h-16 text-red-300 mt-2 animate-pulse" />
                                 <div className="flex-1">
-                                    <h3 className="text-3xl font-bold text-red-200 mb-4">🚨 SDC CRITICAL SAFETY PROTOCOL</h3>
+                                    <h3 className="text-3xl font-bold text-red-200 mb-4">🚨 Operational CRITICAL SAFETY PROTOCOL</h3>
                                     <div className="text-red-200/90 space-y-4">
                                         <p className="font-bold text-xl">ALL cases of loose wheel nuts trigger immediate emergency protocol</p>
                                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 mt-6">
-                                            <h4 className="font-bold text-red-200 mb-4 text-2xl">Mandatory SDC Actions - NO EXCEPTIONS:</h4>
+                                            <h4 className="font-bold text-red-200 mb-4 text-2xl">Mandatory Operational Actions - NO EXCEPTIONS:</h4>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                                 <div className="space-y-3">
                                                     <h5 className="font-semibold text-red-200 text-lg">IMMEDIATE ACTIONS:</h5>
@@ -362,7 +362,7 @@ const LooseWheelNutsWizard = ({ currentStep, responses, updateResponse, onNext, 
                                                 </div>
                                             </div>
                                             <div className="mt-6 p-4 bg-red-600/40 backdrop-blur-sm rounded">
-                                                <p className="font-bold text-red-100 text-lg">🚫 SDC ZERO TOLERANCE: Vehicle must NOT continue under any circumstances</p>
+                                                <p className="font-bold text-red-100 text-lg">🚫 Operational ZERO TOLERANCE: Vehicle must NOT continue under any circumstances</p>
                                                 <p className="text-red-200/80 text-sm mt-1">As per standard operational procedures v1.3 Page 28: "Under no circumstances should the vehicle continue in service with loose wheel nuts"</p>
                                             </div>
                                         </div>
@@ -513,7 +513,7 @@ const LooseWheelNutsWizard = ({ currentStep, responses, updateResponse, onNext, 
                         <h3 className="text-xl font-bold text-purple-200 mb-4">👨‍💼 Step 5: MANDATORY MANAGEMENT REPORTING</h3>
                         <div className="space-y-4">
                             <div className="bg-white/10 backdrop-blur-sm rounded p-4">
-                                <h4 className="font-semibold text-purple-200 mb-3">SDC v1.3 requires immediate notification to ALL of:</h4>
+                                <h4 className="font-semibold text-purple-200 mb-3">Operational v1.3 requires immediate notification to ALL of:</h4>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div className="bg-purple-600/20 p-3 rounded">
                                         <h5 className="font-semibold text-purple-200 mb-2">🔧 Engineering Manager</h5>
@@ -564,7 +564,7 @@ const LooseWheelNutsWizard = ({ currentStep, responses, updateResponse, onNext, 
                     </div>
 
                     <div className="bg-red-500/20 backdrop-blur-sm rounded-lg p-6 border border-red-400/30">
-                        <h3 className="text-lg font-bold text-red-200 mb-3">🚫 SDC Zero Tolerance Policy (v1.3)</h3>
+                        <h3 className="text-lg font-bold text-red-200 mb-3">🚫 Operational Zero Tolerance Policy (v1.3)</h3>
                         <p className="text-red-300/90 text-sm mb-2">
                             Loose wheel nuts represent the highest level of safety risk. In line with standard control-room procedure v1.3: "Incidents of loose wheel nuts should be reported to the depot engineering manager, general manager and engineering delivery director."
                         </p>
@@ -595,7 +595,7 @@ const LooseWheelNutsWizard = ({ currentStep, responses, updateResponse, onNext, 
                 <div className="space-y-6">
                     <div className="text-center">
                         <h2 className="text-2xl font-bold text-white mb-2">📋 LOOSE WHEEL NUTS - CRITICAL SAFETY INCIDENT REPORT</h2>
-                        <p className="text-gray-300">Complete safety incident assessment with full SDC compliance and mandatory reporting.</p>
+                        <p className="text-gray-300">Complete safety incident assessment with full Operational compliance and mandatory reporting.</p>
                     </div>
                     
                     {/* Safety Status Secured */}
@@ -604,7 +604,7 @@ const LooseWheelNutsWizard = ({ currentStep, responses, updateResponse, onNext, 
                             <div className="text-6xl mb-4">🛡️</div>
                             <h3 className="text-2xl font-bold text-green-200 mb-2">CRITICAL SAFETY INCIDENT - SECURED</h3>
                             <p className="text-green-300/90 text-lg mb-6">
-                                All mandatory SDC safety protocols have been followed
+                                All mandatory Operational safety protocols have been followed
                             </p>
                         </div>
                         
@@ -665,7 +665,7 @@ const LooseWheelNutsWizard = ({ currentStep, responses, updateResponse, onNext, 
                         <h3 className="text-lg font-bold text-red-200 mb-4">🚫 VEHICLE PROHIBITION STATUS</h3>
                         <div className="bg-white/10 backdrop-blur-sm rounded p-4">
                             <p className="text-red-300/90 text-sm font-semibold mb-2">
-                                This vehicle is now PROHIBITED from service under SDC Zero Tolerance Policy (v1.3):
+                                This vehicle is now PROHIBITED from service under Operational Zero Tolerance Policy (v1.3):
                             </p>
                             <ul className="list-disc list-inside space-y-1 text-red-300/80 text-sm">
                                 <li>Vehicle must remain stationary until engineering certification</li>
@@ -702,7 +702,7 @@ const LooseWheelNutsWizard = ({ currentStep, responses, updateResponse, onNext, 
                             <div>
                                 <h3 className="text-xl font-bold text-green-200">Critical Safety Incident Successfully Managed</h3>
                                 <p className="text-green-300/90 mt-2">
-                                    All SDC v1.3 mandatory protocols completed. Vehicle secured and prohibited from service until professional certification. 
+                                    All Operational v1.3 mandatory protocols completed. Vehicle secured and prohibited from service until professional certification. 
                                     Public and passenger safety maintained through immediate emergency response. DVSA dangerous defect classification acknowledged.
                                 </p>
                             </div>

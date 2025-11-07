@@ -159,7 +159,7 @@ function BatteryWizard({ currentStep, responses, updateResponse, onNext, onPrevi
                 <AlertTriangle className="w-8 h-8 text-red-400" />
               </div>
               <h2 className="text-2xl font-bold text-white mb-2">🛑 SAFETY CRITICAL - Engine OFF Required</h2>
-              <p className="text-gray-300">SDC mandates engine MUST be switched OFF before any belt inspection</p>
+              <p className="text-gray-300">Operational mandates engine MUST be switched OFF before any belt inspection</p>
             </div>
 
             <div className="bg-red-500/20 backdrop-blur-sm rounded-lg p-6 border border-red-400/30">
@@ -168,7 +168,7 @@ function BatteryWizard({ currentStep, responses, updateResponse, onNext, onPrevi
                 <div className="flex-1 ml-4">
                   <h3 className="text-xl font-bold text-red-200 mb-3">🛑 MANDATORY SAFETY PROTOCOL</h3>
                   <div className="text-red-300/90 space-y-2">
-                    <p className="font-semibold text-lg">SDC Guidance: "ALWAYS advise the driver to steer clear of moving belts and turn the engine off before inspection"</p>
+                    <p className="font-semibold text-lg">Operational Guidance: "ALWAYS advise the driver to steer clear of moving belts and turn the engine off before inspection"</p>
                     <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mt-4">
                       <h4 className="font-semibold text-red-200 mb-2">Before proceeding:</h4>
                       <ul className="list-disc list-inside space-y-1 text-red-300/90 text-sm">
@@ -292,7 +292,7 @@ function BatteryWizard({ currentStep, responses, updateResponse, onNext, onPrevi
                     <div className="text-red-300/90 space-y-2">
                       <p className="font-semibold">Belt(s) have come off - Do not continue in service</p>
                       <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mt-4">
-                        <h4 className="font-semibold text-red-200 mb-2">SDC Protocol for Belt Failure:</h4>
+                        <h4 className="font-semibold text-red-200 mb-2">Operational Protocol for Belt Failure:</h4>
                         <ul className="list-disc list-inside space-y-1 text-red-300/90 text-sm">
                           <li>Wait for engineering assistance</li>
                           <li>If no other warning lights (e.g., temperature), vehicle may be moved a short distance if needed for safety</li>
@@ -451,7 +451,7 @@ function BatteryWizard({ currentStep, responses, updateResponse, onNext, onPrevi
               <div className="flex items-start space-x-3">
                 <Info className="w-5 h-5 text-yellow-400 mt-0.5" />
                 <div className="text-sm text-yellow-300">
-                  <p className="font-semibold">SDC Guidance Note:</p>
+                  <p className="font-semibold">Operational Guidance Note:</p>
                   <p>Master switch engagement status determines whether the issue can be resolved immediately or requires engineering assistance.</p>
                 </div>
               </div>
@@ -496,7 +496,7 @@ function BatteryWizard({ currentStep, responses, updateResponse, onNext, onPrevi
                     <div className="text-green-300/90 space-y-2">
                       <p className="font-semibold">Master switch not engaged - simple corrective action</p>
                       <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mt-4">
-                        <h4 className="font-semibold text-green-200 mb-2">SDC Actions:</h4>
+                        <h4 className="font-semibold text-green-200 mb-2">Operational Actions:</h4>
                         <ul className="list-disc list-inside space-y-1 text-green-300/90 text-sm">
                           <li>Engage the master switch</li>
                           <li>Restart the vehicle</li>
@@ -559,7 +559,7 @@ function BatteryWizard({ currentStep, responses, updateResponse, onNext, onPrevi
                   <div className="text-red-300/90 space-y-2">
                     <p className="font-semibold">Critical electrical fault - do not continue</p>
                     <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mt-4">
-                      <h4 className="font-semibold text-red-200 mb-2">SDC Critical Warning:</h4>
+                      <h4 className="font-semibold text-red-200 mb-2">Operational Critical Warning:</h4>
                       <ul className="list-disc list-inside space-y-1 text-red-300/90 text-sm">
                         <li>Wait for engineering assistance</li>
                         <li>Risk of transmission drive loss</li>

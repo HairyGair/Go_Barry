@@ -426,12 +426,12 @@ const PunctureWizardStep4 = ({ responses, updateResponse, onPrevious, onComplete
                 </div>
             </div>
 
-            {/* SDC Action Summary */}
+            {/* Operational Action Summary */}
             <div className="bg-red-500/30 backdrop-blur-sm rounded-lg p-6 border border-red-400/50">
                 <div className="flex items-start space-x-4">
                     <Shield className="w-8 h-8 text-red-400 mt-1" />
                     <div className="flex-1">
-                        <h3 className="text-xl font-bold text-red-200 mb-3">🛑 SDC MANDATORY ACTIONS</h3>
+                        <h3 className="text-xl font-bold text-red-200 mb-3">🛑 Operational MANDATORY ACTIONS</h3>
                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
                             <ol className="list-decimal list-inside space-y-2 text-red-300/90">
                                 <li>Vehicle must STOP immediately - no exceptions</li>

@@ -103,13 +103,13 @@ export const AuthProvider = ({ children }) => {
                 };
             }
 
-            // Extract user and token from backend response format
-            // Backend returns: {success, user, session: {access_token}}
-            const { user: supervisor, session } = data;
-            const token = session?.access_token;
+            // Extract user data from backend response format
+            // Backend returns: {success, user, session: {expires_at, expires_in}}
+            // NOTE: Token is NO LONGER in response - it's stored in HTTP-only cookie (XSS protection)
+            const { user: supervisor } = data;
 
-            if (!token || !supervisor) {
-                console.error('❌ Invalid login response - missing token or user data');
+            if (!supervisor) {
+                console.error('❌ Invalid login response - missing user data');
                 console.error('Response data:', data);
                 return {
                     success: false,
@@ -117,7 +117,7 @@ export const AuthProvider = ({ children }) => {
                 };
             }
 
-            // Create user object from supervisor data
+            // Create user object from supervisor data (WITHOUT token - it's in HTTP-only cookie)
             const user = {
                 id: supervisor.user_id || supervisor.supervisorId || supervisor.id,
                 email: supervisor.email,
@@ -125,15 +125,16 @@ export const AuthProvider = ({ children }) => {
                 role: supervisor.role || 'supervisor',
                 depot: supervisor.depot,
                 badge_number: supervisor.badge_number,
-                loginTime: Date.now(),
-                token: token  // Store JWT token
+                loginTime: Date.now()
+                // NOTE: No token stored here - it's in HTTP-only cookie for XSS protection
             };
 
-            // Store in appropriate storage
+            // Store user data (NOT token) in appropriate storage
+            // Token is automatically managed by browser via HTTP-only cookie
             const storage = rememberMe ? localStorage : sessionStorage;
             storage.setItem('currentUser', JSON.stringify(user));
             storage.setItem('loginTime', user.loginTime.toString());
-            storage.setItem('authToken', token);  // Store token separately for easy access
+            // NOTE: authToken no longer stored in localStorage/sessionStorage (security improvement)
 
             setIsAuthenticated(true);
             setCurrentUser(user);
@@ -153,16 +154,30 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    const logout = () => {
+    const logout = async () => {
         console.log('🚪 Logging out...');
 
-        // Clear all storage including auth token
+        try {
+            // Call backend logout endpoint to clear HTTP-only cookie
+            const apiUrl = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
+            await fetch(`${apiUrl}/api/auth/logout`, {
+                method: 'POST',
+                credentials: 'include', // Important: Send cookie with request
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            console.log('✅ Backend logout successful (HTTP-only cookie cleared)');
+        } catch (error) {
+            console.error('⚠️ Error calling logout endpoint:', error);
+            // Continue with local logout even if backend call fails
+        }
+
+        // Clear all storage (NOTE: No authToken to remove - it was in HTTP-only cookie)
         localStorage.removeItem('currentUser');
         localStorage.removeItem('loginTime');
-        localStorage.removeItem('authToken');
         sessionStorage.removeItem('currentUser');
         sessionStorage.removeItem('loginTime');
-        sessionStorage.removeItem('authToken');
         sessionStorage.removeItem('currentDuty');
         sessionStorage.removeItem('showDutyModal');
 

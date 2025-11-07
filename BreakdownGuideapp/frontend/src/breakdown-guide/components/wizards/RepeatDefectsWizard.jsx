@@ -28,7 +28,7 @@ const RepeatDefectsWizard = ({ currentStep, responses, updateResponse, onNext, o
                             Repeat defects require immediate escalation to Engineering Delivery Director with copies to General Manager and Engineering Manager.
                         </p>
                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                            <h4 className="font-semibold text-amber-200 mb-2">SDC Escalation Requirements:</h4>
+                            <h4 className="font-semibold text-amber-200 mb-2">Operational Escalation Requirements:</h4>
                             <ul className="list-disc list-inside space-y-1 text-amber-300/90 text-sm">
                                 <li>Same-day repeats require immediate management notification</li>
                                 <li>Multi-day persistence indicates systemic maintenance failure</li>
@@ -436,7 +436,7 @@ const RepeatDefectsWizard = ({ currentStep, responses, updateResponse, onNext, o
                     </div>
 
                     <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/20">
-                        <h4 className="font-semibold text-white mb-3">📋 SDC Policy Reminder</h4>
+                        <h4 className="font-semibold text-white mb-3">📋 Operational Policy Reminder</h4>
                         <p className="text-gray-300 text-sm">
                             <strong>Quality Standards:</strong> Repeat defects compromise service reliability and 
                             vehicle roadworthiness. This escalation ensures accountability and prevents 

@@ -615,7 +615,7 @@ const OilWarningLightWizard = ({ currentStep, responses, updateResponse, onNext,
                         </div>
                     </div>
                     
-                    {/* SDC Policy reminder */}
+                    {/* Operational Policy reminder */}
                     <div className="bg-purple-500/20 backdrop-blur-sm rounded-lg p-6 border border-purple-400/30">
                         <h4 className="font-semibold text-purple-200 mb-2">🔔 Operational safety policy & DVSA Compliance</h4>
                         <p className="text-purple-300/80 text-sm mb-3">

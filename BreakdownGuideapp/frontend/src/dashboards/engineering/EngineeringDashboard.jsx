@@ -49,17 +49,12 @@ const EngineeringDashboard = () => {
 
   const connectWebSocket = async () => {
     try {
-      // Supabase removed - get authentication token from backend API session
-      // For now, WebSocket can connect without token or use backend session token
-      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('authToken');
-
-      if (!token) {
-        console.warn('⚠️ No authentication token available for WebSocket connection');
-        // Continue anyway - backend may allow unauthenticated WebSocket for dashboard
-      }
+      // NOTE: Authentication now uses HTTP-only cookies (XSS protection)
+      // The browser automatically sends the auth_token cookie with WebSocket upgrade request
+      console.log('🔒 Using HTTP-only cookie authentication for Engineering WebSocket');
 
       const WS_URL = import.meta.env.VITE_WS_URL || 'wss://api.breakdowns.gobarry.co.uk/ws';
-      const wsUrl = `${WS_URL}/ws?channel=engineering&token=${encodeURIComponent(token)}`;
+      const wsUrl = `${WS_URL}/ws?channel=engineering`;
       ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {

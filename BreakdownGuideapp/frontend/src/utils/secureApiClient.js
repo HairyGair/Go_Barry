@@ -10,31 +10,23 @@ class SecureApiClient {
     }
 
     // Get current auth token from backend session
+    // NOTE: This method is deprecated - authentication now uses HTTP-only cookies
     async getAuthToken() {
-        try {
-            // Supabase removed - now uses backend MySQL API
-            // TODO: Get token from backend session storage
-            const token = localStorage.getItem('auth_token');
-            if (token) {
-                return token;
-            }
-            throw new Error('No valid session found');
-        } catch (error) {
-            console.error('Failed to get auth token:', error);
-            throw new Error('Authentication required');
-        }
+        // Authentication is now via HTTP-only cookies (XSS protection)
+        // This method is kept for backward compatibility but does nothing
+        console.log('🔐 Authentication via HTTP-only cookies (automatic)');
+        return null; // No token needed - cookie sent automatically
     }
 
     // Create authenticated headers for API requests
+    // NOTE: No Authorization header needed - HTTP-only cookies handle auth
     async createAuthHeaders(additionalHeaders = {}) {
-        const token = await this.getAuthToken();
-
         return {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
             'X-Client-Info': 'gne-breakdown-guide@1.0.0',
             'X-Timestamp': new Date().toISOString(),
             ...additionalHeaders
+            // NOTE: No Authorization header - using HTTP-only cookies
         };
     }
 
@@ -64,6 +56,7 @@ class SecureApiClient {
             const requestOptions = {
                 method,
                 headers: requestHeaders,
+                credentials: 'include', // IMPORTANT: Send HTTP-only cookies with request
                 ...fetchOptions
             };
 

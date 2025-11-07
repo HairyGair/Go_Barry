@@ -165,20 +165,16 @@ class AssessmentBroadcaster {
     
     /**
      * Connect to WebSocket for real-time updates
+     * NOTE: Authentication now uses HTTP-only cookies (XSS protection)
      */
     async connectWebSocket() {
         try {
-            // Supabase removed - now uses backend MySQL API
-            // TODO: Get authentication token from backend session
-            const token = localStorage.getItem('auth_token') || 'temp-token';
-
-            if (!token) {
-                console.warn('⚠️ No authentication token available for WebSocket connection');
-                return;
-            }
+            // NOTE: Authentication now uses HTTP-only cookies (XSS protection)
+            // The browser automatically sends the auth_token cookie with WebSocket upgrade request
+            console.log('🔒 Using HTTP-only cookie authentication for Assessment Broadcaster WebSocket');
 
             const baseWsUrl = BACKEND_URL.replace('http', 'ws');
-            const wsUrl = `${baseWsUrl}/ws?channel=assessment-tracker&token=${encodeURIComponent(token)}`;
+            const wsUrl = `${baseWsUrl}/ws?channel=assessment-tracker`;
             this.ws = new WebSocket(wsUrl);
             
             this.ws.onopen = () => {

@@ -18,14 +18,15 @@ export const useAssessmentData = (options = {}) => {
     cacheTimeout = 5 * 60 * 1000 // 5 minutes
   } = options;
 
-  // Authentication status detection (Supabase removed - uses backend API session)
+  // Authentication status detection
+  // NOTE: Authentication now uses HTTP-only cookies (XSS protection)
   const hasAuthToken = async () => {
     try {
-      // Check for backend API authentication tokens
-      const token = localStorage.getItem('auth_token') ||
-                    sessionStorage.getItem('authToken') ||
-                    localStorage.getItem('supervisor_session');
-      return Boolean(token);
+      // HTTP-only cookies are automatically sent with requests
+      // We can't check them from JavaScript (security feature)
+      // Just return true and let the backend validate
+      console.log('🔐 Authentication via HTTP-only cookies (automatic)');
+      return true;
     } catch (error) {
       console.warn('⚠️ Error checking authentication:', error);
       return false;

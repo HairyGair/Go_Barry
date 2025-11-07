@@ -27,7 +27,7 @@ const ExteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, 
                             Exterior lighting defects can result in immediate vehicle prohibition and serious safety risks to passengers and other road users.
                         </p>
                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
-                            <h4 className="font-semibold text-red-200 mb-2">SDC Section 35 Requirements:</h4>
+                            <h4 className="font-semibold text-red-200 mb-2">Operational Standard 35 Requirements:</h4>
                             <ul className="list-disc list-inside space-y-1 text-red-300/90 text-sm">
                                 <li>ANY defective indicator = STOP and await engineering</li>
                                 <li>Headlights: Operating in darkness on unrestricted road with defect = STOP</li>
@@ -173,7 +173,7 @@ const ExteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, 
                 <div className="space-y-6">
                     <div className="text-center">
                         <h2 className="text-2xl font-bold text-white mb-2">💡 Lighting System Inspection</h2>
-                        <p className="text-gray-300">Systematic check of all exterior lighting systems per SDC requirements.</p>
+                        <p className="text-gray-300">Systematic check of all exterior lighting systems per operational requirements.</p>
                     </div>
                     
                     {/* Headlight Assessment */}
@@ -387,7 +387,7 @@ const ExteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, 
             );
 
         case 3:
-            // SDC Section 35 - Exact decision logic
+            // Operational Standard 35 - Exact decision logic
             const needsImmediateStop = responses.indicators === 'defective' || // ANY indicator defect = STOP
                                      responses.brake_lights === 'both_low_level_failed' || // Both low-level brake lights = STOP
                                      responses.brake_lights === 'constantly_on' || // Constantly on = STOP
@@ -407,7 +407,7 @@ const ExteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, 
                              <CheckCircle className="w-8 h-8 text-green-400" />}
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">📋 Exterior Lights Safety Decision</h2>
-                        <p className="text-gray-300">SDC-compliant safety assessment based on current lighting defects.</p>
+                        <p className="text-gray-300">compliant safety assessment based on current lighting defects.</p>
                     </div>
 
                     {/* Assessment Summary */}
@@ -455,7 +455,7 @@ const ExteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, 
                                 <div className="flex-1">
                                     <h3 className="text-xl font-bold text-red-200 mb-3">🛑 STOP IMMEDIATELY - AWAIT ENGINEERING</h3>
                                     <div className="text-red-300/90 space-y-2">
-                                        <p className="font-semibold">Critical lighting system failure detected per SDC Section 35</p>
+                                        <p className="font-semibold">Critical lighting system failure detected per Operational Standard 35</p>
                                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mt-4">
                                             <h4 className="font-semibold text-red-200 mb-2">Critical Issues Identified:</h4>
                                             <ul className="list-disc list-inside space-y-1 text-red-300/90 text-sm">

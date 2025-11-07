@@ -50,14 +50,9 @@ class AssessmentWebSocketService {
     try {
       console.log(`🔌 Connecting to Assessment WebSocket: ${this.fullUrl}`);
 
-      // Get authentication token from storage
-      const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
-
-      if (!token) {
-        console.warn('⚠️ No authentication token found - Assessment WebSocket may fail');
-      } else {
-        console.log('🔒 Assessment WebSocket connecting with authentication');
-      }
+      // NOTE: Authentication now handled via HTTP-only cookies (XSS protection)
+      // The browser automatically sends the auth_token cookie with WebSocket upgrade request
+      console.log('🔒 Using HTTP-only cookie authentication for Assessment WebSocket');
 
       const connectionOptions = {
         onMessage: this.handleMessage.bind(this),

@@ -12,53 +12,27 @@ class APIClient {
   }
 
   async request(endpoint, options = {}) {
-    // Get authentication token from storage
-    const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
+    // NOTE: Token is NO LONGER retrieved from localStorage/sessionStorage
+    // It's automatically sent by the browser via HTTP-only cookie (XSS protection)
 
-    console.log(`🔍 API Client Request - Endpoint: ${endpoint}`, token ? '(authenticated)' : '(unauthenticated)');
+    console.log(`🔍 API Client Request - Endpoint: ${endpoint} (using HTTP-only cookie auth)`);
 
-    // If no token and endpoint can use public fallback, convert to public endpoint
-    let actualEndpoint = endpoint;
-
-    if (!token) {
-      // Parse endpoint to handle query parameters
-      const [path, queryString] = endpoint.split('?');
-
-      // Check if path has a public fallback
-      const publicFallbacks = {
-        '/api/breakdowns': '/api/public/breakdowns',
-        '/api/breakdowns/stats': '/api/public/breakdowns/stats',
-        '/api/breakdowns/live': '/api/public/breakdowns/live',
-        '/api/activity/feed': '/api/public/activity/feed'
-      };
-
-      if (publicFallbacks[path]) {
-        actualEndpoint = queryString ? `${publicFallbacks[path]}?${queryString}` : publicFallbacks[path];
-        console.log(`🔓 No auth token - using public endpoint: ${actualEndpoint}`);
-      } else {
-        console.log(`⚠️ No public fallback for: ${path} - will send without auth`);
-      }
-    } else {
-      console.log(`🔒 Using authenticated endpoint: ${endpoint}`);
-    }
-
-    const url = `${this.baseURL}${actualEndpoint}`;
+    const url = `${this.baseURL}${endpoint}`;
 
     const config = {
       headers: {
         'Content-Type': 'application/json',
         ...options.headers,
       },
+      // IMPORTANT: credentials: 'include' tells browser to send HTTP-only cookies with request
+      // This is how authentication works now (secure, cannot be accessed by JavaScript)
+      credentials: 'include',
       ...options,
     };
 
-    // Inject Authorization header if token is available
-    if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
-      console.log('🔒 Request includes auth token');
-    } else {
-      console.log('⚠️ Request without auth token (using public endpoint if available)');
-    }
+    // NOTE: Authorization header removed - token is in HTTP-only cookie now
+    // The browser automatically sends the auth_token cookie with every request
+    // This prevents XSS attacks from stealing tokens via JavaScript
 
     if (config.body && typeof config.body === 'object') {
       config.body = JSON.stringify(config.body);

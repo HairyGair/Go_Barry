@@ -84,35 +84,28 @@ class AssessmentAPIService {
 
   /**
    * Generic API request handler with error handling
+   * NOTE: Authentication now handled via HTTP-only cookies (XSS protection)
    */
   async request(endpoint, options = {}) {
     const url = `${this.baseUrl}${endpoint}`;
     const config = {
       headers: this.headers,
+      credentials: 'include', // IMPORTANT: Send HTTP-only cookies with request
       ...options
     };
 
     try {
-      console.log(`🔌 API Request: ${options.method || 'GET'} ${endpoint}`);
-      
-      // Check if we have authentication for protected endpoints
-      if (!this.hasAuthToken() && !endpoint.includes('/public/')) {
-        console.warn('⚠️ No authentication token available for protected endpoint');
-        // Try to get token from storage again
-        this.tryAutoAuthentication();
-        
-        // If still no token, return graceful fallback
-        if (!this.hasAuthToken()) {
-          return this.createAuthFallbackResponse(endpoint);
-        }
-      }
-      
+      console.log(`🔌 API Request: ${options.method || 'GET'} ${endpoint} (using HTTP-only cookie auth)`);
+
+      // NOTE: No token check needed - authentication is automatic via HTTP-only cookies
+      // The browser sends the auth_token cookie automatically with every request
+
       const response = await fetch(url, config);
       
       // Handle authentication errors specifically
       if (response.status === 401 || response.status === 403) {
-        console.warn('🔐 Authentication failed, clearing stored tokens');
-        this.clearStoredTokens();
+        console.warn('🔐 Authentication failed - HTTP-only cookie may be expired');
+        // NOTE: No token clearing needed - cookies are managed by backend
         return this.createAuthFallbackResponse(endpoint, 'Authentication required');
       }
       
@@ -145,31 +138,23 @@ class AssessmentAPIService {
 
   /**
    * Try to automatically authenticate from stored tokens
+   * NOTE: This method is deprecated - authentication now uses HTTP-only cookies
+   * Keeping for backward compatibility but it does nothing
    */
   tryAutoAuthentication() {
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('auth_token') || 
-                   sessionStorage.getItem('authToken') ||
-                   localStorage.getItem('supervisor_auth_token');
-      if (token) {
-        this.setAuthToken(token);
-        console.log('🔐 Auto-authentication successful');
-        return true;
-      }
-    }
-    return false;
+    console.log('🔐 Authentication via HTTP-only cookies (automatic)');
+    return true; // Always return true as cookie auth is automatic
   }
 
   /**
    * Clear stored authentication tokens
+   * NOTE: This method is deprecated - tokens are in HTTP-only cookies managed by backend
+   * Keeping for backward compatibility but it does nothing
    */
   clearStoredTokens() {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('auth_token');
-      sessionStorage.removeItem('supervisor_token');
-      localStorage.removeItem('supervisor_auth_token');
-      delete this.headers['Authorization'];
-    }
+    console.log('🔐 Token clearing not needed - cookies managed by backend');
+    // NOTE: HTTP-only cookies cannot be cleared from JavaScript
+    // User must call /api/auth/logout endpoint to clear cookie
   }
 
   /**
@@ -649,15 +634,10 @@ class AssessmentAPIService {
 // Create singleton instance
 const assessmentAPI = new AssessmentAPIService();
 
-// Auto-configure authentication if available
+// NOTE: Authentication now uses HTTP-only cookies (XSS protection)
+// No auto-configuration needed - the browser automatically sends cookies with every request
 if (typeof window !== 'undefined') {
-  const token = localStorage.getItem('auth_token') || sessionStorage.getItem('authToken');
-  if (token) {
-    assessmentAPI.setAuthToken(token);
-    console.log('🔐 Assessment API: Auto-configured with stored token');
-  } else {
-    console.warn('⚠️ Assessment API: No authentication token found in storage');
-  }
+  console.log('🔐 Assessment API: Using HTTP-only cookie authentication');
 }
 
 export default assessmentAPI;

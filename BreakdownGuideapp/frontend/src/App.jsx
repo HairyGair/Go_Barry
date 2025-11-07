@@ -30,6 +30,9 @@ import WelcomeMessage from './components/WelcomeMessage.jsx'
 // Import Modern Header Component
 import ModernAppHeader from './components/ModernAppHeader.jsx'
 
+// Import Footer Component
+import AppFooter from './components/AppFooter.jsx'
+
 // Import BreakdownGuide
 import BreakdownGuideApp from './breakdown-guide/App.jsx'
 
@@ -422,6 +425,9 @@ const AppContent = () => {
           />
         </Routes>
       </main>
+
+      {/* App Footer - GairWare Branding */}
+      {!hideNav && <AppFooter variant="default" />}
 
       {/* Quick Feedback Widget - Always visible when logged in */}
       {isAuthenticated && <QuickFeedback />}

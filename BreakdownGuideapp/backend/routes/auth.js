@@ -347,15 +347,27 @@ router.post('/login', rateLimitLogin, async (req, res) => {
       current_duty: duty || supervisor.current_duty || null,
       duty_end_time: shiftInfo ? shiftInfo.shiftEnd.toISOString() : null,
       login_time: new Date().toISOString(),
-      access_token: token,
       expires_at: expiresAt
+      // NOTE: Token removed from response body - now stored in HTTP-only cookie for XSS protection
     };
+
+    // Set JWT token in HTTP-only cookie (cannot be accessed by JavaScript - XSS protection)
+    // This cookie will be automatically sent with all future requests to the API
+    res.cookie('auth_token', token, {
+      httpOnly: true, // Cookie cannot be accessed by client-side JavaScript
+      secure: process.env.NODE_ENV === 'production', // Only sent over HTTPS in production
+      sameSite: 'strict', // Cookie only sent for same-site requests (CSRF protection)
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours in milliseconds
+      path: '/', // Cookie available for all routes
+      domain: process.env.NODE_ENV === 'production' ? '.gobarry.co.uk' : undefined // Share across subdomains in production
+    });
 
     // Clear rate limit on successful login
     req.clearLoginAttempts = true;
 
     // Log successful authentication
     console.log(`✅ Successful login: ${supervisor.name} (${supervisor.email})${duty ? ` - ${duty}` : ''}`);
+    console.log(`🍪 Auth token set in HTTP-only cookie (XSS-protected)`);
 
     // Log login activity to Activity Feed
     await activityLogger.logActivity({
@@ -376,11 +388,12 @@ router.post('/login', rateLimitLogin, async (req, res) => {
       }
     });
 
+    // Return user data WITHOUT token (token is in HTTP-only cookie now)
     res.json({
       success: true,
       user: sessionData,
       session: {
-        access_token: token,
+        // Token removed from response for security - stored in HTTP-only cookie
         expires_at: expiresAt,
         expires_in: expiresIn,
         token_type: 'Bearer'
@@ -566,8 +579,20 @@ router.post('/logout', async (req, res) => {
       console.log('👋 User logged out successfully');
     }
 
+    // Clear the HTTP-only cookie containing the JWT token
+    // This prevents the browser from sending the token in future requests
+    res.clearCookie('auth_token', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      path: '/',
+      domain: process.env.NODE_ENV === 'production' ? '.gobarry.co.uk' : undefined
+    });
+
+    console.log('🍪 Auth token cookie cleared');
+
     // Note: JWT tokens are stateless, so we don't invalidate them server-side
-    // The client should discard the token
+    // The cookie has been cleared, preventing future authenticated requests
     // To implement token blacklisting, you would add the token to a blacklist here
 
     res.json({

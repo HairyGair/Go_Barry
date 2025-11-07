@@ -1,0 +1,56 @@
+/**
+ * GairWare Logo Styles
+ * © 2025 GairWare - Anthony Gair
+ */
+
+.gairware-logo {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.gairware-logo-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.gairware-logo-mark {
+  flex-shrink: 0;
+}
+
+.gairware-wordmark {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 1.25rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.gairware-text-bold {
+  font-weight: 700;
+}
+
+.gairware-text-regular {
+  font-weight: 400;
+  opacity: 0.85;
+}
+
+/* Pulsing cursor animation */
+@keyframes gairware-cursor-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.gairware-logo-cursor {
+  animation: gairware-cursor-pulse 1.5s ease-in-out infinite;
+}
+
+/* Responsive sizing */
+@media (max-width: 768px) {
+  .gairware-wordmark {
+    font-size: 1rem;
+  }
+}

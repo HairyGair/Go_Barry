@@ -18,6 +18,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
@@ -127,6 +128,9 @@ app.use(cors({
   exposedHeaders: ['Content-Length', 'X-Kuma-Revision']
 }));
 app.use(express.json());
+// HTTP-only cookie parser - must be after CORS and before routes
+// This enables secure session management via cookies instead of localStorage (XSS protection)
+app.use(cookieParser());
 app.use(morgan('combined'));
 
 // Enhanced health check endpoint with MySQL status
@@ -405,7 +409,7 @@ app.get('/', (req, res) => {
         <span class="method get">GET</span>
         <span class="path">/api/defects/predictive</span>
         <span class="badge">AUTH</span>
-        <div class="desc">AI-generated predictive maintenance alerts</div>
+        <div class="desc">Data-driven predictive maintenance alerts based on historical patterns</div>
       </div>
       <div class="endpoint">
         <span class="method post">POST</span>

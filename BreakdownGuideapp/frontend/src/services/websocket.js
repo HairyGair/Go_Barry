@@ -106,22 +106,16 @@ class WebSocketService {
       return this.connections.get(endpoint);
     }
 
-    // Build WebSocket URL with authentication token
+    // Build WebSocket URL
+    // NOTE: Authentication now handled via HTTP-only cookies (XSS protection)
+    // The browser automatically sends the auth_token cookie with WebSocket upgrade request
     let fullUrl = `${websocketConfig.url}${endpoint}`;
 
-    // Get authentication token from storage
-    const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
-
-    // Add token to URL for protected channels
-    if (requireAuth && token) {
-      const separator = endpoint.includes('?') ? '&' : '?';
-      fullUrl += `${separator}token=${encodeURIComponent(token)}`;
-      console.log('🔒 WebSocket connection includes auth token');
-    } else if (requireAuth && !token) {
-      console.warn('⚠️ WebSocket connection requires auth but no token found');
+    if (requireAuth) {
+      console.log('🔒 Using HTTP-only cookie authentication for WebSocket');
     }
 
-    console.log(`🔌 Connecting to WebSocket: ${fullUrl.replace(/token=[^&]+/, 'token=***')}`);
+    console.log(`🔌 Connecting to WebSocket: ${fullUrl}`);
 
     try {
       const ws = new WebSocket(fullUrl);

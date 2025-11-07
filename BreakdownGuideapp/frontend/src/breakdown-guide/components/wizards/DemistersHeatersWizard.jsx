@@ -50,12 +50,12 @@ const DemistersHeatersWizard = ({ currentStep, responses, updateResponse, onNext
                     <div className="bg-red-500/20 backdrop-blur-sm rounded-lg p-6 border border-red-400/30">
                         <h3 className="text-lg font-semibold text-red-200 mb-4">👁️ CRITICAL: Driver's Vision is the Priority</h3>
                         <p className="text-red-300/80 text-sm leading-relaxed">
-                            SDC Guidance: "The driver's vision is the priority. If it is affected, the vehicle should not continue in service." Visibility safety supersedes all other considerations.
+                            Operational Guidance: "The driver's vision is the priority. If it is affected, the vehicle should not continue in service." Visibility safety supersedes all other considerations.
                         </p>
                     </div>
 
                     <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/20">
-                        <h3 className="text-lg font-semibold text-white mb-4">SDC Step 1: Check if the Demisters are Blowing</h3>
+                        <h3 className="text-lg font-semibold text-white mb-4">Step 1: Check if the Demisters are Blowing</h3>
                         <p className="text-gray-300 text-sm mb-4">What is the current status of the demister air flow?</p>
                         
                         <div className="space-y-3">
@@ -75,7 +75,7 @@ const DemistersHeatersWizard = ({ currentStep, responses, updateResponse, onNext
                                     </div>
                                     <div>
                                         <span className="font-medium">❌ Not blowing at all</span>
-                                        <p className="text-sm text-gray-300 mt-1">SDC: Take to nearest changeover point, only if visibility not impaired</p>
+                                        <p className="text-sm text-gray-300 mt-1">Safety Protocol: Take to nearest changeover point, only if visibility not impaired</p>
                                     </div>
                                 </div>
                             </button>
@@ -96,7 +96,7 @@ const DemistersHeatersWizard = ({ currentStep, responses, updateResponse, onNext
                                     </div>
                                     <div>
                                         <span className="font-medium">🌬️ Blowing cold air only</span>
-                                        <p className="text-sm text-gray-300 mt-1">SDC: Proceed to Step 2 - Check the Saloon Temperature</p>
+                                        <p className="text-sm text-gray-300 mt-1">Safety Protocol: Proceed to Step 2 - Check the Saloon Temperature</p>
                                     </div>
                                 </div>
                             </button>
@@ -117,7 +117,7 @@ const DemistersHeatersWizard = ({ currentStep, responses, updateResponse, onNext
                                     </div>
                                     <div>
                                         <span className="font-medium">⚠️ Blowing but not effectively</span>
-                                        <p className="text-sm text-gray-300 mt-1">SDC: Check for blockages (bags, newspapers, etc.)</p>
+                                        <p className="text-sm text-gray-300 mt-1">Safety Protocol: Check for blockages (bags, newspapers, etc.)</p>
                                     </div>
                                 </div>
                             </button>
@@ -127,7 +127,7 @@ const DemistersHeatersWizard = ({ currentStep, responses, updateResponse, onNext
                     {responses.demister_air_flow === 'blowing_but_ineffective' && (
                         <div className="bg-orange-500/20 backdrop-blur-sm rounded-lg p-6 border border-orange-400/30">
                             <h3 className="text-lg font-semibold text-white mb-4">Blockage Check</h3>
-                            <p className="text-gray-300 text-sm mb-4">SDC Guidance: Check for blockages (e.g., bags, newspapers, etc.) if demisters are blowing but not effectively.</p>
+                            <p className="text-gray-300 text-sm mb-4">Operational Guidance: Check for blockages (e.g., bags, newspapers, etc.) if demisters are blowing but not effectively.</p>
                             
                             <div className="space-y-3">
                                 <button
@@ -171,7 +171,7 @@ const DemistersHeatersWizard = ({ currentStep, responses, updateResponse, onNext
                     
                     <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/20">
                         <h3 className="text-lg font-semibold text-white mb-4">Driver Visibility Assessment</h3>
-                        <p className="text-gray-300 text-sm mb-4">SDC Priority: Is the driver's vision affected by the demister issue?</p>
+                        <p className="text-gray-300 text-sm mb-4">Operational Priority: Is the driver's vision affected by the demister issue?</p>
                         
                         <div className="space-y-3">
                             <button
@@ -211,7 +211,7 @@ const DemistersHeatersWizard = ({ currentStep, responses, updateResponse, onNext
                                     </div>
                                     <div>
                                         <span className="font-medium">🚫 Vision affected</span>
-                                        <p className="text-sm text-gray-300 mt-1">SDC: Vehicle should not continue in service</p>
+                                        <p className="text-sm text-gray-300 mt-1">Safety Protocol: Vehicle should not continue in service</p>
                                     </div>
                                 </div>
                             </button>
@@ -225,7 +225,7 @@ const DemistersHeatersWizard = ({ currentStep, responses, updateResponse, onNext
                                 <div className="flex-1">
                                     <h3 className="text-xl font-bold text-red-200 mb-3">🚫 CRITICAL VISIBILITY HAZARD</h3>
                                     <div className="text-red-300/90 space-y-2">
-                                        <p className="font-semibold">SDC Guidance: "The driver's vision is the priority. If it is affected, the vehicle should not continue in service."</p>
+                                        <p className="font-semibold">Operational Guidance: "The driver's vision is the priority. If it is affected, the vehicle should not continue in service."</p>
                                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mt-4">
                                             <h4 className="font-semibold text-red-200 mb-2">Immediate Action Required:</h4>
                                             <ul className="list-disc list-inside space-y-1 text-red-300/90 text-sm">
@@ -260,14 +260,14 @@ const DemistersHeatersWizard = ({ currentStep, responses, updateResponse, onNext
                         <div className="mx-auto w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mb-4">
                             <FileText className="w-8 h-8 text-red-400" />
                         </div>
-                        <h2 className="text-2xl font-bold text-white mb-2">🌡️ SDC Step 2: Check the Saloon Temperature</h2>
+                        <h2 className="text-2xl font-bold text-white mb-2">🌡️ Step 2: Check the Saloon Temperature</h2>
                         <p className="text-gray-300">standard operational guidance requires saloon temperature of 16 degrees or above for passenger comfort.</p>
                     </div>
 
                     <div className="bg-yellow-500/20 backdrop-blur-sm rounded-lg p-6 border border-yellow-400/30">
                         <h3 className="text-lg font-semibold text-yellow-200 mb-4">⏰ Vehicle Warm-Up Requirement</h3>
                         <p className="text-yellow-300/80 text-sm leading-relaxed">
-                            SDC Guidance: "Ensure the vehicle has had adequate time to warm up, typically after at least 1 hour in service." Has the vehicle had sufficient warm-up time?
+                            Operational Guidance: "Ensure the vehicle has had adequate time to warm up, typically after at least 1 hour in service." Has the vehicle had sufficient warm-up time?
                         </p>
                         
                         <div className="mt-4 space-y-3">
@@ -311,7 +311,7 @@ const DemistersHeatersWizard = ({ currentStep, responses, updateResponse, onNext
                     
                     <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/20">
                         <h3 className="text-lg font-semibold text-white mb-4">Saloon Temperature Assessment</h3>
-                        <p className="text-gray-300 text-sm mb-4">SDC Guidance: What is the current saloon temperature?</p>
+                        <p className="text-gray-300 text-sm mb-4">Operational Guidance: What is the current saloon temperature?</p>
                         
                         <div className="space-y-3">
                             <button
@@ -330,7 +330,7 @@ const DemistersHeatersWizard = ({ currentStep, responses, updateResponse, onNext
                                     </div>
                                     <div>
                                         <span className="font-medium">✅ 16 degrees or above</span>
-                                        <p className="text-sm text-gray-300 mt-1">SDC: Continue until replacement available (changeover not urgent)</p>
+                                        <p className="text-sm text-gray-300 mt-1">Safety Protocol: Continue until replacement available (changeover not urgent)</p>
                                     </div>
                                 </div>
                             </button>
@@ -351,7 +351,7 @@ const DemistersHeatersWizard = ({ currentStep, responses, updateResponse, onNext
                                     </div>
                                     <div>
                                         <span className="font-medium">❄️ Below 16 degrees</span>
-                                        <p className="text-sm text-gray-300 mt-1">SDC: Change over as soon as possible</p>
+                                        <p className="text-sm text-gray-300 mt-1">Safety Protocol: Change over as soon as possible</p>
                                     </div>
                                 </div>
                             </button>
@@ -365,9 +365,9 @@ const DemistersHeatersWizard = ({ currentStep, responses, updateResponse, onNext
                                 <div className="flex-1">
                                     <h3 className="text-xl font-bold text-red-200 mb-3">❄️ BELOW MINIMUM TEMPERATURE</h3>
                                     <div className="text-red-300/90 space-y-2">
-                                        <p className="font-semibold">SDC Guidance: Below 16 degrees requires immediate changeover</p>
+                                        <p className="font-semibold">Operational Guidance: Below 16 degrees requires immediate changeover</p>
                                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mt-4">
-                                            <h4 className="font-semibold text-red-200 mb-2">SDC Actions Required:</h4>
+                                            <h4 className="font-semibold text-red-200 mb-2">Operational Actions Required:</h4>
                                             <ul className="list-disc list-inside space-y-1 text-red-300/90 text-sm">
                                                 <li>Change over as soon as possible</li>
                                                 <li>If cannot be changed immediately: check with engineering at least once an hour</li>
@@ -388,9 +388,9 @@ const DemistersHeatersWizard = ({ currentStep, responses, updateResponse, onNext
                                 <div className="flex-1">
                                     <h3 className="text-xl font-bold text-green-200 mb-3">✅ ACCEPTABLE TEMPERATURE</h3>
                                     <div className="text-green-300/90 space-y-2">
-                                        <p className="font-semibold">SDC Guidance: Continue until replacement becomes available</p>
+                                        <p className="font-semibold">Operational Guidance: Continue until replacement becomes available</p>
                                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mt-4">
-                                            <h4 className="font-semibold text-green-200 mb-2">SDC Actions:</h4>
+                                            <h4 className="font-semibold text-green-200 mb-2">Operational Actions:</h4>
                                             <ul className="list-disc list-inside space-y-1 text-green-300/90 text-sm">
                                                 <li>Continue in service until replacement available</li>
                                                 <li>Changeover is not urgent</li>

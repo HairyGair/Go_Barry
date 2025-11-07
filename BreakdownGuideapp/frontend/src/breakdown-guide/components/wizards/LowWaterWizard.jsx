@@ -425,15 +425,15 @@ const LowWaterWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                     </div>
                     
                     <div className="bg-blue-500/20 backdrop-blur-sm rounded-lg p-6 border border-blue-400/30">
-                        <h3 className="text-lg font-semibold text-blue-200 mb-4">📝 SDC Top-Up Log</h3>
+                        <h3 className="text-lg font-semibold text-blue-200 mb-4">📝 Operational Top-Up Log</h3>
                         <p className="text-blue-300/80 text-sm leading-relaxed">
-                            Use the SDC top-up log to verify recent water fills. This helps determine if the issue is due to normal consumption or a system problem.
+                            Use the Operational top-up log to verify recent water fills. This helps determine if the issue is due to normal consumption or a system problem.
                         </p>
                     </div>
 
                     <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/20">
                         <h3 className="text-lg font-semibold text-white mb-4">Water Top-Up History Check</h3>
-                        <p className="text-gray-300 text-sm mb-4">Check the SDC top-up log and ask the driver about recent water fills.</p>
+                        <p className="text-gray-300 text-sm mb-4">Check the Operational top-up log and ask the driver about recent water fills.</p>
                         
                         <div className="space-y-3">
                             <button

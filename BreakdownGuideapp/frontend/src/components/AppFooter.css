@@ -1,0 +1,186 @@
+/**
+ * App Footer Styles
+ * © 2025 GairWare - Anthony Gair
+ */
+
+.app-footer {
+  width: 100%;
+  padding: 2rem 1.5rem;
+  margin-top: auto;
+  border-top: 1px solid;
+  transition: all 0.3s ease;
+}
+
+/* Default variant - light theme */
+.app-footer-default {
+  background: rgba(248, 250, 252, 0.8);
+  backdrop-filter: blur(8px);
+  border-top-color: rgba(226, 232, 240, 0.8);
+  color: #1e293b;
+}
+
+/* Dark variant - for dark backgrounds */
+.app-footer-dark {
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(8px);
+  border-top-color: rgba(51, 65, 85, 0.6);
+  color: #e2e8f0;
+}
+
+/* Minimal variant - transparent */
+.app-footer-minimal {
+  background: transparent;
+  backdrop-filter: none;
+  border-top-color: rgba(148, 163, 184, 0.2);
+  color: currentColor;
+}
+
+.footer-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+.footer-branding {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.footer-logo {
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+.footer-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.footer-powered {
+  font-size: 0.7rem;
+  opacity: 0.6;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.footer-brand {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 0.95rem;
+  letter-spacing: -0.025em;
+  font-weight: 400;
+}
+
+.footer-brand strong {
+  font-weight: 700;
+}
+
+.footer-divider {
+  flex: 1;
+  min-width: 2rem;
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    currentColor,
+    transparent
+  );
+  opacity: 0.2;
+}
+
+.footer-info {
+  text-align: right;
+}
+
+.footer-copyright {
+  font-size: 0.75rem;
+  opacity: 0.7;
+  margin: 0 0 0.25rem 0;
+  font-weight: 500;
+}
+
+.footer-tagline {
+  font-size: 0.7rem;
+  opacity: 0.5;
+  margin: 0;
+  font-style: italic;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .app-footer {
+    padding: 1.5rem 1rem;
+  }
+
+  .footer-content {
+    flex-direction: column;
+    text-align: center;
+    gap: 1rem;
+  }
+
+  .footer-branding {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .footer-text {
+    align-items: center;
+  }
+
+  .footer-divider {
+    width: 100%;
+    max-width: 200px;
+    background: linear-gradient(
+      to right,
+      transparent,
+      currentColor,
+      transparent
+    );
+  }
+
+  .footer-info {
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-footer {
+    padding: 1.25rem 0.75rem;
+  }
+
+  .footer-brand {
+    font-size: 0.85rem;
+  }
+
+  .footer-copyright {
+    font-size: 0.7rem;
+  }
+
+  .footer-tagline {
+    font-size: 0.65rem;
+  }
+}
+
+/* Print styles - minimal footer for printing */
+@media print {
+  .app-footer {
+    padding: 1rem 0;
+    border-top: 1px solid #000;
+    background: none;
+    page-break-inside: avoid;
+  }
+
+  .footer-divider {
+    display: none;
+  }
+
+  .footer-tagline {
+    display: none;
+  }
+}
