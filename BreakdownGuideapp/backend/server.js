@@ -187,6 +187,7 @@ import authRoutes from './routes/auth.js';
 import wizardRoutes from './routes/wizards.js';
 import engineeringRoutes from './routes/engineering.js';
 import analyticsRoutes from './routes/analytics.js';
+import loginAnalyticsRoutes from './routes/loginAnalytics.js';
 import activityRoutes from './routes/activity.js';
 import supervisorRoutes from './routes/supervisors.js';
 import breakdownsAPIRoutes from './routes/breakdownsAPI.js';
@@ -595,6 +596,7 @@ app.use('/api/fleet', authenticateSupervisor, fleetRoutes);
 app.use('/api/wizards', authenticateSupervisor, wizardRoutes);
 app.use('/api/engineering', authenticateSupervisor, engineeringRoutes);
 app.use('/api/analytics', authenticateSupervisor, analyticsRoutes);
+app.use('/api/analytics', authenticateSupervisor, loginAnalyticsRoutes);
 app.use('/api/reports', authenticateSupervisor, analyticsRoutes); // Reports also use analytics routes
 app.use('/api/activity', authenticateSupervisor, activityRoutes);
 app.use('/api/preferences', authenticateSupervisor, preferencesRoutes);
