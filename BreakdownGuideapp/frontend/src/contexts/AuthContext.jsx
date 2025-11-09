@@ -142,6 +142,24 @@ export const AuthProvider = ({ children }) => {
 
             console.log('✅ Login successful:', user.email);
 
+            // Log login event to analytics
+            try {
+                await fetch(`${apiUrl}/api/analytics/log-login`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: user.email,
+                        success: true
+                    })
+                });
+            } catch (logError) {
+                console.warn('⚠️ Failed to log login event:', logError);
+                // Don't fail the login if analytics logging fails
+            }
+
             return {
                 success: true,
                 user: user
@@ -158,6 +176,9 @@ export const AuthProvider = ({ children }) => {
     const logout = async () => {
         console.log('🚪 Logging out...');
 
+        // Get email before clearing storage
+        const userEmail = currentUser?.email;
+
         try {
             // Call backend logout endpoint to clear HTTP-only cookie
             const apiUrl = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
@@ -172,6 +193,26 @@ export const AuthProvider = ({ children }) => {
         } catch (error) {
             console.error('⚠️ Error calling logout endpoint:', error);
             // Continue with local logout even if backend call fails
+        }
+
+        // Log logout event to analytics (if we have email)
+        if (userEmail) {
+            try {
+                const apiUrl = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
+                await fetch(`${apiUrl}/api/analytics/log-logout`, {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: userEmail
+                    })
+                });
+            } catch (logError) {
+                console.warn('⚠️ Failed to log logout event:', logError);
+                // Don't fail the logout if analytics logging fails
+            }
         }
 
         // Clear all storage (NOTE: No authToken to remove - it was in HTTP-only cookie)
