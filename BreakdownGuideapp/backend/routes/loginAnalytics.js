@@ -295,17 +295,29 @@ router.get('/dashboard', authenticateAdmin, async (req, res) => {
       success: true,
       period,
       totals: {
-        total_logins: totals.total_logins || 0,
-        successful_logins: totals.successful_logins || 0,
-        failed_logins: totals.failed_logins || 0,
-        success_rate: totals.success_rate || 0
+        total_logins: Number(totals.total_logins) || 0,
+        successful_logins: Number(totals.successful_logins) || 0,
+        failed_logins: Number(totals.failed_logins) || 0,
+        success_rate: Number(totals.success_rate) || 0
       },
       session: {
-        avg_duration_minutes: avgSession.avg_session_minutes || 0,
-        completed_sessions: avgSession.completed_sessions || 0
+        avg_duration_minutes: Number(avgSession.avg_session_minutes) || 0,
+        completed_sessions: Number(avgSession.completed_sessions) || 0
       },
-      mostActiveUsers,
-      hourlyDistribution,
+      mostActiveUsers: (mostActiveUsers || []).map(user => ({
+        email: user.email,
+        login_count: Number(user.login_count) || 0,
+        successful: Number(user.successful) || 0,
+        failed: Number(user.failed) || 0,
+        last_login: user.last_login
+      })),
+      hourlyDistribution: (hourlyDistribution || []).map(h => ({
+        hour: Number(h.hour),
+        total: Number(h.total) || 0,
+        successful: Number(h.successful) || 0,
+        failed: Number(h.failed) || 0,
+        count: Number(h.total) || 0
+      })),
       recentActivity
     });
 

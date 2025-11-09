@@ -190,7 +190,7 @@ const LoginAnalyticsDashboard = () => {
           <div className="stat-icon">✅</div>
           <div className="stat-content">
             <div className="stat-label">Success Rate</div>
-            <div className="stat-value">{(totals.success_rate || 0).toFixed(1)}%</div>
+            <div className="stat-value">{(Number(totals.success_rate) || 0).toFixed(1)}%</div>
             <div className="stat-sublabel">
               Login success ratio
             </div>
