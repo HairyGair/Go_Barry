@@ -1360,4 +1360,104 @@ router.post('/set-duty', verifyToken, validate(authSchemas.setDuty), async (req,
   }
 });
 
+// POST /api/auth/admin/reset-password - Admin reset password for supervisor
+router.post('/admin/reset-password', verifyToken, async (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+
+    console.log(`🔐 Admin password reset requested for: ${email}`);
+
+    // Validate required fields
+    if (!email || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email and new password are required'
+      });
+    }
+
+    // Validate password strength
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        error: 'Password must be at least 8 characters long'
+      });
+    }
+
+    // Get requester's role from JWT token
+    const requesterRole = req.user?.role;
+    if (requesterRole !== 'admin') {
+      console.warn(`⚠️ Non-admin user attempted password reset: ${req.user?.email}`);
+      return res.status(403).json({
+        success: false,
+        error: 'Only administrators can reset passwords'
+      });
+    }
+
+    // Find supervisor by email
+    const { data: supervisor, error: findError } = await from('supervisors')
+      .select('id, name, email')
+      .eq('email', email.toLowerCase().trim())
+      .single();
+
+    if (findError || !supervisor) {
+      console.warn(`❌ Password reset failed: No supervisor found with email ${email}`);
+      return res.status(404).json({
+        success: false,
+        error: 'Supervisor not found'
+      });
+    }
+
+    // Hash the new password
+    const passwordHash = await bcrypt.hash(newPassword, BCRYPT_SALT_ROUNDS);
+
+    // Update supervisor password hash
+    try {
+      await update('supervisors', {
+        password_hash: passwordHash,
+        updated_at: new Date().toISOString()
+      }, {
+        id: supervisor.id
+      });
+
+      console.log(`✅ Password reset successful for ${supervisor.name} (${email})`);
+
+      // Log admin action
+      await activityLogger.logActivity({
+        activityType: 'ADMIN_ACTION',
+        action: `reset password for ${supervisor.name}`,
+        actorType: ACTOR_TYPES.SUPERVISOR,
+        actorId: req.user?.badge_number || req.user?.id,
+        actorName: req.user?.name,
+        depot: req.user?.depot,
+        severity: SEVERITY_LEVELS.INFO,
+        source: 'admin_settings',
+        metadata: {
+          targetSupervisor: supervisor.name,
+          targetEmail: email,
+          actionType: 'password_reset'
+        }
+      });
+
+      res.json({
+        success: true,
+        message: `Password successfully reset for ${supervisor.name}`
+      });
+    } catch (updateError) {
+      console.error('❌ Failed to update password hash:', updateError);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to reset password. Please try again.'
+      });
+    }
+
+  } catch (error) {
+    console.error('❌ Password reset error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Password reset failed. Please try again.',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
 export default router;
