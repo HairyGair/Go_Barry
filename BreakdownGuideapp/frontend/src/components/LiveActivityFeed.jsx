@@ -42,70 +42,76 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
     });
   }, []);
 
-  // Get activity type metadata (icon, color, label)
+  // Get activity type metadata (icon, color, label) - Enhanced with vibrant colors
   const getActivityTypeInfo = useCallback((activity) => {
     const type = activity.type || activity.activity_type || activity.activityType || '';
 
-    // Breakdown reports
+    // Breakdown reports - CRITICAL RED
     if (type.includes('breakdown') || type.includes('BREAKDOWN')) {
       return {
         icon: '🚨',
-        color: '#dc2626',
-        bgColor: '#fef2f2',
+        color: '#FFFFFF',
+        bgColor: '#FF1744',
+        gradient: 'linear-gradient(135deg, #FF1744 0%, #C62828 100%)',
         label: 'BREAKDOWN',
         category: 'breakdown'
       };
     }
 
-    // Resolved
+    // Resolved - SUCCESS GREEN
     if (type.includes('resolved') || type.includes('RESOLVED') || activity.status === 'resolved') {
       return {
         icon: '✅',
-        color: '#10b981',
-        bgColor: '#f0fdf4',
+        color: '#FFFFFF',
+        bgColor: '#6BCF7F',
+        gradient: 'linear-gradient(135deg, #6BCF7F 0%, #43A047 100%)',
         label: 'RESOLVED',
         category: 'resolved'
       };
     }
 
-    // Logout events
+    // Logout events - NEUTRAL GRAY
     if (type.includes('logout') || type.includes('LOGOUT')) {
       return {
         icon: '👋',
-        color: '#6b7280',
-        bgColor: '#f9fafb',
+        color: '#FFFFFF',
+        bgColor: '#6b7280',
+        gradient: 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)',
         label: 'USER',
         category: 'user'
       };
     }
 
-    // Duty changes
+    // Duty changes - INFO BLUE
     if (type.includes('duty') || type.includes('DUTY')) {
       return {
         icon: '⏰',
-        color: '#0ea5e9',
-        bgColor: '#f0f9ff',
+        color: '#FFFFFF',
+        bgColor: '#4A90E2',
+        gradient: 'linear-gradient(135deg, #4A90E2 0%, #1976D2 100%)',
         label: 'DUTY',
         category: 'duty'
       };
     }
 
-    // Engineering
+    // Engineering - HIGH PRIORITY ORANGE
     if (type.includes('engineer') || type.includes('ENGINEER')) {
       return {
         icon: '🔧',
-        color: '#8b5cf6',
-        bgColor: '#faf5ff',
+        color: '#FFFFFF',
+        bgColor: '#FF6B35',
+        gradient: 'linear-gradient(135deg, #FF6B35 0%, #F4511E 100%)',
         label: 'ENGINEERING',
         category: 'engineering'
       };
     }
 
-    // Default
+    // Default - NEUTRAL
     return {
       icon: '📄',
-      color: '#6b7280',
-      bgColor: '#f9fafb',
+      color: '#FFFFFF',
+      bgColor: '#6b7280',
+      gradient: 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)',
       label: 'ACTIVITY',
       category: 'general'
     };
@@ -928,13 +934,13 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
                 >
                   {/* Primary Activity Display */}
                   <div className="activity-item primary">
-                    <span className="activity-icon" style={{ backgroundColor: primaryActivity.typeInfo?.bgColor }}>
+                    <span className="activity-icon" style={{ background: primaryActivity.typeInfo?.gradient || primaryActivity.typeInfo?.bgColor }}>
                       {primaryActivity.typeInfo?.icon || (primaryActivity.type === 'pattern' ? '🔍' : '📄')}
                     </span>
                     <div className="activity-details">
-                      {/* Activity Type Badge */}
+                      {/* Activity Type Badge with Gradient */}
                       <span className="activity-type-badge" style={{
-                        backgroundColor: primaryActivity.typeInfo?.bgColor,
+                        background: primaryActivity.typeInfo?.gradient || primaryActivity.typeInfo?.bgColor,
                         color: primaryActivity.typeInfo?.color
                       }}>
                         {primaryActivity.typeInfo?.label}
@@ -1079,7 +1085,7 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
 
                         {primaryActivity.isRealTime && (
                           <span className="real-time-indicator" title="Real-time update">
-                            🔴 LIVE
+                            LIVE
                           </span>
                         )}
 
@@ -1090,6 +1096,84 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
                           </span>
                         )}
                       </div>
+
+                      {/* Metadata Bar (Time, Passengers, Location) */}
+                      {(primaryActivity.passengersOnBoard || primaryActivity.passengers_on_board ||
+                        (primaryActivity.location && !primaryActivity.location.includes('Click for location'))) && (
+                        <div className="metadata-bar">
+                          {/* Time Badge */}
+                          <span className="time-badge" title={getExactTimestamp(primaryActivity.timestamp || primaryActivity.created_at)}>
+                            🕐 {formatTimeAgo(primaryActivity.timestamp || primaryActivity.created_at)}
+                          </span>
+
+                          {/* Passenger Indicator */}
+                          {(primaryActivity.passengersOnBoard || primaryActivity.passengers_on_board) && (
+                            <span className="passenger-indicator" title="Passengers on board">
+                              {primaryActivity.passengerCount || primaryActivity.passenger_count || 'Yes'}
+                            </span>
+                          )}
+
+                          {/* Location Chip */}
+                          {primaryActivity.location && !primaryActivity.location.includes('Click for location') && (
+                            <span
+                              className="location-chip"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleLocationClick(primaryActivity);
+                              }}
+                              title="Click to view on map"
+                            >
+                              {primaryActivity.location.substring(0, 30)}{primaryActivity.location.length > 30 ? '...' : ''}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Quick Action Buttons (for breakdown activities) */}
+                      {(primaryActivity.type === 'breakdown_reported' ||
+                        primaryActivity.type === 'BREAKDOWN_REPORTED' ||
+                        primaryActivity.type === 'wizard_completed' ||
+                        primaryActivity.type === 'WIZARD_COMPLETED' ||
+                        primaryActivity.type === 'ASSESSMENT_COMPLETED' ||
+                        primaryActivity.activity_type === 'breakdown_reported' ||
+                        primaryActivity.activity_type === 'wizard_completed' ||
+                        primaryActivity.activityType === 'breakdown_reported' ||
+                        primaryActivity.activityType === 'wizard_completed') && (
+                        <div className="quick-actions">
+                          {(primaryActivity.latitude || primaryActivity.lat) && (
+                            <button
+                              className="action-btn primary"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleLocationClick(primaryActivity);
+                              }}
+                              title="View location on map"
+                            >
+                              📍 View Map
+                            </button>
+                          )}
+                          <button
+                            className="action-btn secondary"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              alert('Engineer dispatch feature coming soon');
+                            }}
+                            title="Assign engineer to breakdown"
+                          >
+                            🔧 Assign Engineer
+                          </button>
+                          <button
+                            className="action-btn secondary"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.location.href = `/dashboards/breakdown`;
+                            }}
+                            title="View full breakdown details"
+                          >
+                            📋 Details
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
 
