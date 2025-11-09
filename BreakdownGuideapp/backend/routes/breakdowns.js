@@ -1104,11 +1104,32 @@ router.post('/from-wizard', async (req, res) => {
       determinedSeverity === 'AMBER' ? 2 : 3
     );
 
+    // Auto-allocate depot based on fleet number lookup from fleet database
+    let allocatedDepot = depot;
+    if (!allocatedDepot || allocatedDepot === 'Unknown') {
+      try {
+        const [fleetVehicle] = await query(
+          'SELECT depot FROM fleet_vehicles WHERE fleet_number = ?',
+          [fleet_number]
+        );
+        if (fleetVehicle && fleetVehicle.depot) {
+          allocatedDepot = fleetVehicle.depot;
+          console.log(`✅ Depot auto-allocated: Fleet ${fleet_number} → ${allocatedDepot}`);
+        } else {
+          allocatedDepot = 'Unknown';
+          console.warn(`⚠️ Fleet ${fleet_number} not found in database - depot set to Unknown`);
+        }
+      } catch (error) {
+        console.error(`❌ Auto-allocation failed for fleet ${fleet_number}:`, error.message);
+        allocatedDepot = depot || 'Unknown';
+      }
+    }
+
     // Create the breakdown record with only fields that exist in the database
     const breakdownData = {
       breakdown_id: idResult.id,
       fleet_no: fleet_number,
-      depot: depot || 'Unknown',
+      depot: allocatedDepot,
       supervisor_badge: supervisor_badge,
       supervisor_name: supervisor_name,
       location_description: location,
