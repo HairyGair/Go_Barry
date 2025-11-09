@@ -17,7 +17,7 @@ const AppFooter = ({ variant = 'default' }) => {
       <div className="footer-content">
         <div className="footer-branding">
           <GairWareLogo
-            size={28}
+            size={18}
             variant="terminal"
             color="currentColor"
             className="footer-logo"
