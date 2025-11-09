@@ -360,7 +360,7 @@ router.post('/login', rateLimitLogin, validate(authSchemas.login), async (req, r
     res.cookie('auth_token', token, {
       httpOnly: true, // Cookie cannot be accessed by client-side JavaScript
       secure: true, // Always use HTTPS (required for cross-subdomain cookies)
-      sameSite: 'lax', // Changed from 'strict' to 'lax' to allow cross-subdomain requests
+      sameSite: 'None', // 'None' required for cross-origin requests between api.breakdowns.gobarry.co.uk and breakdowns.gobarry.co.uk
       maxAge: 24 * 60 * 60 * 1000, // 24 hours in milliseconds
       path: '/', // Cookie available for all routes
       domain: '.gobarry.co.uk' // ALWAYS share across all subdomains
@@ -589,7 +589,7 @@ router.post('/logout', verifyToken, validate(authSchemas.logout), async (req, re
     res.clearCookie('auth_token', {
       httpOnly: true,
       secure: true, // Must match login cookie settings
-      sameSite: 'lax', // Must match login cookie settings
+      sameSite: 'None', // Must match login cookie settings - Changed to 'None' for cross-origin
       path: '/',
       domain: '.gobarry.co.uk' // Must match login cookie settings
     });

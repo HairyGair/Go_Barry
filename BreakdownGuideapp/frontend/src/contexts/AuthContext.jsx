@@ -87,6 +87,7 @@ export const AuthProvider = ({ children }) => {
             const apiUrl = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
             const response = await fetch(`${apiUrl}/api/auth/login`, {
                 method: 'POST',
+                credentials: 'include', // CRITICAL: Required to send and receive HTTP-only cookies
                 headers: {
                     'Content-Type': 'application/json'
                 },

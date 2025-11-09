@@ -147,7 +147,7 @@ const detectAndBroadcastCriticalPatterns = async (breakdown, issueCategory, flee
 };
 
 // GET /api/breakdowns - Get all breakdowns with pagination
-router.get('/', validate(breakdownSchemas.list), async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { page = 1, limit = 50, status, depot } = req.query;
     const offset = (page - 1) * limit;
@@ -230,25 +230,17 @@ router.get('/active', async (req, res) => {
 // GET /api/breakdowns/live - Get active breakdowns for dashboards
 router.get('/live', async (req, res) => {
   try {
-    // Get all breakdowns, then filter in JavaScript for more reliable results
-    const { data: allBreakdowns, error } = await from('breakdowns')
-      .select('*')
-      .order('created_at', 'DESC')
-      .execute();
+    console.log('\n=== LIVE BREAKDOWNS REQUEST ===');
 
-    if (error) throw error;
+    // Query for unresolved breakdowns using direct MySQL query
+    // Exclude: resolved, deleted, cancelled, completed statuses
+    const [breakdowns] = await db.query(`
+      SELECT * FROM breakdowns
+      WHERE status NOT IN ('resolved', 'deleted', 'cancelled', 'completed')
+      ORDER BY created_at DESC
+    `);
 
-    console.log(`📊 /live endpoint: Found ${allBreakdowns?.length || 0} total breakdowns in database`);
-    if (allBreakdowns && allBreakdowns.length > 0) {
-      console.log('📋 Breakdown statuses:', allBreakdowns.map(b => `${b.breakdown_id}: ${b.status}`));
-    }
-
-    // Filter out resolved/completed breakdowns
-    const breakdowns = allBreakdowns.filter(b =>
-      !['resolved', 'deleted', 'cancelled', 'completed'].includes(b.status)
-    );
-
-    console.log(`✅ /live endpoint: Returning ${breakdowns.length} active breakdowns after filtering`);
+    console.log(`✅ /live endpoint: Returning ${breakdowns?.length || 0} active breakdowns`);
 
     // Additional processing for dashboard compatibility
     const formattedBreakdowns = breakdowns.map(b => {
@@ -419,7 +411,7 @@ router.get('/stats', async (req, res) => {
 });
 
 // GET /api/breakdowns/:id - Get specific breakdown
-router.get('/:id', validate(breakdownSchemas.getById), async (req, res) => {
+router.get('/:id', async (req, res) => {
   try {
     const { data, error } = await from('breakdowns')
       .select('*')
@@ -443,7 +435,7 @@ router.get('/:id', validate(breakdownSchemas.getById), async (req, res) => {
 });
 
 // POST /api/breakdowns - Create new breakdown
-router.post('/', validate(breakdownSchemas.create), async (req, res) => {
+router.post('/', async (req, res) => {
   try {
     // Generate unique breakdown ID with daily counter
     const idResult = await breakdownIdGenerator.generateId();
@@ -536,7 +528,7 @@ router.post('/', validate(breakdownSchemas.create), async (req, res) => {
 });
 
 // PUT /api/breakdowns/:id - Update breakdown
-router.put('/:id', validate(breakdownSchemas.update), async (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
     const updateData = {
       ...req.body,
