@@ -234,7 +234,7 @@ router.get('/live', async (req, res) => {
 
     // Query for unresolved breakdowns using direct MySQL query
     // Exclude: resolved, deleted, cancelled, completed statuses
-    const [breakdowns] = await db.query(`
+    const [breakdowns] = await query(`
       SELECT * FROM breakdowns
       WHERE status NOT IN ('resolved', 'deleted', 'cancelled', 'completed')
       ORDER BY created_at DESC
