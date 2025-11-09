@@ -1104,11 +1104,14 @@ router.post('/admin/reset-password', authenticateAdmin, async (req, res) => {
     // Hash new password
     const passwordHash = await bcrypt.hash(newPassword, BCRYPT_SALT_ROUNDS);
 
+    // Format datetime for MySQL (YYYY-MM-DD HH:MM:SS)
+    const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
     // Update password
     try {
       await update('supervisors', {
         password_hash: passwordHash,
-        updated_at: new Date().toISOString()
+        updated_at: now
       }, {
         id: supervisor.id
       });
