@@ -234,7 +234,7 @@ router.get('/live', async (req, res) => {
 
     // Query for unresolved breakdowns using direct MySQL query
     // Exclude: resolved, deleted, cancelled, completed statuses
-    const [breakdowns] = await query(`
+    const breakdowns = await query(`
       SELECT * FROM breakdowns
       WHERE status NOT IN ('resolved', 'deleted', 'cancelled', 'completed')
       ORDER BY created_at DESC
@@ -1108,10 +1108,11 @@ router.post('/from-wizard', async (req, res) => {
     let allocatedDepot = depot;
     if (!allocatedDepot || allocatedDepot === 'Unknown') {
       try {
-        const [fleetVehicle] = await query(
+        const results = await query(
           'SELECT depot FROM fleet_vehicles WHERE fleet_number = ?',
           [fleet_number]
         );
+        const fleetVehicle = results[0];
         if (fleetVehicle && fleetVehicle.depot) {
           allocatedDepot = fleetVehicle.depot;
           console.log(`✅ Depot auto-allocated: Fleet ${fleet_number} → ${allocatedDepot}`);
