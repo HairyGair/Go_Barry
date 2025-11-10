@@ -747,6 +747,38 @@ authHelpers.js
   - Batch processing for 100MB+ files
   - SQL injection prevention with parameterized queries
 - **Status:** ✅ Backend complete, database migration applied, frontend built, ready for production deployment
+- **Critical Bug Fixes:**
+  - Fixed double middleware application issue (removed duplicate authenticateAdmin from individual routes)
+  - Optimized stop_times import for large files (240x performance improvement using bulk INSERT ON DUPLICATE KEY UPDATE)
+
+**November 10, 2025 - GTFS Data Enables Smart Route Matching (Next Priority Feature):**
+- With GTFS data imported, automatic route matching by location becomes possible
+- **Current State:** Breakdown modal requires manual route selection
+- **Proposed Enhancement:** Automatically suggest all routes passing through the breakdown location
+- **Implementation Plan:**
+  1. Create new API endpoint: `POST /api/breakdowns/smart-route-match` (query nearby stops by GPS coordinates)
+  2. Query `gtfs_stops` table for stops within 1km radius of breakdown location
+  3. Join with `gtfs_trips` and `gtfs_routes` to find all routes serving those stops
+  4. Return list of affected routes with frequencies and schedules
+  5. Enhance `FleetSelectionModal.jsx` to auto-populate routes when location is confirmed
+  6. Show route suggestions with "Affected route" badge
+- **Files to Modify:**
+  - `/backend/routes/breakdowns.js` - Add smart route matching endpoint
+  - `/frontend/src/breakdown-guide/components/FleetSelectionModal.jsx` - Show route suggestions based on location
+  - `/frontend/src/services/breakdownDataService.js` - Call new API endpoint
+- **Database Query Example:**
+  ```sql
+  SELECT DISTINCT gr.route_short_name, gr.route_long_name, COUNT(DISTINCT gst.trip_id) as trips_per_hour
+  FROM gtfs_stops gs
+  JOIN gtfs_stop_times gst ON gs.stop_id = gst.stop_id
+  JOIN gtfs_trips gt ON gst.trip_id = gt.trip_id
+  JOIN gtfs_routes gr ON gt.route_id = gr.route_id
+  WHERE SQRT(POW((gs.stop_lat - ?), 2) + POW((gs.stop_lon - ?), 2)) < 0.009 -- ~1km
+  GROUP BY gr.route_id
+  ORDER BY trips_per_hour DESC
+  ```
+- **Estimated Effort:** 2-3 days
+- **Value:** Every breakdown automatically shows all affected routes, enabling proactive passenger notifications and faster incident response
 
 **November 9, 2025 - Engineering Display Depot Filtering Fix:**
 - Fixed critical issue preventing breakdowns from appearing on engineering displays
