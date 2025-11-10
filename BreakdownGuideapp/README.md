@@ -3,11 +3,11 @@
 > Real-time breakdown tracking and diagnostic platform for Go North East bus operations
 
 [![Production](https://img.shields.io/badge/status-production-brightgreen)](https://breakdowns.gobarry.co.uk)
-[![Version](https://img.shields.io/badge/version-3.0.0-blue)]()
+[![Version](https://img.shields.io/badge/version-3.2.1-blue)]()
 [![Database](https://img.shields.io/badge/database-MySQL-orange)]()
 [![Documentation](https://img.shields.io/badge/docs-clean%20%26%20organized-success)]()
 
-**Last Updated:** October 30, 2025 (Post-Cleanup)
+**Last Updated:** November 10, 2025 (API Path Convention Fix)
 
 **Production URLs:**
 - **Frontend:** https://breakdowns.gobarry.co.uk
@@ -95,6 +95,48 @@ VALUES ('admin@example.com', 'Admin User', 'AD001', 'admin', '<bcrypt_hash>');
 - Frontend: http://localhost:5173
 - Backend API: http://localhost:3001
 - API Health Check: http://localhost:3001/api/health
+
+---
+
+## 🔴 CRITICAL: Frontend API Path Convention
+
+### ⚠️ IMPORTANT RULE
+
+All frontend API calls **MUST** include the `/api` prefix:
+
+```javascript
+// ✅ CORRECT - All frontend service files must use /api prefix
+apiClient.get('/api/preferences')
+apiClient.post('/api/breakdowns')
+apiClient.get('/api/admin/fleet/import-csv')
+
+// ❌ WRONG - Missing /api prefix (causes 404 errors)
+apiClient.get('/preferences')          // 404 - Route not found!
+apiClient.post('/breakdowns')          // 404 - Route not found!
+```
+
+### Why?
+
+Backend routes are registered with `/api` prefix in Express:
+
+```javascript
+// backend/server.js
+app.use('/api/preferences', authenticateSupervisor, preferencesRoutes);
+app.use('/api/admin/fleet', authenticateAdmin, adminFleetRoutes);
+```
+
+Frontend service files must call the **full path** including `/api`:
+
+**Template for any new API service:**
+```javascript
+// ✅ Correct Template
+export const myAPI = {
+  getAll: () => apiClient.get('/api/my-endpoint'),
+  create: (data) => apiClient.post('/api/my-endpoint', data),
+  update: (id, data) => apiClient.put(`/api/my-endpoint/${id}`, data),
+  delete: (id) => apiClient.delete(`/api/my-endpoint/${id}`)
+};
+```
 
 ---
 

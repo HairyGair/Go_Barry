@@ -12,7 +12,7 @@ const preferencesAPI = {
    */
   async getPreferences() {
     try {
-      const response = await apiClient.get('/preferences');
+      const response = await apiClient.get('/api/preferences');
       return response.data.preferences;
     } catch (error) {
       console.error('Error fetching preferences:', error);
@@ -27,7 +27,7 @@ const preferencesAPI = {
    */
   async updatePreferences(preferences) {
     try {
-      const response = await apiClient.put('/preferences', preferences);
+      const response = await apiClient.put('/api/preferences', preferences);
       return response.data.preferences;
     } catch (error) {
       console.error('Error updating preferences:', error);
@@ -43,7 +43,7 @@ const preferencesAPI = {
    */
   async updatePreference(key, value) {
     try {
-      const response = await apiClient.patch('/preferences', { key, value });
+      const response = await apiClient.patch('/api/preferences', { key, value });
       return response.data.preferences;
     } catch (error) {
       console.error('Error updating preference:', error);
@@ -57,7 +57,7 @@ const preferencesAPI = {
    */
   async resetPreferences() {
     try {
-      const response = await apiClient.delete('/preferences');
+      const response = await apiClient.delete('/api/preferences');
       return response.data.preferences;
     } catch (error) {
       console.error('Error resetting preferences:', error);
@@ -71,7 +71,7 @@ const preferencesAPI = {
    */
   async exportPreferences() {
     try {
-      const response = await apiClient.post('/preferences/export');
+      const response = await apiClient.post('/api/preferences/export');
       return response.data.data;
     } catch (error) {
       console.error('Error exporting preferences:', error);
@@ -86,7 +86,7 @@ const preferencesAPI = {
    */
   async importPreferences(preferences) {
     try {
-      const response = await apiClient.post('/preferences/import', { preferences });
+      const response = await apiClient.post('/api/preferences/import', { preferences });
       return response.data.preferences;
     } catch (error) {
       console.error('Error importing preferences:', error);

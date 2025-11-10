@@ -1,0 +1,93 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║          FLEET VEHICLE CSV IMPORT - QUICK REFERENCE CARD                    ║
+║                         (Copy and Keep Handy)                               ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+DATABASE TABLE: fleet_vehicles
+COLUMNS: fleet_no, registration, depot, vehicle_type (4 COLUMNS ONLY)
+
+════════════════════════════════════════════════════════════════════════════
+
+COLUMN MAPPING (This is ALL you need to do)
+
+  Your CSV Column          →    Database Column
+  ──────────────────────────────────────────────
+  FleetNo                  →    fleet_no
+  RegNumber                →    registration
+  OperatingDepotCode       →    depot
+  VehicleType Equinox      →    vehicle_type
+
+════════════════════════════════════════════════════════════════════════════
+
+DBEAVER IMPORT STEPS
+
+  1. Right-click fleet_vehicles table
+  2. Import Data → Import from CSV File
+  3. Select your CSV file
+  4. Settings: UTF-8, Comma delimiter, First line as header
+  5. Map the 4 columns above (UNCHECK EVERYTHING ELSE)
+  6. Merge strategy: Update existing + Insert new, key = fleet_no
+  7. Click Finish
+  8. Done!
+
+════════════════════════════════════════════════════════════════════════════
+
+VERIFICATION (Copy and paste into DBeaver SQL)
+
+  SELECT COUNT(*) as total FROM fleet_vehicles;
+  SELECT fleet_no, registration, depot, vehicle_type
+  FROM fleet_vehicles LIMIT 5;
+
+═══════════════════════════════════════════════════════════════════════════
+
+CRITICAL POINTS
+
+  ✓ Map ONLY 4 columns (shown above)
+  ✓ Uncheck/skip ALL other columns in your CSV
+  ✓ fleet_no must have values (no NULL/empty)
+  ✓ fleet_no must be UNIQUE (no duplicates)
+  ✓ Merge strategy = safe (no data loss)
+
+═══════════════════════════════════════════════════════════════════════════
+
+IF IMPORT FAILS
+
+  Problem: "Column not found"
+  → You tried to map a column that doesn't exist
+  → Solution: Only map the 4 columns listed above
+
+  Problem: "Fleet_no doesn't have a default value"
+  → Some FleetNo cells are empty
+  → Solution: Ensure all FleetNo cells have values in CSV
+
+  Problem: "Duplicate entry"
+  → Duplicate FleetNo values
+  → Solution: This is OK, merge strategy handles it
+
+═══════════════════════════════════════════════════════════════════════════
+
+CHEAT SHEET
+
+  FleetNo          →    fleet_no       (REQUIRED)
+  RegNumber        →    registration
+  OperatingDepot   →    depot
+  VehicleType      →    vehicle_type
+  EVERYTHING ELSE  →    DON'T MAP IT
+
+═══════════════════════════════════════════════════════════════════════════
+
+SUCCESS LOOKS LIKE:
+
+  ✓ Import log: "X rows imported successfully"
+  ✓ COUNT(*) returns a number > 0
+  ✓ SELECT shows your fleet data
+  ✓ No error messages
+
+═══════════════════════════════════════════════════════════════════════════
+
+READY? GO HERE:
+
+  → FLEET_IMPORT_DEFINITIVE.md (for full details)
+  → Follow the 8 steps above (for quick import)
+
+═══════════════════════════════════════════════════════════════════════════

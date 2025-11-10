@@ -69,7 +69,9 @@ const SettingsPage = () => {
   const loadPreferences = async () => {
     try {
       setLoading(true);
+      console.log('📋 Loading preferences from API...');
       const prefs = await preferencesAPI.getPreferences();
+      console.log('✅ Preferences loaded:', prefs);
 
       // Map database column names to frontend state
       const mappedPrefs = {
@@ -97,8 +99,14 @@ const SettingsPage = () => {
       document.documentElement.setAttribute('data-font-size', mappedPrefs.font_size);
 
     } catch (error) {
-      console.error('Failed to load preferences:', error);
+      console.error('❌ Failed to load preferences:', error);
+      console.error('Error details:', {
+        message: error.message,
+        status: error.status,
+        response: error.response
+      });
       // Fallback to localStorage if API fails
+      console.log('📱 Falling back to localStorage...');
       loadFromLocalStorage();
     } finally {
       setLoading(false);

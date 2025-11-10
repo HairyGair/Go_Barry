@@ -1,522 +1,336 @@
-# Deployment Guide - Breakdown Management System
+# Deployment Guide - Go BARRY Breakdown Management System
+
+**Last Updated:** November 10, 2025
+**Version:** 3.2.0
+**System Status:** Production-Ready
 
 ---
 
-## ⚠️ **LEGACY DOCUMENTATION WARNING** ⚠️
+## Overview
 
-**This document is OUTDATED and maintained for historical reference only.**
+This document provides complete deployment procedures for the Go BARRY Breakdown Management System running on cPanel infrastructure with PM2 process management and MySQL database.
 
-**Current deployment information:**
-- ✅ **Use:** `docs/CPANEL_ONLY_DEPLOYMENT_GUIDE.md` (primary guide)
-- ✅ **Quick Start:** `docs/CPANEL_QUICK_START_10MIN.md`
-- ✅ **Master Index:** `docs/MASTER_CPANEL_DOCUMENTATION_INDEX.md`
+### Production Architecture
 
-**What changed:**
-- ❌ **Render.com** → ✅ **cPanel** (self-hosted)
-- ❌ **Supabase** → ✅ **MySQL** (cPanel database)
-- ❌ **Supabase Auth** → ✅ **JWT + bcrypt**
-
-**Production URLs (Current):**
-- Frontend: https://breakdowns.gobarry.co.uk
-- Backend API: https://breakdowns.gobarry.co.uk/api
-- WebSocket: wss://breakdowns.gobarry.co.uk/ws
-- Database: MySQL (localhost on cPanel)
-
-**Last Updated:** October 27, 2025 - System migrated to cPanel
+| Component | Technology | URL/Location |
+|-----------|-----------|--------------|
+| **Frontend** | React + Vite on cPanel | https://breakdowns.gobarry.co.uk |
+| **Backend API** | Node.js + Express + PM2 | https://api.breakdowns.gobarry.co.uk |
+| **Database** | MySQL 8.0+ | 85.234.151.224:3306 |
+| **Authentication** | JWT + bcrypt | N/A |
+| **Real-time** | WebSocket (ws) | wss://api.breakdowns.gobarry.co.uk/ws |
+| **Process Manager** | PM2 | N/A |
+| **Hosting** | cPanel | gobarry.co.uk |
 
 ---
-
-## Overview (LEGACY - For Historical Reference)
-
-This document explains the complete deployment workflow for the Breakdown Management System, including the dual-repository setup and how to properly deploy changes to production.
-
-**NOTE:** The information below describes the OLD deployment architecture (Render.com + Supabase). This is kept for reference purposes only.
 
 ## Quick Reference
 
-### Production Deployment Commands
+### Common Deployment Commands
 
 ```bash
-# CRITICAL: Always push to the 'breakdown' remote for production deployment
-git add .
-git commit -m "Your commit message"
-git push breakdown main    # Triggers Render.com deployment
-```
+# Backend Deployment (SSH)
+ssh user@85.234.151.224
+cd ~/api
+npm ci --production
+pm2 restart breakdown-backend
+pm2 logs breakdown-backend --lines 50
 
-### Common Mistake to Avoid
-
-```bash
-# ❌ WRONG - This pushes to Go_Barry repo (development only)
-git push origin main
-
-# ✅ CORRECT - This pushes to Breakdown_Guide repo (Render deployment)
-git push breakdown main
-```
-
----
-
-## Deployment Architecture
-
-### Production Stack
-
-| Component | Platform | URL |
-|-----------|----------|-----|
-| Backend API | Render.com | https://breakdown-guide.onrender.com |
-| Frontend | cPanel | https://breakdowns.gobarry.co.uk |
-| Database | Supabase | https://oieliubbvvdzhzvikzal.supabase.co |
-| Git Repository (Production) | GitHub | https://github.com/HairyGair/Breakdown_Guide |
-
-### Dual Repository Setup
-
-This project uses TWO git repositories:
-
-1. **Origin** (`origin`) - Development Repository
-   - URL: https://github.com/HairyGair/Go_Barry.git
-   - Purpose: Historical development, feature branches, experimental work
-   - **NOT used for deployment**
-
-2. **Breakdown** (`breakdown`) - Production Repository
-   - URL: https://github.com/HairyGair/Breakdown_Guide.git
-   - Purpose: Production code, Render.com deployment source
-   - **This is the deployment repository**
-
-See [REPOSITORY_STRUCTURE.md](./REPOSITORY_STRUCTURE.md) for detailed explanation.
-
----
-
-## Step-by-Step Deployment Process
-
-### 1. Development Workflow
-
-```bash
-# Start from main branch
-cd /Users/anthony/Go\ BARRY\ App/BreakdownGuideapp
-git checkout main
-
-# Make your changes
-# Edit files, test locally
-
-# Stage changes
-git add .
-
-# Commit changes
-git commit -m "feat: Add new feature"
-```
-
-### 2. Deploy to Production (Render.com)
-
-```bash
-# Push to breakdown remote (triggers Render deployment)
-git push breakdown main
-```
-
-**What happens next:**
-1. Code is pushed to `Breakdown_Guide` repository
-2. Render.com detects the push via webhook
-3. Render runs build command: `cd backend && npm install`
-4. Render starts service: `cd backend && node server.js`
-5. Health check runs on `/api/health-extended`
-6. New version goes live (usually 2-5 minutes)
-
-### 3. Verify Deployment
-
-```bash
-# Check Render deployment status
-# Visit: https://dashboard.render.com
-
-# Test health endpoint
-curl https://breakdown-guide.onrender.com/api/health-extended
-
-# Expected response:
-# {
-#   "status": "healthy",
-#   "timestamp": "2025-10-02T...",
-#   "services": { ... }
-# }
-```
-
-### 4. Optional: Push to Development Repository
-
-```bash
-# If you want to keep both repos in sync
-git push origin main
-```
-
----
-
-## Render.com Configuration
-
-### Service Configuration
-
-The deployment is configured via `render.yaml` in the root directory:
-
-```yaml
-services:
-  - type: web
-    name: go-barry
-    runtime: node
-    region: oregon
-    plan: starter # $7/month plan
-    buildCommand: cd backend && npm install
-    startCommand: cd backend && node server.js
-    healthCheckPath: /api/health-extended
-    autoDeploy: false
-```
-
-### Environment Variables
-
-Set these in the Render.com dashboard under "Environment":
-
-**Required:**
-- `NODE_ENV=production`
-- `PORT=3001`
-- `SUPABASE_URL=https://haountnghecfrsoniubq.supabase.co`
-- `SUPABASE_ANON_KEY` (see render.yaml)
-- `SUPABASE_SERVICE_KEY` (add manually for security)
-
-**Optional:**
-- `WHAT3WORDS_API_KEY=UA0764K8`
-- `GOOGLE_ROADS_API_KEY` (see render.yaml)
-
-### Accessing Render Dashboard
-
-1. Visit https://dashboard.render.com
-2. Login with GitHub account (HairyGair)
-3. Select "go-barry" service
-4. View logs, metrics, and deployment history
-
----
-
-## Frontend Deployment Options
-
-### Option 1: Render.com (Recommended for Production)
-
-**Add to `render.yaml`:**
-```yaml
-  - type: web
-    name: breakdown-guide-frontend
-    env: static
-    buildCommand: cd frontend && npm install && npm run build
-    staticPublishPath: frontend/dist
-```
-
-**Deploy:**
-```bash
-git push breakdown main
-# Render will deploy both backend and frontend
-```
-
-### Option 2: cPanel (Alternative)
-
-**Build locally:**
-```bash
-cd /Users/anthony/Go\ BARRY\ App/BreakdownGuideapp/frontend
+# Frontend Deployment (Local)
+cd frontend
 npm run build
-```
+# Upload frontend/dist/ to cPanel via CyberDuck or File Manager
 
-**Deploy:**
-```bash
-# Use the deployment script
-./deploy-to-cpanel.sh
-
-# Or manually upload
-# Upload contents of frontend/dist/ to cPanel public_html
-```
-
-### Option 3: Separate Deployment Folder
-
-The `breakdown-guide-deploy` folder is a standalone clone of the production repository:
-
-```bash
-cd /Users/anthony/Go\ BARRY\ App/BreakdownGuideapp/breakdown-guide-deploy
-
-# This folder has its own git setup
-git remote -v
-# origin  https://github.com/HairyGair/Breakdown_Guide.git
-
-# Use this if you want to work in a clean production environment
-git pull origin main
-# Make changes
-git push origin main  # Triggers Render deployment
+# Health Check
+curl https://api.breakdowns.gobarry.co.uk/api/health
+curl https://breakdowns.gobarry.co.uk
 ```
 
 ---
 
-## Deployment Checklist
+## Pre-Deployment Checklist
 
-### Pre-Deployment
+### Development Testing
+- [ ] All changes tested locally
+- [ ] Authentication flow working (login → duty selection → dashboard)
+- [ ] Database queries optimized
+- [ ] All API endpoints returning correct responses
+- [ ] WebSocket connections establishing correctly
+- [ ] Error handling implemented
 
-- [ ] All changes tested locally (`npm run dev` in both backend and frontend)
-- [ ] No console errors in browser
-- [ ] Authentication working
-- [ ] Database migrations applied (if any)
-- [ ] Environment variables set in Render dashboard
-- [ ] `render.yaml` updated if config changed
+### Code Quality
+- [ ] No hardcoded credentials or API keys
+- [ ] Input validation implemented (Joi schemas)
+- [ ] SQL queries use parameterized statements
+- [ ] Console.log statements removed or conditionals used
 
-### Deployment
+### Backend Deployment
 
-- [ ] Code committed to git
-- [ ] Pushed to `breakdown` remote: `git push breakdown main`
-- [ ] Render deployment triggered (check dashboard)
-- [ ] Build completes successfully (no errors in logs)
-- [ ] Health check passes
-
-### Post-Deployment
-
-- [ ] Visit production URL: https://breakdown-guide.onrender.com
-- [ ] Test critical features:
-  - [ ] Login with supervisor account
-  - [ ] Create breakdown
-  - [ ] View activity feed
-  - [ ] Dashboard loads correctly
-- [ ] Check Render logs for errors
-- [ ] Monitor for 10-15 minutes for stability
-
----
-
-## Rollback Procedure
-
-If deployment fails or introduces bugs:
-
-### Option 1: Revert Git Commit
-
+**Step 1: Connect to Server**
 ```bash
-# Find the last working commit
-git log --oneline -10
-
-# Revert to previous commit
-git revert HEAD
-git push breakdown main
-
-# Or reset to specific commit (use with caution)
-git reset --hard <commit-hash>
-git push breakdown main --force
+ssh user@85.234.151.224
+cd ~/api
 ```
 
-### Option 2: Render Dashboard Rollback
-
-1. Visit https://dashboard.render.com
-2. Select "go-barry" service
-3. Click "Deploys" tab
-4. Find last successful deployment
-5. Click "Redeploy" on that version
-
----
-
-## Common Deployment Issues
-
-### Issue 1: Build Fails on Render
-
-**Symptoms:**
-- Render shows "Build failed" status
-- Error in build logs
-
-**Solutions:**
+**Step 2: Backup Current Code**
 ```bash
-# Check that build command works locally
-cd backend
+timestamp=$(date +%Y%m%d_%H%M%S)
+tar -czf ~/backups/backend_backup_$timestamp.tar.gz ~/api
+```
+
+**Step 3: Upload New Code**
+```bash
+# Option A: Git Pull
+git fetch origin && git pull origin main
+
+# Option B: Upload via CyberDuck to /home/username/api/
+# Option C: SCP from local machine
+scp -r backend/* user@85.234.151.224:~/api/
+```
+
+**Step 4: Install Dependencies**
+```bash
+cd ~/api
+npm ci --production  # Production install (no dev dependencies)
+```
+
+**Step 5: Verify Configuration**
+```bash
+# Check .env file exists
+ls -la ~/api/.env
+
+# Required variables:
+# NODE_ENV=production
+# PORT=3001
+# DB_HOST=85.234.151.224
+# DB_USER=gobarryco_Gair
+# DB_PASSWORD=<password>
+# DB_NAME=gobarryco_breakdown
+# JWT_SECRET=<secret>
+# FRONTEND_URL=https://breakdowns.gobarry.co.uk
+```
+
+**Step 6: Restart PM2**
+```bash
+pm2 status
+pm2 restart breakdown-backend
+pm2 logs breakdown-backend --lines 50
+```
+
+**Step 7: Verify Backend Health**
+```bash
+# Test health endpoint
+curl http://localhost:3001/api/health
+curl https://api.breakdowns.gobarry.co.uk/api/health
+
+# Test database connection
+curl http://localhost:3001/api/health-db
+```
+
+### Frontend Deployment
+
+**Step 1: Build Frontend Locally**
+```bash
+cd frontend
 npm install
-# Should complete without errors
-
-# Check for syntax errors
-npm run test
-
-# Verify package.json has all dependencies
+npm run build
+# Creates frontend/dist/
 ```
 
-### Issue 2: Service Won't Start
-
-**Symptoms:**
-- Build succeeds but service crashes
-- Health check fails
-
-**Solutions:**
+**Step 2: Backup Current Frontend**
 ```bash
-# Check start command works locally
-cd backend
-node server.js
-# Should start without errors
-
-# Check environment variables in Render dashboard
-# Verify SUPABASE_URL, SUPABASE_SERVICE_KEY are set
-
-# Check logs in Render dashboard for error messages
+ssh user@85.234.151.224
+timestamp=$(date +%Y%m%d_%H%M%S)
+tar -czf ~/backups/frontend_backup_$timestamp.tar.gz ~/public_html/breakdowns.gobarry.co.uk
 ```
 
-### Issue 3: Pushed to Wrong Repository
+**Step 3: Upload Build Files**
 
-**Symptoms:**
-- Pushed to `origin` instead of `breakdown`
-- Render didn't deploy
+**Option A: CyberDuck (Recommended)**
+1. Connect to 85.234.151.224 via SFTP
+2. Navigate to `/home/username/public_html/breakdowns.gobarry.co.uk/`
+3. Delete all existing files (except .htaccess)
+4. Upload entire contents of `frontend/dist/`
 
-**Solutions:**
+**Option B: cPanel File Manager**
+1. Login to cPanel: https://gobarry.co.uk:2083
+2. Open File Manager
+3. Navigate to public_html/breakdowns.gobarry.co.uk/
+4. Delete all files
+5. Click Upload and upload frontend/dist/ files
+
+**Step 4: Configure .htaccess**
+```apache
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  RewriteRule ^index\.html$ - [L]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . /index.html [L]
+</IfModule>
+
+RewriteCond %{HTTPS} off
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+```
+
+**Step 5: Verify Deployment**
 ```bash
-# Push to correct repository
-git push breakdown main
-
-# Verify which remotes exist
-git remote -v
-
-# Check where code was pushed
-git log --oneline --all --graph -10
+curl -I https://breakdowns.gobarry.co.uk  # Should return 200 OK
 ```
 
-### Issue 4: Environment Variables Not Set
+### Database Deployment
 
-**Symptoms:**
-- "SUPABASE_URL is undefined" errors
-- Authentication failures
-
-**Solutions:**
-1. Visit Render dashboard
-2. Go to "Environment" tab
-3. Add missing variables
-4. Trigger manual deploy
-
----
-
-## Monitoring and Logs
-
-### Render Logs
-
+**Step 1: Test Migration Locally**
 ```bash
-# View in dashboard
-https://dashboard.render.com → go-barry → Logs
-
-# Common log patterns to watch:
-# ✅ "Server running on port 3001"
-# ✅ "Connected to Supabase"
-# ❌ "Error: Cannot find module"
-# ❌ "ECONNREFUSED"
+mysql -u root -p gobarryco_breakdown_local < backend/migrations/migration.sql
 ```
 
-### Health Check
-
+**Step 2: Backup Production Database**
 ```bash
-# Manual health check
-curl https://breakdown-guide.onrender.com/api/health-extended
-
-# Automated monitoring
-# Render automatically pings /api/health-extended every 5 minutes
-# Service restarts if health check fails
+ssh user@85.234.151.224
+mysqldump -h 85.234.151.224 -u gobarryco_Gair -p gobarryco_breakdown > ~/backups/db_backup_$(date +%Y%m%d_%H%M%S).sql
 ```
 
-### Database Monitoring
+**Step 3: Apply Migration via phpMyAdmin**
+1. Login: https://gobarry.co.uk:2083/cpsess###/3rdparty/phpMyAdmin/
+2. Select `gobarryco_breakdown` database
+3. Click "SQL" tab
+4. Paste migration SQL
+5. Click "Go"
 
+---
+
+## Environment Variables
+
+### Backend .env
 ```bash
-# Check Supabase dashboard
-https://app.supabase.com/project/oieliubbvvdzhzvikzal
-
-# View:
-# - Database size
-# - Active connections
-# - Query performance
-# - Table sizes
+NODE_ENV=production
+PORT=3001
+DB_HOST=85.234.151.224
+DB_USER=gobarryco_Gair
+DB_PASSWORD=<password>
+DB_NAME=gobarryco_breakdown
+JWT_SECRET=<strong-secret-32+-chars>
+JWT_EXPIRES_IN=24h
+FRONTEND_URL=https://breakdowns.gobarry.co.uk
+MAX_FILE_SIZE=10485760
 ```
 
----
-
-## Deployment Schedule
-
-### Recommended Deployment Times
-
-- **Best:** Tuesday-Thursday, 10:00-14:00 GMT (low supervisor usage)
-- **Avoid:** Monday mornings, Friday afternoons, weekends
-- **Emergency fixes:** Any time (document in commit message)
-
-### Deployment Frequency
-
-- **Minor updates:** As needed (bug fixes, UI tweaks)
-- **Major features:** Weekly or bi-weekly
-- **Breaking changes:** Coordinate with supervisors, announce in advance
-
----
-
-## Security Considerations
-
-### API Keys and Secrets
-
-**Never commit these to git:**
-- `SUPABASE_SERVICE_KEY`
-- `SUPABASE_ANON_KEY`
-- Any API keys
-
-**Always set in Render dashboard only**
-
-### Database Credentials
-
-- Stored in Render environment variables
-- Not in `render.yaml` (use `sync: false`)
-- Rotate keys quarterly
-
-### CORS Configuration
-
-The backend is configured to allow requests from:
-- `https://breakdown-guide.onrender.com`
-- `http://localhost:5173` (development)
-
-Update `backend/server.js` if deploying to new domain.
-
----
-
-## Performance Optimization
-
-### Render Free Tier Limitations
-
-- **RAM:** 512 MB (starter plan: 2 GB)
-- **CPU:** Shared
-- **Sleep after inactivity:** 15 minutes (starter plan: no sleep)
-
-### Optimization Tips
-
-1. **Enable starter plan** ($7/month) to prevent sleep
-2. **Minimize dependencies** in package.json
-3. **Use efficient queries** (indexed columns)
-4. **Cache frequent requests** (future enhancement)
-
----
-
-## Troubleshooting Quick Commands
-
+### Frontend .env
 ```bash
-# Check which remote you're tracking
-git remote -v
-
-# See where you last pushed
-git log --oneline --all --graph -5
-
-# Test backend locally
-cd backend && npm run dev
-
-# Test frontend locally
-cd frontend && npm run dev
-
-# Check Render service status
-curl -I https://breakdown-guide.onrender.com/api/health-extended
-
-# View recent deployments
-git log breakdown/main --oneline -10
+VITE_API_URL=https://api.breakdowns.gobarry.co.uk
+VITE_WS_URL=wss://api.breakdowns.gobarry.co.uk
+VITE_ENV=production
 ```
 
 ---
 
-## Additional Resources
+## Monitoring & Health Checks
 
-- [Render.com Documentation](https://render.com/docs)
-- [Supabase Documentation](https://supabase.com/docs)
-- [Project README](./README.md)
-- [Repository Structure](./REPOSITORY_STRUCTURE.md)
-- [API Documentation](./docs/API.md)
-- [Setup Guide](./docs/SETUP.md)
+### PM2 Monitoring
+```bash
+pm2 status                    # Check process status
+pm2 logs breakdown-backend    # View real-time logs
+pm2 monit                     # Monitor CPU/memory
+pm2 show breakdown-backend    # Detailed process info
+```
+
+### Health Endpoints
+```bash
+curl https://api.breakdowns.gobarry.co.uk/api/health      # Basic health
+curl https://api.breakdowns.gobarry.co.uk/api/health-db   # Database check
+```
 
 ---
 
-## Support
+## Rollback Procedures
 
-**For deployment issues:**
-- Check Render dashboard logs first
-- Review this guide's troubleshooting section
-- Contact: anthony.gair@gonortheast.co.uk
+### Rolling Back Backend
+```bash
+# Restore from backup
+ssh user@85.234.151.224
+ls -lht ~/backups/backend_backup_*.tar.gz
+tar -xzf ~/backups/backend_backup_20251110_120000.tar.gz
+mv ~/api ~/api_failed
+mv ~/api_backup ~/api
+cd ~/api && pm2 restart breakdown-backend
+```
 
-**Last Updated:** October 2, 2025
-**Version:** 2.0.0
+### Rolling Back Frontend
+```bash
+rm -rf ~/public_html/breakdowns.gobarry.co.uk/*
+tar -xzf ~/backups/frontend_backup_20251110_120000.tar.gz -C ~/public_html/breakdowns.gobarry.co.uk/
+```
+
+---
+
+## Common Issues
+
+### Issue 1: PM2 Process Won't Start
+```bash
+pm2 logs breakdown-backend --err --lines 50  # Check errors
+
+# Common causes:
+node ~/api/server.js                # Check syntax errors
+cd ~/api && npm install --production # Install dependencies
+pm2 restart breakdown-backend        # Restart after fix
+```
+
+### Issue 2: Frontend Shows Blank Page
+```bash
+# Check browser console (F12)
+# Rebuild frontend:
+cd frontend && npm run build
+# Re-upload dist/
+
+# Clear cache
+Hard refresh: Cmd+Shift+R or Ctrl+Shift+R
+```
+
+### Issue 3: Database Connection Timeout
+```bash
+# Test connection
+mysql -h 85.234.151.224 -u gobarryco_Gair -p gobarryco_breakdown
+
+# Check credentials in .env
+cat ~/api/.env | grep DB_
+
+# Restart backend
+pm2 restart breakdown-backend
+```
+
+---
+
+## Post-Deployment Verification
+
+### Immediate Checks (0-5 minutes)
+```bash
+# 1. Backend is running
+curl https://api.breakdowns.gobarry.co.uk/api/health
+
+# 2. Database connected
+curl https://api.breakdowns.gobarry.co.uk/api/health-db
+
+# 3. Frontend loads
+curl -I https://breakdowns.gobarry.co.uk
+
+# 4. PM2 stable
+pm2 status
+
+# 5. No errors in logs
+pm2 logs breakdown-backend --lines 20
+```
+
+### Functional Tests (5-15 minutes)
+1. Open https://breakdowns.gobarry.co.uk
+2. Login with test credentials
+3. Verify duty selection modal appears
+4. Create test breakdown
+5. Verify breakdown appears in dashboard
+
+---
+
+**Last Updated:** November 10, 2025
+**Document Version:** 3.2.0
+**System Status:** Production-Ready

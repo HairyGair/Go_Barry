@@ -1,0 +1,132 @@
+================================================================================
+                    FLEET VEHICLE CSV IMPORT
+                        COLUMN MAPPING ONLY
+================================================================================
+
+DATABASE TABLE: fleet_vehicles
+
+EXACT COLUMN MAPPING
+================================================================================
+
+MAP THESE (Required):
+────────────────────────────────────────────────────────────
+CSV Column              →    Database Column      (Required)
+────────────────────────────────────────────────────────────
+FleetNo                 →    fleet_no             (YES - PRIMARY KEY)
+RegNumber               →    registration         (NO - but recommended)
+OperatingDepotCode      →    depot               (NO - but useful)
+VehicleType Equinox     →    vehicle_type        (NO - but useful)
+
+OPTIONAL (if available in CSV):
+────────────────────────────────────────────────────────────
+make                    →    make
+model                   →    model
+year                    →    year
+
+DO NOT MAP (leave unchecked):
+════════════════════════════════════════════════════════════
+VehicleGroupDescription   (not in database)
+VehicleAllocation         (not in database)
+Branding                  (not in database)
+Service Specific Vehicle Type (not in database)
+Vehicle Class             (not in database)
+Allocated Depot           (use OperatingDepotCode instead)
+Column1 through Column18  (empty columns, not needed)
+All other columns         (not in database)
+
+IMPORT STRATEGY
+════════════════════════════════════════════════════════════
+Update existing records:  ✓ YES
+Insert new records:       ✓ YES
+Matching key:             fleet_no
+
+VERIFICATION QUERIES
+════════════════════════════════════════════════════════════
+
+Count total vehicles:
+  SELECT COUNT(*) FROM fleet_vehicles;
+
+Show first 5 vehicles:
+  SELECT fleet_no, registration, depot, vehicle_type
+  FROM fleet_vehicles LIMIT 5;
+
+Check for problems:
+  SELECT COUNT(*) FROM fleet_vehicles
+  WHERE fleet_no IS NULL OR fleet_no = '';
+
+QUICK STEPS
+════════════════════════════════════════════════════════════
+1. Right-click fleet_vehicles table
+2. Import Data → Import from CSV File
+3. Select your CSV
+4. Configure: UTF-8, Comma, First line as header
+5. Map columns (see above - ONLY 4-7 columns!)
+6. Set Merge: Update + Insert, key = fleet_no
+7. Click Finish
+8. Run verification query
+9. Done!
+
+CRITICAL POINTS
+════════════════════════════════════════════════════════════
+✓ Map ONLY the columns listed above
+✓ Column name is "fleet_no" (with underscore)
+✓ Column name is "vehicle_type" (with underscore)
+✓ FleetNo must have values (NOT NULL)
+✓ FleetNo must be UNIQUE (no duplicates)
+✓ Merge strategy = safe (no data loss)
+
+IF IMPORT FAILS
+════════════════════════════════════════════════════════════
+Check 1: Are you mapping only the 4-7 columns above?
+Check 2: Does your CSV have FleetNo in the first column?
+Check 3: Do all FleetNo values exist (no blanks)?
+Check 4: Are you using "Update existing + Insert new"?
+Check 5: Is your CSV encoding UTF-8?
+
+SUCCESS LOOKS LIKE
+════════════════════════════════════════════════════════════
+✓ Import log shows "rows imported successfully"
+✓ COUNT(*) query returns a number > 0
+✓ SELECT query shows your fleet data
+✓ No errors in log
+✓ No NULL values in fleet_no column
+
+================================================================================
+                        THAT'S ALL YOU NEED!
+              Follow the column mapping above and you'll succeed.
+================================================================================
+
+CHEAT SHEET
+════════════════════════════════════════════════════════════
+Your CSV         →    Use This Database Column
+──────────────────────────────────────────────
+FleetNo          →    fleet_no
+RegNumber        →    registration
+OperatingDepot   →    depot
+VehicleType      →    vehicle_type
+Make             →    make
+Model            →    model
+Year             →    year
+[EVERYTHING ELSE] →   [DON'T MAP]
+
+REMEMBER
+════════════════════════════════════════════════════════════
+- Only map the columns listed above
+- Uncheck/skip everything else in your CSV
+- DBeaver will ignore unmapped columns
+- This is SAFE - no data loss possible with merge strategy
+
+READY?
+════════════════════════════════════════════════════════════
+1. Open DBeaver
+2. Right-click fleet_vehicles
+3. Import Data
+4. Choose CSV
+5. Map 4-7 columns (see above)
+6. Click Finish
+7. Verify with SQL query
+8. Success! ✅
+
+Questions? See: FLEET_IMPORT_FINAL_CORRECT.md
+
+================================================================================

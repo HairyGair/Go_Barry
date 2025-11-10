@@ -229,9 +229,12 @@ class WebSocketHandler {
       timestamp: new Date().toISOString()
     });
 
-    // Send initial data if on breakdown channel
+    // Send initial data based on channel type
     if (channel === 'breakdowns' || channel === 'sdc-dashboard') {
-      this.sendInitialBreakdownData(clientId);
+      await this.sendInitialBreakdownData(clientId);
+    } else if (channel === 'engineering-display' && depot) {
+      // Send depot-filtered breakdowns for engineering displays
+      await this.sendInitialBreakdownDataByDepot(clientId, depot);
     }
   }
 
@@ -424,8 +427,65 @@ class WebSocketHandler {
       this.broadcast('breakdowns', updateData);
       this.broadcast('sdc-dashboard', updateData);
 
+      // Broadcast depot-filtered data to engineering displays
+      this.broadcastToEngineeringDisplays();
+
     } catch (error) {
       console.error('Error handling breakdowns update:', error);
+    }
+  }
+
+  // Broadcast updated breakdowns to engineering displays (filtered by depot)
+  async broadcastToEngineeringDisplays() {
+    try {
+      if (!this.channels.has('engineering-display')) {
+        return;
+      }
+
+      const displayClients = this.channels.get('engineering-display');
+      const depotsToUpdate = new Set();
+
+      // Collect all unique depots that have displays
+      displayClients.forEach(clientId => {
+        const client = this.clients.get(clientId);
+        if (client && client.depot) {
+          depotsToUpdate.add(client.depot);
+        }
+      });
+
+      // Query and broadcast breakdowns for each depot
+      for (const depot of depotsToUpdate) {
+        try {
+          const depotBreakdownsSQL = `
+            SELECT * FROM breakdowns
+            WHERE depot = ?
+              AND status NOT IN ('resolved', 'cleared')
+            ORDER BY created_at DESC
+            LIMIT 100
+          `;
+
+          const depotBreakdowns = await query(depotBreakdownsSQL, [depot]);
+
+          // Send to all displays in this depot
+          displayClients.forEach(clientId => {
+            const client = this.clients.get(clientId);
+            if (client && client.depot === depot) {
+              this.sendToClient(clientId, {
+                type: 'breakdowns_updated',
+                depot,
+                breakdowns: depotBreakdowns || [],
+                timestamp: new Date().toISOString()
+              });
+            }
+          });
+
+          console.log(`📡 Broadcasted ${depotBreakdowns?.length || 0} breakdowns to engineering displays in depot: ${depot}`);
+        } catch (error) {
+          console.error(`Error broadcasting breakdowns to depot ${depot}:`, error);
+        }
+      }
+    } catch (error) {
+      console.error('Error in broadcastToEngineeringDisplays:', error);
     }
   }
 
@@ -463,6 +523,58 @@ class WebSocketHandler {
 
     } catch (error) {
       console.error('Error sending initial breakdown data:', error);
+    }
+  }
+
+  // Send depot-filtered breakdown data for engineering displays
+  async sendInitialBreakdownDataByDepot(clientId, depot) {
+    try {
+      const client = this.clients.get(clientId);
+      if (!client) return;
+
+      console.log(`📊 Fetching breakdowns for engineering display in depot: ${depot}`);
+
+      // Query MySQL for breakdowns in this specific depot
+      const depotBreakdownsSQL = `
+        SELECT * FROM breakdowns
+        WHERE depot = ?
+          AND status NOT IN ('resolved', 'cleared')
+        ORDER BY created_at DESC
+        LIMIT 100
+      `;
+
+      const depotBreakdowns = await query(depotBreakdownsSQL, [depot]);
+
+      // Fetch recent activities for this depot
+      const depotActivitiesSQL = `
+        SELECT * FROM activities
+        WHERE depot = ?
+        ORDER BY timestamp DESC
+        LIMIT 20
+      `;
+
+      const depotActivities = await query(depotActivitiesSQL, [depot]);
+
+      const initialData = {
+        type: 'initial_data',
+        depot,
+        breakdowns: depotBreakdowns || [],
+        recent_activities: depotActivities || [],
+        timestamp: new Date().toISOString()
+      };
+
+      console.log(`📡 Sending ${depotBreakdowns?.length || 0} breakdowns to engineering display for depot: ${depot}`);
+      this.sendToClient(clientId, initialData);
+
+    } catch (error) {
+      console.error(`Error sending depot-filtered breakdown data for ${depot}:`, error);
+      // Send error message to client
+      this.sendToClient(clientId, {
+        type: 'error',
+        error: 'Failed to fetch breakdown data for depot',
+        depot,
+        timestamp: new Date().toISOString()
+      });
     }
   }
 
@@ -523,11 +635,59 @@ class WebSocketHandler {
   }
 
   broadcastBreakdownCreated(breakdownData) {
-    return this.broadcast('sdc-dashboard', {
+    // Broadcast to SDC dashboard
+    this.broadcast('sdc-dashboard', {
       type: 'breakdown_created',
       data: breakdownData,
       timestamp: new Date().toISOString()
     });
+
+    // Also broadcast to engineering displays for the affected depot
+    if (breakdownData.depot) {
+      this.broadcastBreakdownByDepot(breakdownData);
+    }
+  }
+
+  // Broadcast breakdown update to engineering displays in a specific depot
+  broadcastBreakdownByDepot(breakdownData) {
+    try {
+      if (!breakdownData || !breakdownData.depot) {
+        return 0;
+      }
+
+      const depot = breakdownData.depot;
+      let sentCount = 0;
+
+      // Get all engineering-display clients and filter by depot
+      if (this.channels.has('engineering-display')) {
+        const displayClients = this.channels.get('engineering-display');
+
+        displayClients.forEach(clientId => {
+          const client = this.clients.get(clientId);
+
+          // Only send to displays in the same depot
+          if (client && client.depot === depot) {
+            if (this.sendToClient(clientId, {
+              type: 'breakdown_created',
+              data: breakdownData,
+              depot,
+              timestamp: new Date().toISOString()
+            })) {
+              sentCount++;
+            }
+          }
+        });
+
+        if (sentCount > 0) {
+          console.log(`📡 Broadcasted breakdown to ${sentCount} engineering displays in depot: ${depot}`);
+        }
+      }
+
+      return sentCount;
+    } catch (error) {
+      console.error('Error broadcasting breakdown by depot:', error);
+      return 0;
+    }
   }
 
   // =====================================================

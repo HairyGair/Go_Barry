@@ -1,7 +1,7 @@
 # Development Guide - Go BARRY Breakdown Management System
 
-**Document Version:** 2.0
-**Last Updated:** October 30, 2025 (Post-Cleanup)
+**Document Version:** 2.1
+**Last Updated:** November 10, 2025 (API Path Convention Fix)
 **Target Audience:** Developers, AI Assistants, Future Maintainers
 
 ---
@@ -310,6 +310,79 @@ BreakdownGuideapp/
 - `src/components/ModernAppHeader.jsx` - Navigation bar
 - `src/components/DutySelectionModal.jsx` - Duty selection UI
 - `src/services/api.js` - Axios instance, API call helpers
+
+---
+
+## 🔴 CRITICAL: Frontend API Path Convention
+
+### ⚠️ THE RULE: Always Include `/api` Prefix
+
+**When creating ANY frontend API service file, ALL endpoints MUST include `/api` prefix:**
+
+```javascript
+// ❌ WRONG - Will return 404!
+apiClient.get('/preferences')
+apiClient.post('/breakdowns')
+apiClient.get('/admin/fleet/import-csv')
+
+// ✅ CORRECT - Always use /api prefix
+apiClient.get('/api/preferences')
+apiClient.post('/api/breakdowns')
+apiClient.get('/api/admin/fleet/import-csv')
+```
+
+### Why This Rule Exists
+
+Backend routes are registered with `/api` prefix in Express:
+
+```javascript
+// backend/server.js
+app.use('/api/preferences', authenticateSupervisor, preferencesRoutes);
+app.use('/api/admin/fleet', authenticateAdmin, adminFleetRoutes);
+app.use('/api/breakdowns', authenticateSupervisor, breakdownsRoutes);
+```
+
+Frontend MUST call the **complete path** including `/api`.
+
+### Template for New API Services
+
+Copy this template when creating new API service files:
+
+```javascript
+// ✅ CORRECT TEMPLATE - All endpoints have /api prefix
+export const myAPI = {
+  getAll: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return apiClient.get(`/api/my-endpoint${queryString ? `?${queryString}` : ''}`);
+  },
+
+  getById: (id) => apiClient.get(`/api/my-endpoint/${id}`),
+
+  create: (data) => apiClient.post('/api/my-endpoint', data),
+
+  update: (id, data) => apiClient.put(`/api/my-endpoint/${id}`, data),
+
+  delete: (id) => apiClient.delete(`/api/my-endpoint/${id}`)
+};
+```
+
+### Historical Context
+
+**November 10, 2025 Issue:**
+- File: `frontend/src/services/preferencesAPI.js`
+- Problem: Missing `/api` prefix on all 6 endpoints (getPreferences, updatePreferences, etc.)
+- Result: 404 errors when accessing Settings page
+- Fix: Added `/api` prefix to all endpoint calls
+- Prevention: This documented rule prevents future occurrences
+
+### Checklist for Code Review
+
+When reviewing frontend code, check:
+- ✅ All `apiClient.get()` calls start with `/api/`
+- ✅ All `apiClient.post()` calls start with `/api/`
+- ✅ All `apiClient.put()` calls start with `/api/`
+- ✅ All `apiClient.patch()` calls start with `/api/`
+- ✅ All `apiClient.delete()` calls start with `/api/`
 
 ---
 
