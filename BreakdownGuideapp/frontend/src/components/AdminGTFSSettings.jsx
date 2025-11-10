@@ -72,12 +72,13 @@ const AdminGTFSSettings = () => {
     loadStatistics(activeTab);
   }, [activeTab]);
 
-  // Load current statistics for file type
+  // Load current statistics for GTFS data
   const loadStatistics = async (type) => {
     setLoadingStats(true);
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
-      const response = await fetch(`${apiUrl}/api/admin/gtfs/${type}/stats`, {
+      // Use the single stats endpoint that returns all GTFS statistics
+      const response = await fetch(`${apiUrl}/api/admin/gtfs/stats`, {
         credentials: 'include'
       });
 
@@ -85,10 +86,12 @@ const AdminGTFSSettings = () => {
         const data = await response.json();
         setStatistics(data);
       } else {
+        // Silently fail - stats are optional
         setStatistics(null);
       }
     } catch (err) {
-      console.error('Statistics load error:', err);
+      // Silently fail - stats endpoint may not be available if backend not deployed
+      console.debug('Statistics load - endpoint not available yet:', err.message);
       setStatistics(null);
     } finally {
       setLoadingStats(false);
