@@ -2,9 +2,9 @@
 
 This file provides guidance to Claude Code and other AI assistants when working with the Go BARRY Breakdown Management System.
 
-**Last Updated:** November 7, 2025 (Phase 2: Input Validation Implementation)
+**Last Updated:** November 10, 2025 (GTFS Data Import System Implemented)
 **System Status:** Production-Ready ✅
-**Current Version:** 3.2.0 (MySQL + cPanel + Input Validation)
+**Current Version:** 3.3.0 (MySQL + cPanel + Input Validation + GTFS Import)
 **Documentation Status:** ✅ Cleaned and Organized (115+ legacy files removed, 231 lines mock data eliminated)
 
 ---
@@ -247,6 +247,38 @@ GET    /api/breakdowns/stats        # Statistics
 - Repeat breakdown detection
 - Fleet health scores
 - Trend analysis
+
+### 6. Fleet CSV Import (Admin Only)
+**File:** `backend/routes/adminFleet.js`
+
+**Features:**
+- Bulk fleet vehicle import via CSV upload
+- Drag-and-drop web interface
+- Real-time progress tracking with visual feedback
+- Comprehensive data validation (FleetNo, RegNumber, OperatingDepotCode, VehicleType)
+- Automatic duplicate handling (updates existing records)
+- Detailed error reporting with downloadable CSV
+- CSV template download
+- Activity logging for audit trail
+- Admin-only access (AG003, BP009)
+
+**Key Endpoints:**
+```
+POST   /api/admin/fleet/import-csv       # Upload and import CSV
+GET    /api/admin/fleet/import-template  # Download CSV template
+```
+
+**Dependencies:**
+- `multer` - File upload handling (memory storage, 10MB limit)
+- `csv-parse` - CSV parsing with validation
+- Transaction-based imports (all-or-nothing)
+
+**Frontend Component:**
+- `frontend/src/components/AdminFleetImportSettings.jsx` - Main upload interface
+- `frontend/src/components/AdminFleetImportSettings.css` - Styling
+
+**Documentation:**
+- `FLEET_CSV_IMPORT_API_GUIDE.md` - Quick reference guide
 
 ---
 
@@ -512,6 +544,81 @@ pm2 logs | grep -i websocket
 
 ---
 
+## 🔴 CRITICAL: API Path Convention Error (November 10, 2025)
+
+### The Problem
+A common mistake was made where frontend API service files were calling endpoints WITHOUT the `/api` prefix:
+
+**❌ WRONG:**
+```javascript
+// frontend/src/services/preferencesAPI.js
+const response = await apiClient.get('/preferences');  // Returns 404!
+```
+
+**✅ CORRECT:**
+```javascript
+// frontend/src/services/preferencesAPI.js
+const response = await apiClient.get('/api/preferences');  // Works!
+```
+
+### Why This Matters
+
+**Backend Route Registration:**
+```javascript
+// backend/server.js - Routes are mounted at /api/* path
+app.use('/api/preferences', authenticateSupervisor, preferencesRoutes);
+app.use('/api/admin/fleet', authenticateAdmin, adminFleetRoutes);
+app.use('/api/breakdowns', authenticateSupervisor, breakdownsRoutes);
+```
+
+All backend routes are prefixed with `/api/` in Express routing!
+
+### Rule for Frontend API Calls
+
+**ALWAYS include `/api` prefix when calling backend endpoints from frontend:**
+
+```javascript
+// ✅ CORRECT - All these have /api prefix
+apiClient.get('/api/preferences')
+apiClient.post('/api/breakdowns')
+apiClient.get('/api/admin/fleet/import-csv')
+apiClient.get('/api/auth/supervisors')
+
+// ❌ WRONG - Missing /api prefix (returns 404)
+apiClient.get('/preferences')
+apiClient.post('/breakdowns')
+apiClient.get('/admin/fleet/import-csv')
+```
+
+### Where to Check
+
+**Frontend API Services (must have `/api` prefix):**
+- `frontend/src/services/preferencesAPI.js` ✅ FIXED
+- `frontend/src/services/api-client.js` - Reference implementation
+- `frontend/src/services/breakdownAPI.js`
+- `frontend/src/services/authAPI.js`
+- Any new API service file
+
+**Quick Check Pattern:**
+```javascript
+// In any service file, ALWAYS prefix with /api
+apiClient.get('/api/...')
+apiClient.post('/api/...')
+apiClient.put('/api/...')
+apiClient.patch('/api/...')
+apiClient.delete('/api/...')
+```
+
+### Historical Context
+- **Date:** November 10, 2025
+- **Issue:** preferencesAPI.js missing `/api` prefix on all 6 endpoints
+- **Impact:** Settings page couldn't load (404 errors)
+- **Root Cause:** Copy-paste mistake when creating service file
+- **Solution:** Added `/api` prefix to all endpoint calls
+- **Files Fixed:** `frontend/src/services/preferencesAPI.js`
+
+---
+
 ## 📝 Code Standards
 
 ### Backend (Node.js/Express)
@@ -607,6 +714,57 @@ authHelpers.js
 ## 🔍 Important Context
 
 ### Recent Major Changes
+
+**November 10, 2025 - GTFS Data Import System (Complete):**
+- Implemented comprehensive GTFS (General Transit Feed Specification) data import functionality
+- Allows admins to upload bus route data, stop locations, trip schedules, and stop timing information
+- **Files Created:**
+  - `/backend/routes/adminGTFS.js` (680 lines) - 5 API endpoints for GTFS file uploads
+  - `/backend/migrations/009_create_gtfs_tables.sql` - Database schema with 5 tables
+  - `/frontend/src/components/AdminGTFSSettings.jsx` (625 lines) - Professional upload UI
+  - `/frontend/src/components/AdminGTFSSettings.css` (683 lines) - Styling
+- **Files Modified:**
+  - `/backend/server.js` - Registered GTFS routes with admin authentication
+  - `/frontend/src/components/settings/AdminSettings.jsx` - Added GTFS tab to admin panel
+- **Database:**
+  - 5 new tables: gtfs_routes, gtfs_stops, gtfs_trips, gtfs_stop_times, gtfs_import_log
+  - Foreign key relationships for data integrity
+  - Stored procedures for queries and geospatial lookups
+  - Views for statistics and reporting
+- **API Endpoints:** 5 admin-only endpoints at `/api/admin/gtfs/`
+  - POST /routes - Import bus routes
+  - POST /stops - Import stop locations
+  - POST /trips - Import trip schedules
+  - POST /stop-times - Import stop timing (batch processing for large files)
+  - GET /stats - Get import statistics
+- **Features:**
+  - Admin-only access (AG003, BP009)
+  - Drag-and-drop file upload interface
+  - Real-time progress tracking
+  - Error reporting with downloadable CSV
+  - Upsert logic (insert or update existing)
+  - Transaction support for data integrity
+  - Batch processing for 100MB+ files
+  - SQL injection prevention with parameterized queries
+- **Status:** ✅ Backend complete, database migration applied, frontend built, ready for production deployment
+
+**November 9, 2025 - Engineering Display Depot Filtering Fix:**
+- Fixed critical issue preventing breakdowns from appearing on engineering displays
+- Engineering displays now receive **depot-filtered breakdowns only**
+- Implemented three new methods in `webSocketHandler.js`:
+  - `sendInitialBreakdownDataByDepot()` - Sends filtered breakdowns on display connection
+  - `broadcastBreakdownByDepot()` - Broadcasts new breakdowns only to displays in affected depot
+  - `broadcastToEngineeringDisplays()` - Sends updated breakdowns to all displays filtered by depot
+- **Files Modified:**
+  - `/backend/routes/webSocketHandler.js` (added depot filtering logic)
+- **How It Works:**
+  1. Engineering display connects via WebSocket with `displayId` and `depot` parameters
+  2. Backend registers display and sends all active breakdowns for that depot
+  3. When new breakdowns are created, only displays in the breakdown's depot receive updates
+  4. All filters exclude 'resolved' and 'cleared' status breakdowns
+- **Key Queries:**
+  - Initial: `SELECT * FROM breakdowns WHERE depot = ? AND status NOT IN ('resolved', 'cleared')`
+  - Updates: Filters all broadcasts by matching display.depot to breakdown.depot
 
 **November 7, 2025 - Phase 2: Input Validation (Security Enhancement):**
 - Implemented comprehensive Joi validation across 12+ critical endpoints
@@ -937,7 +1095,30 @@ return res.status(500).json({
 
 ---
 
-**Last Updated:** November 2, 2025 (Authentication System Overhaul)
-**Document Version:** 3.2.0
+## 🔄 Recent Updates - November 10, 2025
+
+### Fleet Vehicle CSV Import (Database Schema Important Note)
+- Created comprehensive fleet vehicle CSV import documentation
+- **IMPORTANT:** Fleet table uses `fleet_no` (NOT `fleet_number`)
+- **IMPORTANT:** Vehicle type column is `type` (NOT `vehicle_type`)
+- Correct column mapping provided in FLEET_IMPORT_COLUMN_FIX.md
+- See FLEET_IMPORT_COLUMN_FIX.md for corrected import instructions
+
+### Files Created:
+- FLEET_IMPORT_INDEX.md - Navigation and documentation map
+- FLEET_IMPORT_QUICKSTART.md - 5-minute quick start guide
+- FLEET_IMPORT_SUMMARY.md - Complete overview
+- FLEET_CSV_IMPORT_GUIDE.md - Detailed reference (uses wrong column names - use FIX guide)
+- FLEET_IMPORT_DATA_PREP.md - Data cleaning and transformation
+- FLEET_IMPORT_REFERENCE_CARD.txt - Quick lookup reference
+- FLEET_IMPORT_COLUMN_FIX.md - **CORRECTED COLUMN NAMES (USE THIS)**
+- FLEET_IMPORT_COMPLETION_REPORT.md - Project summary
+- backend/scripts/fleet_import_merge.sql - Manual SQL merge
+- backend/scripts/fleet_import_validation.sql - Verification queries
+
+---
+
+**Last Updated:** November 10, 2025 (Fleet CSV Import Documentation)
+**Document Version:** 3.2.1
 **System Status:** Production-Ready ✅
 **Documentation:** Clean and Organized
