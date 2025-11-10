@@ -180,7 +180,7 @@ const AdminGTFSSettings = () => {
 
     try {
       const formData = new FormData();
-      formData.append('gtfsFile', file);
+      formData.append('csvFile', file);
 
       // Simulate progress
       const progressInterval = setInterval(() => {
