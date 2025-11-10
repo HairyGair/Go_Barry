@@ -196,6 +196,8 @@ import publicRoutes from './routes/public.js';
 import defectsRoutes from './routes/defects.js';
 import bugReportsRoutes from './routes/bugReports.js';
 import displayRoutes from './routes/displays.js';
+import adminFleetRoutes from './routes/adminFleet.js';
+import adminGTFSRoutes from './routes/adminGTFS.js';
 import webSocketHandler from './routes/webSocketHandler.js';
 
 // Root API documentation endpoint
@@ -604,6 +606,10 @@ app.use('/api/defects', authenticateSupervisor, defectsRoutes);
 app.use('/api/displays', authenticateSupervisor, displayRoutes); // Display control - requires auth
 app.use('/api/bug-reports', bugReportsRoutes); // Bug reports - no auth required for submission, auth for viewing
 app.use('/api/supervisors', supervisorRoutes); // Stats endpoint is read-only, no auth required
+
+// Admin-only routes (require admin role)
+app.use('/api/admin/fleet', authenticateAdmin, adminFleetRoutes); // Fleet CSV import and management
+app.use('/api/admin/gtfs', authenticateAdmin, adminGTFSRoutes); // GTFS transit data import
 
 // SDC Dashboard API routes (requires SDC operator authentication and rate limiting)
 app.use('/api/sdc', rateLimitSDC, authenticateSDC, breakdownsAPIRoutes);

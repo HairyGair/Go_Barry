@@ -1,15 +1,20 @@
 /**
  * Admin Settings Component
- * Admin-only interface for managing supervisors and resetting passwords
+ * Admin-only interface for managing supervisors, resetting passwords, and importing fleet data
  */
 
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '../../services/api-client.js';
+import AdminFleetImportSettings from '../AdminFleetImportSettings.jsx';
+import AdminGTFSSettings from '../AdminGTFSSettings.jsx';
 
 const AdminSettings = () => {
   const [supervisors, setSupervisors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Admin tab state
+  const [adminTab, setAdminTab] = useState('supervisors'); // 'supervisors', 'fleet', or 'gtfs'
 
   // Password reset modal state
   const [showResetModal, setShowResetModal] = useState(false);
@@ -179,14 +184,108 @@ const AdminSettings = () => {
     <div className="settings-section">
       <h2>Admin Controls</h2>
       <p className="section-description">
-        Manage supervisor accounts and reset passwords. Only administrators can access this section.
+        Manage supervisor accounts, reset passwords, and import fleet data. Only administrators can access this section.
       </p>
 
-      <div className="info-box">
-        <p>You have admin privileges. Use this page to manage {supervisors.length} supervisor accounts.</p>
+      {/* Admin Tabs */}
+      <div style={{
+        display: 'flex',
+        gap: '12px',
+        marginBottom: '24px',
+        borderBottom: '1px solid var(--border-color, #444444)',
+        paddingBottom: '0'
+      }}>
+        <button
+          onClick={() => setAdminTab('supervisors')}
+          style={{
+            padding: '12px 20px',
+            background: adminTab === 'supervisors' ? 'var(--primary-color, #667eea)' : 'transparent',
+            color: adminTab === 'supervisors' ? 'white' : 'var(--text-secondary)',
+            border: 'none',
+            borderBottom: adminTab === 'supervisors' ? '3px solid var(--primary-color, #667eea)' : 'none',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: '600',
+            transition: 'all 0.2s ease',
+            marginBottom: '-1px'
+          }}
+          onMouseEnter={(e) => {
+            if (adminTab !== 'supervisors') {
+              e.target.style.background = 'rgba(102, 126, 234, 0.1)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (adminTab !== 'supervisors') {
+              e.target.style.background = 'transparent';
+            }
+          }}
+        >
+          👥 Supervisors
+        </button>
+        <button
+          onClick={() => setAdminTab('fleet')}
+          style={{
+            padding: '12px 20px',
+            background: adminTab === 'fleet' ? 'var(--primary-color, #667eea)' : 'transparent',
+            color: adminTab === 'fleet' ? 'white' : 'var(--text-secondary)',
+            border: 'none',
+            borderBottom: adminTab === 'fleet' ? '3px solid var(--primary-color, #667eea)' : 'none',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: '600',
+            transition: 'all 0.2s ease',
+            marginBottom: '-1px'
+          }}
+          onMouseEnter={(e) => {
+            if (adminTab !== 'fleet') {
+              e.target.style.background = 'rgba(102, 126, 234, 0.1)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (adminTab !== 'fleet') {
+              e.target.style.background = 'transparent';
+            }
+          }}
+        >
+          🚌 Fleet Database
+        </button>
+        <button
+          onClick={() => setAdminTab('gtfs')}
+          style={{
+            padding: '12px 20px',
+            background: adminTab === 'gtfs' ? 'var(--primary-color, #667eea)' : 'transparent',
+            color: adminTab === 'gtfs' ? 'white' : 'var(--text-secondary)',
+            border: 'none',
+            borderBottom: adminTab === 'gtfs' ? '3px solid var(--primary-color, #667eea)' : 'none',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: '600',
+            transition: 'all 0.2s ease',
+            marginBottom: '-1px'
+          }}
+          onMouseEnter={(e) => {
+            if (adminTab !== 'gtfs') {
+              e.target.style.background = 'rgba(102, 126, 234, 0.1)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (adminTab !== 'gtfs') {
+              e.target.style.background = 'transparent';
+            }
+          }}
+        >
+          🗺️ GTFS Data
+        </button>
       </div>
 
-      {/* Supervisors Table */}
+      {/* Supervisors Tab */}
+      {adminTab === 'supervisors' && (
+        <>
+          <div className="info-box">
+            <p>You have admin privileges. Use this page to manage {supervisors.length} supervisor accounts.</p>
+          </div>
+
+          {/* Supervisors Table */}
       <div style={{ marginTop: '30px' }}>
         <h3 style={{ fontSize: '18px', marginBottom: '16px', color: 'var(--text-primary)' }}>
           Supervisor Accounts
@@ -438,6 +537,30 @@ const AdminSettings = () => {
             </form>
           </div>
         </div>
+      )}
+        </>
+      )}
+
+      {/* Fleet Import Tab */}
+      {adminTab === 'fleet' && (
+        <>
+          <div className="info-box">
+            <p>Import or update vehicle fleet data from a CSV file. This will update existing vehicles or add new ones to the database.</p>
+          </div>
+
+          <AdminFleetImportSettings />
+        </>
+      )}
+
+      {/* GTFS Data Tab */}
+      {adminTab === 'gtfs' && (
+        <>
+          <div className="info-box">
+            <p>Import GTFS (General Transit Feed Specification) data files to update routes, stops, trips, and stop times. These files are regularly updated and can be uploaded here to keep the transit data current.</p>
+          </div>
+
+          <AdminGTFSSettings />
+        </>
       )}
     </div>
   );
