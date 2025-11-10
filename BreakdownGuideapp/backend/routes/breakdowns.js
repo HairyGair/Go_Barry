@@ -1407,6 +1407,125 @@ router.post('/:breakdown_id/update-card', async (req, res) => {
   }
 });
 
+// POST /api/breakdowns/smart-route-match - Find routes passing through breakdown location
+// Returns all bus routes serving stops within 1km of the breakdown location
+router.post('/smart-route-match', async (req, res) => {
+  try {
+    const { latitude, longitude, radius_km = 1 } = req.body;
+
+    // Validate coordinates
+    if (!latitude || !longitude) {
+      return res.status(400).json({
+        success: false,
+        error: 'Latitude and longitude are required',
+        code: 'MISSING_COORDINATES'
+      });
+    }
+
+    // Validate that they are numbers
+    const lat = parseFloat(latitude);
+    const lng = parseFloat(longitude);
+
+    if (isNaN(lat) || isNaN(lng)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Latitude and longitude must be valid numbers',
+        code: 'INVALID_COORDINATES'
+      });
+    }
+
+    // Validate ranges
+    if (lat < -90 || lat > 90) {
+      return res.status(400).json({
+        success: false,
+        error: 'Latitude must be between -90 and 90',
+        code: 'INVALID_LATITUDE'
+      });
+    }
+
+    if (lng < -180 || lng > 180) {
+      return res.status(400).json({
+        success: false,
+        error: 'Longitude must be between -180 and 180',
+        code: 'INVALID_LONGITUDE'
+      });
+    }
+
+    // Approximately 1 degree of latitude = 111 km
+    // So for 1km radius: 1/111 ≈ 0.009 degrees
+    // For X km radius: X/111 degrees
+    const radiusDegrees = radius_km / 111;
+
+    // Query: Find all routes serving stops within the radius
+    // Using geospatial distance calculation:
+    // SQRT((lat - stop_lat)^2 + (lng - stop_lon)^2) < radiusDegrees
+    const sql = `
+      SELECT DISTINCT
+        gr.route_id,
+        gr.route_short_name,
+        gr.route_long_name,
+        COUNT(DISTINCT gst.trip_id) as trips_per_period,
+        COUNT(DISTINCT gs.stop_id) as serving_stops,
+        GROUP_CONCAT(DISTINCT gs.stop_name SEPARATOR ', ') as serving_stop_names,
+        MIN(gs.stop_lat) as nearest_lat,
+        MIN(gs.stop_lon) as nearest_lon,
+        SQRT(
+          POW((gs.stop_lat - ?), 2) +
+          POW((gs.stop_lon - ?), 2)
+        ) as distance_degrees
+      FROM gtfs_stops gs
+      JOIN gtfs_stop_times gst ON gs.stop_id = gst.stop_id
+      JOIN gtfs_trips gt ON gst.trip_id = gt.trip_id
+      JOIN gtfs_routes gr ON gt.route_id = gr.route_id
+      WHERE SQRT(
+        POW((gs.stop_lat - ?), 2) +
+        POW((gs.stop_lon - ?), 2)
+      ) < ?
+      GROUP BY gr.route_id
+      ORDER BY trips_per_period DESC, distance_degrees ASC
+    `;
+
+    const results = await query(sql, [lat, lng, lat, lng, radiusDegrees]);
+
+    // Transform results for frontend
+    const affectedRoutes = results.map(route => ({
+      route_id: route.route_id,
+      route_short_name: route.route_short_name,
+      route_long_name: route.route_long_name,
+      trips_per_period: parseInt(route.trips_per_period) || 0,
+      serving_stops: parseInt(route.serving_stops) || 0,
+      serving_stop_names: route.serving_stop_names,
+      distance_km: Math.round((route.distance_degrees * 111) * 10) / 10, // Convert back to km with 1 decimal
+      nearest_coordinates: {
+        lat: parseFloat(route.nearest_lat),
+        lng: parseFloat(route.nearest_lon)
+      }
+    }));
+
+    res.json({
+      success: true,
+      breakdown_location: {
+        latitude: lat,
+        longitude: lng,
+        radius_km: radius_km
+      },
+      affected_routes: affectedRoutes,
+      total_routes: affectedRoutes.length,
+      message: affectedRoutes.length > 0
+        ? `Found ${affectedRoutes.length} routes serving stops near this location`
+        : 'No routes found serving stops near this location'
+    });
+
+  } catch (error) {
+    console.error('Error finding smart routes:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to find routes for location',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
 // POST /api/breakdowns/resolve - Mark breakdown as resolved/completed
 router.post('/resolve', async (req, res) => {
   try {

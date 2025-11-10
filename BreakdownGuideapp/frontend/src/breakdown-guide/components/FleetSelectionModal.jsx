@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import * as Icons from './common/icons.jsx';
 import storageService from '../../services/storageService.js';
+import breakdownDataService from '../../services/breakdownDataService.js';
 import { useFrequentRoutes, useRecentFleetNumbers, useBreakdownDraft } from '../../hooks/useStorage.js';
 import routeHelpers from '../../data/routes.js';
 import { storeSelectedVehicle } from '../../dashboards/sdc/fleetDataFix.js';
@@ -25,6 +26,11 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
     const [routeSearch, setRouteSearch] = useState('');
     const [showRouteSearch, setShowRouteSearch] = useState(false);
     const [routeSearchResults, setRouteSearchResults] = useState([]);
+
+    // Smart route matching state
+    const [smartSuggestions, setSmartSuggestions] = useState([]);
+    const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+    const [showSmartSuggestions, setShowSmartSuggestions] = useState(false);
 
     // Secured mileage state
     const [securedMileage, setSecuredMileage] = useState(false);
@@ -306,6 +312,28 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
         setCurrentStep('location');
     };
     
+    // Fetch smart route suggestions based on location
+    const fetchSmartSuggestions = async (lat, lng) => {
+        setLoadingSuggestions(true);
+        try {
+            const result = await breakdownDataService.getSmartRouteSuggestions(lat, lng, 1);
+            if (result.success && result.routes && result.routes.length > 0) {
+                setSmartSuggestions(result.routes);
+                setShowSmartSuggestions(true);
+                console.log('✅ Got smart route suggestions:', result.routes.length);
+            } else {
+                console.log('ℹ️ No smart route suggestions found');
+                setSmartSuggestions([]);
+                setShowSmartSuggestions(false);
+            }
+        } catch (err) {
+            console.error('Error fetching smart suggestions:', err);
+            setSmartSuggestions([]);
+        } finally {
+            setLoadingSuggestions(false);
+        }
+    };
+
     // Handle location methods
     const handleTicketerClick = () => {
         setShowTicketerModal(true);
@@ -340,6 +368,9 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                 description: `Ticketer Location (${lat.toFixed(6)}, ${lng.toFixed(6)})`
             });
 
+            // Fetch smart route suggestions based on location
+            await fetchSmartSuggestions(lat, lng);
+
             // Complete the selection with route data and secured mileage
             const completeVehicleData = {
                 ...selectedVehicle,
@@ -371,7 +402,7 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
         }
     };
     
-    const handleDepotSelect = (depotName) => {
+    const handleDepotSelect = async (depotName) => {
         const depot = depotLocations[depotName];
 
         setSelectedLocation({
@@ -379,6 +410,9 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
             name: depotName,
             ...depot
         });
+
+        // Fetch smart route suggestions based on depot location
+        await fetchSmartSuggestions(depot.lat, depot.lng);
 
         const completeVehicleData = {
             ...selectedVehicle,
@@ -630,6 +664,43 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                                 {error && (
                                     <div className="bg-red-500/20 border border-red-500/30 rounded-lg p-3 text-red-400 text-sm">
                                         {error}
+                                    </div>
+                                )}
+
+                                {/* Smart Route Suggestions (Based on Location) */}
+                                {showSmartSuggestions && smartSuggestions && smartSuggestions.length > 0 && (
+                                    <div className="space-y-3 bg-gradient-to-r from-green-500/10 to-emerald-500/10 rounded-lg p-4 border border-green-500/30">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <div className="w-6 h-6 rounded-full bg-green-500/30 flex items-center justify-center">
+                                                <span className="text-xs">✨</span>
+                                            </div>
+                                            <p className="text-sm font-semibold text-green-400">
+                                                Smart Route Suggestions ({smartSuggestions.length})
+                                            </p>
+                                        </div>
+                                        <p className="text-xs text-gray-400 mb-3">Based on your vehicle's location, these routes operate nearby</p>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {smartSuggestions.map((suggestion) => (
+                                                <button
+                                                    key={suggestion.route_id}
+                                                    onClick={() => {
+                                                        setSelectedRoute(suggestion.route_short_name);
+                                                        setRouteName(suggestion.route_long_name || suggestion.route_short_name);
+                                                        setShowSmartSuggestions(false); // Close suggestions panel
+                                                    }}
+                                                    className={`p-3 rounded-lg border transition-all text-left ${
+                                                        selectedRoute === suggestion.route_short_name
+                                                            ? 'bg-green-600 border-green-500 text-white'
+                                                            : 'bg-gray-800 border-green-500/30 text-gray-300 hover:bg-gray-700 hover:border-green-400'
+                                                    }`}
+                                                >
+                                                    <div className="font-semibold text-sm">{suggestion.route_short_name}</div>
+                                                    <div className="text-xs text-gray-400 mt-1 truncate">
+                                                        {suggestion.trips_per_period} trips • {suggestion.distance_km?.toFixed(2) || '?'}km
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
                                 )}
 

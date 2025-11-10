@@ -1,8 +1,6 @@
 // Enhanced data service for better breakdown data integration
 // This service ensures proper data flow from assessments to dashboard
 
-import { apiConfig } from '../../breakdown-guide/components/common/constants';
-
 // Google Maps Geocoding (free up to 40,000 requests/month with billing enabled, or 2,500/day without)
 const GOOGLE_MAPS_API_KEY = process.env.VITE_GOOGLE_MAPS_API_KEY || '';
 
@@ -403,7 +401,7 @@ class BreakdownDataService {
   // Get all recent assessments
   getRecentAssessments(limit = 10) {
     const assessments = [];
-    
+
     try {
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
@@ -414,14 +412,50 @@ class BreakdownDataService {
           }
         }
       }
-      
+
       // Sort by timestamp and limit
       assessments.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
       return assessments.slice(0, limit);
-      
+
     } catch (error) {
       console.error('Error getting recent assessments:', error);
       return [];
+    }
+  }
+
+  // Get smart route matching suggestions based on location
+  async getSmartRouteSuggestions(latitude, longitude, radiusKm = 1) {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
+
+      const response = await fetch(`${apiUrl}/api/breakdowns/smart-route-match`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          latitude,
+          longitude,
+          radius_km: radiusKm
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('🎯 Smart route suggestions:', data.affected_routes);
+        return {
+          success: true,
+          routes: data.affected_routes || [],
+          location: { latitude, longitude, radius_km: radiusKm },
+          total: data.total_routes || 0
+        };
+      } else {
+        console.warn('Failed to get smart route suggestions:', response.status);
+        return { success: false, routes: [], total: 0 };
+      }
+    } catch (error) {
+      console.error('Error fetching smart route suggestions:', error);
+      return { success: false, routes: [], total: 0, error: error.message };
     }
   }
 }
