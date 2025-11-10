@@ -510,81 +510,66 @@ router.post('/stop-times', upload.single('csvFile'), async (req, res) => {
       });
     }
 
-    console.log(`📊 Parsed ${parseResult.recordCount} stop times - Beginning import...`);
+    console.log(`📊 Parsed ${parseResult.recordCount} stop times - Beginning optimized batch import...`);
 
     let successCount = 0;
-    let updateCount = 0;
     const importErrors = [];
-    const batchSize = 1000;
+    const batchSize = 5000; // Larger batches for bulk INSERT
 
     try {
-      // Batch insert for performance
+      // Optimized batch insert using INSERT ON DUPLICATE KEY UPDATE
       for (let i = 0; i < parseResult.data.length; i += batchSize) {
         const batch = parseResult.data.slice(i, i + batchSize);
 
-        await transaction(async (connection) => {
-          for (const row of batch) {
-            try {
-              const [existing] = await connection.execute(
-                'SELECT trip_id FROM gtfs_stop_times WHERE trip_id = ? AND stop_id = ? AND stop_sequence = ?',
-                [row.trip_id, row.stop_id, row.stop_sequence]
-              );
+        // Build a single bulk INSERT statement with ON DUPLICATE KEY UPDATE
+        // This is MUCH faster than individual SELECTs + INSERTs/UPDATEs
+        const values = [];
+        const placeholders = [];
 
-              if (existing.length > 0) {
-                await connection.execute(
-                  `UPDATE gtfs_stop_times SET
-                    arrival_time = ?,
-                    departure_time = ?,
-                    stop_headsign = ?,
-                    pickup_type = ?,
-                    drop_off_type = ?,
-                    updated_at = NOW()
-                  WHERE trip_id = ? AND stop_id = ? AND stop_sequence = ?`,
-                  [
-                    row.arrival_time || null,
-                    row.departure_time || null,
-                    row.stop_headsign || null,
-                    row.pickup_type || null,
-                    row.drop_off_type || null,
-                    row.trip_id,
-                    row.stop_id,
-                    row.stop_sequence
-                  ]
-                );
-                updateCount++;
-              } else {
-                await connection.execute(
-                  `INSERT INTO gtfs_stop_times
-                  (trip_id, stop_id, stop_sequence, arrival_time, departure_time,
-                   stop_headsign, pickup_type, drop_off_type, created_at, updated_at)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-                  [
-                    row.trip_id,
-                    row.stop_id,
-                    row.stop_sequence,
-                    row.arrival_time || null,
-                    row.departure_time || null,
-                    row.stop_headsign || null,
-                    row.pickup_type || null,
-                    row.drop_off_type || null
-                  ]
-                );
-                successCount++;
-              }
-            } catch (insertError) {
-              importErrors.push({
-                tripId: row.trip_id,
-                stopId: row.stop_id,
-                error: insertError.message
-              });
-            }
-          }
-        });
-
-        // Log progress every 10 batches
-        if ((i / batchSize) % 10 === 0) {
-          console.log(`   Progress: ${Math.min(i + batchSize, parseResult.data.length)} / ${parseResult.recordCount}`);
+        for (const row of batch) {
+          placeholders.push('(?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())');
+          values.push(
+            row.trip_id,
+            row.stop_id,
+            row.stop_sequence,
+            row.arrival_time || null,
+            row.departure_time || null,
+            row.stop_headsign || null,
+            row.pickup_type || null,
+            row.drop_off_type || null
+          );
         }
+
+        try {
+          await query(
+            `INSERT INTO gtfs_stop_times
+            (trip_id, stop_id, stop_sequence, arrival_time, departure_time,
+             stop_headsign, pickup_type, drop_off_type, created_at, updated_at)
+            VALUES ${placeholders.join(',')}
+            ON DUPLICATE KEY UPDATE
+              arrival_time = VALUES(arrival_time),
+              departure_time = VALUES(departure_time),
+              stop_headsign = VALUES(stop_headsign),
+              pickup_type = VALUES(pickup_type),
+              drop_off_type = VALUES(drop_off_type),
+              updated_at = NOW()`,
+            values
+          );
+
+          successCount += batch.length;
+        } catch (batchError) {
+          // If bulk insert fails, log error but continue
+          console.error(`   Error importing batch ${i / batchSize}:`, batchError.message);
+          importErrors.push({
+            batchNumber: Math.floor(i / batchSize),
+            batchSize: batch.length,
+            error: batchError.message
+          });
+        }
+
+        // Log progress every 5 batches
+        const progressPercent = Math.round(((i + batchSize) / parseResult.data.length) * 100);
+        console.log(`   Progress: ${progressPercent}% (${Math.min(i + batchSize, parseResult.data.length)} / ${parseResult.recordCount})`);
       }
 
       console.log('✅ Stop times import completed');
@@ -592,18 +577,19 @@ router.post('/stop-times', upload.single('csvFile'), async (req, res) => {
         success: true,
         message: 'Stop times imported successfully',
         totalRows: parseResult.recordCount,
-        successCount,
-        updateCount,
+        processedCount: successCount,
         failureCount: importErrors.length,
-        errors: importErrors.slice(0, 10),
-        note: 'Large stop times imports may take several minutes to complete'
+        errors: importErrors.slice(0, 5),
+        note: 'Large stop times imports use optimized batch INSERT ON DUPLICATE KEY UPDATE for performance'
       });
 
-    } catch (transactionError) {
+    } catch (batchImportError) {
+      console.error('❌ Batch import error:', batchImportError);
       return res.status(500).json({
         success: false,
-        error: 'Database error',
-        message: transactionError.message
+        error: 'Batch import failed',
+        message: batchImportError.message,
+        processedCount: successCount
       });
     }
 
