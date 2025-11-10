@@ -135,24 +135,56 @@ const lookupFleetData = async (fleetNumber) => {
   // Load fleet database if not cached
   if (!fleetDataCache) {
     try {
-      const response = await fetch('/gne-fleet-database.json');
+      // Get API URL from environment or use production default
+      const apiUrl = import.meta?.env?.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
+
+      const response = await fetch(`${apiUrl}/api/fleet`, {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
       if (response.ok) {
-        fleetDataCache = await response.json();
-        console.log('📚 Fleet database loaded:', fleetDataCache.totalVehicles, 'vehicles');
+        const fleetList = await response.json();
+        // Create keyed map for faster lookup
+        fleetDataCache = {};
+        fleetList.forEach(vehicle => {
+          fleetDataCache[vehicle.fleet_no.toString()] = {
+            fleetNumber: vehicle.fleet_no.toString(),
+            regNo: vehicle.registration || 'N/A',
+            depot: vehicle.depot || 'Unknown',
+            vehicleType: vehicle.vehicle_type || 'Unknown',
+            isActive: vehicle.is_active !== 0
+          };
+        });
+        console.log(`📚 Fleet database loaded from API: ${fleetList.length} vehicles`);
       } else {
-        throw new Error('Failed to load fleet database');
+        throw new Error(`API returned status ${response.status}`);
       }
     } catch (error) {
       console.error('❌ Fleet database load error:', error);
+      // Fallback to static JSON if API fails
+      try {
+        const response = await fetch('/gne-fleet-database.json');
+        if (response.ok) {
+          const data = await response.json();
+          fleetDataCache = data.fleet?.reduce((map, v) => {
+            map[v.fleetNumber] = v;
+            return map;
+          }, {}) || {};
+          console.log('📚 Fleet database loaded from fallback JSON');
+        }
+      } catch (fallbackError) {
+        console.error('❌ Fallback fleet database also failed:', fallbackError);
+      }
       return null;
     }
   }
 
   // Find vehicle in database
-  const vehicle = fleetDataCache.fleet?.find(v => 
-    v.fleetNumber === fleetNumber || 
-    v.fleetNumber === fleetNumber.toString()
-  );
+  const vehicleKey = fleetNumber.toString();
+  const vehicle = fleetDataCache[vehicleKey];
 
   if (vehicle) {
     console.log('✅ Found vehicle in database:', vehicle);

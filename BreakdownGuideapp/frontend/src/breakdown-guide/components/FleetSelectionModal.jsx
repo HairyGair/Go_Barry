@@ -80,30 +80,60 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
         }
     };
     
-    // Load fleet database
+    // Load fleet database from API
     useEffect(() => {
         const loadFleetDatabase = async () => {
             try {
-                const response = await fetch('/gne-fleet-database.json');
-                if (!response.ok) {
-                    throw new Error('Failed to load fleet database');
-                }
-                const data = await response.json();
-                setFleetData(data);
-            } catch (err) {
-                console.error('Failed to load fleet database:', err);
-                // Use fallback mock data if needed
-                setFleetData({
-                    fleet: [
-                        { fleetNumber: '6301', regNo: 'NK68FVG', depot: 'Washington', vehicleType: 'Wrightbus Streetlite' },
-                        { fleetNumber: '6308', regNo: 'NK68FVP', depot: 'Deptford', vehicleType: 'Wrightbus Streetlite' }
-                    ]
+                // First try to load from API (live data)
+                const apiUrl = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
+                const response = await fetch(`${apiUrl}/api/fleet`, {
+                    credentials: 'include', // Include auth cookies
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
                 });
+
+                if (response.ok) {
+                    const fleetList = await response.json();
+                    // Transform API data to match expected format
+                    const transformedData = {
+                        fleet: fleetList.map(vehicle => ({
+                            fleetNumber: vehicle.fleet_no.toString(),
+                            regNo: vehicle.registration || 'N/A',
+                            depot: vehicle.depot || 'Unknown',
+                            vehicleType: vehicle.vehicle_type || 'Unknown'
+                        }))
+                    };
+                    setFleetData(transformedData);
+                    console.log(`✅ Loaded ${fleetList.length} vehicles from API`);
+                } else {
+                    throw new Error('API request failed');
+                }
+            } catch (err) {
+                console.warn('⚠️ Failed to load fleet from API, trying fallback JSON:', err);
+                // Fallback to static JSON file
+                try {
+                    const response = await fetch('/gne-fleet-database.json');
+                    if (!response.ok) {
+                        throw new Error('Failed to load fleet database');
+                    }
+                    const data = await response.json();
+                    setFleetData(data);
+                } catch (fallbackErr) {
+                    console.error('Failed to load fallback fleet database:', fallbackErr);
+                    // Use minimal mock data if all else fails
+                    setFleetData({
+                        fleet: [
+                            { fleetNumber: '6301', regNo: 'NK68FVG', depot: 'Washington', vehicleType: 'Wrightbus Streetlite' },
+                            { fleetNumber: '6308', regNo: 'NK68FVP', depot: 'Deptford', vehicleType: 'Wrightbus Streetlite' }
+                        ]
+                    });
+                }
             } finally {
                 setFleetLoading(false);
             }
         };
-        
+
         if (isOpen) {
             loadFleetDatabase();
         }

@@ -48,22 +48,38 @@ window.BreakdownAnalytics = {
   // Load fleet database from backend API
   loadFleetDatabase: async function() {
     try {
-      const apiUrl = window.location.hostname === 'localhost' 
-        ? 'http://localhost:3001/api/fleet-database'
-        : '/api/fleet-database';
-      
-      const response = await fetch(apiUrl);
-      const result = await response.json();
-      
-      if (result.success) {
-        this.fleetDatabase = result.data;
-        console.log('✅ Fleet database loaded', Object.keys(this.fleetDatabase).length, 'vehicles');
-        return this.fleetDatabase;
-      } else {
-        throw new Error(result.error || 'API returned error');
+      // Get API URL from environment or use production default
+      const apiUrl = import.meta?.env?.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
+
+      const response = await fetch(`${apiUrl}/api/fleet`, {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`API returned status ${response.status}`);
       }
+
+      const fleetList = await response.json();
+
+      // Transform flat array into keyed object for easier lookup by fleet number
+      this.fleetDatabase = {};
+      fleetList.forEach(vehicle => {
+        this.fleetDatabase[vehicle.fleet_no.toString()] = {
+          fleetNo: vehicle.fleet_no.toString(),
+          registration: vehicle.registration || 'N/A',
+          depot: vehicle.depot || 'Unknown',
+          vehicleType: vehicle.vehicle_type || 'Unknown',
+          isActive: vehicle.is_active !== 0
+        };
+      });
+
+      console.log(`✅ Fleet database loaded: ${fleetList.length} vehicles from API`);
+      return this.fleetDatabase;
     } catch (error) {
-      console.error('Failed to load fleet database:', error);
+      console.error('Failed to load fleet database from API:', error);
       return null;
     }
   },
