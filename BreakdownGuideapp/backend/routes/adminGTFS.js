@@ -108,7 +108,7 @@ function parseGTFSFile(buffer, fileType) {
  * POST /api/admin/gtfs/routes
  * Import bus routes from GTFS routes.txt file
  */
-router.post('/routes', authenticateAdmin, upload.single('csvFile'), async (req, res) => {
+router.post('/routes', ...authenticateAdmin, upload.single('csvFile'), async (req, res) => {
   try {
     console.log('🚀 GTFS Routes import request received');
     console.log('   User:', req.user?.email);
@@ -251,7 +251,7 @@ router.post('/routes', authenticateAdmin, upload.single('csvFile'), async (req, 
  * POST /api/admin/gtfs/stops
  * Import bus stops from GTFS stops.txt file
  */
-router.post('/stops', authenticateAdmin, upload.single('csvFile'), async (req, res) => {
+router.post('/stops', ...authenticateAdmin, upload.single('csvFile'), async (req, res) => {
   try {
     console.log('🚀 GTFS Stops import request received');
 
@@ -373,7 +373,7 @@ router.post('/stops', authenticateAdmin, upload.single('csvFile'), async (req, r
  * POST /api/admin/gtfs/trips
  * Import trips from GTFS trips.txt file
  */
-router.post('/trips', authenticateAdmin, upload.single('csvFile'), async (req, res) => {
+router.post('/trips', ...authenticateAdmin, upload.single('csvFile'), async (req, res) => {
   try {
     console.log('🚀 GTFS Trips import request received');
 
@@ -486,7 +486,7 @@ router.post('/trips', authenticateAdmin, upload.single('csvFile'), async (req, r
  * Import stop times from GTFS stop_times.txt file
  * WARNING: This is a large file (46MB+) - import may take several minutes
  */
-router.post('/stop-times', authenticateAdmin, upload.single('csvFile'), async (req, res) => {
+router.post('/stop-times', ...authenticateAdmin, upload.single('csvFile'), async (req, res) => {
   try {
     console.log('🚀 GTFS Stop Times import request received');
     console.log('   WARNING: This operation may take several minutes');
@@ -622,7 +622,7 @@ router.post('/stop-times', authenticateAdmin, upload.single('csvFile'), async (r
  * GET /api/admin/gtfs/stats
  * Get statistics on imported GTFS data
  */
-router.get('/stats', authenticateAdmin, async (req, res) => {
+router.get('/stats', ...authenticateAdmin, async (req, res) => {
   try {
     const stats = {};
 
