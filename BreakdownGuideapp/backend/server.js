@@ -198,6 +198,7 @@ import bugReportsRoutes from './routes/bugReports.js';
 import displayRoutes from './routes/displays.js';
 import adminFleetRoutes from './routes/adminFleet.js';
 import adminGTFSRoutes from './routes/adminGTFS.js';
+import gtfsPhase1Routes from './routes/gtfsPhase1.js';
 import webSocketHandler from './routes/webSocketHandler.js';
 
 // Root API documentation endpoint
@@ -610,6 +611,9 @@ app.use('/api/supervisors', supervisorRoutes); // Stats endpoint is read-only, n
 // Admin-only routes (require admin role)
 app.use('/api/admin/fleet', authenticateAdmin, adminFleetRoutes); // Fleet CSV import and management
 app.use('/api/admin/gtfs', authenticateAdmin, adminGTFSRoutes); // GTFS transit data import
+
+// GTFS Phase 1 Features - Live route status, coverage analysis, incident heatmap
+app.use('/api/gtfs', authenticateSupervisor, gtfsPhase1Routes);
 
 // SDC Dashboard API routes (requires SDC operator authentication and rate limiting)
 app.use('/api/sdc', rateLimitSDC, authenticateSDC, breakdownsAPIRoutes);

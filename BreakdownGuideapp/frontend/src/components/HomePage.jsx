@@ -15,6 +15,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import LiveActivityFeed from './LiveActivityFeed.jsx';
 import { fetchDashboardData } from '../utils/fetchDashboardData.js';
+import './HomePage.css';
 
 const HomePage = ({ onStatsChange }) => {
   const navigate = useNavigate();
@@ -116,21 +117,21 @@ const HomePage = ({ onStatsChange }) => {
 
       {/* Quick Stats Dashboard */}
       <div className="dashboard-stats">
-        <div className="stat-card">
+        <div className={`stat-card ${dashboardData.stats?.activeBreakdowns > 0 ? 'active' : ''}`}>
           <div className="stat-icon">⚠️</div>
           <div className="stat-content">
             <h3>Active Breakdowns</h3>
             <p className="stat-value">{dashboardData.stats?.activeBreakdowns || 0}</p>
           </div>
         </div>
-        <div className="stat-card">
+        <div className={`stat-card ${dashboardData.stats?.todayTotal > 0 ? 'active' : ''}`}>
           <div className="stat-icon">📋</div>
           <div className="stat-content">
             <h3>Today's Assessments</h3>
             <p className="stat-value">{dashboardData.stats?.todayTotal || 0}</p>
           </div>
         </div>
-        <div className="stat-card">
+        <div className={`stat-card ${dashboardData.stats?.avgResponseTime > 0 ? 'active' : ''}`}>
           <div className="stat-icon">⏱️</div>
           <div className="stat-content">
             <h3>Avg Response Time</h3>
@@ -202,7 +203,8 @@ const HomePage = ({ onStatsChange }) => {
         </div>
       </div>
 
-      <style>{`
+      {/* All styles now in HomePage.css */}
+      {/* <style>{`
         .homepage {
           padding: 24px;
           max-width: 1200px;
@@ -430,7 +432,7 @@ const HomePage = ({ onStatsChange }) => {
             grid-template-columns: 1fr;
           }
         }
-      `}</style>
+      `}</style> */}
     </div>
   );
 };
