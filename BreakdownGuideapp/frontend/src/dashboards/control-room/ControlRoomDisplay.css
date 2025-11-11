@@ -1799,11 +1799,7 @@
 
 /* Full-screen optimization for 55" displays */
 @media screen and (min-width: 1920px) and (min-height: 1080px) {
-  /* Ensure content fits without scrolling */
-  html, body {
-    overflow: hidden;
-  }
-
+  /* Ensure content fits without scrolling - but allow overflow for smaller viewports */
   .control-room-display {
     max-height: 100vh;
     overflow: hidden;
