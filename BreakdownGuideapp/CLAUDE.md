@@ -1257,7 +1257,475 @@ return res.status(500).json({
 
 ---
 
-**Last Updated:** November 10, 2025 (Fleet CSV Import Documentation)
-**Document Version:** 3.2.1
-**System Status:** Production-Ready ✅
+---
+
+## 🚀 GTFS Feature Phase 1 Project Plan (November 11, 2025)
+
+### Overview
+
+**Phase 1: Foundation Features** - Build 3 high-value GTFS-powered features in 6-10 weeks
+
+**Features:**
+1. **Live Route Status Dashboard** - Real-time Green/Amber/Red status for all 231 routes
+2. **Route Coverage Analysis** - Identify which routes have backup vehicle coverage
+3. **Stop-Level Incident Heatmap** - Visualize breakdown clusters by geographic location
+
+**Investment:** $18,000 development cost
+**Payback:** 7.3 months
+**Annual Benefit:** ~$60,000 operational savings
+**Team:** 1 backend developer (full-time) + 1 frontend developer (full-time)
+**Timeline:** 6-10 weeks recommended (42-54 hours development)
+
+### Pre-Phase-1 Requirements (Week 0)
+
+**Critical Actions Before Starting:**
+
+1. **Verify route_id Population** (BLOCKING)
+   ```sql
+   -- Check if breakdowns have route_id populated
+   SELECT
+     COUNT(*) as total_breakdowns,
+     COUNT(route_id) as with_route_id,
+     ROUND(COUNT(route_id) / COUNT(*) * 100, 1) as pct_populated
+   FROM breakdowns;
+   ```
+   - ✅ If >80% populated: PROCEED
+   - ⚠️ If <80% populated: Need backfill (see Smart Route Matching feature or manual process)
+
+2. **Database Schema Optimization** (2-3 hours)
+   ```sql
+   -- Add indexes for Phase 1 queries
+   ALTER TABLE breakdowns
+     ADD SPATIAL INDEX idx_location_point
+     USING RTREE (location_point);
+
+   ALTER TABLE gtfs_stops
+     ADD SPATIAL INDEX idx_stop_location
+     USING RTREE (location);
+
+   ALTER TABLE gtfs_stop_times
+     ADD INDEX idx_trip_stop_time (trip_id, stop_id, departure_time);
+
+   ALTER TABLE breakdowns
+     ADD INDEX idx_route_status (route_id, status, created_at);
+
+   -- Create view for heatmap data
+   CREATE OR REPLACE VIEW breakdown_heatmap AS
+   SELECT
+     b.location_lat,
+     b.location_lng,
+     gs.stop_id,
+     gs.stop_name,
+     COUNT(*) as incident_count,
+     MAX(b.created_at) as last_incident
+   FROM breakdowns b
+   LEFT JOIN gtfs_stops gs ON (
+     SQRT(POW((gs.stop_lat - b.location_lat), 2) +
+          POW((gs.stop_lon - b.location_lng), 2)) < 0.01
+   )
+   WHERE b.created_at > DATE_SUB(NOW(), INTERVAL 6 MONTH)
+   GROUP BY b.location_lat, b.location_lng;
+   ```
+
+3. **Memory Monitoring Setup** (1-2 hours)
+   - Add `/api/system/memory` endpoint to backend/server.js
+   - Implement PM2 auto-restart at 1.9GB threshold
+   - Setup daily memory monitoring dashboard
+
+4. **Team Assignment** (Decision)
+   - Identify 1 full-time backend developer
+   - Identify 1 full-time frontend developer
+   - Get commitment for 6-10 weeks continuous work
+
+5. **Executive Approval** (Decision)
+   - Approve $18k budget for Phase 1
+   - Confirm Phase 1 is priority vs other work
+   - Sign-off on team allocation
+
+### Week-by-Week Detailed Plan
+
+#### Week 0: Preparation (Pre-Development)
+
+**Database & Infrastructure (2-3 days)**
+- [ ] Execute schema optimization SQL (5+ indexes + 1 view)
+- [ ] Test indexes with EXPLAIN on sample queries
+- [ ] Backup production database
+- [ ] Add memory monitoring endpoint
+- [ ] Verify route_id population ≥80%
+- [ ] Run smoke tests on existing features
+
+**Frontend Preparation (1 day)**
+- [ ] Review GTFS data structure and examples
+- [ ] Sketch UI mockups for 3 dashboards
+- [ ] Get supervisor feedback on layout/placement
+- [ ] Create Figma/wireframe designs
+
+**Backend Preparation (1 day)**
+- [ ] Review GTFS table schemas
+- [ ] Test sample queries for each feature
+- [ ] Create API response format spec
+- [ ] Setup development environment
+
+**Team Kickoff (0.5 days)**
+- [ ] Daily standup scheduled (9:30 AM each day)
+- [ ] Development tools configured (VSCode, Postman, etc.)
+- [ ] Slack/communication channels setup
+- [ ] Git branches created: `feature/phase1-dashboards`
+
+---
+
+#### Week 1: Live Route Status Dashboard
+
+**Goal:** Supervisors can see which routes have active breakdowns at a glance
+
+**Deliverable:** Working dashboard with real-time updates via WebSocket
+
+**Backend (8 hours)**
+- [ ] Create GET `/api/routes/status/live` endpoint
+- [ ] Query: All 231 routes with Green/Amber/Red status
+- [ ] Status logic: RED (STOP severity), AMBER (AMBER severity), GREEN (no actives)
+- [ ] Only count breakdowns from last 4 hours
+- [ ] Return: route_id, route_short_name, route_long_name, status, active_count
+- [ ] Add caching (30-second TTL) to avoid query spam
+- [ ] Unit tests (happy path + edge cases)
+
+**WebSocket (4 hours)**
+- [ ] Broadcast route status changes every 5 seconds
+- [ ] Filter broadcasts by supervisor's depot (if applicable)
+- [ ] Publish: new_breakdown, breakdown_updated, breakdown_resolved events
+
+**Frontend (6 hours)**
+- [ ] Create RouteStatusDashboard.jsx component
+- [ ] Grid layout: 5-6 routes per row
+- [ ] Color-coded status cards: Green/Yellow/Red
+- [ ] Display: route number, route name, active count
+- [ ] Real-time updates via WebSocket
+- [ ] Mobile responsive
+- [ ] Add to main navigation
+
+**Testing (2 hours)**
+- [ ] Load test with all 231 routes
+- [ ] Monitor memory usage (target: 8-15MB for this feature)
+- [ ] Test with 0, 1, 5, 50+ active breakdowns
+- [ ] Supervisor feedback session (30 min)
+
+**Validation Checklist**
+- [ ] API responds in <100ms
+- [ ] Dashboard loads in <2 seconds
+- [ ] Status updates within 5-10 seconds of breakdown change
+- [ ] Memory usage <30MB sustained
+- [ ] No console errors
+- [ ] Mobile view functional
+
+**Definition of Done**
+- ✅ Code merged to main branch
+- ✅ Tested on staging environment
+- ✅ Supervisor feedback positive (>4/5 rating)
+- ✅ Zero critical bugs
+- ✅ Documented in API reference
+
+---
+
+#### Week 2: Route Coverage Analysis
+
+**Goal:** Identify which routes have spare vehicle backup and which are at risk
+
+**Deliverable:** Coverage analysis dashboard + API for coverage data
+
+**Backend (10 hours)**
+- [ ] Create GET `/api/routes/coverage/analysis` endpoint
+- [ ] Query: For each route, count vehicles in range vs needed
+- [ ] "In range" = within 30km of route's average location
+- [ ] Return: route_id, spare_count, status (SAFE/HIGH_RISK/CRITICAL)
+- [ ] Cache for 15 minutes (batch job runs every 15 min)
+- [ ] Background job to compute coverage analysis
+- [ ] Handle edge cases: routes with <2 stops, depots with no spares
+
+**Background Job (4 hours)**
+- [ ] Scheduled cron job every 15 minutes
+- [ ] Compute coverage for all routes
+- [ ] Store results in cache
+- [ ] Log job execution time (target: <30 seconds)
+
+**Frontend (8 hours)**
+- [ ] Create CoverageAnalysisCard.jsx component
+- [ ] Display status indicator: SAFE (green), HIGH_RISK (yellow), CRITICAL (red)
+- [ ] Show spare count and needed vehicles
+- [ ] List alternative spare locations
+- [ ] Mobile responsive card layout
+- [ ] Add to dashboard or separate page
+
+**Database (2 hours)**
+- [ ] Create coverage_analysis table (optional, for history)
+- [ ] Index fleet_vehicles by depot and location
+- [ ] Optimize geospatial queries
+
+**Testing (2 hours)**
+- [ ] Test with 0, 1, 5, 50+ spares nearby
+- [ ] Monitor background job performance
+- [ ] Memory profiling (target: 92MB peak during batch job)
+- [ ] Supervisor feedback
+
+**Validation Checklist**
+- [ ] Coverage calculation >95% accurate
+- [ ] API response <100ms
+- [ ] Background job completes in <30s
+- [ ] Memory peak <120MB
+- [ ] Identifies coverage gaps correctly
+- [ ] Handles edge cases
+
+---
+
+#### Week 3-4: Stop-Level Incident Heatmap
+
+**Goal:** Visualize breakdown hotspots to identify problem areas needing maintenance
+
+**Deliverable:** Interactive heatmap showing breakdown clusters
+
+**Backend (12 hours)**
+- [ ] Create GET `/api/breakdowns/heatmap` endpoint
+- [ ] Query: Cluster breakdowns into geographic areas (cells)
+- [ ] Use 1km x 1km grid or stop-based clustering
+- [ ] Return: lat/lng, incident_count, severity_distribution, stop_names
+- [ ] Cache for 1 hour (expensive query)
+- [ ] Pagination: limit 100 clusters per request
+- [ ] Filter: by date range, severity, depot
+
+**Clustering Algorithm (4 hours)**
+- [ ] Option 1: K-means clustering of breakdown locations
+- [ ] Option 2: Grid-based clustering (1km cells)
+- [ ] Option 3: Stop-based clustering (use gtfs_stops as centers)
+- [ ] Recommendation: Grid-based (simplest, fastest)
+
+**Frontend (8 hours)**
+- [ ] Use Leaflet or Mapbox for visualization
+- [ ] Render heatmap layers with color intensity
+- [ ] Show cluster details on hover/click
+- [ ] Allow date range filtering
+- [ ] Mobile-friendly map view
+- [ ] Legend showing incident severity
+
+**Testing (3 hours)**
+- [ ] Test with 100, 1000, 10000+ breakdowns
+- [ ] Monitor query performance (target: <500ms with caching)
+- [ ] Memory profiling (target: 75MB peak)
+- [ ] Visual accuracy verification
+- [ ] Supervisor feedback
+
+**Validation Checklist**
+- [ ] Heatmap loads in <2 seconds
+- [ ] Clustering visually accurate
+- [ ] Identifies hotspots correctly
+- [ ] Memory usage <100MB sustained
+- [ ] Map responsive on mobile
+- [ ] Zoom/pan performance good
+
+---
+
+#### Week 4: Testing, Refinement & Supervisor Feedback
+
+**Goal:** Validate all 3 features with supervisors, fix bugs, optimize performance
+
+**Testing (8 hours)**
+- [ ] Run full smoke test suite (all 3 features)
+- [ ] Load test with 231 routes + 1000+ breakdowns
+- [ ] Memory profiling over 24 hours
+- [ ] Browser compatibility (Chrome, Firefox, Safari)
+- [ ] Mobile testing on actual supervisor devices
+- [ ] WebSocket stability testing
+
+**Performance Optimization (6 hours)**
+- [ ] Profile slow queries with EXPLAIN
+- [ ] Add missing indexes if needed
+- [ ] Optimize cache TTLs based on data change frequency
+- [ ] Reduce bundle size if needed
+
+**Supervisor Feedback Session (4 hours)**
+- [ ] 1-hour session with 2-3 supervisors
+- [ ] Collect feedback on each feature
+- [ ] Identify UI/UX improvements
+- [ ] Get usage recommendations
+- [ ] Measure satisfaction (target: >4/5)
+
+**Bug Fixes & Refinement (8 hours)**
+- [ ] Fix critical bugs found during testing
+- [ ] Implement supervisor feedback
+- [ ] Update error messages
+- [ ] Add loading states and placeholders
+
+**Documentation (2 hours)**
+- [ ] Update API reference with new endpoints
+- [ ] Create supervisor user guide
+- [ ] Document limitations and workarounds
+
+---
+
+#### Week 5: Production Deployment
+
+**Pre-Deployment (4 hours)**
+- [ ] Code review by at least 1 other developer
+- [ ] Security audit (SQL injection, XSS, etc.)
+- [ ] Final testing on staging environment
+- [ ] Database backup
+- [ ] Rollback plan documented
+
+**Deployment (2 hours)**
+- [ ] Deploy backend to production
+- [ ] Deploy frontend to cPanel
+- [ ] Verify health endpoints
+- [ ] Monitor logs for errors
+- [ ] Sanity tests (login, create breakdown, view dashboards)
+
+**Monitoring (continuous)**
+- [ ] Watch error logs every 30 minutes first day
+- [ ] Monitor memory usage
+- [ ] Track API response times
+- [ ] Monitor WebSocket connections
+- [ ] Be available for quick fixes
+
+**Supervisor Training (2 hours)**
+- [ ] 1-hour training session for all supervisors
+- [ ] Show each new feature
+- [ ] Explain how to interpret results
+- [ ] Q&A session
+
+---
+
+### Resource Requirements
+
+**Team:**
+- 1 Backend Developer (dedicated, full-time)
+- 1 Frontend Developer (dedicated, full-time)
+- 1 QA/Tester (part-time, 20 hours/week)
+- 1 Project Manager (10 hours/week oversight)
+
+**Total Effort:** 42-54 hours development + 15-20 hours testing/QA
+
+**Infrastructure:**
+- Staging environment (same spec as production)
+- MySQL with sufficient space for indexes (estimate 50-100MB)
+- Available RAM for background jobs (50-150MB)
+
+**Tools:**
+- Figma or whiteboard for design (free)
+- Postman for API testing (free)
+- GitHub for version control (free)
+- Slack or email for communication (likely already have)
+
+### Budget
+
+**Personnel (at $80/hour blended rate):**
+- Backend Dev: 20 hours × $80 = $1,600
+- Frontend Dev: 18 hours × $80 = $1,440
+- QA/Testing: 20 hours × $80 = $1,600
+- Project Mgmt: 10 hours × $80 = $800
+- **Subtotal: $5,440**
+
+**Infrastructure & Tools:**
+- Database optimization & migration: $500
+- Monitoring setup: $300
+- Testing tools/licenses: $200
+- **Subtotal: $1,000**
+
+**Contingency (20%):** $1,288
+
+**Supervisor Training & Documentation:** $2,000
+
+**TOTAL PHASE 1 BUDGET: $9,728** (originally estimated $18,000 - this is more conservative)
+
+### Success Criteria
+
+**Technical Success:**
+- ✅ All 3 endpoints return data in <100ms (p95)
+- ✅ WebSocket updates broadcast in <5 seconds
+- ✅ Memory usage stays <1.6GB
+- ✅ Zero data loss or corruption
+- ✅ 99.9% uptime during operational hours
+
+**Business Success:**
+- ✅ Supervisors adopt dashboard (>50% daily usage)
+- ✅ Time to view route status: <30 seconds (vs 3-5 min manual lookup)
+- ✅ Coverage gaps identified (≥5 found within week 1)
+- ✅ Supervisor satisfaction >4/5
+- ✅ Zero critical production issues
+
+**Quality Success:**
+- ✅ Code coverage >80%
+- ✅ Zero SQL injection vulnerabilities
+- ✅ Zero XSS vulnerabilities
+- ✅ All features work on mobile
+- ✅ API documentation complete and accurate
+
+### Risk Management
+
+**High Risk Items:**
+1. **route_id data quality** - Mitigation: Verify before Week 1, backfill if needed
+2. **Memory constraints** - Mitigation: Monitor daily, implement caching aggressively
+3. **Slow queries on 2M+ records** - Mitigation: Add proper indexes, cache results
+
+**Medium Risk Items:**
+1. **Team availability** - Mitigation: Confirm commitment upfront
+2. **Supervisor adoption** - Mitigation: Get feedback early (Week 1), iterate quickly
+3. **Integration with existing features** - Mitigation: Test WebSocket thoroughly
+
+**Low Risk Items:**
+1. **Frontend UI polish** - Mitigation: Designer available for quick fixes
+2. **Documentation gaps** - Mitigation: Document as you go
+3. **Minor bugs in Phase 2** - Mitigation: Keep bug tracker updated
+
+### Contingency Plans
+
+**If memory usage exceeds 1.6GB:**
+- Reduce cache TTL (faster eviction)
+- Implement more aggressive background job scheduling
+- Defer heatmap feature to Phase 2
+- Request temporary infrastructure upgrade
+
+**If queries exceed 500ms:**
+- Add more aggressive caching
+- Implement query pagination
+- Reduce data returned per query
+- Add background job preprocessing
+
+**If team availability changes:**
+- Extend timeline (1 week per person lost)
+- Reduce scope to 2 features (drop heatmap)
+- Outsource QA testing to save internal time
+
+**If supervisors don't adopt features:**
+- Conduct additional training sessions
+- Modify UI based on feedback
+- Create supervisor champions for each depot
+- Tie adoption to performance metrics
+
+### Next Actions (Immediate)
+
+1. **This Week:**
+   - [ ] Read GTFS_FEATURE_OPPORTUNITIES.md + FEATURE_PRIORITY_MATRIX.md
+   - [ ] Executive decision: Approve Phase 1 $18k budget?
+   - [ ] Verify route_id population in database (SQL query above)
+   - [ ] Identify backend + frontend developers
+
+2. **Next Week:**
+   - [ ] Execute database optimization SQL
+   - [ ] Setup memory monitoring
+   - [ ] Get UI/UX designs approved
+   - [ ] Create GitHub issues for each feature
+
+3. **Week 0 (Before Dev Starts):**
+   - [ ] Complete all pre-requisites
+   - [ ] Team kickoff meeting
+   - [ ] Create detailed API specs
+   - [ ] Setup staging environment
+
+4. **Week 1 (Start Development):**
+   - [ ] Begin Live Route Status Dashboard
+   - [ ] Daily standups start
+   - [ ] Supervisor feedback session scheduled
+
+---
+
+**Last Updated:** November 11, 2025 (GTFS Phase 1 Project Plan Created)
+**Document Version:** 3.2.2
+**System Status:** Production-Ready ✅ + Phase 1 Ready to Start
 **Documentation:** Clean and Organized
