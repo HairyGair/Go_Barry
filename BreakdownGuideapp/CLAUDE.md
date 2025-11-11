@@ -2,10 +2,10 @@
 
 This file provides guidance to Claude Code and other AI assistants when working with the Go BARRY Breakdown Management System.
 
-**Last Updated:** November 11, 2025 (Professional Design System Implementation)
+**Last Updated:** November 11, 2025 (GTFS Phase 1 Complete + Security Fixes Deployed + Legacy Docs Cleanup)
 **System Status:** Production-Ready ✅
-**Current Version:** 3.5.0 (MySQL + cPanel + Input Validation + GTFS + Professional Design System)
-**Documentation Status:** ✅ Cleaned and Organized (115+ legacy files removed, 231 lines mock data eliminated)
+**Current Version:** 3.6.0 (MySQL + cPanel + Input Validation + GTFS Phase 1 + Professional Design System + Security Hardening)
+**Documentation Status:** ✅ Cleaned and Organized (47 legacy files removed, 7 essential docs retained)
 
 ---
 
@@ -279,6 +279,50 @@ GET    /api/admin/fleet/import-template  # Download CSV template
 
 **Documentation:**
 - `FLEET_CSV_IMPORT_API_GUIDE.md` - Quick reference guide
+
+### 7. GTFS Phase 1: Live Route Intelligence (✅ COMPLETE - November 11, 2025)
+
+**Files:**
+- Backend: `/backend/routes/gtfsPhase1.js` (404 lines)
+- Frontend: `/frontend/src/dashboards/gtfs/LiveRouteStatusDashboard.jsx` (321 lines)
+- Frontend: `/frontend/src/dashboards/gtfs/RouteStatusCard.jsx` (158 lines)
+- Service: `/frontend/src/services/gtfsApiService.js` (85 lines)
+
+**Feature 1: Live Route Status Dashboard**
+- Real-time status for all 225+ bus routes
+- Color-coded status: Green (0 breakdowns), Amber (1 breakdown), Red (2+ breakdowns)
+- Filters: Status, Search by route number/name, Sort by status/number/name
+- Auto-refresh every 10 seconds via polling
+- Summary dashboard showing route health statistics
+
+**API Endpoints:**
+```
+GET /api/gtfs/routes/status/live        # All routes with status
+GET /api/gtfs/routes/:routeId/status    # Specific route details
+```
+
+**Backend Implementation:**
+- Uses MySQL view `v_route_status_summary` for aggregated data
+- Queries breakdowns table for active incidents
+- Counts breakdowns by severity for each route
+- Returns formatted response with summaries and detailed route status
+
+**Frontend Implementation:**
+- Responsive grid layout with RouteStatusCard components
+- Real-time polling with configurable refresh interval
+- Advanced filtering and search capabilities
+- Loading states and error handling
+- WebSocket-ready for future real-time updates (currently polling for stability)
+
+**Features Not Yet Implemented (Phase 1b+):**
+- Route Coverage Analysis (spare vehicle availability)
+- Stop-Level Incident Heatmap (geographic clustering)
+- WebSocket real-time updates (currently using polling)
+
+**Deployment Status:** ✅ Live in Production
+- Endpoints accessible at `/api/gtfs/routes/status/live`
+- Frontend dashboard accessible via navigation
+- Database views and schemas deployed
 
 ---
 
