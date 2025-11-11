@@ -141,8 +141,9 @@
 
 .sdc-breakdown-list {
   padding: 15px;
-  max-height: calc(100vh - 400px);
-  overflow-y: auto;
+  max-height: none;
+  overflow-y: visible;
+  overflow-x: hidden;
 }
 
 .sdc-breakdown-list::-webkit-scrollbar {
