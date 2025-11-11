@@ -7,9 +7,9 @@
 /* Container */
 .engineering-display {
   min-height: 100vh;
-  background: linear-gradient(135deg, #0a0f1b 0%, #1a2332 100%);
+  background: linear-gradient(135deg, var(--color-dark-bg-primary) 0%, var(--color-dark-bg-secondary) 100%);
   color: #ffffff;
-  padding: 32px;
+  padding: var(--spacing-xl);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   overflow-x: hidden;
 }
@@ -19,10 +19,10 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 40px;
-  padding: 24px 32px;
+  margin-bottom: var(--spacing-2xl);
+  padding: var(--spacing-lg) var(--spacing-xl);
   background: rgba(255, 255, 255, 0.05);
-  border-radius: 16px;
+  border-radius: var(--radius-xl);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
@@ -75,7 +75,7 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 12px;
+  gap: var(--spacing-sm);
 }
 
 .connection-indicator {
@@ -131,7 +131,7 @@
 .breakdowns-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-  gap: 32px;
+  gap: var(--spacing-xl);
   margin-bottom: 32px;
 }
 
@@ -157,10 +157,10 @@
 /* Breakdown Card */
 .breakdown-card {
   background: rgba(255, 255, 255, 0.08);
-  border-radius: 20px;
+  border-radius: var(--radius-2xl);
   padding: 28px;
   border: 2px solid transparent;
-  transition: all 0.3s ease;
+  transition: all var(--transition-slow);
   backdrop-filter: blur(10px);
   animation: fadeIn 0.4s ease;
 }
@@ -233,7 +233,7 @@
   font-size: 18px;
   font-weight: 700;
   padding: 10px 20px;
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   text-transform: uppercase;
   letter-spacing: 1px;
 }
@@ -260,7 +260,7 @@
 .card-body {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: var(--spacing-md);
 }
 
 .card-row {
@@ -306,7 +306,7 @@
 .engineer-row {
   background: rgba(96, 165, 250, 0.1);
   padding: 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   margin-top: 4px;
 }
 
@@ -327,7 +327,7 @@
   text-align: center;
   padding: 8px;
   background: rgba(251, 191, 36, 0.1);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
 }
 
 /* No Breakdowns State */

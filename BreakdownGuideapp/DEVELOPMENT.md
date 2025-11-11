@@ -1,7 +1,7 @@
 # Development Guide - Go BARRY Breakdown Management System
 
-**Document Version:** 2.1
-**Last Updated:** November 10, 2025 (API Path Convention Fix)
+**Document Version:** 2.2
+**Last Updated:** November 11, 2025 (Professional Design System v1.0)
 **Target Audience:** Developers, AI Assistants, Future Maintainers
 
 ---
@@ -29,15 +29,16 @@ See **[CLAUDE.md](./CLAUDE.md)** for complete cleanup details.
 ## 📋 Table of Contents
 
 1. [Documentation Guidelines](#documentation-guidelines)
-2. [Development Environment Setup](#development-environment-setup)
-3. [Project Structure](#project-structure)
-4. [Code Standards](#code-standards)
-5. [Development Workflow](#development-workflow)
-6. [Testing Guidelines](#testing-guidelines)
-7. [Deployment Process](#deployment-process)
-8. [Common Tasks](#common-tasks)
-9. [Troubleshooting](#troubleshooting)
-10. [Best Practices](#best-practices)
+2. [Design System Guide](#design-system-guide)
+3. [Development Environment Setup](#development-environment-setup)
+4. [Project Structure](#project-structure)
+5. [Code Standards](#code-standards)
+6. [Development Workflow](#development-workflow)
+7. [Testing Guidelines](#testing-guidelines)
+8. [Deployment Process](#deployment-process)
+9. [Common Tasks](#common-tasks)
+10. [Troubleshooting](#troubleshooting)
+11. [Best Practices](#best-practices)
 
 ---
 
@@ -99,6 +100,149 @@ git commit -m "docs: Update CLAUDE.md with feature X details"
 - Add inline code comments
 - Use detailed git commit messages
 - Ask user if genuinely need new file
+
+---
+
+## 🎨 Design System Guide
+
+The application uses a comprehensive professional design system implemented with CSS variables (design tokens). All developers should use this system for new components.
+
+### Quick Start with Design Tokens
+
+**1. File Locations:**
+- `frontend/src/styles/design-tokens.css` - All CSS variables (150+ tokens)
+- `frontend/src/styles/components.css` - Pre-built component classes (40+ classes)
+- `DESIGN_SYSTEM.md` - Complete design system documentation
+- `frontend/DESIGN_TOKENS_QUICK_REFERENCE.md` - Quick reference for developers
+
+**2. Using Design Tokens in CSS:**
+```css
+/* ✅ CORRECT - Use design tokens */
+.my-component {
+  color: var(--color-text-primary);
+  padding: var(--spacing-lg);
+  background: var(--color-red-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  transition: all var(--transition-base);
+}
+
+/* ❌ WRONG - Don't hardcode values */
+.my-component {
+  color: #111827;              /* Use token instead */
+  padding: 24px;               /* Use var(--spacing-lg) */
+  background: #E30613;         /* Use var(--color-red-primary) */
+  border-radius: 12px;         /* Use var(--radius-lg) */
+  box-shadow: 0 4px 6px ...;   /* Use var(--shadow-md) */
+}
+```
+
+**3. Using Pre-Built Component Classes:**
+```html
+<!-- Buttons -->
+<button class="btn btn-primary">Primary Action</button>
+<button class="btn btn-secondary">Secondary Action</button>
+<button class="btn btn-danger btn-lg">Delete (Large)</button>
+
+<!-- Cards -->
+<div class="card card--glass">
+  <div class="card-header">
+    <h3>Card Title</h3>
+  </div>
+  <div class="card-body">Content here</div>
+</div>
+
+<!-- Forms -->
+<div class="form-group">
+  <label class="form-label required">Name</label>
+  <input class="form-input" type="text" />
+  <span class="form-help">Helper text</span>
+</div>
+
+<!-- Layout -->
+<div class="flex flex-between flex-gap-lg">
+  <div>Left side</div>
+  <div>Right side</div>
+</div>
+
+<div class="grid grid-4 grid-gap-lg">
+  <div class="card">Item 1</div>
+  <div class="card">Item 2</div>
+  <div class="card">Item 3</div>
+  <div class="card">Item 4</div>
+</div>
+```
+
+### Color Tokens
+
+**Brand Colors:**
+- `var(--color-red-primary)` - Go North East red (#E30613)
+- `var(--color-navy-primary)` - Navy blue (#003B5C)
+
+**Status Colors:**
+- `var(--color-success)` - Green for success (#10B981)
+- `var(--color-warning)` - Amber for warning (#F59E0B)
+- `var(--color-critical)` - Red for errors (#DC2626)
+- `var(--color-info)` - Blue for information (#3B82F6)
+
+**Text Colors:**
+- `var(--color-text-primary)` - Main text (#111827)
+- `var(--color-text-secondary)` - Secondary text (#6B7280)
+- `var(--color-text-tertiary)` - Muted text (#9CA3AF)
+- `var(--color-text-inverse)` - White text (#FFFFFF)
+
+### Spacing Tokens
+
+```css
+var(--spacing-xs)    /* 4px - micro spacing */
+var(--spacing-sm)    /* 8px - small spacing */
+var(--spacing-md)    /* 16px - standard padding */
+var(--spacing-lg)    /* 24px - large spacing */
+var(--spacing-xl)    /* 32px - extra large */
+var(--spacing-2xl)   /* 48px - 2x large */
+var(--spacing-3xl)   /* 64px - 3x large */
+```
+
+### Shadow Tokens
+
+```css
+var(--shadow-sm)     /* Subtle shadow */
+var(--shadow-md)     /* Medium shadow */
+var(--shadow-lg)     /* Large shadow */
+var(--shadow-hover)  /* Hover lift effect */
+var(--shadow-lift)   /* Lifting effect */
+```
+
+### Border Radius Tokens
+
+```css
+var(--radius-sm)     /* 4px - small elements */
+var(--radius-md)     /* 8px - standard components */
+var(--radius-lg)     /* 12px - cards and modals */
+var(--radius-xl)     /* 16px - large containers */
+var(--radius-full)   /* 9999px - fully rounded pills */
+```
+
+### Transition Tokens
+
+```css
+var(--transition-fast)      /* 150ms - quick feedback */
+var(--transition-base)      /* 200ms - standard animation */
+var(--transition-slow)      /* 300ms - smooth motion */
+var(--transition-slowest)   /* 500ms - gradual transition */
+```
+
+### Dark Mode (Ready When Needed)
+
+Dark mode CSS is pre-configured with automatic color overrides. No additional CSS needed - just enable the media query when needed.
+
+### Documentation References
+
+For detailed information:
+- **Complete Guide:** `DESIGN_SYSTEM.md`
+- **Quick Reference:** `frontend/DESIGN_TOKENS_QUICK_REFERENCE.md`
+- **All Variables:** `frontend/src/styles/design-tokens.css`
+- **All Components:** `frontend/src/styles/components.css`
 
 ---
 

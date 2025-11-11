@@ -261,23 +261,8 @@ export const verifyToken = async (req, res, next) => {
     } catch (error) {
         console.error('Token verification error:', error);
 
-        // Development fallback to prevent crashes
-        if (process.env.NODE_ENV === 'development') {
-            console.log('🔧 Development mode: Auth error fallback for', req.path);
-            req.user = {
-                id: '1646c9a7-58fe-4ea6-bff2-8b5c3bbe54a0',
-                email: 'anthony.gair@gonortheast.co.uk',
-                name: 'Anthony Gair',
-                role: 'admin',
-                depot: 'Washington',
-                badge_number: 'AG003',
-                aud: 'authenticated',
-                exp: Math.floor(Date.now() / 1000) + 3600,
-                iat: Math.floor(Date.now() / 1000)
-            };
-            return next();
-        }
-
+        // SECURITY FIX: Removed development bypass - all requests require valid authentication
+        // No special cases for development mode
         return res.status(401).json({
             error: 'Authentication failed',
             code: 'AUTH_VERIFICATION_FAILED'
@@ -320,23 +305,7 @@ export const requireSupervisor = async (req, res, next) => {
     } catch (error) {
         console.error('Supervisor authorization error:', error);
 
-        // Development fallback to prevent crashes
-        if (process.env.NODE_ENV === 'development') {
-            console.log('🔧 Development mode: Supervisor check fallback for', req.path);
-            req.supervisor = {
-                id: '1646c9a7-58fe-4ea6-bff2-8b5c3bbe54a0',
-                email: 'anthony.gair@gonortheast.co.uk',
-                name: 'Anthony Gair',
-                depot: 'Washington',
-                role: 'admin',
-                badge_number: 'AG003'
-            };
-            req.user.supervisorRole = 'admin';
-            req.user.depot = 'Washington';
-            req.user.badge_number = 'AG003';
-            return next();
-        }
-
+        // SECURITY FIX: Removed development bypass - all requests require valid authorization
         return res.status(500).json({
             error: 'Authorization check failed',
             code: 'AUTH_CHECK_FAILED'

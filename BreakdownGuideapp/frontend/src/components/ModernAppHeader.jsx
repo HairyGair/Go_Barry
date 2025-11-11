@@ -111,10 +111,10 @@ const ModernAppHeader = ({
         { path: '/dashboards/sdc/alerts', label: 'Alerts' }
       ]
     },
-    { 
-      path: '/dashboards/engineering', 
+    {
+      path: '/dashboards/engineering',
       label: 'Fleet',
-      fullLabel: 'Fleet Intelligence', 
+      fullLabel: 'Fleet Intelligence',
       icon: '⚙️',
       color: '#f59e0b',
       description: 'Engineering & maintenance',
@@ -127,14 +127,29 @@ const ModernAppHeader = ({
         { path: '/dashboards/engineering/maintenance', label: 'Schedule' }
       ]
     },
-    { 
-      path: '/dashboards/management', 
+    {
+      path: '/dashboards/fleet-defects',
+      label: 'Defects',
+      fullLabel: 'Fleet Defect Intelligence',
+      icon: '🔍',
+      color: '#dc2626',
+      description: 'Defect tracking & predictive maintenance',
+      priority: 5,
+      stats: { label: 'Patterns', value: '—' },
+      quickLinks: [
+        { path: '/dashboards/fleet-defects', label: 'Intelligence' },
+        { path: '/dashboards/fleet-defects#trends', label: 'Trends' },
+        { path: '/dashboards/fleet-defects#predictive', label: 'Predictive' }
+      ]
+    },
+    {
+      path: '/dashboards/management',
       label: 'Reports',
-      fullLabel: 'Management', 
+      fullLabel: 'Management',
       icon: '📈',
       color: '#8b5cf6',
       description: 'Analytics & reports',
-      priority: 5,
+      priority: 6,
       comingSoon: true, // Add coming soon flag
       stats: { label: 'Resolved', value: liveStats.resolved },
       quickLinks: [

@@ -3,11 +3,12 @@
 > Real-time breakdown tracking and diagnostic platform for Go North East bus operations
 
 [![Production](https://img.shields.io/badge/status-production-brightgreen)](https://breakdowns.gobarry.co.uk)
-[![Version](https://img.shields.io/badge/version-3.2.1-blue)]()
+[![Version](https://img.shields.io/badge/version-3.5.0-blue)]()
 [![Database](https://img.shields.io/badge/database-MySQL-orange)]()
+[![Design System](https://img.shields.io/badge/design%20system-v1.0-success)]()
 [![Documentation](https://img.shields.io/badge/docs-clean%20%26%20organized-success)]()
 
-**Last Updated:** November 10, 2025 (API Path Convention Fix)
+**Last Updated:** November 11, 2025 (Professional Design System v1.0)
 
 **Production URLs:**
 - **Frontend:** https://breakdowns.gobarry.co.uk
@@ -15,9 +16,12 @@
 
 **📚 Documentation:**
 - **[CLAUDE.md](./CLAUDE.md)** - Complete guide for AI assistants
+- **[DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md)** - Professional Design System v1.0 (colors, spacing, components, dark mode)
+- **[CSS_REFACTOR_SUMMARY.md](./CSS_REFACTOR_SUMMARY.md)** - CSS refactoring details and metrics
 - **[DOCUMENTATION_STANDARDS.md](./DOCUMENTATION_STANDARDS.md)** - Documentation rules (READ THIS FIRST for AIs)
 - **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Deployment procedures
 - **[DEVELOPMENT.md](./DEVELOPMENT.md)** - Development guide
+- **[frontend/DESIGN_TOKENS_QUICK_REFERENCE.md](./frontend/DESIGN_TOKENS_QUICK_REFERENCE.md)** - Quick reference for developers
 
 ⚠️ **For AI Assistants:** Read [DOCUMENTATION_STANDARDS.md](./DOCUMENTATION_STANDARDS.md) before creating ANY new files.
 
@@ -37,6 +41,7 @@ The Go BARRY Breakdown Management System is a production-ready web application s
 - **Activity Feed** - Unified activity stream with live updates
 - **Analytics & Reporting** - Comprehensive KPIs and trend analysis
 - **Mobile-Optimized** - Responsive design works on phones, tablets, and desktops
+- **Professional Design System** - Unified styling with 150+ CSS variables, glassmorphism, dark mode ready
 
 ### Built For
 

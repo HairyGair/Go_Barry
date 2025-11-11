@@ -1,19 +1,19 @@
-/* Global Reset and Base Styles */
-:root {
-  --gne-red: #e30613;
-  --gne-navy: #003b5c;
-  --gne-light-gray: #f5f5f5;
-  --gne-dark-gray: #333333;
-  --success: #28a745;
-  --warning: #ffc107;
-  --danger: #dc3545;
-  --info: #17a2b8;
-  
-  --border-radius: 8px;
-  --transition: all 0.3s ease;
-  --shadow: 0 2px 4px rgba(0,0,0,0.1);
-  --shadow-lg: 0 4px 8px rgba(0,0,0,0.15);
-}
+/* ============================================================================
+   INDEX.CSS - Global Base Styles
+   ============================================================================
+   Import order:
+   1. design-tokens.css (CSS variables)
+   2. components.css (component styles)
+   3. This file (base + global styles)
+   ============================================================================ */
+
+/* Import design tokens first */
+@import './styles/design-tokens.css';
+@import './styles/components.css';
+
+/* ============================================================================
+   RESET & BASE STYLES
+   ============================================================================ */
 
 * {
   margin: 0;
@@ -21,78 +21,294 @@
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+  font-size: 16px;
+}
+
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: var(--font-family);
+  font-size: var(--text-base);
+  line-height: var(--line-height-base);
+  color: var(--color-text-primary);
+  background-color: var(--color-off-white);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: var(--gne-light-gray);
-  color: var(--gne-dark-gray);
-  line-height: 1.6;
+  transition: background-color var(--transition-base),
+              color var(--transition-base);
 }
 
-/* Utility Classes */
+/* Selection styling */
+::selection {
+  background-color: var(--color-red-primary);
+  color: var(--color-text-inverse);
+}
+
+::-moz-selection {
+  background-color: var(--color-red-primary);
+  color: var(--color-text-inverse);
+}
+
+/* ============================================================================
+   LINKS - Professional Link Styling
+   ============================================================================ */
+
+a {
+  color: var(--color-red-primary);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+a:hover {
+  color: var(--color-red-dark);
+  text-decoration: underline;
+}
+
+a:active {
+  color: var(--color-red-darker);
+}
+
+/* ============================================================================
+   CODE & PRE BLOCKS
+   ============================================================================ */
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--color-grey-100);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  color: var(--color-navy-dark);
+}
+
+pre {
+  background: var(--color-grey-100);
+  border: 1px solid var(--color-grey-200);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  margin-bottom: var(--spacing-lg);
+}
+
+pre code {
+  background: none;
+  padding: 0;
+  color: inherit;
+}
+
+/* ============================================================================
+   UTILITY CLASSES - Container & Layout
+   ============================================================================ */
+
 .container {
-  max-width: 1200px;
+  width: 100%;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 0 20px;
+  padding: 0 var(--spacing-lg);
 }
 
-/* Offline Banner */
+.container-sm {
+  max-width: 800px;
+}
+
+.container-md {
+  max-width: 1000px;
+}
+
+.container-lg {
+  max-width: 1400px;
+}
+
+/* Content wrapper with consistent padding */
+.content-wrapper {
+  padding: var(--spacing-2xl) var(--spacing-lg);
+}
+
+/* Section spacing */
+.section {
+  margin-bottom: var(--spacing-3xl);
+}
+
+.section:last-child {
+  margin-bottom: 0;
+}
+
+/* ============================================================================
+   OFFLINE BANNER
+   ============================================================================ */
+
 .offline-banner {
-  background-color: var(--warning);
-  color: #000;
-  padding: 10px;
+  background: var(--color-critical);
+  color: var(--color-text-inverse);
+  padding: var(--spacing-md) var(--spacing-lg);
   text-align: center;
-  font-weight: 500;
+  font-weight: var(--font-semibold);
   position: sticky;
   top: 0;
-  z-index: 1000;
+  z-index: var(--z-notification);
+  box-shadow: var(--shadow-md);
+  animation: slideDown var(--transition-fast) ease-out;
 }
 
-/* Loading States */
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+/* ============================================================================
+   LOADING STATES
+   ============================================================================ */
+
 .loading {
   display: inline-block;
   width: 20px;
   height: 20px;
-  border: 3px solid rgba(0,0,0,.1);
+  border: 3px solid var(--color-grey-300);
+  border-top-color: var(--color-red-primary);
   border-radius: 50%;
-  border-top-color: var(--gne-red);
-  animation: spin 1s ease-in-out infinite;
+  animation: spin 0.8s linear infinite;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
+.loading-spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-2xl);
+  color: var(--color-text-secondary);
 }
 
-/* Responsive Grid */
+.loading-spinner p {
+  margin: 0;
+}
+
+/* ============================================================================
+   RESPONSIVE GRID SYSTEM
+   ============================================================================ */
+
 .grid {
   display: grid;
-  gap: 20px;
+  gap: var(--spacing-lg);
 }
 
 .grid-2 {
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
 }
 
 .grid-3 {
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
 }
 
 .grid-4 {
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(4, 1fr);
 }
 
-/* Mobile Responsive */
-@media (max-width: 768px) {
+.grid-auto {
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+/* ============================================================================
+   RESPONSIVE BREAKPOINTS
+   ============================================================================ */
+
+/* Large Screens (1400px+) */
+@media (max-width: 1400px) {
   .container {
-    padding: 0 15px;
+    padding: 0 var(--spacing-lg);
   }
-  
+
+  .grid-4 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Medium Screens (1024px - 1399px) */
+@media (max-width: 1024px) {
+  .container {
+    padding: 0 var(--spacing-md);
+  }
+
+  .grid-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Tablets (768px - 1023px) */
+@media (max-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+
+  body {
+    font-size: var(--text-base);
+  }
+
+  .container {
+    padding: 0 var(--spacing-md);
+  }
+
+  .content-wrapper {
+    padding: var(--spacing-xl) var(--spacing-md);
+  }
+
   .grid-2,
   .grid-3,
-  .grid-4 {
+  .grid-4,
+  .grid-auto {
     grid-template-columns: 1fr;
+  }
+
+  .hide-tablet {
+    display: none !important;
+  }
+}
+
+/* Mobile (480px - 767px) */
+@media (max-width: 480px) {
+  html {
+    font-size: 14px;
+  }
+
+  body {
+    font-size: var(--text-sm);
+  }
+
+  .container {
+    padding: 0 var(--spacing-md);
+  }
+
+  .content-wrapper {
+    padding: var(--spacing-lg) var(--spacing-md);
+  }
+
+  .hide-mobile {
+    display: none !important;
+  }
+
+  .offline-banner {
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: var(--text-sm);
+  }
+}
+
+/* Extra Small (< 480px) */
+@media (max-width: 360px) {
+  .container {
+    padding: 0 var(--spacing-sm);
+  }
+
+  .content-wrapper {
+    padding: var(--spacing-md) var(--spacing-sm);
   }
 }

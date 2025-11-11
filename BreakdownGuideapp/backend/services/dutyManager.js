@@ -12,28 +12,32 @@
 
 import { from, insert, update } from '../utils/queryHelpers.js';
 
-// Duty shift configurations
+// Duty shift configurations (SECURITY FIX: Use numeric codes to prevent injection)
 export const DUTY_SHIFTS = {
-  'Duty 100': {
-    code: 'Duty 100',
+  '100': {
+    code: '100',
+    displayName: 'Duty 100 - Early Shift',
     startTime: '06:00',
     endTime: '15:30',
     description: 'Early shift (06:00 - 15:30)'
   },
-  'Duty 200': {
-    code: 'Duty 200',
+  '200': {
+    code: '200',
+    displayName: 'Duty 200 - Day Shift',
     startTime: '07:30',
     endTime: '17:00',
     description: 'Day shift (07:30 - 17:00)'
   },
-  'Duty 400': {
-    code: 'Duty 400',
+  '400': {
+    code: '400',
+    displayName: 'Duty 400 - Late Shift',
     startTime: '12:30',
     endTime: '22:00',
     description: 'Late shift (12:30 - 22:00)'
   },
-  'Duty 500': {
-    code: 'Duty 500',
+  '500': {
+    code: '500',
+    displayName: 'Duty 500 - Night Shift',
     startTime: '14:45',
     endTime: '00:15',
     description: 'Night shift (14:45 - 00:15)',
@@ -43,6 +47,35 @@ export const DUTY_SHIFTS = {
 
 // Warning time before shift ends (minutes)
 const SHIFT_END_WARNING_MINUTES = 15;
+
+/**
+ * Normalize duty code to numeric format
+ * Accepts both 'Duty 100' and '100' formats, returns '100'
+ * SECURITY FIX: Prevents duty code injection by standardizing to numeric format
+ * @param {string} dutyCode - Duty code in any format
+ * @returns {string} - Normalized numeric duty code
+ */
+export function normalizeDutyCode(dutyCode) {
+  if (!dutyCode) {
+    throw new Error('Duty code is required');
+  }
+
+  // If it starts with 'Duty ', strip that prefix
+  if (typeof dutyCode === 'string' && dutyCode.startsWith('Duty ')) {
+    const normalized = dutyCode.substring(5); // Remove 'Duty ' prefix
+    if (DUTY_SHIFTS[normalized]) {
+      return normalized;
+    }
+  }
+
+  // If it's already numeric, verify it exists
+  if (DUTY_SHIFTS[dutyCode]) {
+    return dutyCode.toString();
+  }
+
+  // Otherwise, invalid
+  throw new Error(`Invalid duty code: ${dutyCode}`);
+}
 
 /**
  * Calculate shift end time from duty code
@@ -104,7 +137,11 @@ export async function startShift({ supervisorId, supervisorName, supervisorBadge
     throw new Error('Missing required parameters');
   }
 
-  if (!DUTY_SHIFTS[duty]) {
+  // SECURITY FIX: Normalize duty code to prevent injection
+  let normalizedDuty;
+  try {
+    normalizedDuty = normalizeDutyCode(duty);
+  } catch (error) {
     throw new Error(`Invalid duty code: ${duty}`);
   }
 
@@ -131,26 +168,26 @@ export async function startShift({ supervisorId, supervisorName, supervisorBadge
   }
 
   const shiftStart = new Date();
-  const shiftEnd = calculateShiftEndTime(duty);
+  const shiftEnd = calculateShiftEndTime(normalizedDuty);
 
   // Convert to MySQL datetime format
   const toMySQLDatetime = (date) => {
     return date.toISOString().slice(0, 19).replace('T', ' ');
   };
 
-  // Update supervisor's current duty
+  // Update supervisor's current duty (using normalized numeric code)
   await update('supervisors', { id: supervisorId }, {
-    current_duty: duty,
+    current_duty: normalizedDuty,
     duty_start_time: toMySQLDatetime(shiftStart),
     duty_end_time: toMySQLDatetime(shiftEnd)
   });
 
-  // Create shift history record
+  // Create shift history record (using normalized numeric code)
   const shiftHistory = {
     supervisor_id: supervisorId,
     supervisor_name: supervisorName,
     supervisor_badge: supervisorBadge,
-    duty: duty,
+    duty: normalizedDuty,
     shift_start: toMySQLDatetime(shiftStart),
     shift_end: null, // Will be filled when shift ends
     breakdowns_handled: 0,
@@ -159,11 +196,11 @@ export async function startShift({ supervisorId, supervisorName, supervisorBadge
 
   const result = await insert('supervisor_shift_history', shiftHistory);
 
-  console.log(`✅ Shift started: ${supervisorName} (${supervisorBadge}) on ${duty}`);
+  console.log(`✅ Shift started: ${supervisorName} (${supervisorBadge}) on Duty ${normalizedDuty}`);
 
   return {
     shiftHistoryId: result.insertId,
-    duty,
+    duty: normalizedDuty,
     shiftStart,
     shiftEnd,
     warningTime: calculateWarningTime(shiftEnd)
@@ -335,6 +372,7 @@ export async function getShiftHistory(filters = {}) {
 
 export default {
   DUTY_SHIFTS,
+  normalizeDutyCode,
   calculateShiftEndTime,
   calculateWarningTime,
   startShift,

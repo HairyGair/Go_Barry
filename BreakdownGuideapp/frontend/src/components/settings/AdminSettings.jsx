@@ -276,6 +276,33 @@ const AdminSettings = () => {
         >
           🗺️ GTFS Data
         </button>
+        <button
+          onClick={() => setAdminTab('test')}
+          style={{
+            padding: '12px 20px',
+            background: adminTab === 'test' ? 'var(--primary-color, #667eea)' : 'transparent',
+            color: adminTab === 'test' ? 'white' : 'var(--text-secondary)',
+            border: 'none',
+            borderBottom: adminTab === 'test' ? '3px solid var(--primary-color, #667eea)' : 'none',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: '600',
+            transition: 'all 0.2s ease',
+            marginBottom: '-1px'
+          }}
+          onMouseEnter={(e) => {
+            if (adminTab !== 'test') {
+              e.target.style.background = 'rgba(102, 126, 234, 0.1)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (adminTab !== 'test') {
+              e.target.style.background = 'transparent';
+            }
+          }}
+        >
+          🧪 Test Pages
+        </button>
       </div>
 
       {/* Supervisors Tab */}
@@ -560,6 +587,110 @@ const AdminSettings = () => {
           </div>
 
           <AdminGTFSSettings />
+        </>
+      )}
+
+      {/* Test Pages Tab */}
+      {adminTab === 'test' && (
+        <>
+          <div className="info-box">
+            <p>Access experimental and test features under development. These pages contain new dashboards and features that are being tested.</p>
+          </div>
+
+          <div style={{ marginTop: '24px' }}>
+            <h3 style={{ marginTop: '0', fontSize: '16px', fontWeight: '600' }}>Available Test Pages</h3>
+
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              gap: '16px',
+              marginTop: '16px'
+            }}>
+              {/* GTFS Live Route Status */}
+              <div style={{
+                background: 'var(--bg-secondary, #1a1a1a)',
+                border: '1px solid var(--border-color, #444444)',
+                borderRadius: '8px',
+                padding: '20px'
+              }}>
+                <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: '600' }}>
+                  🗺️ Live Route Status Dashboard
+                </h4>
+                <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                  Real-time monitoring of all 225 bus routes with status indicators (Green/Amber/Red) based on active breakdowns.
+                </p>
+                <a
+                  href="/dashboards/gtfs/routes"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'inline-block',
+                    padding: '10px 16px',
+                    background: 'var(--primary-color, #667eea)',
+                    color: 'white',
+                    textDecoration: 'none',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    transition: 'all 0.2s ease',
+                    cursor: 'pointer'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.opacity = '0.8';
+                    e.target.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.opacity = '1';
+                    e.target.style.transform = 'translateY(0)';
+                  }}
+                >
+                  Open Dashboard →
+                </a>
+              </div>
+
+              {/* Fleet Defect Intelligence */}
+              <div style={{
+                background: 'var(--bg-secondary, #1a1a1a)',
+                border: '1px solid var(--border-color, #444444)',
+                borderRadius: '8px',
+                padding: '20px'
+              }}>
+                <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: '600' }}>
+                  🔍 Fleet Defect Intelligence
+                </h4>
+                <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                  Real-time monitoring of vehicle defects, repair trends, predictive maintenance alerts, and depot-specific issue hotspots across your entire fleet.
+                </p>
+                <a
+                  href="/dashboards/fleet-defects"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'inline-block',
+                    padding: '10px 16px',
+                    background: '#dc2626',
+                    color: 'white',
+                    textDecoration: 'none',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    transition: 'all 0.2s ease',
+                    cursor: 'pointer'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.opacity = '0.8';
+                    e.target.style.transform = 'translateY(-2px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.opacity = '1';
+                    e.target.style.transform = 'translateY(0)';
+                  }}
+                >
+                  Open Dashboard →
+                </a>
+              </div>
+            </div>
+          </div>
         </>
       )}
     </div>

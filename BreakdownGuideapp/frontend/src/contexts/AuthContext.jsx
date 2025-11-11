@@ -1,8 +1,10 @@
 /**
  * Authentication Context
- * Simple authentication with sessionStorage/localStorage
+ * Secure authentication with HTTP-only cookies (XSS protected)
  * Password required: "GoNorthEast2025!"
  * Accepts any valid email with correct password
+ *
+ * SECURITY: User data stored ONLY in React state, session restored from backend
  */
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
@@ -22,45 +24,31 @@ export const AuthProvider = ({ children }) => {
     const [currentUser, setCurrentUser] = useState(null);
     const [isSessionChecking, setIsSessionChecking] = useState(true);
 
-    // Check for existing session on mount
+    // Restore session from backend on mount (SECURITY FIX: XSS prevention)
     useEffect(() => {
-        const checkSession = () => {
+        const restoreSession = async () => {
             try {
-                // Check localStorage first (remember me)
-                let userData = localStorage.getItem('currentUser');
-                let loginTime = localStorage.getItem('loginTime');
-
-                // Then check sessionStorage (current session)
-                if (!userData) {
-                    userData = sessionStorage.getItem('currentUser');
-                    loginTime = sessionStorage.getItem('loginTime');
-                }
-
-                if (userData && loginTime) {
-                    const user = JSON.parse(userData);
-                    const time = parseInt(loginTime);
-                    const now = Date.now();
-                    const hoursPassed = (now - time) / (1000 * 60 * 60);
-
-                    // Session expires after 24 hours for localStorage, never for sessionStorage
-                    if (userData === localStorage.getItem('currentUser') && hoursPassed > 24) {
-                        // Expired localStorage session
-                        localStorage.removeItem('currentUser');
-                        localStorage.removeItem('loginTime');
-                        setIsAuthenticated(false);
-                        setCurrentUser(null);
-                    } else {
-                        // Valid session
-                        setIsAuthenticated(true);
-                        setCurrentUser(user);
-                        console.log('✅ Existing session found:', user.email);
+                const apiUrl = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
+                const response = await fetch(`${apiUrl}/api/auth/me`, {
+                    method: 'GET',
+                    credentials: 'include', // CRITICAL: Send HTTP-only cookie
+                    headers: {
+                        'Content-Type': 'application/json'
                     }
+                });
+
+                if (response.ok) {
+                    const { user } = await response.json();
+                    setIsAuthenticated(true);
+                    setCurrentUser(user);
+                    console.log('✅ Session restored from backend');
                 } else {
                     setIsAuthenticated(false);
                     setCurrentUser(null);
+                    console.log('ℹ️ No active session found');
                 }
             } catch (error) {
-                console.error('Error checking session:', error);
+                console.error('Error restoring session:', error);
                 setIsAuthenticated(false);
                 setCurrentUser(null);
             } finally {
@@ -68,7 +56,7 @@ export const AuthProvider = ({ children }) => {
             }
         };
 
-        checkSession();
+        restoreSession();
     }, []);
 
     const login = async (email, password, rememberMe = true) => {
@@ -83,13 +71,38 @@ export const AuthProvider = ({ children }) => {
                 };
             }
 
-            // Call backend API for authentication
+            // SECURITY FIX: Get CSRF token before login
             const apiUrl = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
+            let csrfToken = null;
+
+            try {
+                const csrfResponse = await fetch(`${apiUrl}/api/auth/csrf-token`, {
+                    method: 'GET',
+                    credentials: 'include', // Include cookies to get CSRF token
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (csrfResponse.ok) {
+                    const csrfData = await csrfResponse.json();
+                    csrfToken = csrfData.csrfToken;
+                    console.log('✅ CSRF token obtained');
+                } else {
+                    console.warn('⚠️ Failed to obtain CSRF token, attempting login anyway');
+                }
+            } catch (csrfError) {
+                console.warn('⚠️ Error fetching CSRF token:', csrfError);
+                // Continue with login attempt - server may not require CSRF yet
+            }
+
+            // Call backend API for authentication
             const response = await fetch(`${apiUrl}/api/auth/login`, {
                 method: 'POST',
                 credentials: 'include', // CRITICAL: Required to send and receive HTTP-only cookies
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'CSRF-Token': csrfToken || '' // Include CSRF token if available
                 },
                 body: JSON.stringify({ email, password })
             });
@@ -130,13 +143,9 @@ export const AuthProvider = ({ children }) => {
                 // NOTE: No token stored here - it's in HTTP-only cookie for XSS protection
             };
 
-            // Store user data (NOT token) in appropriate storage
+            // SECURITY FIX: Store user data ONLY in React state
+            // Do NOT store in localStorage or sessionStorage (XSS vulnerability prevention)
             // Token is automatically managed by browser via HTTP-only cookie
-            const storage = rememberMe ? localStorage : sessionStorage;
-            storage.setItem('currentUser', JSON.stringify(user));
-            storage.setItem('loginTime', user.loginTime.toString());
-            // NOTE: authToken no longer stored in localStorage/sessionStorage (security improvement)
-
             setIsAuthenticated(true);
             setCurrentUser(user);
 
@@ -215,14 +224,12 @@ export const AuthProvider = ({ children }) => {
             }
         }
 
-        // Clear all storage (NOTE: No authToken to remove - it was in HTTP-only cookie)
-        localStorage.removeItem('currentUser');
-        localStorage.removeItem('loginTime');
-        sessionStorage.removeItem('currentUser');
-        sessionStorage.removeItem('loginTime');
+        // Clear session storage (SECURITY FIX: No localStorage/sessionStorage for user data)
+        // Duty-related data can remain in sessionStorage as it's not sensitive
         sessionStorage.removeItem('currentDuty');
         sessionStorage.removeItem('showDutyModal');
 
+        // Clear React state
         setIsAuthenticated(false);
         setCurrentUser(null);
 

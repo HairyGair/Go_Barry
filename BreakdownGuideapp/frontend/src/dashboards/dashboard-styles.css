@@ -23,7 +23,7 @@
   border-bottom: 1px solid var(--border);
   box-shadow: var(--shadow-lg);
   z-index: var(--z-fixed);
-  padding: 10px 20px;
+  padding: var(--spacing-sm) var(--spacing-md);
 }
 
 .shared-nav-header {
@@ -37,7 +37,7 @@
 .nav-logo {
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  gap: var(--spacing-sm);
   cursor: pointer;
   font-size: 20px;
   font-weight: bold;
@@ -63,11 +63,11 @@
 
 .nav-dashboard-switcher {
   display: flex;
-  gap: 8px;
+  gap: var(--spacing-sm);
 }
 
 .nav-btn {
-  padding: 8px 16px;
+  padding: var(--spacing-sm) var(--spacing-md);
   background: var(--bg-primary);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -94,11 +94,11 @@
 
 .nav-quick-actions {
   display: flex;
-  gap: 10px;
+  gap: var(--spacing-sm);
 }
 
 .nav-action-btn {
-  padding: 8px 16px;
+  padding: var(--spacing-sm) var(--spacing-md);
   border: none;
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -128,7 +128,7 @@
 .dashboard-header {
   background: var(--bg-secondary);
   color: var(--text-primary);
-  padding: 20px;
+  padding: var(--spacing-md);
   border-bottom: 1px solid var(--border);
   position: relative;
   margin-top: 0;
@@ -142,7 +142,7 @@
   font-size: 28px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--spacing-sm);
 }
 
 
@@ -189,7 +189,7 @@
 }
 
 .quick-panel-content {
-  padding: 20px;
+  padding: var(--spacing-md);
 }
 
 .quick-panel-content h4 {
@@ -237,7 +237,7 @@
 .quick-panel-links {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--spacing-sm);
   margin-bottom: 20px;
 }
 
@@ -375,7 +375,7 @@
 .header-stat {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--spacing-sm);
   font-size: 14px;
   color: var(--text-secondary);
 }
@@ -390,11 +390,11 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 20px;
-  padding: 20px;
+  padding: var(--spacing-md);
 }
 
 .container {
-  padding: 20px;
+  padding: var(--spacing-md);
 }
 
 .breakdown-grid {
@@ -442,7 +442,7 @@
   right: 0;
   background: var(--bg-secondary);
   border-top: 2px solid var(--border);
-  padding: 10px 20px;
+  padding: var(--spacing-sm) var(--spacing-md);
   display: flex;
   justify-content: space-around;
   align-items: center;
@@ -453,7 +453,7 @@
 .quick-stat {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--spacing-sm);
 }
 
 .quick-stat-label {
@@ -488,7 +488,7 @@
   
   .shared-nav-header {
     flex-direction: column;
-    gap: 10px;
+    gap: var(--spacing-sm);
   }
   
   .nav-dashboard-switcher {
@@ -513,7 +513,7 @@
 
   .stats-grid {
     padding: 10px;
-    gap: 10px;
+    gap: var(--spacing-sm);
   }
 
   .breakdown-grid {
@@ -522,7 +522,7 @@
 
   .quick-stats-bar {
     flex-direction: column;
-    gap: 10px;
+    gap: var(--spacing-sm);
     padding: 15px;
     bottom: 60px;
   }

@@ -1,0 +1,408 @@
+/* ============================================================================
+   DESIGN TOKENS - Professional Design System
+   ============================================================================
+   Master file for all design tokens used throughout the Go BARRY application
+   Includes: Colors, Typography, Spacing, Shadows, Transitions, Z-Index
+
+   Last Updated: November 11, 2025
+   Version: 1.0.0
+   ============================================================================ */
+
+:root {
+  /* =========================================================================
+     COLOR SYSTEM - Primary Palette
+     ========================================================================= */
+
+  /* Primary Brand Colors */
+  --color-red-primary: #E30613;           /* Go North East Red - Primary action */
+  --color-red-dark: #B80410;              /* Go North East Red - Hover/Active */
+  --color-red-darker: #8A0309;            /* Go North East Red - Pressed */
+  --color-red-light: #F5E5E5;             /* Go North East Red - Background */
+
+  /* Secondary Brand Colors */
+  --color-navy-primary: #003B5C;          /* Navy - Secondary actions */
+  --color-navy-dark: #1A2332;             /* Navy - Text/Headlines */
+  --color-navy-darker: #0F1419;           /* Navy - Deep backgrounds */
+  --color-navy-light: #1E3A4F;            /* Navy - Hover/Focus */
+
+  /* Status Colors - Success */
+  --color-success: #10B981;               /* Emerald Green - Success/OK */
+  --color-success-dark: #059669;          /* Emerald Green - Hover */
+  --color-success-light: #D1FAE5;         /* Emerald Green - Background */
+
+  /* Status Colors - Warning/Amber */
+  --color-warning: #F59E0B;               /* Amber - Caution/Attention */
+  --color-warning-dark: #D97706;          /* Amber - Hover */
+  --color-warning-light: #FEF3C7;         /* Amber - Background */
+
+  /* Status Colors - Critical/Error */
+  --color-critical: #DC2626;              /* Red - Critical/Errors */
+  --color-critical-dark: #991B1B;         /* Red - Hover */
+  --color-critical-light: #FEE2E2;        /* Red - Background */
+
+  /* Status Colors - Emergency (Bright) */
+  --color-emergency: #EF4444;             /* Bright Red - Emergency alerts */
+  --color-emergency-dark: #DC2626;        /* Bright Red - Hover */
+  --color-emergency-light: #FCA5A5;       /* Bright Red - Accent */
+
+  /* Info/Action Color */
+  --color-info: #3B82F6;                  /* Blue - Information */
+  --color-info-dark: #1D4ED8;             /* Blue - Hover */
+  --color-info-light: #DBEAFE;            /* Blue - Background */
+  --color-info-lightest: #F0F7FF;         /* Blue - Very light background */
+
+  /* Neutral Greys - Professional */
+  --color-white: #FFFFFF;                 /* Pure white */
+  --color-off-white: #F9FAFB;             /* Off white - Light backgrounds */
+  --color-grey-50: #F9FAFB;               /* Very light grey */
+  --color-grey-100: #F3F4F6;              /* Light grey */
+  --color-grey-200: #E5E7EB;              /* Light-medium grey */
+  --color-grey-300: #D1D5DB;              /* Medium grey */
+  --color-grey-400: #9CA3AF;              /* Medium-dark grey */
+  --color-grey-500: #6B7280;              /* Dark grey */
+  --color-grey-600: #4B5563;              /* Darker grey */
+  --color-grey-700: #374151;              /* Very dark grey */
+  --color-grey-800: #1F2937;              /* Almost black */
+  --color-grey-900: #111827;              /* Pure black text */
+
+  /* Text Colors */
+  --color-text-primary: #111827;          /* Primary text - black */
+  --color-text-secondary: #6B7280;        /* Secondary text - grey */
+  --color-text-tertiary: #9CA3AF;         /* Tertiary text - lighter grey */
+  --color-text-disabled: #D1D5DB;         /* Disabled text - medium grey */
+  --color-text-inverse: #FFFFFF;          /* Text on dark backgrounds */
+
+  /* =========================================================================
+     DARK MODE COLORS - Alternative Palette
+     ========================================================================= */
+
+  --color-dark-bg-primary: #0F172A;       /* Dark mode background */
+  --color-dark-bg-secondary: #1E293B;     /* Dark mode secondary surface */
+  --color-dark-bg-tertiary: #334155;      /* Dark mode tertiary surface */
+  --color-dark-border: #475569;           /* Dark mode borders */
+  --color-dark-text-primary: #F1F5F9;     /* Dark mode primary text */
+  --color-dark-text-secondary: #94A3B8;   /* Dark mode secondary text */
+  --color-dark-text-tertiary: #64748B;    /* Dark mode tertiary text */
+
+  /* =========================================================================
+     SPACING SYSTEM - 8px Base Unit
+     ========================================================================= */
+
+  --spacing-xs: 4px;                      /* Extra small - micro spacing */
+  --spacing-sm: 8px;                      /* Small - tight spacing */
+  --spacing-md: 16px;                     /* Medium - standard spacing */
+  --spacing-lg: 24px;                     /* Large - comfortable spacing */
+  --spacing-xl: 32px;                     /* Extra large - section spacing */
+  --spacing-2xl: 48px;                    /* 2X large - major spacing */
+  --spacing-3xl: 64px;                    /* 3X large - page sections */
+
+  /* =========================================================================
+     BORDER RADIUS - Rounded Corners
+     ========================================================================= */
+
+  --radius-sm: 4px;                       /* Small elements */
+  --radius-md: 8px;                       /* Standard components */
+  --radius-lg: 12px;                      /* Cards and modals */
+  --radius-xl: 16px;                      /* Large containers */
+  --radius-2xl: 20px;                     /* Extra large containers */
+  --radius-full: 9999px;                  /* Fully rounded (pills, circles) */
+
+  /* =========================================================================
+     TYPOGRAPHY SYSTEM
+     ========================================================================= */
+
+  /* Font Family - Professional System Fonts */
+  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto',
+                 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans',
+                 'Helvetica Neue', sans-serif;
+  --font-mono: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+
+  /* Font Weights */
+  --font-light: 300;
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+  --font-extrabold: 800;
+  --font-black: 900;
+
+  /* Font Sizes */
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-lg: 18px;
+  --text-xl: 20px;
+  --text-2xl: 24px;
+  --text-3xl: 32px;
+  --text-4xl: 40px;
+
+  /* Line Heights */
+  --line-height-xs: 1.33;                 /* 12px font */
+  --line-height-sm: 1.43;                 /* 14px font */
+  --line-height-base: 1.5;                /* 16px font */
+  --line-height-lg: 1.5;                  /* 18px+ font */
+  --line-height-relaxed: 1.75;            /* Extra readable */
+  --line-height-loose: 2;                 /* Very readable */
+
+  /* Letter Spacing */
+  --letter-spacing-tight: -0.3px;         /* Tight letter spacing */
+  --letter-spacing-normal: 0.5px;         /* Normal letter spacing */
+  --letter-spacing-wide: 1px;             /* Wide letter spacing */
+
+  /* =========================================================================
+     SHADOW SYSTEM - Depth & Elevation
+     ========================================================================= */
+
+  /* Subtle Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.15);
+  --shadow-2xl: 0 25px 50px rgba(0, 0, 0, 0.25);
+
+  /* Lift Effects - For interactive elements */
+  --shadow-lift: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-hover: 0 8px 16px rgba(0, 0, 0, 0.12);
+  --shadow-focus: 0 0 0 3px rgba(227, 6, 19, 0.1);
+
+  /* Glassmorphism Effect - Semi-transparent */
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.3);
+  --glass-dark-bg: rgba(15, 23, 42, 0.8);
+  --glass-dark-border: rgba(255, 255, 255, 0.15);
+
+  /* =========================================================================
+     TRANSITIONS - Smooth Animations
+     ========================================================================= */
+
+  --transition-fast: 150ms ease-out;      /* Quick, snappy feedback */
+  --transition-base: 200ms ease-out;      /* Standard animation timing */
+  --transition-slow: 300ms ease-out;      /* Smooth, deliberate motion */
+  --transition-slowest: 500ms ease-out;   /* Gradual, elegant transitions */
+
+  /* Animation Duration Scale */
+  --animation-fast: 0.5s;                 /* Fast animations */
+  --animation-normal: 1s;                 /* Normal animations */
+  --animation-slow: 2s;                   /* Slow animations */
+  --animation-slowest: 3s;                /* Very slow animations */
+
+  /* Easing Functions */
+  --ease-linear: linear;
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+
+  /* =========================================================================
+     Z-INDEX SCALE - Stacking Context
+     ========================================================================= */
+
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-fixed: 300;
+  --z-modal-backdrop: 400;
+  --z-modal: 500;
+  --z-popover: 600;
+  --z-tooltip: 700;
+  --z-notification: 800;
+
+  /* =========================================================================
+     OPACITY SCALE - Transparency Levels
+     ========================================================================= */
+
+  --opacity-disabled: 0.5;
+  --opacity-hover: 0.8;
+  --opacity-focus: 0.9;
+  --opacity-subtle: 0.05;
+  --opacity-medium: 0.1;
+  --opacity-strong: 0.2;
+
+  /* Additional Opacity Levels */
+  --opacity-light: 0.1;                   /* Light transparency */
+  --opacity-normal: 0.5;                  /* Normal transparency */
+  --opacity-high: 0.8;                    /* High transparency */
+
+  /* =========================================================================
+     BORDER WIDTH SCALE
+     ========================================================================= */
+
+  --border-width-thin: 1px;               /* Thin borders */
+  --border-width-medium: 2px;             /* Medium borders */
+  --border-width-thick: 3px;              /* Thick borders */
+
+  /* =========================================================================
+     BREAKPOINTS - Responsive Design
+     ========================================================================= */
+
+  /* These are reference values - use in media queries */
+  /* --bp-xs: 0px;        (mobile) */
+  /* --bp-sm: 480px;      (small mobile) */
+  /* --bp-md: 768px;      (tablet) */
+  /* --bp-lg: 1024px;     (desktop) */
+  /* --bp-xl: 1200px;     (large desktop) */
+  /* --bp-2xl: 1400px;    (extra large) */
+
+  /* =========================================================================
+     GRADIENTS - Professional Gradients
+     ========================================================================= */
+
+  /* Red Gradients - Primary Brand */
+  --gradient-red: linear-gradient(135deg, #E30613 0%, #B80410 100%);
+  --gradient-red-light: linear-gradient(135deg, #F5E5E5 0%, #E30613 100%);
+  --gradient-red-to-navy: linear-gradient(135deg, #E30613 0%, #003B5C 100%);
+
+  /* Navy Gradients - Secondary */
+  --gradient-navy: linear-gradient(135deg, #003B5C 0%, #1A2332 100%);
+  --gradient-navy-light: linear-gradient(135deg, #1E3A4F 0%, #003B5C 100%);
+
+  /* Status Gradients */
+  --gradient-success: linear-gradient(135deg, #10B981 0%, #059669 100%);
+  --gradient-warning: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+  --gradient-critical: linear-gradient(135deg, #DC2626 0%, #991B1B 100%);
+  --gradient-info: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
+
+  /* Glassmorphism Gradient - Aurora-like */
+  --gradient-aurora: linear-gradient(
+    135deg,
+    rgba(227, 6, 19, 0.1) 0%,
+    rgba(59, 130, 246, 0.1) 50%,
+    rgba(139, 92, 246, 0.1) 100%
+  );
+
+  /* =========================================================================
+     COMPONENT-SPECIFIC SIZES
+     ========================================================================= */
+
+  /* Button Sizing */
+  --btn-height-sm: 32px;
+  --btn-height-md: 40px;
+  --btn-height-lg: 48px;
+  --btn-padding-x-sm: var(--spacing-sm);
+  --btn-padding-y-sm: 6px;
+  --btn-padding-x-md: var(--spacing-md);
+  --btn-padding-y-md: var(--spacing-sm);
+  --btn-padding-x-lg: var(--spacing-lg);
+  --btn-padding-y-lg: 12px;
+
+  /* Button Icon Sizing */
+  --btn-size-icon-lg: 45px;               /* Large icon button */
+  --btn-size-icon-md: 42px;               /* Medium icon button */
+
+  /* Input Sizing */
+  --input-height: 40px;
+  --input-padding-x: var(--spacing-md);
+  --input-padding-y: var(--spacing-sm);
+  --input-border: 1px solid var(--color-grey-300);
+  --input-border-focus: 1px solid var(--color-red-primary);
+  --input-border-error: 1px solid var(--color-critical);
+
+  /* Card Sizing */
+  --card-padding-sm: var(--spacing-md);
+  --card-padding-md: var(--spacing-lg);
+  --card-padding-lg: var(--spacing-xl);
+  --card-border-radius: var(--radius-lg);
+
+  /* Header & Layout Sizing */
+  --header-height: 85px;                  /* Main header height */
+  --logo-height: 55px;                    /* Logo height */
+  --sidebar-width: 280px;
+  --sidebar-width-collapsed: 80px;
+
+  /* Badge Sizing */
+  --badge-min-width: 20px;                /* Minimum badge width */
+  --badge-height: 20px;                   /* Badge height */
+
+  /* =========================================================================
+     TOUCH TARGET SIZES - Accessibility
+     ========================================================================= */
+
+  --touch-target-min: 44px;               /* WCAG AA minimum for touch */
+  --touch-target-comfortable: 48px;       /* Recommended for mobile */
+}
+
+/* ============================================================================
+   LIGHT MODE - Default (applies above :root values)
+   ============================================================================ */
+
+/* No additional light mode needed - :root is light mode */
+
+/* ============================================================================
+   DARK MODE - Future feature with high contrast
+   ============================================================================ */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Override colors for dark mode while maintaining excellent contrast */
+
+    /* Brand colors stay the same (good contrast in dark) */
+    --color-red-primary: #FF6B63;         /* Lighter red for dark mode */
+    --color-red-dark: #E30613;            /* Original red as hover */
+    --color-red-light: #2D1514;           /* Dark red background */
+
+    /* Navy becomes lighter for dark mode */
+    --color-navy-primary: #60A5FA;        /* Light blue */
+    --color-navy-dark: #93C5FD;           /* Even lighter blue */
+    --color-navy-darker: #1E3A4F;         /* Keep dark option */
+    --color-navy-light: #BFDBFE;          /* Very light blue */
+
+    /* Status colors adapted for dark mode */
+    --color-success: #4ADE80;
+    --color-success-dark: #86EFAC;
+    --color-success-light: #164E3B;
+
+    --color-warning: #FACC15;
+    --color-warning-dark: #FCD34D;
+    --color-warning-light: #422006;
+
+    --color-critical: #FF6B6B;
+    --color-critical-dark: #FF8787;
+    --color-critical-light: #5A1B1B;
+
+    --color-info: #60A5FA;
+    --color-info-dark: #93C5FD;
+    --color-info-light: #1E3A8A;
+
+    /* Neutral greys adapt to dark mode */
+    --color-white: #111827;              /* Swap white/black */
+    --color-off-white: #1F2937;
+    --color-grey-50: #1F2937;
+    --color-grey-100: #374151;
+    --color-grey-200: #4B5563;
+    --color-grey-300: #6B7280;
+    --color-grey-400: #9CA3AF;
+    --color-grey-500: #D1D5DB;
+    --color-grey-600: #E5E7EB;
+    --color-grey-700: #F3F4F6;
+    --color-grey-800: #F9FAFB;
+    --color-grey-900: #FFFFFF;            /* Text is white in dark mode */
+
+    /* Text colors for dark mode */
+    --color-text-primary: #F1F5F9;
+    --color-text-secondary: #94A3B8;
+    --color-text-tertiary: #64748B;
+    --color-text-disabled: #475569;
+    --color-text-inverse: #111827;
+
+    /* Shadows for dark mode (more subtle) */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+    --shadow-lift: 0 4px 12px rgba(0, 0, 0, 0.4);
+    --shadow-hover: 0 8px 16px rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* ============================================================================
+   PRINT STYLES
+   ============================================================================ */
+
+@media print {
+  :root {
+    /* Use dark text on white for printing */
+    --color-text-primary: #000000;
+    --color-text-secondary: #333333;
+    --shadow-sm: none;
+    --shadow-md: none;
+    --shadow-lg: none;
+  }
+}

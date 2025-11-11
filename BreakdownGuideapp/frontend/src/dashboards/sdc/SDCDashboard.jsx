@@ -19,7 +19,6 @@ import SDCBreakdownCardEnhanced from './SDCBreakdownCardEnhanced';
 import { getSDCGuidance, getSLAForIssue } from './utils/sdcGuideReference';
 import PriorityAlerts from './PriorityAlerts';
 import StatusWidget from './StatusWidget';
-import TrendsDefectsPanel from './TrendsDefectsPanel';
 import RecentDecisions from './RecentDecisions';
 import AssessmentProgressTracker from './AssessmentProgressTracker';
 import AssessmentProgressCard from './AssessmentProgressCard';
@@ -1606,12 +1605,9 @@ const SDCDashboard = () => {
           </div>
         </div>
 
-        {/* Right sidebar - Replace the old Current Status with new Intelligence Panel */}
+        {/* Right sidebar - Status and Recent Decisions */}
         <div className="right-sidebar">
-          <TrendsDefectsPanel />
-
-          {/* Original StatusWidget - uncomment to revert to basic status display */}
-          {/* <StatusWidget stats={stats} /> */}
+          <StatusWidget stats={stats} />
 
           <RecentDecisions decisions={recentDecisions} />
         </div>
