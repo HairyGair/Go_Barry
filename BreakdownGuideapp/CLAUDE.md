@@ -1725,7 +1725,298 @@ return res.status(500).json({
 
 ---
 
-**Last Updated:** November 11, 2025 (GTFS Phase 1 Project Plan Created)
-**Document Version:** 3.2.2
+## 🚀 GTFS Phase 1: Week 0 Preparation Checklist (Pre-Development)
+
+**Status:** Ready for implementation once executive approval received
+
+This checklist must be completed before developers begin actual feature implementation in Week 1.
+
+### Prerequisites Check (Must Pass)
+
+**Database & Data Quality:**
+- [ ] **Verify route_id population** (BLOCKING - must be ≥80%)
+  ```sql
+  SELECT
+    COUNT(*) as total_breakdowns,
+    COUNT(route_id) as with_route_id,
+    ROUND(COUNT(route_id)/COUNT(*)*100, 1) as pct_populated
+  FROM breakdowns;
+  ```
+  **Target:** ≥80% populated OR willing to backfill missing values
+  **Acceptable:** Document if <80%, create migration plan to add route_id going forward
+
+- [ ] **Verify GTFS data completeness**
+  ```sql
+  SELECT 'routes' as table_name, COUNT(*) as count FROM gtfs_routes
+  UNION ALL
+  SELECT 'stops', COUNT(*) FROM gtfs_stops
+  UNION ALL
+  SELECT 'stop_times', COUNT(*) FROM gtfs_stop_times
+  UNION ALL
+  SELECT 'trips', COUNT(*) FROM gtfs_trips;
+  ```
+  **Expected:** Routes ~240, Stops ~15,000, Stop_times 2M+, Trips ~50,000
+
+### Database Optimization (Execute in Order)
+
+**1. Create Spatial Index on Stops** (improves heatmap performance 10-50x)
+```sql
+-- Add index if it doesn't exist
+ALTER TABLE gtfs_stops ADD INDEX idx_lat_lng (stop_lat, stop_lon);
+
+-- Verify
+SHOW INDEX FROM gtfs_stops WHERE Key_name = 'idx_lat_lng';
+```
+
+**2. Create Status Aggregate View** (for dashboard real-time stats)
+```sql
+CREATE OR REPLACE VIEW v_route_status_summary AS
+SELECT
+  r.route_id,
+  r.route_short_name,
+  COUNT(DISTINCT b.id) as active_breakdown_count,
+  MAX(b.created_at) as last_breakdown_time,
+  CASE
+    WHEN COUNT(DISTINCT b.id) = 0 THEN 'GREEN'
+    WHEN COUNT(DISTINCT b.id) = 1 THEN 'AMBER'
+    ELSE 'RED'
+  END as status
+FROM gtfs_routes r
+LEFT JOIN breakdowns b ON r.route_id = b.route_id
+  AND b.status NOT IN ('resolved', 'cleared')
+GROUP BY r.route_id, r.route_short_name;
+```
+
+**3. Create Breakdown Heatmap View** (for incident clustering)
+```sql
+CREATE OR REPLACE VIEW v_breakdown_heatmap AS
+SELECT
+  b.id,
+  b.location_lat,
+  b.location_lng,
+  b.issue_category,
+  b.severity,
+  b.created_at,
+  (
+    SELECT COUNT(*) FROM breakdowns b2
+    WHERE b2.location_lat IS NOT NULL
+    AND b2.location_lng IS NOT NULL
+    AND SQRT(
+      POW(b2.location_lat - b.location_lat, 2) +
+      POW(b2.location_lng - b.location_lng, 2)
+    ) < 0.01
+  ) as nearby_breakdown_count
+FROM breakdowns b
+WHERE b.location_lat IS NOT NULL
+  AND b.location_lng IS NOT NULL;
+```
+
+**4. Add Route Coverage Table** (for spare vehicle analysis)
+```sql
+CREATE TABLE IF NOT EXISTS route_coverage_analysis (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  route_id VARCHAR(10) NOT NULL,
+  total_vehicles INT,
+  active_vehicles INT,
+  spare_vehicles INT,
+  coverage_percentage DECIMAL(5, 2),
+  last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_route (route_id),
+  INDEX idx_coverage (coverage_percentage)
+);
+```
+
+**5. Create Memory Monitoring Endpoint** (for capacity tracking)
+- Backend endpoint: `GET /api/health/memory`
+- Returns: Current memory usage, peak, available, percentages
+- Updates CLAUDE.md with monitoring instructions
+
+### Team Assignment
+
+- [ ] **Backend Developer:** Name: _____________ | Start Date: _______
+  - Role: Implement 3 API endpoints, database optimization, WebSocket integration
+  - Commitment: Full-time, 6-10 weeks
+  - Key Skills: Node.js/Express, MySQL, WebSocket, Real-time systems
+
+- [ ] **Frontend Developer:** Name: _____________ | Start Date: _______
+  - Role: Build 3 React components, responsive design, real-time updates
+  - Commitment: Full-time, 6-10 weeks
+  - Key Skills: React, TailwindCSS, Vite, responsive design, performance optimization
+
+- [ ] **Project Manager/Coordinator:** Name: _____________ | Optional
+  - Role: Daily standups, supervisor communication, release planning
+  - Commitment: Part-time (5-10 hrs/week)
+
+### Design Finalization
+
+- [ ] **Get Supervisor Feedback** (this week)
+  - Show PHASE1_UI_MOCKUPS.md to 2-3 supervisors
+  - Collect feedback on: layout, colors, feature priorities, accessibility
+  - Document feedback in: /docs/supervisor_feedback_phase1.txt
+  - Make adjustments if needed (max 2-3 rounds)
+
+- [ ] **Create Interactive Figma Prototypes** (optional but recommended)
+  - Frontend developer creates clickable prototypes
+  - Supervisors can test interactions before dev starts
+  - Reduces mid-development scope changes
+
+- [ ] **Final Design Approval**
+  - [ ] Backend developer reviews API requirements
+  - [ ] Frontend developer reviews components/layout
+  - [ ] Supervisors validate usability
+
+### Environment Setup
+
+**Staging Environment:**
+- [ ] Create staging database (mirror of production schema)
+- [ ] Deploy staging backend (separate PM2 instance on port 3002)
+- [ ] Deploy staging frontend (separate Vite dev server or staging.breakdowns.gobarry.co.uk)
+- [ ] Verify database connections work
+- [ ] Test WebSocket connectivity
+
+**Development Environment (Each Developer):**
+- [ ] Clone repository from git
+- [ ] Install dependencies: `npm install` in both frontend/ and backend/
+- [ ] Copy .env files (provide from admin)
+- [ ] Run local MySQL or connect to staging database
+- [ ] Start: `npm run dev:backend` and `npm run dev:frontend`
+- [ ] Verify API responds: `curl http://localhost:3001/api/health`
+- [ ] Verify frontend loads: Open http://localhost:5173
+
+### Documentation & Specifications
+
+**Backend Developer Needs:**
+- [ ] **API Specification Document** (create from PHASE1_UI_MOCKUPS.md)
+  - Endpoint: `GET /api/routes/status/live`
+    - Query params: filters (optional), limit
+    - Response: Array of route status objects
+    - WebSocket updates: `route_status_updated` event
+  - Endpoint: `GET /api/routes/coverage/analysis`
+    - Response: Coverage summary + individual route details
+    - Cron job: Update daily at 02:00 UTC
+  - Endpoint: `GET /api/breakdowns/heatmap`
+    - Query params: lat, lng, radius, date_range, severity
+    - Response: Clustered breakdown data for map visualization
+
+- [ ] **Database Schema Documentation**
+  - All tables and fields documented
+  - Foreign key relationships shown
+  - Index strategy explained
+
+- [ ] **Error Handling Standards**
+  - Standard error response format
+  - HTTP status codes (400, 404, 500, etc.)
+  - Error logging requirements
+
+**Frontend Developer Needs:**
+- [ ] **Component Specifications**
+  - RouteStatusDashboard.jsx - Grid layout, filters, real-time updates
+  - CoverageAnalysisCard.jsx - Table view, color coding, details modal
+  - IncidentHeatmap.jsx - Map integration (Leaflet/Mapbox), clustering
+
+- [ ] **State Management Plan**
+  - Real-time data sync (WebSocket or polling frequency)
+  - Error state handling (retry logic, user notifications)
+  - Performance optimization (memo, useMemo, useCallback)
+
+- [ ] **Responsive Design Specifications**
+  - Breakpoints: Mobile (320px), Tablet (768px), Desktop (1280px)
+  - Touch interactions for mobile
+  - Accessibility (WCAG AA): color contrast, keyboard nav, screen readers
+
+### Testing Plan
+
+**Pre-Development Testing Setup:**
+- [ ] Create test data in staging database
+  - 50 sample breakdowns with realistic locations
+  - Coverage gaps for testing (routes with 0-1 spare vehicles)
+  - Historical data spanning 2-4 weeks
+
+- [ ] Setup automated testing framework
+  - Backend: Jest or Mocha for API tests
+  - Frontend: Vitest or Jest for component tests
+  - Integration: Playwright E2E tests
+
+- [ ] Define success criteria for each feature
+  - Live Status: Loads in <1s, updates <5s, 99.9% uptime during tests
+  - Coverage: Identifies ≥5 gap routes, responds <500ms
+  - Heatmap: Renders 1000+ breakdowns, clusters efficiently, responds <1s
+
+### Memory & Performance Targets
+
+- [ ] **Establish Baseline:** Run memory monitoring for 1 week
+  - Expected: ~400-500MB baseline
+  - Document in: /docs/baseline_memory_profile.txt
+
+- [ ] **Memory Limits:**
+  - Phase 1 peak: Must stay <800MB
+  - Available headroom: ~800MB (2GB total - 1.2GB reserved)
+  - Monitor during testing: Alert if exceeds 1GB
+
+- [ ] **Query Performance Targets:**
+  - Heatmap query (1000+ stops): <500ms
+  - Coverage analysis: <200ms
+  - Route status: <100ms
+  - Dashboard page load: <2s total
+
+### Executive Communication
+
+- [ ] **Executive Status Email**
+  - Notify leadership: Phase 1 approved and kickoff starting
+  - Timeline: 6-10 weeks, launches Week 1
+  - Budget: $18k or $9.7k (if internal resources)
+  - Expected value: First benefits visible Week 1, full ROI Month 7-8
+
+- [ ] **Weekly Status Reports**
+  - Format: 1-page summary with: completed items, blockers, metrics
+  - Recipient: Executive sponsor
+  - Frequency: Every Friday 17:00 GMT
+
+### Go/No-Go Decision
+
+**Week 0 Complete When:**
+- [ ] All prerequisites passed (route_id ≥80%, GTFS data complete)
+- [ ] Database optimized and tested
+- [ ] Team assigned and committed
+- [ ] Environment setup verified
+- [ ] Designs finalized with supervisor feedback
+- [ ] API specifications documented
+- [ ] Component specifications documented
+- [ ] Test plan and data ready
+- [ ] All team members ready to start
+
+**If Any Item Fails:**
+- [ ] Escalate to project sponsor
+- [ ] Document issue and mitigation
+- [ ] Adjust timeline if needed
+- [ ] Reschedule kickoff
+
+---
+
+## 📋 After Week 0: Week 1 Development Kickoff
+
+Once Week 0 passes all checks, Week 1 begins:
+
+**Monday (Day 1):**
+- [ ] Team standup at 09:00 GMT (daily thereafter)
+- [ ] Backend: Start API implementation for Feature #1
+- [ ] Frontend: Start component development for Feature #1
+- [ ] Expected: Skeleton code and basic structure
+
+**By Wednesday (Day 3):**
+- [ ] Backend: API endpoints functional (may need refinement)
+- [ ] Frontend: Components render with mock data
+- [ ] Integration starting: Connect frontend to backend APIs
+
+**By Friday (End of Week 1):**
+- [ ] Feature #1 (Live Route Status) fully functional
+- [ ] Demo to supervisors (1-2 hour session)
+- [ ] Collect feedback for improvements
+- [ ] Plan Week 2 adjustments
+
+---
+
+**Last Updated:** November 11, 2025 (GTFS Phase 1 Week 0 Preparation Checklist Added)
+**Document Version:** 3.3.0
 **System Status:** Production-Ready ✅ + Phase 1 Ready to Start
 **Documentation:** Clean and Organized
