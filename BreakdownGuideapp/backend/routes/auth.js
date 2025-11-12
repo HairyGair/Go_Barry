@@ -249,7 +249,7 @@ router.post('/supervisor-signup', rateLimitLogin, async (req, res) => {
 });
 
 // POST /api/auth/login - MySQL + JWT authentication login
-router.post('/login', rateLimitLogin, validate(authSchemas.login), async (req, res) => {
+router.post('/login', rateLimitLogin, clearLoginAttempts, validate(authSchemas.login), async (req, res) => {
   try {
     const { email, password, duty } = req.body;
 
@@ -426,9 +426,6 @@ router.post('/login', rateLimitLogin, validate(authSchemas.login), async (req, r
       path: '/', // Cookie available for all routes
       domain: '.gobarry.co.uk' // ALWAYS share across all subdomains
     });
-
-    // Clear rate limit on successful login
-    req.clearLoginAttempts = true;
 
     // Log successful authentication
     console.log(`✅ Successful login: ${supervisor.name} (${supervisor.email})${duty ? ` - ${duty}` : ''}`);

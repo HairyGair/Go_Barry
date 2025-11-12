@@ -609,8 +609,8 @@ app.get('/api/auth/csrf-token', csrfProtection, (req, res) => {
   res.json({ csrfToken: req.csrfToken() });
 });
 
-// Authentication routes (with rate limiting and CSRF protection)
-app.use('/api/auth', rateLimitLogin, csrfProtection, authRoutes);
+// Authentication routes (CSRF protection for all, rate limiting only on login/signup)
+app.use('/api/auth', csrfProtection, authRoutes);
 
 // Protected routes (require supervisor authentication)
 app.use('/api/breakdowns', authenticateSupervisor, breakdownRoutes);
