@@ -539,6 +539,11 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
     // The message is already formatted with supervisor name, action, and fleet number
     let mainMessage = activity.message || `Activity for ${activity.busNumber || activity.fleet_no || 'vehicle'}`;
 
+    // Replace generic "SDC Operator" with actual supervisor name if available
+    if (activity.supervisor && mainMessage.includes('SDC Operator')) {
+      mainMessage = mainMessage.replace(/SDC Operator/g, activity.supervisor);
+    }
+
     // Extract and highlight fleet number
     const fleetNumber = extractFleetNumber(activity);
     if (fleetNumber && !mainMessage.includes('Fleet')) {
