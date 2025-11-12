@@ -122,6 +122,18 @@
   position: relative;
 }
 
+.live-activity-feed.embedded .live-activity-header {
+  padding: 16px 0 12px 0;
+  background: transparent;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.live-activity-feed.embedded .live-activity-header h3 {
+  color: #1f2937;
+  font-size: 18px;
+  font-weight: 700;
+}
+
 .header-content {
   display: flex;
   justify-content: space-between;
@@ -243,6 +255,14 @@
   flex-shrink: 0;
 }
 
+.live-activity-feed.embedded .mini-stats-bar {
+  padding: 0 0 16px 0;
+  background: transparent;
+  border-bottom: none;
+  gap: 10px;
+  justify-content: flex-start;
+}
+
 .stat-item {
   display: flex;
   align-items: center;
@@ -256,6 +276,33 @@
 
 .stat-item:hover {
   transform: translateY(-1px);
+}
+
+.live-activity-feed.embedded .stat-item {
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  border: 1px solid;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 70px;
+  text-align: center;
+}
+
+.live-activity-feed.embedded .stat-item.breakdown {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.live-activity-feed.embedded .stat-item.duty {
+  border-color: #bae6fd;
+  background: #f0f9ff;
+}
+
+.live-activity-feed.embedded .stat-item.resolved {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
 }
 
 .stat-item.breakdown {
@@ -305,6 +352,12 @@
   min-height: 300px;
   overscroll-behavior: contain;
   background: #fafafa;
+}
+
+.live-activity-feed.embedded .live-activity-content {
+  padding: 0;
+  background: transparent;
+  min-height: auto;
 }
 
 /* ===== SKELETON LOADER ===== */
@@ -544,6 +597,11 @@
   min-height: auto;
   position: relative;
   animation: slideInWithBounce 0.4s var(--animation-bounce);
+}
+
+.live-activity-feed.embedded .activity-group {
+  margin-bottom: 10px;
+  animation: none;
 }
 
 /* Priority-based left border indicators */
@@ -1115,10 +1173,9 @@
 .live-activity-feed.embedded {
   position: relative;
   width: 100%;
-  background: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
-              0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
   display: flex;
   flex-direction: column;
   height: auto;
@@ -1126,12 +1183,14 @@
   transform: translateZ(0);
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
+  gap: 0;
 }
 
 .live-activity-feed.embedded .live-activity-content {
-  min-height: 400px;
-  overflow-y: auto;
+  min-height: auto;
+  overflow-y: visible;
   max-height: none;
+  gap: 0;
 }
 
 /* ===== MOBILE RESPONSIVE ===== */
