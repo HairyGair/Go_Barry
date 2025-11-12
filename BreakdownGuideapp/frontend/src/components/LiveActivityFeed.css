@@ -840,6 +840,46 @@
   border: 1px solid #d1d5db;
 }
 
+/* User/Logout - Gray */
+.activity-group.activity-type-user {
+  border-left: 5px solid #6b7280 !important;
+}
+
+.activity-group.activity-type-user .activity-item.primary {
+  border-left-color: #6b7280;
+}
+
+.activity-group.activity-type-user .activity-icon {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.activity-group.activity-type-user .activity-type-badge {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #d1d5db;
+}
+
+/* Duty - Blue */
+.activity-group.activity-type-duty {
+  border-left: 5px solid #4A90E2 !important;
+}
+
+.activity-group.activity-type-duty .activity-item.primary {
+  border-left-color: #4A90E2;
+}
+
+.activity-group.activity-type-duty .activity-icon {
+  background: #dbeafe;
+  color: #4A90E2;
+}
+
+.activity-group.activity-type-duty .activity-type-badge {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+
 .activity-icon {
   font-size: 20px;
   line-height: 1;

@@ -70,6 +70,18 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
       };
     }
 
+    // Login events - INFO BLUE
+    if (type.includes('login') || type.includes('LOGIN') || activity.message?.includes('logged in')) {
+      return {
+        icon: '🔐',
+        color: '#FFFFFF',
+        bgColor: '#0ea5e9',
+        gradient: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
+        label: 'LOGIN',
+        category: 'login'
+      };
+    }
+
     // Logout events - NEUTRAL GRAY
     if (type.includes('logout') || type.includes('LOGOUT')) {
       return {
@@ -928,7 +940,7 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
               return (
                 <div
                   key={group.id}
-                  className={`activity-group ${primaryActivity.priorityClass || ''} ${primaryActivity.isRealTime ? 'real-time' : 'polling'} ${hasMultipleEvents ? 'grouped' : 'single'}`}
+                  className={`activity-group ${primaryActivity.priorityClass || ''} activity-type-${primaryActivity.typeInfo?.category || 'info'} ${primaryActivity.isRealTime ? 'real-time' : 'polling'} ${hasMultipleEvents ? 'grouped' : 'single'}`}
                   style={{ opacity: primaryActivity.opacity }}
                   title={primaryActivity.isRealTime ? 'Real-time update' : 'Polling data'}
                 >
