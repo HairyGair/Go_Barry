@@ -52,20 +52,20 @@ const ControlRoomDisplay = () => {
   // Google Maps API key
   const GOOGLE_MAPS_API_KEY = 'AIzaSyBhBN_kVOnIRTKXYhzrDwpr8kvb0Uy0IY8';
 
-  // Depot coordinates fallback for known locations
+  // Depot coordinates fallback - VERIFIED from OpenStreetMap (December 2025)
   const DEPOT_COORDINATES = {
-    'consett depot': { lat: 54.8607, lng: -1.8316, name: 'Consett Depot' },
-    'consett': { lat: 54.8607, lng: -1.8316, name: 'Consett Depot' },
-    'riverside depot': { lat: 54.9486, lng: -1.5781, name: 'Riverside Depot' },
-    'riverside': { lat: 54.9486, lng: -1.5781, name: 'Riverside Depot' },
-    'washington depot': { lat: 54.9000, lng: -1.5200, name: 'Washington Depot' },
-    'washington': { lat: 54.9000, lng: -1.5200, name: 'Washington Depot' },
-    'deptford depot': { lat: 54.9133, lng: -1.4267, name: 'Deptford Depot' },
-    'deptford': { lat: 54.9133, lng: -1.4267, name: 'Deptford Depot' },
-    'percy main depot': { lat: 55.0089, lng: -1.4461, name: 'Percy Main Depot' },
-    'percy main': { lat: 55.0089, lng: -1.4461, name: 'Percy Main Depot' },
-    'hexham depot': { lat: 54.9697, lng: -2.1006, name: 'Hexham Depot' },
-    'hexham': { lat: 54.9697, lng: -2.1006, name: 'Hexham Depot' }
+    'consett depot': { lat: 54.8403, lng: -1.8380, name: 'Consett Depot' },
+    'consett': { lat: 54.8403, lng: -1.8380, name: 'Consett Depot' },
+    'riverside depot': { lat: 54.9586, lng: -1.6579, name: 'Riverside Depot' },
+    'riverside': { lat: 54.9586, lng: -1.6579, name: 'Riverside Depot' },
+    'washington depot': { lat: 54.9068, lng: -1.5140, name: 'Washington Depot' },
+    'washington': { lat: 54.9068, lng: -1.5140, name: 'Washington Depot' },
+    'deptford depot': { lat: 54.9142, lng: -1.3976, name: 'Deptford Depot' },
+    'deptford': { lat: 54.9142, lng: -1.3976, name: 'Deptford Depot' },
+    'percy main depot': { lat: 55.0041, lng: -1.4774, name: 'Percy Main Depot' },
+    'percy main': { lat: 55.0041, lng: -1.4774, name: 'Percy Main Depot' },
+    'hexham depot': { lat: 54.9756, lng: -2.0960, name: 'Hexham Depot' },
+    'hexham': { lat: 54.9756, lng: -2.0960, name: 'Hexham Depot' }
   };
 
   // Try to extract coordinates from depot name
@@ -432,6 +432,11 @@ const ControlRoomDisplay = () => {
           <polyline points="9 22 9 12 15 12 15 22"></polyline>
         </svg>
       </a>
+
+      {/* Hidden GairWare Logo */}
+      <div className="gairware-logo-hidden">
+        <GairWareLogo size={40} />
+      </div>
 
       {/* Stats Bar */}
       <div className="stats-bar">

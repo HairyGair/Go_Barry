@@ -9,6 +9,23 @@ class WizardTrackerIntegration {
     this.apiBase = window.CONFIG?.API_BASE || 'https://go-barry.onrender.com';
   }
 
+  // Get current duty context from sessionStorage
+  getDutyContext() {
+    try {
+      const dutyData = sessionStorage.getItem('currentDuty');
+      if (dutyData) {
+        const duty = JSON.parse(dutyData);
+        return {
+          code: duty.code || null,
+          name: duty.name || null
+        };
+      }
+    } catch (error) {
+      console.warn('[WIZARD-TRACKER] Error reading duty context:', error);
+    }
+    return { code: null, name: null };
+  }
+
   // Map wizard decisions to tracker severity levels
   mapDecisionToSeverity(decision, wizardType) {
     // Handle various decision formats from different wizards
@@ -44,9 +61,14 @@ class WizardTrackerIntegration {
   getVehicleInfo() {
     // Try to get from existing breakdown logger
     if (window.SupervisorBreakdownLogger?.currentAssessment?.vehicleReg) {
+      const assessment = window.SupervisorBreakdownLogger.currentAssessment;
       return {
-        vehicle_id: window.SupervisorBreakdownLogger.currentAssessment.vehicleReg,
-        location: window.SupervisorBreakdownLogger.currentAssessment.location
+        vehicle_id: assessment.vehicleReg,
+        location: assessment.location,
+        location_coords: assessment.locationData?.type === 'ticketer' ? {
+          lat: assessment.locationData.lat,
+          lng: assessment.locationData.lng
+        } : null
       };
     }
 
@@ -58,7 +80,8 @@ class WizardTrackerIntegration {
     return {
       vehicle_id: vehicleInput?.value || 'UNKNOWN',
       route_id: routeInput?.value || null,
-      location: locationInput?.value || 'Assessment Location'
+      location: locationInput?.value || 'Assessment Location',
+      location_coords: null
     };
   }
 
@@ -201,6 +224,9 @@ class WizardTrackerIntegration {
       const issueCategory = this.getIssueCategoryFromWizard(wizardType);
       const issueDescription = this.generateIssueDescription(wizardType, decision, responses);
 
+      // Get current duty context from sessionStorage
+      const dutyContext = this.getDutyContext();
+
       // Create the breakdown record using new API
       const breakdownData = {
         // Wizard information
@@ -231,7 +257,11 @@ class WizardTrackerIntegration {
         // Additional context
         priority_level: severity === 'STOP' ? 1 : (severity === 'AMBER' ? 2 : 3),
         engineering_required: severity === 'STOP' || this.requiresEngineering(wizardType, responses),
-        replacement_vehicle_required: severity === 'STOP'
+        replacement_vehicle_required: severity === 'STOP',
+
+        // Duty context for shift-based reporting
+        duty_code: dutyContext.code,
+        duty_name: dutyContext.name
       };
 
       console.log(`[WIZARD-TRACKER] Creating breakdown record for ${wizardType} assessment:`, breakdownData);

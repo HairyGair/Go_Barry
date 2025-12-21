@@ -1,7 +1,42 @@
 /**
  * MySQL Login Page - Completely Rebuilt CSS
  * Clean, simple, centered design with glassmorphism effect
+ *
+ * Last Updated: December 2025
+ * Fixes Applied:
+ * - Consolidated dark theme overrides into single reset block
+ * - Improved responsive design for all breakpoints
+ * - Merged duplicate declarations
+ * - Added prefers-reduced-motion accessibility support
+ * - Documented z-index scale
  */
+
+/* ============================================
+   Z-INDEX SCALE (documented for maintainability)
+   --z-background-effect: 1-2  (aurora, frost)
+   --z-snow: 10                (snow particles)
+   --z-content: 10             (login container)
+   --z-card-content: 1         (within card stacking context)
+   ============================================ */
+
+/* ============================================
+   DARK THEME RESET - Single consolidated block
+   Forces light theme on login page without scattered !important
+   ============================================ */
+.login-page,
+.login-page *,
+.login-page *::before,
+.login-page *::after {
+    /* Reset any dark theme color overrides */
+    --login-text-primary: #0f172a;
+    --login-text-secondary: #475569;
+    --login-text-muted: #64748b;
+    --login-bg-card: rgba(255, 255, 255, 0.95);
+    --login-bg-input: rgba(255, 255, 255, 0.8);
+    --login-bg-input-focus: rgba(255, 255, 255, 0.95);
+    --login-border-input: #d1d5db;
+    --login-border-focus: #7dd3fc;
+}
 
 /* ============================================
    FULL PAGE CONTAINER
@@ -18,8 +53,7 @@
     align-items: center;
     justify-content: center;
     font-family: var(--font-family);
-    /* Override any global dark theme */
-    background: transparent !important;
+    background: transparent;
 }
 
 /* ============================================
@@ -102,7 +136,7 @@
     }
 }
 
-/* Continuous Snowfall - Never Stops */
+/* Continuous Snowfall - Never Stops (merged into single declaration) */
 .login-page::before {
     content: '';
     position: fixed;
@@ -137,12 +171,10 @@
         89px 0,
         203px 0,
         331px 0;
-    z-index: 10;
+    z-index: 10; /* --z-snow */
     pointer-events: none;
     filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.5));
-}
-
-.login-page::before {
+    /* Animation combined here instead of separate declaration */
     animation:
         snow-slow 30s linear infinite,
         snow-medium 20s linear infinite,
@@ -229,23 +261,26 @@
 
 /* ============================================
    GLASSMORPHISM LOGIN CARD
+   (Uses CSS variables from dark theme reset block)
    ============================================ */
 
 .login-card {
     width: 100%;
-    background: var(--glass-bg) !important;
-    backdrop-filter: blur(60px) saturate(180%) !important;
-    -webkit-backdrop-filter: blur(60px) saturate(180%) !important;
-    border: 1px solid var(--glass-border) !important;
+    background: var(--login-bg-card);
+    backdrop-filter: blur(60px) saturate(180%);
+    -webkit-backdrop-filter: blur(60px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: var(--radius-2xl);
     padding: var(--spacing-3xl);
     box-shadow:
         var(--shadow-2xl),
         0 0 80px rgba(125, 211, 252, 0.3),
-        inset 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
     animation: slide-up 0.6s var(--ease-out), card-breathing 4s ease-in-out infinite;
     position: relative;
     overflow: hidden;
+    /* Explicit color for dark theme override */
+    color: var(--login-text-primary);
 }
 
 /* Icy Shimmer Overlay */
@@ -290,16 +325,6 @@
     mask-composite: exclude;
     animation: frost-border-rotate 4s linear infinite;
     pointer-events: none;
-}
-
-/* Force override any dark theme styles */
-.login-page .login-card,
-.login-page .login-card * {
-    color: inherit !important;
-}
-
-.login-page .login-card {
-    background: rgba(255, 255, 255, 0.95) !important;
 }
 
 /* All card content above the shimmer effects */
@@ -362,13 +387,16 @@
 .datetime-display {
     text-align: center;
     font-size: var(--text-sm);
-    color: var(--color-grey-600) !important;
+    color: var(--login-text-muted);
     font-weight: var(--font-semibold);
     margin-bottom: var(--spacing-lg);
     padding: var(--spacing-md) var(--spacing-lg);
-    background: rgba(255, 255, 255, 0.6) !important;
+    background: rgba(255, 255, 255, 0.6);
     border-radius: var(--radius-lg);
     letter-spacing: 0.3px;
+    /* Prevent long date text from overflowing on mobile */
+    word-wrap: break-word;
+    line-height: 1.4;
 }
 
 /* ============================================
@@ -415,7 +443,7 @@
 .title-section h1 {
     font-size: var(--text-3xl);
     font-weight: var(--font-extrabold);
-    color: var(--color-navy-dark) !important;
+    color: var(--login-text-primary);
     margin: 0 0 var(--spacing-md) 0;
     letter-spacing: -0.5px;
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
@@ -423,7 +451,7 @@
 
 .title-section .subtitle-primary {
     font-size: var(--text-sm);
-    color: var(--color-info) !important;
+    color: #0ea5e9; /* Info blue - explicit for login page */
     margin: 0 0 var(--spacing-sm) 0;
     font-weight: var(--font-bold);
     letter-spacing: 1.5px;
@@ -432,7 +460,7 @@
 
 .title-section .subtitle-secondary {
     font-size: var(--text-base);
-    color: var(--color-text-secondary) !important;
+    color: var(--login-text-secondary);
     margin: 0;
     font-weight: var(--font-medium);
 }
@@ -456,16 +484,16 @@
 .form-group label {
     font-size: var(--text-sm);
     font-weight: var(--font-semibold);
-    color: var(--color-grey-700) !important;
+    color: var(--login-text-secondary);
 }
 
 .form-group input {
     width: 100%;
     padding: var(--spacing-lg) var(--spacing-xl);
-    background: rgba(255, 255, 255, 0.8) !important;
-    border: 2px solid var(--color-grey-300) !important;
+    background: var(--login-bg-input);
+    border: 2px solid var(--login-border-input);
     border-radius: var(--radius-lg);
-    color: var(--color-navy-dark) !important;
+    color: var(--login-text-primary);
     font-size: var(--text-base);
     transition: all var(--transition-slow);
     outline: none;
@@ -477,8 +505,8 @@
 }
 
 .form-group input:focus {
-    background: rgba(255, 255, 255, 0.95) !important;
-    border-color: #7dd3fc !important;
+    background: var(--login-bg-input-focus);
+    border-color: var(--login-border-focus);
     box-shadow:
         0 0 0 3px rgba(125, 211, 252, 0.25),
         0 0 30px rgba(125, 211, 252, 0.5),
@@ -653,7 +681,7 @@
 
 .checkbox-label span {
     font-size: var(--text-sm);
-    color: var(--color-grey-700) !important;
+    color: var(--login-text-secondary);
     font-weight: var(--font-medium);
 }
 
@@ -840,7 +868,7 @@
 .security-badges {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: var(--spacing-lg);
+    gap: var(--spacing-md);
     margin-top: var(--spacing-2xl);
     padding-top: var(--spacing-xl);
     border-top: 1px solid var(--color-grey-300);
@@ -850,18 +878,26 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: var(--spacing-sm);
+    gap: var(--spacing-xs);
     text-align: center;
+    min-width: 0; /* Allow text to shrink */
 }
 
 .badge-icon {
-    font-size: var(--text-xl);
+    font-size: var(--text-lg);
+    flex-shrink: 0;
 }
 
 .badge-text {
-    font-size: var(--text-xs);
-    color: var(--color-grey-600) !important;
+    font-size: 0.625rem; /* 10px - smaller for better fit */
+    color: var(--login-text-muted);
     font-weight: var(--font-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
 }
 
 /* Pulse animation for System Online badge */
@@ -913,15 +949,16 @@
 
 .login-card p {
     text-align: center;
-    color: #475569 !important;
+    color: var(--login-text-secondary);
     font-size: 1rem;
     margin: 0;
 }
 
 /* ============================================
-   RESPONSIVE DESIGN
+   RESPONSIVE DESIGN - Enhanced breakpoints
    ============================================ */
 
+/* Tablet (768px) - Intermediate sizing */
 @media (max-width: 768px) {
     .login-container {
         max-width: 100%;
@@ -941,15 +978,32 @@
         font-size: 1.75rem;
     }
 
-    .title-section p {
+    .title-section .subtitle-primary {
+        font-size: 0.8125rem;
+        letter-spacing: 1px;
+    }
+
+    .title-section .subtitle-secondary {
         font-size: 0.9375rem;
     }
 
+    /* Datetime adjustments for tablet */
+    .datetime-display {
+        font-size: 0.8125rem;
+        padding: 0.625rem 1rem;
+    }
+
+    /* Security badges - keep 3 columns but tighter */
     .security-badges {
-        gap: 1rem;
+        gap: 0.75rem;
+    }
+
+    .badge-text {
+        font-size: 0.6875rem;
     }
 }
 
+/* Mobile (480px) - Compact layout (rare use case for this app) */
 @media (max-width: 480px) {
     .login-card {
         padding: 2rem 1.5rem;
@@ -964,12 +1018,24 @@
         font-size: 1.5rem;
     }
 
-    .title-section p {
+    .title-section .subtitle-primary {
+        font-size: 0.75rem;
+        letter-spacing: 0.75px;
+    }
+
+    .title-section .subtitle-secondary {
         font-size: 0.875rem;
+    }
+
+    /* Datetime - simplified for mobile */
+    .datetime-display {
+        font-size: 0.75rem;
+        padding: 0.5rem 0.75rem;
     }
 
     .form-group input {
         padding: 0.875rem 1rem;
+        font-size: 1rem;
     }
 
     .submit-button {
@@ -977,18 +1043,87 @@
         font-size: 1rem;
     }
 
+    /* Security badges - stack vertically only on true mobile */
     .security-badges {
         grid-template-columns: 1fr;
-        gap: 0.875rem;
+        gap: 0.625rem;
+        margin-top: 1.5rem;
+        padding-top: 1rem;
     }
 
     .badge {
         flex-direction: row;
         justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .badge-icon {
+        font-size: 1rem;
     }
 
     .badge-text {
-        font-size: 0.8125rem;
+        font-size: 0.75rem;
+    }
+}
+
+/* ============================================
+   ACCESSIBILITY - Reduced Motion
+   Disables animations for users who prefer reduced motion
+   ============================================ */
+
+@media (prefers-reduced-motion: reduce) {
+    /* Disable all animations */
+    .login-page::before,
+    .login-background::before,
+    .login-background::after,
+    .login-card,
+    .login-card::before,
+    .login-card::after,
+    .login-logo,
+    .submit-button::before,
+    .prefilled-badge,
+    .badge-online .pulse-icon,
+    .fade-in-badge,
+    .error-message,
+    .caps-lock-warning,
+    .form-group input:focus {
+        animation: none;
+        transition: none;
+    }
+
+    /* Keep essential visual feedback but remove motion */
+    .form-group input:focus {
+        transform: none;
+        box-shadow:
+            0 0 0 3px rgba(125, 211, 252, 0.25),
+            0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .submit-button:hover:not(:disabled) {
+        transform: none;
+    }
+
+    /* Hide snow effect entirely */
+    .login-page::before {
+        opacity: 0;
+    }
+
+    /* Static aurora background */
+    .login-background::before {
+        opacity: 0.6;
+    }
+
+    /* Remove card shimmer and breathing */
+    .login-card {
+        box-shadow:
+            var(--shadow-2xl),
+            0 0 80px rgba(125, 211, 252, 0.3),
+            inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    }
+
+    .login-card::before,
+    .login-card::after {
+        display: none;
     }
 }
 

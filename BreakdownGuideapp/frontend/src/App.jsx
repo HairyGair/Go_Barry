@@ -18,6 +18,9 @@ import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation } f
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import './App.css'
 
+// Phase 6.4: Global accessibility styles for touch targets
+import './styles/accessibility.css'
+
 // Import AuthProvider
 import { AuthProvider, useAuth } from './contexts/AuthContext.jsx'
 
@@ -53,6 +56,33 @@ import SettingsPage from './components/SettingsPage.jsx'
 // Import QuickFeedback and ErrorBoundary
 import QuickFeedback from './components/QuickFeedback.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
+
+// Import Duty Notes Widget
+import DutyNotesWidget from './components/DutyNotesWidget.jsx'
+
+// Import End of Shift Modal
+import EndOfShiftModal from './components/EndOfShiftModal.jsx'
+
+// Import Handover Reminder Toast
+import HandoverReminderToast from './components/HandoverReminderToast.jsx'
+
+// Import Duty Theme Provider (Phase 8.2)
+import DutyThemeProvider from './components/DutyThemeProvider.jsx'
+import './components/DutyThemeProvider.css'
+
+// Import Shift Summary Modal (Phase 8.4)
+import ShiftSummaryModal from './components/ShiftSummaryModal.jsx'
+import './components/ShiftSummaryModal.css'
+
+// Import Session Timeout Warning (Phase 9.3)
+import SessionTimeoutWarning from './components/SessionTimeoutWarning.jsx'
+import './components/SessionTimeoutWarning.css'
+
+// Import Shift Reminder Service
+import shiftReminderService from './services/shiftReminderService.js'
+
+// Import Voice Announcement Service (Phase 6.2)
+import voiceAnnouncementService from './services/voiceAnnouncementService.js'
 
 const BreakdownGuide = () => {
   return <BreakdownGuideApp />
@@ -251,32 +281,114 @@ const AppContent = () => {
   const { isAuthenticated, currentUser, isSessionChecking } = useAuth()
   const [isOnline, setIsOnline] = useState(navigator.onLine)
   const [activeBreakdowns, setActiveBreakdowns] = useState(0)
+  const [activeBreakdownsList, setActiveBreakdownsList] = useState([])
   const [showDutyModal, setShowDutyModal] = useState(false)
   const [currentDuty, setCurrentDuty] = useState(null)
   const [showWelcome, setShowWelcome] = useState(false)
+  const [shiftWarningLevel, setShiftWarningLevel] = useState(null) // 30, 15, 5, or 0
+  const [showEndOfShiftModal, setShowEndOfShiftModal] = useState(false)
+  const [acknowledgedWarnings, setAcknowledgedWarnings] = useState(new Set())
+  const [showShiftSummary, setShowShiftSummary] = useState(false) // Phase 8.4
+  const [shiftStats, setShiftStats] = useState({}) // Phase 8.4 - aggregated stats
   const location = useLocation()
 
-  // Check for existing duty on mount
+  // Check for existing duty on mount and validate expiration
   useEffect(() => {
     const existingDuty = sessionStorage.getItem('currentDuty')
     if (existingDuty) {
       try {
-        setCurrentDuty(JSON.parse(existingDuty))
+        const dutyData = JSON.parse(existingDuty)
+
+        // Check if duty has shift end time and hasn't expired
+        if (dutyData.shiftEnd) {
+          const shiftEndTime = new Date(dutyData.shiftEnd)
+          const now = new Date()
+
+          if (now < shiftEndTime) {
+            // Duty still valid
+            console.log('✅ Existing duty valid until:', shiftEndTime.toLocaleString())
+            setCurrentDuty(dutyData)
+          } else {
+            // Duty expired
+            console.log('⏰ Duty expired at:', shiftEndTime.toLocaleString())
+            sessionStorage.removeItem('currentDuty')
+            sessionStorage.removeItem('showDutyModal')
+          }
+        } else {
+          // Legacy duty without shift end time - keep for now
+          console.log('⚠️ Legacy duty without expiration found')
+          setCurrentDuty(dutyData)
+        }
       } catch (error) {
         console.error('Error parsing existing duty:', error)
+        sessionStorage.removeItem('currentDuty')
       }
     }
   }, [])
 
-  // Check for duty modal flag after login
+  // Show duty modal IMMEDIATELY after login if no valid duty exists
   useEffect(() => {
-    if (isAuthenticated && !isSessionChecking) {
-      const shouldShowDutyModal = sessionStorage.getItem('showDutyModal')
-      if (shouldShowDutyModal === 'true' && !currentDuty) {
-        setShowDutyModal(true)
-      }
+    if (isAuthenticated && !isSessionChecking && !currentDuty) {
+      console.log('🔔 Authenticated with no duty - showing duty modal')
+      setShowDutyModal(true)
+      // Clear the flag now that we're showing the modal
+      sessionStorage.removeItem('showDutyModal')
     }
   }, [isAuthenticated, isSessionChecking, currentDuty])
+
+  // Monitor shift time for end-of-shift warnings (30/15/5/0 minutes)
+  useEffect(() => {
+    if (!currentDuty || !currentDuty.endTime) return;
+
+    const checkShiftWarnings = () => {
+      const now = new Date();
+      const [endHour, endMin] = currentDuty.endTime.split(':').map(Number);
+      const [startHour] = currentDuty.startTime.split(':').map(Number);
+
+      const endTime = new Date();
+      endTime.setHours(endHour, endMin, 0, 0);
+
+      // Handle overnight shifts
+      if (endHour < startHour) {
+        if (now.getHours() < 12) {
+          // We're in the early morning of the next day
+        } else {
+          endTime.setDate(endTime.getDate() + 1);
+        }
+      }
+
+      const remainingMs = endTime - now;
+      const remainingMinutes = Math.floor(remainingMs / (1000 * 60));
+
+      // Determine warning level based on remaining time
+      let newWarningLevel = null;
+
+      if (remainingMinutes <= 0) {
+        newWarningLevel = 0;
+      } else if (remainingMinutes <= 5) {
+        newWarningLevel = 5;
+      } else if (remainingMinutes <= 15) {
+        newWarningLevel = 15;
+      } else if (remainingMinutes <= 30) {
+        newWarningLevel = 30;
+      }
+
+      // Only show modal if we hit a new warning threshold that hasn't been acknowledged
+      if (newWarningLevel !== null && newWarningLevel !== shiftWarningLevel) {
+        if (newWarningLevel === 0 || !acknowledgedWarnings.has(newWarningLevel)) {
+          console.log(`⏰ Shift warning triggered: ${newWarningLevel} minutes`);
+          setShiftWarningLevel(newWarningLevel);
+          setShowEndOfShiftModal(true);
+        }
+      }
+    };
+
+    // Check immediately and then every 30 seconds
+    checkShiftWarnings();
+    const timer = setInterval(checkShiftWarnings, 30000);
+
+    return () => clearInterval(timer);
+  }, [currentDuty, shiftWarningLevel, acknowledgedWarnings]);
 
   // Online/Offline monitoring
   useEffect(() => {
@@ -291,7 +403,39 @@ const AppContent = () => {
       window.removeEventListener('offline', handleOffline)
     }
   }, [])
-  
+
+  // Initialize shift reminder service when authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      console.log('🔔 Initializing shift reminder service');
+      shiftReminderService.initialize();
+    }
+
+    return () => {
+      shiftReminderService.stopMonitoring();
+    };
+  }, [isAuthenticated]);
+
+  // Phase 6.2: Initialize voice announcement service when on duty
+  useEffect(() => {
+    if (isAuthenticated && currentDuty) {
+      console.log('🔊 Initializing voice announcement service');
+      voiceAnnouncementService.initializeVoice();
+
+      // Start monitoring if enabled in settings
+      const settings = voiceAnnouncementService.getSettings();
+      if (settings.enabled) {
+        voiceAnnouncementService.startMonitoring();
+        // Announce duty start
+        voiceAnnouncementService.announceDutyStart(currentDuty);
+      }
+    }
+
+    return () => {
+      voiceAnnouncementService.stopMonitoring();
+    };
+  }, [isAuthenticated, currentDuty]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -316,8 +460,20 @@ const AppContent = () => {
   }, [])
   
   // Stats change handler for navigation badge
-  const handleStatsChange = useCallback((count) => {
+  const handleStatsChange = useCallback((count, breakdownsList = []) => {
     setActiveBreakdowns(count)
+    setActiveBreakdownsList(breakdownsList)
+  }, [])
+
+  // Handover reminder handlers
+  const handleStartHandover = useCallback(() => {
+    // TODO: Open DutyHandoverModal when integrated
+    console.log('🔄 Starting handover...')
+  }, [])
+
+  const handleQuickResolve = useCallback(async (breakdownId) => {
+    console.log('✅ Quick resolving breakdown:', breakdownId)
+    // TODO: Call API to resolve breakdown
   }, [])
 
   // Duty selection handler
@@ -335,7 +491,79 @@ const AppContent = () => {
     }
   }, [currentUser])
 
-  const hideNav = location.pathname === '/breakdown-guide' || location.pathname === '/dashboards/control-room'
+  // End of shift modal handlers
+  const handleAcknowledgeWarning = useCallback(() => {
+    if (shiftWarningLevel !== 0) {
+      setAcknowledgedWarnings(prev => new Set([...prev, shiftWarningLevel]));
+      setShowEndOfShiftModal(false);
+    }
+  }, [shiftWarningLevel]);
+
+  const handleExtendShift = useCallback(() => {
+    // Extend by 30 minutes
+    if (currentDuty) {
+      const [endHour, endMin] = currentDuty.endTime.split(':').map(Number);
+      const newEndTime = new Date();
+      newEndTime.setHours(endHour, endMin + 30, 0, 0);
+
+      const newEndTimeStr = `${String(newEndTime.getHours()).padStart(2, '0')}:${String(newEndTime.getMinutes()).padStart(2, '0')}`;
+
+      const extendedDuty = {
+        ...currentDuty,
+        endTime: newEndTimeStr,
+        extended: true,
+        originalEndTime: currentDuty.originalEndTime || currentDuty.endTime
+      };
+
+      setCurrentDuty(extendedDuty);
+      sessionStorage.setItem('currentDuty', JSON.stringify(extendedDuty));
+      setShowEndOfShiftModal(false);
+      setShiftWarningLevel(null);
+      setAcknowledgedWarnings(new Set());
+      console.log('✅ Shift extended by 30 minutes to:', newEndTimeStr);
+    }
+  }, [currentDuty]);
+
+  // Phase 8.4: Show summary modal before ending shift
+  const handleEndShift = useCallback(() => {
+    // Calculate shift stats for summary
+    const stats = {
+      breakdownsHandled: activeBreakdowns,
+      breakdownsResolved: 0, // Would need API call for accurate count
+      breakdownsPending: activeBreakdowns,
+      assessmentsCompleted: 0, // Would need API call
+      avgResponseTime: null, // Would need API call
+      shiftExtended: currentDuty?.extended || false,
+      isFirstShift: false, // Would check from user profile
+      performance: 'good'
+    };
+    setShiftStats(stats);
+    setShowEndOfShiftModal(false);
+    setShowShiftSummary(true);
+    console.log('📊 Showing shift summary');
+  }, [activeBreakdowns, currentDuty]);
+
+  // Phase 8.4: Confirm end shift after summary
+  const handleConfirmEndShift = useCallback((summaryData) => {
+    console.log('✅ Shift summary confirmed:', summaryData);
+    sessionStorage.removeItem('currentDuty');
+    setCurrentDuty(null);
+    setShowShiftSummary(false);
+    setShiftWarningLevel(null);
+    setAcknowledgedWarnings(new Set());
+    setShowDutyModal(true);
+    console.log('🚪 Shift ended');
+  }, []);
+
+  // Phase 8.4: Cancel summary and continue working
+  const handleCancelSummary = useCallback(() => {
+    setShowShiftSummary(false);
+    setShowEndOfShiftModal(false);
+    console.log('↩️ Continuing shift');
+  }, []);
+
+  // Only hide header for full-screen control room display
+  const hideNav = location.pathname === '/dashboards/control-room' || location.pathname.includes('/display')
 
   // Flag to toggle between classic and modern header
   const useModernHeader = true // Set to false to use classic header
@@ -364,6 +592,8 @@ const AppContent = () => {
             variant="full"
             isAuthenticated={true}
             activeBreakdowns={activeBreakdowns}
+            currentDuty={currentDuty}
+            onDutyClick={handleDutyClick}
           />
         )
       ) : (
@@ -431,6 +661,60 @@ const AppContent = () => {
 
       {/* Quick Feedback Widget - Always visible when logged in */}
       {isAuthenticated && <QuickFeedback />}
+
+      {/* Duty Notes Widget - Quick note input */}
+      {isAuthenticated && currentDuty && (
+        <DutyNotesWidget
+          currentDuty={currentDuty}
+          position="bottom-left"
+        />
+      )}
+
+      {/* End of Shift Warning Modal */}
+      {isAuthenticated && currentDuty && (
+        <EndOfShiftModal
+          currentDuty={currentDuty}
+          activeBreakdowns={activeBreakdowns}
+          isVisible={showEndOfShiftModal}
+          warningLevel={shiftWarningLevel}
+          onExtendShift={handleExtendShift}
+          onEndShift={handleEndShift}
+          onStartHandover={() => {
+            setShowEndOfShiftModal(false);
+            // Trigger handover modal if available
+          }}
+        />
+      )}
+
+      {/* Handover Reminder Toast - Shows near shift end with active breakdowns */}
+      {isAuthenticated && currentDuty && (
+        <HandoverReminderToast
+          activeBreakdowns={activeBreakdownsList}
+          currentDuty={currentDuty}
+          onStartHandover={handleStartHandover}
+          onQuickResolve={handleQuickResolve}
+          onViewBreakdowns={() => window.location.href = '/dashboards/sdc'}
+          isVisible={true}
+        />
+      )}
+
+      {/* Phase 8.4: Shift Summary Modal - Shows before ending shift */}
+      {isAuthenticated && currentDuty && (
+        <ShiftSummaryModal
+          isVisible={showShiftSummary}
+          currentDuty={currentDuty}
+          currentUser={currentUser}
+          shiftStats={shiftStats}
+          onConfirmEnd={handleConfirmEndShift}
+          onCancel={handleCancelSummary}
+          onAddNotes={(notes) => console.log('📝 Shift notes:', notes)}
+        />
+      )}
+
+      {/* Phase 9.3: Session Timeout Warning */}
+      {isAuthenticated && currentDuty && (
+        <SessionTimeoutWarning />
+      )}
     </div>
   )
 }
@@ -449,14 +733,16 @@ function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <Router>
-          <Routes>
-            {/* Public routes - no authentication required */}
-            <Route path="/dashboards/engineering/display" element={<EngineeringDisplay />} />
-            {/* All other routes require authentication */}
-            <Route path="*" element={<AppContent />} />
-          </Routes>
-        </Router>
+        <DutyThemeProvider>
+          <Router>
+            <Routes>
+              {/* Public routes - no authentication required */}
+              <Route path="/dashboards/engineering/display" element={<EngineeringDisplay />} />
+              {/* All other routes require authentication */}
+              <Route path="*" element={<AppContent />} />
+            </Routes>
+          </Router>
+        </DutyThemeProvider>
       </AuthProvider>
     </ErrorBoundary>
   )

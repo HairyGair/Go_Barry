@@ -59,7 +59,7 @@ const DUTY_SHIFTS = [
     }
 ];
 
-const DutySelectionModal = ({ onDutySelected, currentUser }) => {
+const DutySelectionModal = ({ onDutySelected, currentUser, onClose }) => {
     const [step, setStep] = useState('selection'); // 'selection' or 'confirmation'
     const [selectedDuty, setSelectedDuty] = useState(null);
     const [showAdminOverride, setShowAdminOverride] = useState(false);
@@ -67,8 +67,36 @@ const DutySelectionModal = ({ onDutySelected, currentUser }) => {
     const [notificationPermission, setNotificationPermission] = useState(
         typeof Notification !== 'undefined' ? Notification.permission : 'default'
     );
+    const [complianceSettings, setComplianceSettings] = useState({
+        mandatoryDutySelection: false,
+        gracePeriodMinutes: 5
+    });
 
     const isAdmin = currentUser?.role === 'admin';
+    const isManager = currentUser?.role === 'manager';
+
+    // Fetch compliance settings on mount
+    useEffect(() => {
+        const fetchComplianceSettings = async () => {
+            try {
+                const apiUrl = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
+                const response = await fetch(`${apiUrl}/api/settings/compliance/status`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.compliance) {
+                        setComplianceSettings(data.compliance);
+                    }
+                }
+            } catch (error) {
+                console.warn('Could not fetch compliance settings, using defaults');
+            }
+        };
+        fetchComplianceSettings();
+    }, []);
+
+    // Check if skip option should be shown
+    // Skip is allowed if: mandatory is disabled, OR user is admin/manager
+    const canSkipDutySelection = !complianceSettings.mandatoryDutySelection || isAdmin || isManager;
 
     // Check for existing locked duty
     useEffect(() => {
@@ -174,12 +202,24 @@ const DutySelectionModal = ({ onDutySelected, currentUser }) => {
             }
         }
 
-        // Create duty object with lock
+        // Calculate shift end time based on duty end time
+        const now = new Date();
+        const [endHour, endMin] = selectedDuty.endTime.split(':').map(Number);
+        const shiftEnd = new Date();
+        shiftEnd.setHours(endHour, endMin, 0, 0);
+
+        // Handle overnight shifts (e.g., Night Shift ending after midnight)
+        if (shiftEnd < now) {
+            shiftEnd.setDate(shiftEnd.getDate() + 1);
+        }
+
+        // Create duty object with lock and shift expiration
         const dutyData = {
             ...selectedDuty,
             locked: true,
             lockedAt: new Date().toISOString(),
             lockedBy: currentUser?.email || 'unknown',
+            shiftEnd: shiftEnd.toISOString(), // CRITICAL: Expiration time
             notifications: {
                 thirtyMinWarning: true,
                 tenMinWarning: true,
@@ -187,11 +227,34 @@ const DutySelectionModal = ({ onDutySelected, currentUser }) => {
             }
         };
 
+        // Call backend to set duty and log to activity feed
+        try {
+            const apiUrl = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
+            const response = await fetch(`${apiUrl}/api/auth/set-duty`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ duty: selectedDuty.code })
+            });
+
+            if (!response.ok) {
+                console.warn('⚠️ Failed to set duty on backend, continuing with local storage');
+            } else {
+                console.log('✅ Duty set on backend successfully');
+            }
+        } catch (error) {
+            console.error('❌ Error calling set-duty endpoint:', error);
+            // Continue anyway - duty will be stored locally
+        }
+
         // Store in sessionStorage
         sessionStorage.setItem('currentDuty', JSON.stringify(dutyData));
         sessionStorage.removeItem('showDutyModal');
 
-        console.log('✅ Duty confirmed and locked:', dutyData);
+        console.log('✅ Duty confirmed and locked until:', shiftEnd.toLocaleString());
+        console.log('   Duty data:', dutyData);
 
         // Call parent callback
         onDutySelected(dutyData);
@@ -247,9 +310,36 @@ const DutySelectionModal = ({ onDutySelected, currentUser }) => {
     const existingDuty = sessionStorage.getItem('currentDuty');
     const hasLockedDuty = existingDuty && JSON.parse(existingDuty).locked;
 
+    // Handle close - pass view-only mode or just close
+    const handleClose = () => {
+        if (onClose) {
+            onClose();
+        } else {
+            // Fallback: select view-only mode
+            const shiftEnd = new Date();
+            shiftEnd.setDate(shiftEnd.getDate() + 1);
+            shiftEnd.setHours(0, 0, 0, 0);
+            onDutySelected({
+                viewOnly: true,
+                code: null,
+                name: 'View Only',
+                shiftEnd: shiftEnd.toISOString()
+            });
+        }
+    };
+
     return (
-        <div className="duty-modal-overlay">
-            <div className="duty-modal-container">
+        <div className="duty-modal-overlay" onClick={handleClose}>
+            <div className="duty-modal-container" onClick={(e) => e.stopPropagation()}>
+                {/* Close Button - Always visible */}
+                <button
+                    className="duty-modal-close-btn"
+                    onClick={handleClose}
+                    aria-label="Close modal"
+                >
+                    <span>×</span>
+                </button>
+
                 {/* Locked Duty Warning (Admin Only) */}
                 {hasLockedDuty && isAdmin && !showAdminOverride && (
                     <div className="locked-duty-warning">
@@ -345,6 +435,42 @@ const DutySelectionModal = ({ onDutySelected, currentUser }) => {
                                 </div>
                             ))}
                         </div>
+
+                        {/* View Only / Skip Duty Option - Only shown when not mandatory OR for admins/managers */}
+                        {canSkipDutySelection ? (
+                            <div className="duty-skip-section">
+                                <div className="skip-divider">
+                                    <span>or</span>
+                                </div>
+                                <button
+                                    className="btn-view-only"
+                                    onClick={() => {
+                                        // View-only access expires at midnight (next day)
+                                        const shiftEnd = new Date();
+                                        shiftEnd.setDate(shiftEnd.getDate() + 1);
+                                        shiftEnd.setHours(0, 0, 0, 0);
+
+                                        onDutySelected({
+                                            viewOnly: true,
+                                            code: null,
+                                            name: 'View Only',
+                                            shiftEnd: shiftEnd.toISOString()
+                                        });
+                                    }}
+                                >
+                                    <span className="view-only-icon">👁️</span>
+                                    <div className="view-only-content">
+                                        <strong>Continue without selecting a duty</strong>
+                                        <p>View-only access (for office staff, managers, or non-operational users)</p>
+                                    </div>
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="duty-mandatory-notice">
+                                <span className="mandatory-icon">&#x1F512;</span>
+                                <p>Duty selection is required. Please select a shift to continue.</p>
+                            </div>
+                        )}
                     </>
                 )}
 

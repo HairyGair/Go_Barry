@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>System Maintenance - Go BARRY</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      width: 100vw;
+      height: 100vh;
+      background:
+        radial-gradient(ellipse at top left, rgba(59, 130, 246, 0.2) 0%, transparent 45%),
+        radial-gradient(ellipse at bottom right, rgba(147, 51, 234, 0.15) 0%, transparent 45%),
+        radial-gradient(ellipse at center, rgba(99, 102, 241, 0.1) 0%, transparent 70%),
+        linear-gradient(180deg, #0a0f1b 0%, #0f172a 40%, #1a2332 100%);
+      color: #ffffff;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+      overflow: auto;
+    }
+
+    .maintenance-grid {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image:
+        linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px);
+      background-size: 50px 50px;
+      animation: gridMove 20s linear infinite;
+      pointer-events: none;
+    }
+
+    @keyframes gridMove {
+      0% { transform: translate(0, 0); }
+      100% { transform: translate(50px, 50px); }
+    }
+
+    .maintenance-content {
+      position: relative;
+      max-width: 900px;
+      width: 100%;
+      text-align: center;
+      z-index: 10;
+    }
+
+    .maintenance-logo {
+      margin-bottom: 30px;
+      animation: logoFloat 3s ease-in-out infinite;
+    }
+
+    @keyframes logoFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+
+    .gairware-logo {
+      width: 120px;
+      height: 120px;
+      margin: 0 auto;
+    }
+
+    .maintenance-icon {
+      font-size: 120px;
+      margin-bottom: 30px;
+      animation: iconRotate 4s ease-in-out infinite;
+      filter: drop-shadow(0 10px 30px rgba(59, 130, 246, 0.4));
+    }
+
+    @keyframes iconRotate {
+      0%, 100% { transform: rotate(-5deg); }
+      50% { transform: rotate(5deg); }
+    }
+
+    .maintenance-title {
+      font-size: 56px;
+      font-weight: 900;
+      margin: 0 0 20px 0;
+      background: linear-gradient(135deg, #ffffff 0%, #60a5fa 50%, #a78bfa 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: titleGlow 3s ease-in-out infinite;
+    }
+
+    @keyframes titleGlow {
+      0%, 100% { filter: drop-shadow(0 4px 20px rgba(59, 130, 246, 0.3)); }
+      50% { filter: drop-shadow(0 6px 30px rgba(59, 130, 246, 0.5)); }
+    }
+
+    .maintenance-message {
+      font-size: 22px;
+      color: rgba(255, 255, 255, 0.8);
+      margin-bottom: 50px;
+      line-height: 1.6;
+    }
+
+    .maintenance-info {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 30px;
+      margin-bottom: 50px;
+    }
+
+    .info-card {
+      background:
+        linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(99, 102, 241, 0.06) 100%),
+        radial-gradient(ellipse at top, rgba(147, 51, 234, 0.12) 0%, transparent 70%);
+      border: 2px solid rgba(59, 130, 246, 0.4);
+      border-radius: 20px;
+      padding: 30px;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      animation: cardBreathing 4s ease-in-out infinite;
+    }
+
+    @keyframes cardBreathing {
+      0%, 100% {
+        box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 0 30px -10px rgba(59, 130, 246, 0.3);
+      }
+      50% {
+        box-shadow: 0 12px 50px -10px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 0 40px -10px rgba(59, 130, 246, 0.5);
+      }
+    }
+
+    .info-icon {
+      font-size: 48px;
+      filter: drop-shadow(0 4px 12px rgba(59, 130, 246, 0.4));
+    }
+
+    .info-content {
+      flex: 1;
+      text-align: left;
+    }
+
+    .info-label {
+      font-size: 14px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.6);
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 8px;
+    }
+
+    .info-value {
+      font-size: 28px;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+      color: #ffffff;
+      text-shadow: 0 2px 10px rgba(59, 130, 246, 0.4);
+    }
+
+    .maintenance-details {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(59, 130, 246, 0.05) 100%);
+      border: 2px solid rgba(99, 102, 241, 0.3);
+      border-radius: 20px;
+      padding: 40px;
+      margin-bottom: 40px;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+
+    .maintenance-details h2 {
+      font-size: 28px;
+      font-weight: 800;
+      margin: 0 0 25px 0;
+      text-shadow: 0 2px 10px rgba(99, 102, 241, 0.4);
+    }
+
+    .maintenance-details ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      text-align: left;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .maintenance-details li {
+      font-size: 18px;
+      color: rgba(255, 255, 255, 0.8);
+      padding: 15px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      position: relative;
+      padding-left: 35px;
+    }
+
+    .maintenance-details li:last-child {
+      border-bottom: none;
+    }
+
+    .maintenance-details li::before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      color: #60a5fa;
+      font-weight: bold;
+      font-size: 20px;
+    }
+
+    .maintenance-contact {
+      margin-bottom: 40px;
+    }
+
+    .maintenance-contact > p {
+      font-size: 18px;
+      color: rgba(255, 255, 255, 0.7);
+      margin-bottom: 20px;
+    }
+
+    .contact-details {
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      flex-wrap: wrap;
+    }
+
+    .contact-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 15px 25px;
+      background: rgba(59, 130, 246, 0.1);
+      border: 2px solid rgba(59, 130, 246, 0.3);
+      border-radius: 12px;
+      backdrop-filter: blur(10px);
+      transition: all 0.3s ease;
+    }
+
+    .contact-item:hover {
+      background: rgba(59, 130, 246, 0.15);
+      border-color: rgba(59, 130, 246, 0.5);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px -8px rgba(59, 130, 246, 0.4);
+    }
+
+    .contact-icon {
+      font-size: 24px;
+      filter: drop-shadow(0 2px 8px rgba(59, 130, 246, 0.4));
+    }
+
+    .contact-value {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .maintenance-footer {
+      margin-top: 60px;
+      padding-top: 30px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .maintenance-footer p {
+      font-size: 16px;
+      color: rgba(255, 255, 255, 0.6);
+      margin: 10px 0;
+    }
+
+    .footer-copyright {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.4);
+      margin-top: 15px;
+    }
+
+    @media (max-width: 768px) {
+      .maintenance-title { font-size: 40px; }
+      .maintenance-message { font-size: 18px; }
+      .maintenance-icon { font-size: 80px; }
+      .info-card { flex-direction: column; text-align: center; }
+      .info-content { text-align: center; }
+    }
+  </style>
+</head>
+<body>
+  <div class="maintenance-grid"></div>
+
+  <div class="maintenance-content">
+    <!-- GairWare Logo -->
+    <div class="maintenance-logo">
+      <svg class="gairware-logo" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+          </linearGradient>
+        </defs>
+        <circle cx="100" cy="100" r="90" fill="none" stroke="url(#logoGradient)" stroke-width="8" opacity="0.3"/>
+        <text x="100" y="115" font-family="'Inter', sans-serif" font-size="60" font-weight="900" text-anchor="middle" fill="url(#logoGradient)">GW</text>
+      </svg>
+    </div>
+
+    <!-- Status Icon -->
+    <div class="maintenance-icon">🔧</div>
+
+    <!-- Title -->
+    <h1 class="maintenance-title">System Temporarily Unavailable</h1>
+
+    <!-- Message -->
+    <p class="maintenance-message">
+      The Go BARRY Breakdown Management System is currently undergoing scheduled maintenance.
+    </p>
+
+    <!-- Info Cards -->
+    <div class="maintenance-info">
+      <div class="info-card">
+        <div class="info-icon">⏰</div>
+        <div class="info-content">
+          <div class="info-label">Expected Return</div>
+          <div class="info-value">Shortly</div>
+        </div>
+      </div>
+
+      <div class="info-card">
+        <div class="info-icon">📅</div>
+        <div class="info-content">
+          <div class="info-label" id="date-label">Date</div>
+          <div class="info-value" id="time-value">--:--:--</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Details -->
+    <div class="maintenance-details">
+      <h2>What's Happening?</h2>
+      <ul>
+        <li>System updates and improvements are being applied</li>
+        <li>Enhanced performance optimizations</li>
+        <li>Security patches and bug fixes</li>
+      </ul>
+    </div>
+
+    <!-- Contact -->
+    <div class="maintenance-contact">
+      <p>If you need urgent assistance, please contact:</p>
+      <div class="contact-details">
+        <div class="contact-item">
+          <span class="contact-icon">📞</span>
+          <span class="contact-value">SDC Operations</span>
+        </div>
+        <div class="contact-item">
+          <span class="contact-icon">👤</span>
+          <span class="contact-value">Anthony Gair (AG003)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="maintenance-footer">
+      <p>Thank you for your patience</p>
+      <p class="footer-copyright">© 2025 Go North East | Powered by GairWare</p>
+    </div>
+  </div>
+
+  <script>
+    // Update time every second
+    function updateTime() {
+      const now = new Date();
+
+      // Format time
+      const timeStr = now.toLocaleTimeString('en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+
+      // Format date
+      const dateStr = now.toLocaleDateString('en-GB', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+
+      document.getElementById('time-value').textContent = timeStr;
+      document.getElementById('date-label').textContent = dateStr;
+    }
+
+    // Update immediately and then every second
+    updateTime();
+    setInterval(updateTime, 1000);
+  </script>
+</body>
+</html>

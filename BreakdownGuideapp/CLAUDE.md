@@ -1154,6 +1154,203 @@ Content-Type: application/json
 
 ---
 
+### Activity Feed Duty Display Enhancement (November 15, 2025)
+
+**Enhancement:** Activity Feed now shows separate notifications for login and duty selection
+
+**Implementation:**
+1. **Login without duty selection:**
+   - Activity: "Anthony Gair logged in"
+   - Metadata: `duty: null`
+
+2. **Duty selected after login:**
+   - Activity: "Anthony Gair started Duty 100"
+   - Metadata: `duty: "Duty 100"`
+   - Separate notification appears when duty is selected
+
+3. **Login with immediate duty selection:**
+   - Activity: "Anthony Gair logged in and started Duty 100"
+   - Metadata: `duty: "Duty 100"`
+   - Single notification with both actions
+
+**Backend Changes (November 15, 2025):**
+- `/backend/routes/auth.js` line 437: Login activity with duty if selected immediately
+- `/backend/routes/auth.js` line 1573-1589: NEW - Log duty selection as separate activity
+- Fetches additional supervisor fields: depot, email, role (line 1508)
+
+**Activity Types:**
+- Both login and duty selection use `ACTIVITY_TYPES.USER_LOGIN`
+- Duty selection action: `started ${normalizedDuty}` (e.g., "started Duty 100")
+- Login action: `logged in` or `logged in and started ${duty}`
+
+**Deployment:**
+- Backend must be restarted to apply changes
+- Test: Login → Select duty → Check activity feed for two notifications
+
+### View-Only Access Option (November 15, 2025)
+
+**Enhancement:** Added "Continue without selecting a duty" option for non-operational staff
+
+**Use Case:**
+- Office staff who need to view breakdown data
+- Managers monitoring operations
+- Training or auditing purposes
+- Any user who doesn't need to be on an active duty shift
+
+**Implementation:**
+- `/frontend/src/components/DutySelectionModal.jsx` line 350-364: NEW - View Only button
+- `/frontend/src/components/DutySelectionModal.css` line 691-781: NEW - View Only styling
+
+**How It Works:**
+1. After login, duty selection modal appears
+2. User sees 4 duty shift options (100, 200, 400, 500)
+3. Below shifts: "or" divider + "Continue without selecting a duty" button
+4. Clicking view-only calls: `onDutySelected({ viewOnly: true, code: null, name: 'View Only' })`
+5. User gains full read access without duty assignment
+
+**Activity Feed Display:**
+- View-only users show: "Anthony Gair logged in" (no duty notification)
+- Metadata: `duty: null`
+- Same behavior as skipping duty selection
+
+**UI Design:**
+- Grey gradient button with eye icon (👁️)
+- Professional styling matching duty cards
+- Hover effects and smooth transitions
+- Clear labeling: "for office staff, managers, or non-operational users"
+
+**Deployment:**
+- Frontend build: ✅ Complete (November 15, 2025)
+- Upload dist/ folder to cPanel to apply changes
+
+### Critical Bug Fixes (November 15, 2025)
+
+**Issue 1: Quick Fleet Search Returns No Results**
+
+**Root Cause:** Frontend was using `fleet_number` but database column is `fleet_no`
+
+**Files Fixed:**
+- `/frontend/src/components/QuickFleetSearch.jsx` lines 222, 226, 257
+- Changed all `vehicle.fleet_number` → `vehicle.fleet_no`
+
+**Fix Details:**
+- Line 222: Key prop in map function
+- Line 226: Display fleet number in search results
+- Line 257: Display fleet number in modal header
+
+**Issue 2: Logout Button Not Accessible**
+
+**Root Cause:** Logout button was hidden in profile dropdown menu which may not have been opening properly
+
+**Solution:** Added standalone logout button in main header
+
+**Files Modified:**
+- `/frontend/src/components/ModernAppHeader.jsx` lines 548-556: NEW - Standalone logout button
+- `/frontend/src/components/ModernAppHeader.css` lines 1133-1164: NEW - Logout button styling
+
+**Features:**
+- Red-themed button with door icon (🚪)
+- Positioned in main header actions (always visible)
+- Disabled state while logging out (shows ⏳)
+- Hover effects with red glow
+- 40x40px button with proper spacing
+
+**Logout Flow (Enhanced):**
+1. User clicks logout button (🚪 icon)
+2. Console logs: "Logout button clicked"
+3. Calls `logout()` from AuthContext (awaited)
+4. Clears localStorage and sessionStorage
+5. 100ms delay to ensure state cleared
+6. Redirects to login page (`window.location.href = '/'`)
+7. Emergency fallback if errors occur
+
+**Testing:**
+- Both fixes deployed in build: November 15, 2025 6.13s
+- Frontend dist/ folder ready for upload
+- Backend restart needed for duty activity logging
+
+### Logout Authentication Loop Fix (November 15, 2025 - CRITICAL)
+
+**Issue:** After clicking logout, login page flashes but immediately logs user back in
+
+**Root Cause:** HTTP-only cookie not being fully cleared, `restoreSession()` re-authenticates user
+
+**Solution:** Aggressive cookie clearing + use `window.location.replace()` instead of `href`
+
+**Files Modified:**
+- `/frontend/src/components/ModernAppHeader.jsx` lines 353-357, 373-377
+
+**Fixes Applied:**
+1. **Manual cookie clearing** - Loops through all cookies and expires them (both `/` and `.gobarry.co.uk` domain)
+2. **Increased timeout** - Changed from 100ms to 200ms to ensure cookies clear before redirect
+3. **window.location.replace()** - Prevents back button from returning to authenticated state
+4. **Applied to both** success and error paths (belt and suspenders)
+
+**Cookie Clearing Code:**
+```javascript
+document.cookie.split(";").forEach(function(c) {
+  document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+  document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/;domain=.gobarry.co.uk");
+});
+```
+
+**Testing:**
+1. Click logout button (🚪)
+2. Should see console logs:
+   - "Logout button clicked"
+   - "AuthContext logout complete"
+   - "Storage and cookies cleared"
+   - "Logout sequence complete"
+3. Login page should appear
+4. Should NOT automatically log back in
+5. Browser back button should not return to authenticated page
+
+**Build:** November 15, 2025 6.08s ✅
+
+### Logout Loop - Nuclear Fix (November 15, 2025 - FINAL FIX)
+
+**Issue:** Aggressive cookie clearing still didn't prevent auto-login
+
+**Root Cause:** `restoreSession()` in AuthContext runs on every page load and calls `/api/auth/me` BEFORE cookies finish clearing
+
+**Nuclear Solution:** URL parameter bypass
+
+**How It Works:**
+1. Logout redirects to `/?logout=1731673200000` (timestamp prevents caching)
+2. AuthContext checks for `?logout` parameter on mount
+3. If present: **Skips session restoration entirely**
+4. Sets `isAuthenticated = false` and `currentUser = null`
+5. Cleans URL to `/` using `window.history.replaceState()`
+6. User stays on login page
+
+**Files Modified:**
+- `/frontend/src/contexts/AuthContext.jsx` lines 30-40: NEW - Logout parameter detection
+- `/frontend/src/components/ModernAppHeader.jsx` lines 365, 385: Add `?logout` parameter to redirect
+
+**Key Code:**
+```javascript
+// AuthContext.jsx - Check for logout before session restore
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.has('logout')) {
+    console.log('🚪 Logout detected - skipping session restoration');
+    setIsAuthenticated(false);
+    setCurrentUser(null);
+    setIsSessionChecking(false);
+    window.history.replaceState({}, '', '/'); // Clean URL
+    return; // SKIP session restoration
+}
+```
+
+**Why This Works:**
+- Bypasses race condition between cookie clearing and session restoration
+- Prevents any backend API call that could re-authenticate
+- URL parameter is checked synchronously before async session restore
+- Timestamp prevents browser caching of logout state
+
+**Build:** November 15, 2025 6.08s ✅
+
+---
+
 ### Important Notes for AI Assistants
 
 **Authentication & User Data:**

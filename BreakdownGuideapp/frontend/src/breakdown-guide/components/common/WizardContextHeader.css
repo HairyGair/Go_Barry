@@ -1,0 +1,230 @@
+/* ============================================================================
+   WIZARD CONTEXT HEADER STYLES
+   Persistent vehicle/assessment context display during wizard flow
+   ============================================================================ */
+
+.wizard-context-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, rgba(228, 0, 43, 0.15) 0%, rgba(0, 59, 92, 0.15) 100%);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(228, 0, 43, 0.2);
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+/* Vehicle Badge - Primary Focus */
+.context-vehicle-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 80px;
+}
+
+.fleet-number {
+  font-size: 28px;
+  font-weight: 800;
+  color: #E4002B;
+  line-height: 1;
+  text-shadow: 0 2px 8px rgba(228, 0, 43, 0.3);
+}
+
+.vehicle-type-badge {
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* Context Details */
+.context-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0; /* Allow text truncation */
+}
+
+.context-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.context-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.context-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.context-value {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.location-value {
+  max-width: 200px;
+}
+
+/* Quick Info Pills */
+.context-pills {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+}
+
+.context-pill {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.depot-pill {
+  background: rgba(0, 59, 92, 0.4);
+  color: #60a5fa;
+  border: 1px solid rgba(96, 165, 250, 0.3);
+}
+
+.reg-pill {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.id-pill {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(52, 211, 153, 0.3);
+  cursor: help;
+}
+
+/* ============================================================================
+   RESPONSIVE DESIGN
+   ============================================================================ */
+
+@media (max-width: 768px) {
+  .wizard-context-header {
+    flex-wrap: wrap;
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .context-vehicle-badge {
+    flex-direction: row;
+    gap: 8px;
+    min-width: auto;
+  }
+
+  .fleet-number {
+    font-size: 24px;
+  }
+
+  .context-details {
+    order: 3;
+    width: 100%;
+    flex-basis: 100%;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 8px;
+    margin-top: 4px;
+  }
+
+  .context-pills {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .location-value {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .wizard-context-header {
+    padding: 10px;
+  }
+
+  .fleet-number {
+    font-size: 20px;
+  }
+
+  .vehicle-type-badge {
+    font-size: 8px;
+  }
+
+  .context-label {
+    font-size: 12px;
+  }
+
+  .context-value {
+    font-size: 11px;
+  }
+
+  .context-pill {
+    font-size: 9px;
+    padding: 2px 6px;
+  }
+}
+
+/* ============================================================================
+   ANIMATIONS
+   ============================================================================ */
+
+.wizard-context-header {
+  animation: context-slide-in 0.4s ease-out;
+}
+
+@keyframes context-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================================================
+   ACCESSIBILITY
+   ============================================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .wizard-context-header {
+    animation: none;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .wizard-context-header {
+    border-width: 2px;
+    border-color: #E4002B;
+  }
+
+  .context-pill {
+    border-width: 2px;
+  }
+}

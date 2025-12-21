@@ -49,38 +49,33 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
     
     // Depot locations with colors and icons
     const depotLocations = {
-        'Consett': { 
-            lat: 54.8543, lng: -1.8321, 
+        'Consett': {
+            lat: 54.8543, lng: -1.8321,
             color: '#10b981', icon: '🏢',
             address: 'Consett Bus Station, Front Street, Consett DH8 5AU'
         },
-        'Deptford': { 
-            lat: 54.8903, lng: -1.3842, 
+        'Deptford': {
+            lat: 54.8903, lng: -1.3842,
             color: '#3b82f6', icon: '🏭',
             address: 'Deptford Depot, St Marks Road, Sunderland SR4 7BW'
         },
-        'Gateshead': { 
-            lat: 54.9593, lng: -1.6030, 
-            color: '#8b5cf6', icon: '🚉',
-            address: 'Gateshead Interchange, West Street, Gateshead NE8 1BH'
-        },
-        'Percy Main': { 
-            lat: 55.0179, lng: -1.4463, 
+        'Percy Main': {
+            lat: 55.0179, lng: -1.4463,
             color: '#ec4899', icon: '⚓',
             address: 'Percy Main Depot, Norham Road, North Shields NE29 8SD'
         },
-        'Washington': { 
-            lat: 54.9003, lng: -1.5197, 
+        'Washington': {
+            lat: 54.9003, lng: -1.5197,
             color: '#f59e0b', icon: '🏗️',
             address: 'Washington Depot, Parsons Road, Washington NE37 1EZ'
         },
-        'Hexham': { 
-            lat: 54.9739, lng: -2.1014, 
+        'Hexham': {
+            lat: 54.9739, lng: -2.1014,
             color: '#14b8a6', icon: '🏰',
             address: 'Hexham Bus Station, Loosing Hill, Hexham NE46 1BU'
         },
-        'Riverside': { 
-            lat: 54.9666, lng: -1.5875, 
+        'Riverside': {
+            lat: 54.9666, lng: -1.5875,
             color: '#ef4444', icon: '🌊',
             address: 'Riverside Depot, Pottery Lane, Newcastle NE4 6SL'
         }
@@ -589,6 +584,33 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                                     </div>
                                     <div className="text-sm text-gray-400">
                                         {selectedVehicle.depot} • {getSimplifiedVehicleType(selectedVehicle.vehicleType)}
+                                    </div>
+
+                                    {/* Depot Override Option */}
+                                    <div className="mt-3 pt-3 border-t border-gray-700">
+                                        <label className="block text-sm font-medium text-gray-300 mb-2">
+                                            ⚠️ Incorrect depot? Override here:
+                                        </label>
+                                        <select
+                                            value={selectedVehicle.depot}
+                                            onChange={(e) => {
+                                                setSelectedVehicle({
+                                                    ...selectedVehicle,
+                                                    depot: e.target.value
+                                                });
+                                            }}
+                                            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        >
+                                            <option value="">Select Depot</option>
+                                            {Object.keys(depotLocations).map(depot => (
+                                                <option key={depot} value={depot}>
+                                                    {depotLocations[depot].icon} {depot}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            This will update the depot for this breakdown only. Contact fleet management to update the master database.
+                                        </p>
                                     </div>
                                 </div>
 

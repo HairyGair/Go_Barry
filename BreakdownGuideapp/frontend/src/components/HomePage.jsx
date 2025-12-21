@@ -10,17 +10,28 @@
  * @license Proprietary
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import LiveActivityFeed from './LiveActivityFeed.jsx';
+import WeatherWidget from './WeatherWidget.jsx';
+import QuickFleetSearch from './QuickFleetSearch.jsx';
+import DutyCard from './DutyCard.jsx';
+import DutyHandoverModal from './DutyHandoverModal.jsx';
+import DutyExtensionModal from './DutyExtensionModal.jsx';
 import { fetchDashboardData } from '../utils/fetchDashboardData.js';
 import './HomePage.css';
+
+// API URL for shift statistics
+const API_URL = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
 
 const HomePage = ({ onStatsChange }) => {
   const navigate = useNavigate();
   const { isAuthenticated, currentUser, isSessionChecking } = useAuth();
   const isLoading = false;
+  const [currentDuty, setCurrentDuty] = useState(null);
+  const [showHandoverModal, setShowHandoverModal] = useState(false);
+  const [showExtensionModal, setShowExtensionModal] = useState(false);
   const [dashboardData, setDashboardData] = useState({
     stats: {
       activeBreakdowns: 0,
@@ -31,6 +42,14 @@ const HomePage = ({ onStatsChange }) => {
     activityFeed: [],
     metadata: null
   });
+  // Shift-specific statistics
+  const [shiftStats, setShiftStats] = useState({
+    breakdownsHandled: 0,
+    assessments: 0,
+    avgResponse: null,
+    resolutionRate: 100,
+    performance: 'good'
+  });
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -38,6 +57,44 @@ const HomePage = ({ onStatsChange }) => {
       navigate('/login');
     }
   }, [isAuthenticated, isLoading, isSessionChecking, navigate]);
+
+  // Load current duty from sessionStorage
+  useEffect(() => {
+    const loadDuty = () => {
+      const savedDuty = sessionStorage.getItem('currentDuty');
+      if (savedDuty) {
+        try {
+          const dutyData = JSON.parse(savedDuty);
+          // Check if duty hasn't expired
+          if (dutyData.shiftEnd) {
+            const shiftEndTime = new Date(dutyData.shiftEnd);
+            if (new Date() < shiftEndTime) {
+              setCurrentDuty(dutyData);
+            } else {
+              setCurrentDuty(null);
+              sessionStorage.removeItem('currentDuty');
+            }
+          } else {
+            setCurrentDuty(dutyData);
+          }
+        } catch (error) {
+          console.error('Error parsing duty data:', error);
+        }
+      } else {
+        setCurrentDuty(null);
+      }
+    };
+
+    loadDuty();
+    // Listen for storage changes (in case duty is set from another component)
+    window.addEventListener('storage', loadDuty);
+    // Re-check duty every minute
+    const dutyTimer = setInterval(loadDuty, 60000);
+    return () => {
+      window.removeEventListener('storage', loadDuty);
+      clearInterval(dutyTimer);
+    };
+  }, []);
 
   // Fetch dashboard data when authenticated
   useEffect(() => {
@@ -77,7 +134,7 @@ const HomePage = ({ onStatsChange }) => {
     } catch (error) {
       console.error('❌ HomePage: Error fetching dashboard data:', error);
       console.error('❌ Error stack:', error.stack);
-      
+
       // Set fallback data to prevent blank page
       setDashboardData({
         stats: {
@@ -91,6 +148,95 @@ const HomePage = ({ onStatsChange }) => {
       });
     }
   };
+
+  // Handover modal handlers
+  const handleStartHandover = () => {
+    console.log('🔄 Starting shift handover...');
+    setShowHandoverModal(true);
+  };
+
+  // Phase 2.5: Extension request handler
+  const handleExtendShift = () => {
+    console.log('⏰ Opening shift extension request...');
+    setShowExtensionModal(true);
+  };
+
+  const handleExtensionRequested = (result) => {
+    console.log('📝 Extension requested:', result);
+    // Could add a toast notification here
+  };
+
+  const handleHandoverComplete = (result) => {
+    console.log('✅ Handover completed:', result);
+    // Clear the duty after handover
+    setCurrentDuty(null);
+    sessionStorage.removeItem('currentDuty');
+    // Refresh dashboard data to reflect changes
+    loadDashboardData();
+  };
+
+  // Fetch shift-specific statistics
+  const fetchShiftStats = useCallback(async (duty) => {
+    if (!duty || !duty.shiftStart || !duty.shiftEnd) {
+      console.log('📊 No active duty or missing shift times, skipping stats fetch');
+      return;
+    }
+
+    try {
+      const params = new URLSearchParams({
+        shift_start: duty.shiftStart,
+        shift_end: duty.shiftEnd
+      });
+
+      // Add duty code if available
+      if (duty.code) {
+        params.append('duty_code', duty.code);
+      }
+
+      // Add supervisor badge if available
+      if (currentUser?.badge_number) {
+        params.append('supervisor_badge', currentUser.badge_number);
+      }
+
+      console.log('📊 Fetching shift stats:', params.toString());
+
+      const response = await fetch(`${API_URL}/api/analytics/shift-stats?${params}`, {
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.stats) {
+        console.log('✅ Shift stats received:', data.stats);
+        setShiftStats({
+          breakdownsHandled: data.stats.breakdownsHandled || 0,
+          assessments: data.stats.assessments || 0,
+          avgResponse: data.stats.avgResponse,
+          resolutionRate: data.stats.resolutionRate || 100,
+          performance: data.stats.performance || 'good',
+          bySeverity: data.stats.bySeverity,
+          comparison: data.comparison
+        });
+      }
+    } catch (error) {
+      console.warn('⚠️ Could not fetch shift stats:', error.message);
+      // Keep existing stats on error
+    }
+  }, [currentUser]);
+
+  // Fetch shift stats when duty changes or periodically
+  useEffect(() => {
+    if (currentDuty && isAuthenticated) {
+      fetchShiftStats(currentDuty);
+      // Refresh shift stats every 60 seconds
+      const statsInterval = setInterval(() => fetchShiftStats(currentDuty), 60000);
+      return () => clearInterval(statsInterval);
+    }
+  }, [currentDuty, isAuthenticated, fetchShiftStats]);
 
   // Show loading while checking session
   if (isSessionChecking || isLoading) {
@@ -115,7 +261,7 @@ const HomePage = ({ onStatsChange }) => {
         <p className="subtitle">Go North East Breakdown Management System</p>
       </div>
 
-      {/* Quick Stats Dashboard */}
+      {/* Quick Stats Dashboard with Weather Widget */}
       <div className="dashboard-stats">
         <div className={`stat-card ${dashboardData.stats?.activeBreakdowns > 0 ? 'active' : ''}`}>
           <div className="stat-icon">⚠️</div>
@@ -139,6 +285,29 @@ const HomePage = ({ onStatsChange }) => {
           </div>
         </div>
       </div>
+
+      {/* Duty & Weather Row */}
+      <div className="duty-weather-row">
+        <div className="duty-card-container">
+          <DutyCard
+            currentDuty={currentDuty}
+            onStartHandover={handleStartHandover}
+            onExtendShift={handleExtendShift}
+            shiftStats={shiftStats}
+            supervisorInfo={{
+              id: currentUser?.id,
+              badge_number: currentUser?.badge_number,
+              name: currentUser?.name
+            }}
+          />
+        </div>
+        <div className="weather-widget-container">
+          <WeatherWidget />
+        </div>
+      </div>
+
+      {/* Quick Fleet Search */}
+      <QuickFleetSearch />
 
       {/* Quick Actions */}
       <div className="quick-actions">
@@ -202,6 +371,27 @@ const HomePage = ({ onStatsChange }) => {
           )}
         </div>
       </div>
+
+      {/* Duty Handover Modal */}
+      <DutyHandoverModal
+        isOpen={showHandoverModal}
+        onClose={() => setShowHandoverModal(false)}
+        currentDuty={currentDuty}
+        onHandoverComplete={handleHandoverComplete}
+      />
+
+      {/* Duty Extension Modal (Phase 2.5) */}
+      <DutyExtensionModal
+        isOpen={showExtensionModal}
+        onClose={() => setShowExtensionModal(false)}
+        currentDuty={currentDuty}
+        supervisorInfo={{
+          id: currentUser?.id,
+          badge_number: currentUser?.badge_number,
+          name: currentUser?.name
+        }}
+        onExtensionRequested={handleExtensionRequested}
+      />
 
       {/* All styles now in HomePage.css */}
       {/* <style>{`

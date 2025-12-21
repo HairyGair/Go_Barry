@@ -251,16 +251,159 @@
     }
 }
 
-/* High contrast mode support */
+/* Phase 6.3: High Contrast Mode Support */
 @media (prefers-contrast: high) {
     .duty-indicator {
         border-width: 3px;
+        background: #FFFFFF;
+        border-color: #000000;
     }
 
-    .duty-indicator.warning,
+    .duty-indicator-code {
+        color: #000000;
+    }
+
+    .duty-indicator-name {
+        color: #333333;
+    }
+
+    .duty-indicator-time {
+        color: #000000;
+        font-weight: 800;
+    }
+
+    .duty-indicator.warning {
+        border-width: 4px;
+        border-color: #B45309;
+        background: repeating-linear-gradient(
+            45deg,
+            #FEF3C7,
+            #FEF3C7 10px,
+            #FBBF24 10px,
+            #FBBF24 20px
+        );
+    }
+
     .duty-indicator.urgent {
         border-width: 4px;
+        border-color: #991B1B;
+        background: repeating-linear-gradient(
+            45deg,
+            #FEE2E2,
+            #FEE2E2 10px,
+            #EF4444 10px,
+            #EF4444 20px
+        );
     }
+
+    .duty-progress-bar {
+        border: 2px solid #000000;
+        background: #FFFFFF;
+    }
+
+    .duty-progress-fill {
+        background: #000000 !important;
+    }
+}
+
+/* Phase 6.3: Pattern overlays for color-blind accessibility */
+.duty-indicator.high-contrast-mode,
+.duty-indicator[data-accessibility="patterns"] {
+    position: relative;
+}
+
+/* Warning state pattern - diagonal stripes */
+.duty-indicator.warning::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 8px,
+        rgba(245, 158, 11, 0.15) 8px,
+        rgba(245, 158, 11, 0.15) 16px
+    );
+    border-radius: 10px;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Urgent state pattern - cross-hatch */
+.duty-indicator.urgent::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background:
+        repeating-linear-gradient(
+            45deg,
+            transparent,
+            transparent 6px,
+            rgba(239, 68, 68, 0.12) 6px,
+            rgba(239, 68, 68, 0.12) 12px
+        ),
+        repeating-linear-gradient(
+            -45deg,
+            transparent,
+            transparent 6px,
+            rgba(239, 68, 68, 0.12) 6px,
+            rgba(239, 68, 68, 0.12) 12px
+        );
+    border-radius: 10px;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Ensure content stays above pattern */
+.duty-indicator.warning .duty-indicator-content,
+.duty-indicator.urgent .duty-indicator-content,
+.duty-indicator.warning .duty-progress-bar,
+.duty-indicator.urgent .duty-progress-bar,
+.duty-indicator.warning .warning-pulse,
+.duty-indicator.urgent .warning-pulse {
+    position: relative;
+    z-index: 1;
+}
+
+/* Shape indicators for different states */
+.duty-indicator::after {
+    content: '';
+    position: absolute;
+    bottom: -3px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10B981;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.duty-indicator.warning::after {
+    width: 0;
+    height: 0;
+    border-radius: 0;
+    background: transparent;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-bottom: 10px solid #F59E0B;
+    border-top: none;
+    box-shadow: none;
+}
+
+.duty-indicator.urgent::after {
+    width: 10px;
+    height: 10px;
+    border-radius: 0;
+    background: #EF4444;
+    transform: translateX(-50%) rotate(45deg);
 }
 
 /* Reduced motion support */
@@ -276,4 +419,23 @@
     .duty-indicator.clickable:hover {
         transform: none;
     }
+}
+
+/* WCAG Focus Indicators */
+.duty-indicator:focus-visible {
+    outline: 3px solid #3B82F6;
+    outline-offset: 3px;
+}
+
+/* Screen reader only text helper */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
 }

@@ -49,11 +49,11 @@ class PassengerCloudIntegration {
     }
     
     getApiBaseUrl() {
-        return process.env.PASSENGER_CLOUD_API_URL || 'https://api.passengercloud.gonortheast.co.uk';
+        return import.meta.env.VITE_PASSENGER_CLOUD_API_URL || 'https://api.passengercloud.gonortheast.co.uk';
     }
     
     getApiKey() {
-        return process.env.PASSENGER_CLOUD_API_KEY || 'demo_passenger_cloud_key';
+        return import.meta.env.VITE_PASSENGER_CLOUD_API_KEY || 'demo_passenger_cloud_key';
     }
     
     async testConnection() {

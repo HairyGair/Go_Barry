@@ -7,7 +7,7 @@ const router = express.Router();
 // GET /api/activity/feed - Get unified activity feed from activities table
 router.get('/feed', async (req, res) => {
   try {
-    const { limit = 50, offset = 0, depot, actor_id, activity_type, severity, source } = req.query;
+    const { limit = 50, offset = 0, depot, actor_id, activity_type, severity, source, duty_code } = req.query;
 
     // Use the new activity logger service
     const result = await activityLogger.getRecentActivities(parseInt(limit), parseInt(offset), {
@@ -15,7 +15,8 @@ router.get('/feed', async (req, res) => {
       actorId: actor_id,
       activityType: activity_type,
       severity,
-      source
+      source,
+      dutyCode: duty_code
     });
 
     if (!result.success) {
@@ -45,7 +46,10 @@ router.get('/feed', async (req, res) => {
       source: activity.source,
       priority: activity.priority,
       actor_type: activity.actor_type,
-      metadata: activity.metadata
+      metadata: activity.metadata,
+      // Include duty context for shift-based filtering
+      duty_code: activity.metadata?.duty_code || activity.entity_details?.duty_code || null,
+      duty_name: activity.metadata?.duty_name || activity.entity_details?.duty_name || null
     }));
 
     res.json({
@@ -55,7 +59,7 @@ router.get('/feed', async (req, res) => {
       timestamp: new Date().toISOString(),
       metadata: {
         source: 'unified_activities_table',
-        filters: { depot, actor_id, activity_type, severity, source }
+        filters: { depot, actor_id, activity_type, severity, source, duty_code }
       }
     });
 

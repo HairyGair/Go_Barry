@@ -46,7 +46,7 @@ function GearboxWizard({ currentStep, responses, updateResponse, onNext, onPrevi
         action: 'continue',
         title: 'Continue in Service',
         message: 'The vehicle reset has resolved the gearbox temperature issue.',
-        icon: CheckCircle,
+        icon: <CheckCircle className="w-5 h-5" />,
         bgColor: 'bg-green-900/20',
         borderColor: 'border-green-500/30',
         textColor: 'text-green-400',
@@ -59,10 +59,10 @@ function GearboxWizard({ currentStep, responses, updateResponse, onNext, onPrevi
       return {
         action: 'stop',
         title: 'STOP IMMEDIATELY',
-        message: responses.coolantLeaks === 'yes' 
+        message: responses.coolantLeaks === 'yes'
           ? 'Coolant leaks detected. Vehicle must stop and await engineering assistance.'
           : 'Driver unable to safely check for leaks. Vehicle must stop and await engineering assistance.',
-        icon: StopCircle,
+        icon: <StopCircle className="w-5 h-5" />,
         bgColor: 'bg-red-900/20',
         borderColor: 'border-red-500/30',
         textColor: 'text-red-400',
@@ -76,7 +76,7 @@ function GearboxWizard({ currentStep, responses, updateResponse, onNext, onPrevi
         action: 'monitor',
         title: 'Continue with Monitoring',
         message: 'Recent hilly terrain may explain the temperature.',
-        icon: Eye,
+        icon: <Eye className="w-5 h-5" />,
         bgColor: 'bg-amber-900/20',
         borderColor: 'border-amber-500/30',
         textColor: 'text-amber-400',
@@ -90,7 +90,7 @@ function GearboxWizard({ currentStep, responses, updateResponse, onNext, onPrevi
         action: 'stop',
         title: 'STOP - Cannot Safely Reach Changeover',
         message: 'No recent hilly terrain to explain temperature and changeover point too far.',
-        icon: StopCircle,
+        icon: <StopCircle className="w-5 h-5" />,
         bgColor: 'bg-red-900/20',
         borderColor: 'border-red-500/30',
         textColor: 'text-red-400',
@@ -101,7 +101,7 @@ function GearboxWizard({ currentStep, responses, updateResponse, onNext, onPrevi
         action: 'changeover',
         title: 'Proceed to Changeover Point',
         message: 'Assess if the bus can safely reach the nearest changeover point.',
-        icon: ArrowRight,
+        icon: <ArrowRight className="w-5 h-5" />,
         bgColor: 'bg-amber-900/20',
         borderColor: 'border-amber-500/30',
         textColor: 'text-amber-400',

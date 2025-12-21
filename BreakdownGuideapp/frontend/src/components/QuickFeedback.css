@@ -1,8 +1,8 @@
 /* Quick Feedback Widget - Ultra Simple */
 .quick-feedback-widget {
   position: fixed;
-  bottom: 24px;
-  right: 90px; /* Space for bug report button */
+  top: 140px; /* Below fixed header (status bar 28px + header 85px + buffer) */
+  right: 24px;
   z-index: 998;
 }
 
@@ -32,7 +32,7 @@
 /* Expanded Panel */
 .quick-feedback-widget.expanded {
   width: 360px;
-  bottom: 24px;
+  top: 140px;
   right: 24px;
 }
 
@@ -47,7 +47,7 @@
 @keyframes slideInUp {
   from {
     opacity: 0;
-    transform: translateY(20px) scale(0.95);
+    transform: translateY(-20px) scale(0.95);
   }
   to {
     opacity: 1;
@@ -347,8 +347,12 @@
 
 /* Mobile Responsive */
 @media (max-width: 640px) {
+  .quick-feedback-widget {
+    top: 70px;
+    right: 16px;
+  }
+
   .quick-feedback-trigger {
-    right: 80px;
     width: 48px;
     height: 48px;
     font-size: 20px;
@@ -358,6 +362,7 @@
     width: calc(100% - 32px);
     left: 16px;
     right: 16px;
+    top: 70px;
   }
 
   .sentiment-selector {

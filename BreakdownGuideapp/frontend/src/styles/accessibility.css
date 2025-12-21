@@ -1,0 +1,458 @@
+/**
+ * Accessibility Styles - Phase 6.4
+ *
+ * WCAG 2.1 Compliant Touch Targets and Accessibility Enhancements
+ *
+ * Requirements:
+ * - Minimum touch target size: 44x44px (WCAG 2.1 AAA: 48x48px)
+ * - Adequate spacing between interactive elements
+ * - Clear focus indicators
+ * - High contrast support
+ * - Reduced motion support
+ */
+
+/* =====================================================
+   GLOBAL TOUCH TARGET IMPROVEMENTS
+   Ensure all interactive elements meet minimum size
+   ===================================================== */
+
+/* Mobile-specific touch target improvements */
+@media (max-width: 768px), (pointer: coarse) {
+  /* Buttons - minimum 44px height */
+  button,
+  .btn,
+  [role="button"],
+  input[type="submit"],
+  input[type="button"],
+  input[type="reset"] {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 12px 16px;
+  }
+
+  /* Large touch-friendly buttons */
+  .btn-touch,
+  .touch-target {
+    min-height: 48px;
+    min-width: 48px;
+    padding: 14px 20px;
+  }
+
+  /* Links in navigation */
+  nav a,
+  .nav-link,
+  .nav-links a {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+  }
+
+  /* Form inputs */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="search"],
+  textarea,
+  select {
+    min-height: 44px;
+    padding: 12px 14px;
+    font-size: 16px; /* Prevents iOS zoom on focus */
+  }
+
+  /* Checkboxes and radio buttons - larger hit area */
+  input[type="checkbox"],
+  input[type="radio"] {
+    min-width: 24px;
+    min-height: 24px;
+    margin-right: 12px;
+  }
+
+  /* Labels that wrap checkboxes/radios */
+  label:has(input[type="checkbox"]),
+  label:has(input[type="radio"]) {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    padding: 10px 0;
+  }
+
+  /* Toggle switches */
+  .toggle-switch,
+  .switch {
+    min-width: 52px;
+    min-height: 28px;
+  }
+
+  /* Icon buttons */
+  .icon-btn,
+  .btn-icon,
+  button:has(> svg:only-child),
+  button:has(> .icon:only-child) {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 10px;
+  }
+
+  /* Close buttons */
+  .close-btn,
+  .btn-close,
+  [aria-label="Close"],
+  [aria-label="close"] {
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* List items that are clickable */
+  li > a,
+  li > button,
+  .clickable-item {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  /* Cards that are clickable */
+  .card.clickable,
+  .card[role="button"],
+  [onclick]:not(button) {
+    min-height: 48px;
+    padding: 16px;
+  }
+
+  /* Dropdown menu items */
+  .dropdown-item,
+  .menu-item,
+  .select-option {
+    min-height: 44px;
+    padding: 12px 16px;
+  }
+
+  /* Tab buttons */
+  .tab,
+  .tab-btn,
+  [role="tab"] {
+    min-height: 44px;
+    padding: 12px 20px;
+  }
+
+  /* Notification items */
+  .notification-item,
+  .activity-item {
+    min-height: 48px;
+    padding: 14px 16px;
+  }
+}
+
+/* =====================================================
+   SPACING BETWEEN INTERACTIVE ELEMENTS
+   ===================================================== */
+
+@media (max-width: 768px), (pointer: coarse) {
+  /* Button groups - adequate spacing */
+  .btn-group,
+  .button-group,
+  .action-buttons {
+    gap: 12px;
+  }
+
+  /* Navigation links */
+  nav ul,
+  .nav-links {
+    gap: 8px;
+  }
+
+  /* Form field spacing */
+  .form-group,
+  .field-group {
+    margin-bottom: 16px;
+  }
+
+  /* Radio/checkbox groups */
+  .radio-group,
+  .checkbox-group {
+    gap: 12px;
+  }
+}
+
+/* =====================================================
+   FOCUS INDICATORS
+   ===================================================== */
+
+/* High visibility focus ring */
+:focus-visible {
+  outline: 3px solid #3B82F6;
+  outline-offset: 2px;
+}
+
+/* Remove default focus for mouse users */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Enhanced focus for buttons */
+button:focus-visible,
+.btn:focus-visible,
+[role="button"]:focus-visible {
+  outline: 3px solid #3B82F6;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.3);
+}
+
+/* Enhanced focus for inputs */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 3px solid #3B82F6;
+  outline-offset: 0;
+  border-color: #3B82F6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+/* =====================================================
+   HIGH CONTRAST MODE ENHANCEMENTS
+   ===================================================== */
+
+@media (prefers-contrast: high) {
+  button,
+  .btn,
+  [role="button"] {
+    border: 2px solid currentColor;
+  }
+
+  input,
+  textarea,
+  select {
+    border: 2px solid #000000;
+  }
+
+  /* Link underlines */
+  a {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  /* Focus indicators */
+  :focus-visible {
+    outline: 4px solid #000000;
+    outline-offset: 3px;
+  }
+}
+
+/* =====================================================
+   REDUCED MOTION SUPPORT
+   ===================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* =====================================================
+   SCREEN READER HELPERS
+   ===================================================== */
+
+/* Visually hidden but accessible to screen readers */
+.sr-only,
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Skip link for keyboard navigation */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: #000000;
+  color: #ffffff;
+  padding: 12px 16px;
+  z-index: 10000;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
+/* =====================================================
+   TOUCH-SPECIFIC UTILITIES
+   ===================================================== */
+
+/* Prevent accidental zooming on double-tap */
+@media (pointer: coarse) {
+  button,
+  a,
+  input,
+  [role="button"] {
+    touch-action: manipulation;
+  }
+}
+
+/* Larger tap areas for small icons */
+.tap-expand {
+  position: relative;
+}
+
+.tap-expand::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  bottom: -8px;
+  left: -8px;
+}
+
+/* =====================================================
+   DUTY-SPECIFIC ACCESSIBILITY
+   ===================================================== */
+
+/* Duty selection cards - larger touch targets */
+@media (max-width: 768px), (pointer: coarse) {
+  .duty-card,
+  .duty-option,
+  .shift-card {
+    min-height: 80px;
+    padding: 20px;
+  }
+
+  .duty-indicator {
+    min-height: 60px;
+    padding: 14px 18px;
+  }
+
+  .duty-badge {
+    min-height: 44px;
+    padding: 10px 14px;
+  }
+
+  /* Floating duty badge */
+  .floating-duty-badge {
+    min-width: 60px;
+    min-height: 60px;
+  }
+
+  /* End of shift modal buttons */
+  .end-shift-modal .btn,
+  .shift-modal .btn {
+    min-height: 52px;
+    font-size: 16px;
+    padding: 14px 24px;
+  }
+
+  /* Voice announcement test button */
+  .test-button {
+    min-height: 48px;
+    padding: 14px 24px;
+  }
+
+  /* Settings toggles */
+  .settings-toggle,
+  .voice-settings__option {
+    min-height: 56px;
+    padding: 16px 20px;
+  }
+}
+
+/* =====================================================
+   FORM ACCESSIBILITY
+   ===================================================== */
+
+/* Required field indicators */
+.required::after {
+  content: ' *';
+  color: #DC2626;
+  font-weight: bold;
+}
+
+/* Error states with icon */
+.field-error {
+  border-color: #DC2626 !important;
+  background: #FEF2F2;
+}
+
+.error-message {
+  color: #DC2626;
+  font-size: 0.875rem;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Success states */
+.field-success {
+  border-color: #10B981 !important;
+}
+
+/* =====================================================
+   COLOR BLIND FRIENDLY INDICATORS
+   ===================================================== */
+
+/* Add shape indicators to status badges */
+.status-success::before {
+  content: '✓ ';
+}
+
+.status-warning::before {
+  content: '⚠ ';
+}
+
+.status-error::before {
+  content: '✕ ';
+}
+
+.status-info::before {
+  content: 'ℹ ';
+}
+
+/* Pattern backgrounds for different states */
+.state-warning {
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 8px,
+    rgba(245, 158, 11, 0.1) 8px,
+    rgba(245, 158, 11, 0.1) 16px
+  );
+}
+
+.state-error {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 6px,
+    rgba(239, 68, 68, 0.1) 6px,
+    rgba(239, 68, 68, 0.1) 12px
+  );
+}
+
+.state-success {
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent,
+    transparent 10px,
+    rgba(16, 185, 129, 0.08) 10px,
+    rgba(16, 185, 129, 0.08) 20px
+  );
+}

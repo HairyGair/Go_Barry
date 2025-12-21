@@ -35,7 +35,37 @@ export const ACTIVITY_TYPES = {
   USER_LOGIN: 'user_login',
   USER_LOGOUT: 'user_logout',
   SYSTEM_ERROR: 'system_error',
-  DATA_SYNC: 'data_sync'
+  DATA_SYNC: 'data_sync',
+
+  // Breakdown lifecycle (Phase 1 - Activity Feed Enhancement)
+  BREAKDOWN_STATUS_CHANGED: 'breakdown_status_changed',
+  BREAKDOWN_NOTE_ADDED: 'breakdown_note_added',
+  BREAKDOWN_PHOTO_UPLOADED: 'breakdown_photo_uploaded',
+  BREAKDOWN_ACKNOWLEDGED: 'breakdown_acknowledged',
+  BREAKDOWN_CLEARED: 'breakdown_cleared',
+
+  // Break tracking
+  BREAK_STARTED: 'break_started',
+  BREAK_ENDED: 'break_ended',
+
+  // Extension management
+  EXTENSION_REQUESTED: 'extension_requested',
+  EXTENSION_APPROVED: 'extension_approved',
+  EXTENSION_DENIED: 'extension_denied',
+
+  // Admin operations
+  FLEET_IMPORTED: 'fleet_imported',
+  GTFS_IMPORTED: 'gtfs_imported',
+  SETTINGS_CHANGED: 'settings_changed',
+  SUPERVISOR_CREATED: 'supervisor_created',
+  SUPERVISOR_UPDATED: 'supervisor_updated',
+
+  // Duty management
+  DUTY_STARTED: 'duty_started',
+  DUTY_ENDED: 'duty_ended',
+  DUTY_FORCE_ASSIGNED: 'duty_force_assigned',
+  DUTY_OVERRIDE: 'duty_override',
+  DUTY_HANDOVER: 'duty_handover'
 };
 
 // Actor types
@@ -61,7 +91,14 @@ export const ENTITY_TYPES = {
   VEHICLE: 'vehicle',
   ENGINEER: 'engineer',
   REPORT: 'report',
-  WIZARD: 'wizard'
+  WIZARD: 'wizard',
+  DUTY: 'duty',
+  SETTINGS: 'settings',
+  FLEET: 'fleet',
+  GTFS: 'gtfs',
+  SUPERVISOR: 'supervisor',
+  BREAK: 'break',
+  EXTENSION: 'extension'
 };
 
 class ActivityLoggerService {
@@ -472,13 +509,60 @@ class ActivityLoggerService {
   getDefaultIcon(activityType, severity) {
     // Activity type specific icons
     const activityIcons = {
+      // Breakdown icons
       [ACTIVITY_TYPES.BREAKDOWN_REPORTED]: severity === SEVERITY_LEVELS.CRITICAL ? '🚨' : '⚠️',
+      [ACTIVITY_TYPES.BREAKDOWN_UPDATED]: '✏️',
+      [ACTIVITY_TYPES.BREAKDOWN_RESOLVED]: '✅',
+      [ACTIVITY_TYPES.BREAKDOWN_STATUS_CHANGED]: '🔄',
+      [ACTIVITY_TYPES.BREAKDOWN_NOTE_ADDED]: '📝',
+      [ACTIVITY_TYPES.BREAKDOWN_PHOTO_UPLOADED]: '📷',
+      [ACTIVITY_TYPES.BREAKDOWN_ACKNOWLEDGED]: '👁️',
+      [ACTIVITY_TYPES.BREAKDOWN_CLEARED]: '🧹',
+
+      // Wizard icons
+      [ACTIVITY_TYPES.WIZARD_STARTED]: '📋',
       [ACTIVITY_TYPES.WIZARD_COMPLETED]: '📋',
+      [ACTIVITY_TYPES.WIZARD_DECISION]: '🎯',
+
+      // Engineer icons
       [ACTIVITY_TYPES.ENGINEER_ASSIGNED]: '👷',
+      [ACTIVITY_TYPES.ENGINEER_DISPATCHED]: '🚐',
       [ACTIVITY_TYPES.ENGINEER_ON_SITE]: '🔧',
+      [ACTIVITY_TYPES.ENGINEER_COMPLETED]: '✅',
+
+      // SDC icons
       [ACTIVITY_TYPES.SDC_DECISION]: '📋',
+      [ACTIVITY_TYPES.SDC_PRIORITY_CHANGE]: '🔺',
+      [ACTIVITY_TYPES.SDC_ESCALATION]: '⚡',
+
+      // Break tracking icons
+      [ACTIVITY_TYPES.BREAK_STARTED]: '☕',
+      [ACTIVITY_TYPES.BREAK_ENDED]: '▶️',
+
+      // Extension icons
+      [ACTIVITY_TYPES.EXTENSION_REQUESTED]: '📝',
+      [ACTIVITY_TYPES.EXTENSION_APPROVED]: '✅',
+      [ACTIVITY_TYPES.EXTENSION_DENIED]: '❌',
+
+      // Admin operations icons
+      [ACTIVITY_TYPES.FLEET_IMPORTED]: '📦',
+      [ACTIVITY_TYPES.GTFS_IMPORTED]: '🗺️',
+      [ACTIVITY_TYPES.SETTINGS_CHANGED]: '⚙️',
+      [ACTIVITY_TYPES.SUPERVISOR_CREATED]: '👤',
+      [ACTIVITY_TYPES.SUPERVISOR_UPDATED]: '👤',
+
+      // Duty management icons
+      [ACTIVITY_TYPES.DUTY_STARTED]: '🟢',
+      [ACTIVITY_TYPES.DUTY_ENDED]: '🔴',
+      [ACTIVITY_TYPES.DUTY_FORCE_ASSIGNED]: '⚡',
+      [ACTIVITY_TYPES.DUTY_OVERRIDE]: '🔐',
+      [ACTIVITY_TYPES.DUTY_HANDOVER]: '🤝',
+
+      // System icons
       [ACTIVITY_TYPES.USER_LOGIN]: '🔑',
-      [ACTIVITY_TYPES.SYSTEM_ERROR]: '❌'
+      [ACTIVITY_TYPES.USER_LOGOUT]: '🚪',
+      [ACTIVITY_TYPES.SYSTEM_ERROR]: '❌',
+      [ACTIVITY_TYPES.DATA_SYNC]: '🔄'
     };
 
     return activityIcons[activityType] || '📝';

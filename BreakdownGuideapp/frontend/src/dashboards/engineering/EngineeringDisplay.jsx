@@ -40,6 +40,7 @@ const EngineeringDisplay = () => {
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
   const [currentTime, setCurrentTime] = useState(new Date());
   const cursorTimerRef = useRef(null);
+  const [locationCache, setLocationCache] = useState({}); // Cache geocoded addresses
 
   // Get URL parameters
   const getUrlParams = () => {
@@ -51,6 +52,16 @@ const EngineeringDisplay = () => {
   };
 
   const { depot: depotFilter, displayId } = getUrlParams();
+
+  // Depot coordinates - VERIFIED from OpenStreetMap (December 2025)
+  const DEPOT_COORDINATES = {
+    'Washington': { lat: 54.9068, lng: -1.5140, name: 'Washington Depot' },
+    'Riverside': { lat: 54.9586, lng: -1.6579, name: 'Riverside Depot' },
+    'Consett': { lat: 54.8403, lng: -1.8380, name: 'Consett Depot' },
+    'Deptford': { lat: 54.9142, lng: -1.3976, name: 'Deptford Depot' },
+    'Percy Main': { lat: 55.0041, lng: -1.4774, name: 'Percy Main Depot' },
+    'Hexham': { lat: 54.9756, lng: -2.0960, name: 'Hexham Depot' }
+  };
 
   // Auto-hide cursor after 5 seconds of inactivity
   useEffect(() => {
@@ -105,18 +116,190 @@ const EngineeringDisplay = () => {
     return `${diffDays}d ${diffHours % 24}h`;
   }, []);
 
+  // Format location - extract readable address or convert coordinates
+  const formatLocation = useCallback((breakdown) => {
+    const location = breakdown.location || breakdown.location_description;
+
+    if (!location) return 'Location Not Recorded';
+
+    // Check if it's "Ticketer Location (lat, lng)" format
+    const coordMatch = location.match(/Ticketer Location \(([^,]+),\s*([^)]+)\)/);
+    if (coordMatch) {
+      const lat = parseFloat(coordMatch[1]);
+      const lng = parseFloat(coordMatch[2]);
+      const cacheKey = `${lat},${lng}`;
+
+      // Check cache first
+      if (locationCache[cacheKey]) {
+        return locationCache[cacheKey];
+      }
+
+      // Trigger reverse geocoding (async, will update cache)
+      reverseGeocode(lat, lng, cacheKey);
+
+      // Return formatted coordinates while loading
+      return `GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    }
+
+    // Return location as-is if it's already a readable address
+    return location;
+  }, [locationCache]);
+
+  // Reverse geocode coordinates to street address using Google API
+  const reverseGeocode = async (lat, lng, cacheKey) => {
+    try {
+      // Use Google Geocoding API directly (frontend key is already exposed in browser)
+      const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY;
+
+      if (!GOOGLE_API_KEY) {
+        console.error('Google Maps API key not configured');
+        return;
+      }
+
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${GOOGLE_API_KEY}`
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+
+        if (data.status === 'OK' && data.results && data.results.length > 0) {
+          const result = data.results[0];
+          const addressComponents = result.address_components;
+
+          // Extract street, city, and postcode
+          const street = addressComponents.find(c => c.types.includes('route'))?.long_name || '';
+          const streetNumber = addressComponents.find(c => c.types.includes('street_number'))?.long_name || '';
+          const city = addressComponents.find(c => c.types.includes('postal_town') || c.types.includes('locality'))?.long_name || '';
+          const postcode = addressComponents.find(c => c.types.includes('postal_code'))?.long_name || '';
+
+          // Format: "123 Street Name, City, Postcode"
+          const parts = [];
+          if (streetNumber && street) {
+            parts.push(`${streetNumber} ${street}`);
+          } else if (street) {
+            parts.push(street);
+          }
+          if (city) parts.push(city);
+          if (postcode) parts.push(postcode);
+
+          const formattedAddress = parts.length > 0 ? parts.join(', ') : result.formatted_address;
+
+          // Update cache
+          setLocationCache(prev => ({
+            ...prev,
+            [cacheKey]: formattedAddress
+          }));
+        }
+      }
+    } catch (error) {
+      console.error('Reverse geocoding error:', error);
+      // Silently fail - GPS coordinates will remain visible
+    }
+  };
+
+  // Capitalize first letter of each word
+  const toTitleCase = (str) => {
+    if (!str) return '';
+    return str
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  };
+
+  // Extract coordinates from location string
+  const extractCoordinates = (breakdown) => {
+    const location = breakdown.location || breakdown.location_description;
+
+    if (!location) return null;
+
+    // Check if it's "Ticketer Location (lat, lng)" format
+    const coordMatch = location.match(/Ticketer Location \(([^,]+),\s*([^)]+)\)/);
+    if (coordMatch) {
+      return {
+        lat: parseFloat(coordMatch[1]),
+        lng: parseFloat(coordMatch[2])
+      };
+    }
+
+    // Check if breakdown has separate lat/lng fields
+    if (breakdown.location_lat && breakdown.location_lng) {
+      return {
+        lat: parseFloat(breakdown.location_lat),
+        lng: parseFloat(breakdown.location_lng)
+      };
+    }
+
+    return null;
+  };
+
+  // Calculate distance between two coordinates (Haversine formula)
+  const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 3959; // Earth radius in miles
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  };
+
+  // Get distance from depot to breakdown
+  const getDistanceFromDepot = (breakdown) => {
+    const coords = extractCoordinates(breakdown);
+    if (!coords || !depotFilter || !DEPOT_COORDINATES[depotFilter]) return null;
+
+    const depotCoords = DEPOT_COORDINATES[depotFilter];
+    const distance = calculateDistance(
+      depotCoords.lat,
+      depotCoords.lng,
+      coords.lat,
+      coords.lng
+    );
+
+    return distance;
+  };
+
+  // Calculate estimated travel time (assuming 30 mph average in city)
+  const getEstimatedTravelTime = (distance) => {
+    if (!distance) return null;
+    const avgSpeedMph = 30;
+    const timeHours = distance / avgSpeedMph;
+    const timeMinutes = Math.ceil(timeHours * 60);
+    return timeMinutes;
+  };
+
+  // Check if breakdown is urgent (>60 minutes old)
+  const isUrgent = (createdAt) => {
+    const now = new Date();
+    const created = new Date(createdAt);
+    const diffMs = now - created;
+    const diffMins = Math.floor(diffMs / 60000);
+    return diffMins >= 60;
+  };
+
   // Fetch breakdowns from API
   const fetchBreakdowns = useCallback(async () => {
     try {
+      // FIXED: Use public endpoint (no authentication required for engineering displays)
       const endpoint = depotFilter
-        ? `/api/breakdowns?depot=${encodeURIComponent(depotFilter)}`
-        : '/api/breakdowns';
+        ? `/api/public/breakdowns?depot=${encodeURIComponent(depotFilter)}`
+        : '/api/public/breakdowns';
 
       const response = await apiClient.get(endpoint);
 
       if (response.success && Array.isArray(response.breakdowns)) {
         // Filter by status based on filterStatus
         let filtered = response.breakdowns;
+
+        // Always exclude resolved and cleared breakdowns by default (unless explicitly showing resolved)
+        if (filterStatus !== 'resolved') {
+          filtered = filtered.filter(b =>
+            b.status !== 'resolved' && b.status !== 'cleared'
+          );
+        }
 
         if (filterStatus === 'pending') {
           filtered = filtered.filter(b =>
@@ -161,7 +344,10 @@ const EngineeringDisplay = () => {
 
   // WebSocket connection for real-time updates
   useEffect(() => {
-    const wsEndpoint = `/ws?channel=engineering-display&displayId=${displayId}`;
+    // FIXED: Pass depot parameter to WebSocket for depot-filtered initial data
+    const wsEndpoint = depotFilter
+      ? `/ws?channel=engineering-display&displayId=${displayId}&depot=${encodeURIComponent(depotFilter)}`
+      : `/ws?channel=engineering-display&displayId=${displayId}`;
 
     websocketService.connect(wsEndpoint, {
       onMessage: (data) => {
@@ -169,6 +355,50 @@ const EngineeringDisplay = () => {
 
         // Handle different event types
         switch (data.type) {
+          case 'initial_data':
+            // ADDED: Handle initial depot-filtered breakdown data from WebSocket
+            console.log(`Received initial data for depot: ${data.depot}`, data);
+            if (data.breakdowns && Array.isArray(data.breakdowns)) {
+              // Filter and sort the data same as fetchBreakdowns
+              let filtered = data.breakdowns;
+
+              // Always exclude resolved and cleared breakdowns by default
+              if (filterStatus !== 'resolved') {
+                filtered = filtered.filter(b =>
+                  b.status !== 'resolved' && b.status !== 'cleared'
+                );
+              }
+
+              if (filterStatus === 'pending') {
+                filtered = filtered.filter(b =>
+                  b.status === 'pending' || b.status === 'active'
+                );
+              } else if (filterStatus === 'in-progress') {
+                filtered = filtered.filter(b =>
+                  b.status === 'dispatched' || b.status === 'on_site' || b.status === 'fixing'
+                );
+              } else if (filterStatus === 'resolved') {
+                const thirtyMinsAgo = new Date(Date.now() - 30 * 60 * 1000);
+                filtered = filtered.filter(b =>
+                  b.status === 'resolved' && new Date(b.resolved_at) > thirtyMinsAgo
+                );
+              }
+
+              // Sort by severity and creation time
+              filtered.sort((a, b) => {
+                const severityOrder = { 'STOP': 0, 'AMBER': 1, 'CONTINUE': 2 };
+                const aSeverity = severityOrder[a.severity] ?? 999;
+                const bSeverity = severityOrder[b.severity] ?? 999;
+
+                if (aSeverity !== bSeverity) return aSeverity - bSeverity;
+                return new Date(b.created_at) - new Date(a.created_at);
+              });
+
+              setBreakdowns(filtered);
+              setLastUpdated(new Date());
+            }
+            break;
+
           case 'breakdown_created':
           case 'breakdown_updated':
           case 'breakdowns_updated':
@@ -220,7 +450,7 @@ const EngineeringDisplay = () => {
     return () => {
       websocketService.disconnect(wsEndpoint);
     };
-  }, [displayId, fetchBreakdowns]);
+  }, [displayId, depotFilter, fetchBreakdowns, filterStatus]);
 
   // Get severity styling
   const getSeverityClass = (severity) => {
@@ -308,29 +538,31 @@ const EngineeringDisplay = () => {
                 highlightedBreakdownId === (breakdown.id || breakdown.breakdown_id) ? 'highlighted' : ''
               } ${breakdown.status === 'resolved' ? 'resolved' : ''}`}
             >
-              {/* Card Header */}
-              <div className="card-header">
-                <div className="fleet-number">
-                  {breakdown.fleet_no || breakdown.fleet_number || 'Unknown'}
+              {/* LEFT COLUMN: Info */}
+              <div className="card-info-column">
+                {/* Card Header */}
+                <div className="card-header">
+                  <div className="fleet-number">
+                    Fleet {breakdown.fleet_no || breakdown.fleet_number || 'Unknown'}
+                  </div>
+                  <div className={`severity-badge ${getSeverityClass(breakdown.severity)}`}>
+                    {breakdown.severity || 'UNKNOWN'}
+                  </div>
                 </div>
-                <div className={`severity-badge ${getSeverityClass(breakdown.severity)}`}>
-                  {breakdown.severity || 'Unknown'}
-                </div>
-              </div>
 
-              {/* Card Body */}
-              <div className="card-body">
+                {/* Card Body */}
+                <div className="card-body">
                 <div className="card-row">
                   <div className="card-label">Location:</div>
                   <div className="card-value location-value">
-                    {breakdown.location || breakdown.location_description || 'Not recorded'}
+                    {formatLocation(breakdown)}
                   </div>
                 </div>
 
                 <div className="card-row">
                   <div className="card-label">Issue:</div>
                   <div className="card-value issue-value">
-                    {breakdown.issue_category || breakdown.issue_type || 'Unknown'}
+                    {toTitleCase(breakdown.issue_category || breakdown.issue_type || 'Unknown')}
                     {breakdown.issue_description && (
                       <div className="issue-description">
                         {breakdown.issue_description}
@@ -341,25 +573,101 @@ const EngineeringDisplay = () => {
 
                 <div className="card-row">
                   <div className="card-label">Time Elapsed:</div>
-                  <div className="card-value time-value">
+                  <div className="card-value time-value" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    {isUrgent(breakdown.created_at) && <span style={{ fontSize: '32px' }}>🚨</span>}
                     {getTimeElapsed(breakdown.created_at)}
                   </div>
                 </div>
+
+                {/* Distance and Travel Time from Depot */}
+                {(() => {
+                  const distance = getDistanceFromDepot(breakdown);
+                  const travelTime = getEstimatedTravelTime(distance);
+
+                  if (distance && travelTime) {
+                    return (
+                      <div className="card-row">
+                        <div className="card-label">Distance from Depot:</div>
+                        <div className="card-value" style={{ color: '#60a5fa' }}>
+                          {distance.toFixed(1)} miles • {travelTime} min drive
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
 
                 {breakdown.engineer_name && (
                   <div className="card-row engineer-row">
                     <div className="card-label">Engineer:</div>
                     <div className="card-value engineer-value">
-                      {breakdown.engineer_name}
+                      👷 {breakdown.engineer_name}
                     </div>
                   </div>
                 )}
 
                 <div className="card-row status-row">
-                  <div className="status-label">
+                  <div className={`status-label ${getStatusLabel(breakdown) === 'Awaiting Dispatch' ? 'awaiting-dispatch' : ''}`}>
                     {getStatusLabel(breakdown)}
                   </div>
                 </div>
+                </div>
+              </div>
+
+              {/* RIGHT COLUMN: Map */}
+              <div className="card-map-column">
+                {(() => {
+                  const coords = extractCoordinates(breakdown);
+
+                  if (!coords || !coords.lat || !coords.lng) {
+                    return (
+                      <div className="card-map-error">
+                        <div className="map-error-icon">📍</div>
+                        <div className="map-error-text">No Location Data</div>
+                      </div>
+                    );
+                  }
+
+                  const { lat, lng } = coords;
+                  const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY;
+
+                  if (!GOOGLE_API_KEY) {
+                    return (
+                      <div className="card-map-error">
+                        <div className="map-error-icon">🗺️</div>
+                        <div className="map-error-text">Map API Key Missing</div>
+                      </div>
+                    );
+                  }
+
+                  // Add depot marker if we have depot coordinates
+                  const depotCoords = depotFilter ? DEPOT_COORDINATES[depotFilter] : null;
+                  const depotMarker = depotCoords ? `&markers=color:blue%7Clabel:D%7C${depotCoords.lat},${depotCoords.lng}` : '';
+
+                  // Google Maps Static API URL - Compact to fit everything on screen
+                  const mapUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=14&size=700x300&markers=size:mid%7Ccolor:red%7Clabel:B%7C${lat},${lng}${depotMarker}&key=${GOOGLE_API_KEY}&style=feature:all%7Celement:geometry%7Ccolor:0x1a2332&style=feature:all%7Celement:labels.text.fill%7Ccolor:0xffffff&style=feature:all%7Celement:labels.text.stroke%7Ccolor:0x0a0f1b&style=feature:road%7Celement:geometry%7Ccolor:0x2d3748&style=feature:water%7Celement:geometry%7Ccolor:0x0f172a`;
+
+                  return (
+                    <div className="card-map">
+                      <img
+                        src={mapUrl}
+                        alt="Breakdown Location Map"
+                        className="map-image"
+                        onError={(e) => {
+                          console.error('Map load error for:', lat, lng);
+                          e.target.style.display = 'none';
+                          const errorDiv = document.createElement('div');
+                          errorDiv.className = 'card-map-error';
+                          errorDiv.innerHTML = '<div class="map-error-icon">🗺️</div><div class="map-error-text">Map Unavailable</div>';
+                          e.target.parentElement.appendChild(errorDiv);
+                        }}
+                        onLoad={() => {
+                          console.log('✅ Map loaded for breakdown:', breakdown.breakdown_id);
+                        }}
+                      />
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           ))

@@ -2,6 +2,8 @@ import React, { useState, memo, useEffect, useCallback } from 'react';
 import { getWizardInfo } from './utils/wizardTypeMapping';
 import SimpleLocationMap from './SimpleLocationMap';
 import DepotContactBadge from '../../components/DepotContactBadge';
+import ShiftEndingBadge from '../../components/ShiftEndingBadge';
+import QuickDecisionButtons from './QuickDecisionButtons';
 import './SDCBreakdownCard-Carousel.css';
 
 // Google Maps API key for geocoding
@@ -57,13 +59,21 @@ const extractCoordinates = (location) => {
     }
   }
   
-  // For testing - hardcoded coordinates for known locations
+  // Known locations - VERIFIED from OpenStreetMap (December 2025)
   const knownLocations = {
+    // Depots
+    'Washington': { lat: 54.9068, lng: -1.5140 },
+    'Riverside': { lat: 54.9586, lng: -1.6579 },
+    'Consett': { lat: 54.8403, lng: -1.8380 },
+    'Deptford': { lat: 54.9142, lng: -1.3976 },
+    'Percy Main': { lat: 55.0041, lng: -1.4774 },
+    'Hexham': { lat: 54.9756, lng: -2.0960 },
+    // Major locations
     'Gosforth': { lat: 55.0117, lng: -1.6214 },
-    'Washington': { lat: 54.9000, lng: -1.5200 },
     'Newcastle': { lat: 54.9783, lng: -1.6178 },
     'Chester-le-Street': { lat: 54.8543, lng: -1.5740 },
-    'Gateshead': { lat: 54.9527, lng: -1.6034 }
+    'Gateshead': { lat: 54.9527, lng: -1.6034 },
+    'Sunderland': { lat: 54.9069, lng: -1.3838 }
   };
   
   // Check if location contains any known place
@@ -111,6 +121,8 @@ const SDCBreakdownCardEnhanced = memo(({
   onResolve,
   onViewGuide,
   onAddNote,
+  onQuickDecision,
+  onContact,
   animationDelay = 0,
   isHighlighted = false,
   engineeringTimer = null,
@@ -439,6 +451,8 @@ const SDCBreakdownCardEnhanced = memo(({
         </div>
 
         <div className="header-right">
+          {/* Phase 7.4: Shift Ending Badge */}
+          <ShiftEndingBadge compact />
           {breakdown.isResolving && (
             <div className="resolving-badge">
               <span className="spinner">⏳</span>
@@ -724,6 +738,22 @@ const SDCBreakdownCardEnhanced = memo(({
       {/* Action Buttons - Always visible at bottom */}
       {isExpanded && (
         <div className="action-buttons-container">
+          {/* Quick Decision Buttons - Show for acknowledged or when no decision */}
+          {(breakdown.currentStage === 'acknowledged' || !breakdown.wizard_decision) && (
+            <div className="quick-decision-section-enhanced">
+              <QuickDecisionButtons
+                breakdownId={breakdown.breakdown_id}
+                currentDecision={breakdown.wizard_decision || breakdown.severity}
+                onDecisionMade={(decision, data) => {
+                  if (onQuickDecision) {
+                    onQuickDecision(breakdown.breakdown_id, decision, data);
+                  }
+                }}
+                compact={false}
+              />
+            </div>
+          )}
+
           <div className="action-buttons">
             {breakdown.currentStage === 'received' && (
               <button className="btn btn-acknowledge" onClick={() => onAcknowledge(breakdown.breakdown_id)}>
@@ -732,12 +762,12 @@ const SDCBreakdownCardEnhanced = memo(({
             )}
             {breakdown.currentStage === 'acknowledged' && (
               <button className="btn btn-decision" onClick={() => onMakeDecision(breakdown.breakdown_id)}>
-                <span>📋</span> Make Decision
+                <span>📋</span> Full Assessment
               </button>
             )}
             {breakdown.currentStage === 'decision' && (
               <button className="btn btn-engineering" onClick={() => onRequestEngineering(breakdown.breakdown_id)}>
-                <span>🔧</span> Request Engineering
+                <span>🔧</span> Engineering
               </button>
             )}
             <button className="btn btn-notes" onClick={() => setShowNotes(!showNotes)}>
@@ -748,11 +778,14 @@ const SDCBreakdownCardEnhanced = memo(({
                 <span>✏️</span> Edit
               </button>
             )}
-            {onResolve && (
+            {onResolve && breakdown.status !== 'resolved' && (
               <button className="btn btn-resolve" onClick={onResolve}>
                 <span>✅</span> Resolve
               </button>
             )}
+            <button className="btn btn-contact" onClick={() => onContact ? onContact(breakdown) : null}>
+              <span>📞</span> Contact
+            </button>
           </div>
 
           {/* Notes Section */}

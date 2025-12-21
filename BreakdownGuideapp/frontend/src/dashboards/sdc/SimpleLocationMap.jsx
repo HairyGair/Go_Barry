@@ -4,14 +4,15 @@
 import React from 'react';
 
 const SimpleLocationMap = ({ location, fleetNumber, depot }) => {
-  // Default center points for each depot area
+  // Default center points - VERIFIED from OpenStreetMap (December 2025)
   const depotCoordinates = {
-    'Washington': { lat: 54.9000, lng: -1.5200, zoom: 12 },
-    'Riverside': { lat: 54.9783, lng: -1.6178, zoom: 13 },
-    'Percy Main': { lat: 55.0168, lng: -1.4421, zoom: 12 },
-    'Deptford': { lat: 54.9027, lng: -1.3815, zoom: 12 },
+    'Washington': { lat: 54.9068, lng: -1.5140, zoom: 12 },
+    'Riverside': { lat: 54.9586, lng: -1.6579, zoom: 13 },
+    'Percy Main': { lat: 55.0041, lng: -1.4774, zoom: 12 },
+    'Deptford': { lat: 54.9142, lng: -1.3976, zoom: 12 },
     'Chester-le-Street': { lat: 54.8543, lng: -1.5740, zoom: 12 },
-    'Consett': { lat: 54.8543, lng: -1.8320, zoom: 12 },
+    'Consett': { lat: 54.8403, lng: -1.8380, zoom: 12 },
+    'Hexham': { lat: 54.9756, lng: -2.0960, zoom: 12 },
     'Gateshead': { lat: 54.9527, lng: -1.6034, zoom: 13 },
     'Newcastle': { lat: 54.9783, lng: -1.6178, zoom: 13 }
   };

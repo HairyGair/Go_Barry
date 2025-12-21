@@ -811,4 +811,896 @@ function formatBreakdownMessage(breakdown) {
   }
 }
 
+// GET /api/analytics/shift-stats - Get statistics for current shift
+// Used by DutyCard to show real-time shift performance
+router.get('/shift-stats', async (req, res) => {
+  try {
+    const { duty_code, supervisor_badge, shift_start, shift_end } = req.query;
+
+    if (!shift_start || !shift_end) {
+      return res.status(400).json({
+        success: false,
+        error: 'shift_start and shift_end are required'
+      });
+    }
+
+    // Parse shift times
+    const shiftStartTime = new Date(shift_start);
+    const shiftEndTime = new Date(shift_end);
+
+    // Query breakdowns for this shift period
+    let breakdownsQuery = `
+      SELECT
+        id,
+        breakdown_id,
+        fleet_no,
+        severity,
+        status,
+        duty_code,
+        supervisor_badge,
+        supervisor_name,
+        wizard_type,
+        wizard_decision,
+        created_at,
+        acknowledged_at,
+        resolved_at,
+        received_at
+      FROM breakdowns
+      WHERE created_at >= ? AND created_at <= ?
+    `;
+    const queryParams = [shiftStartTime, shiftEndTime];
+
+    // Filter by supervisor if provided
+    if (supervisor_badge) {
+      breakdownsQuery += ' AND supervisor_badge = ?';
+      queryParams.push(supervisor_badge);
+    }
+
+    // Filter by duty code if provided
+    if (duty_code) {
+      breakdownsQuery += ' AND duty_code = ?';
+      queryParams.push(duty_code);
+    }
+
+    breakdownsQuery += ' ORDER BY created_at DESC';
+
+    const breakdowns = await query(breakdownsQuery, queryParams);
+
+    // Calculate statistics
+    const totalBreakdowns = breakdowns.length;
+    const assessments = breakdowns.filter(b => b.wizard_type).length;
+    const resolved = breakdowns.filter(b => b.status === 'resolved').length;
+    const stopDecisions = breakdowns.filter(b => b.severity === 'STOP' || b.wizard_decision === 'STOP').length;
+    const amberDecisions = breakdowns.filter(b => b.severity === 'AMBER' || b.wizard_decision === 'AMBER').length;
+    const continueDecisions = breakdowns.filter(b => b.severity === 'CONTINUE' || b.wizard_decision === 'CONTINUE').length;
+
+    // Calculate average response time (in minutes)
+    let totalResponseTime = 0;
+    let responseCount = 0;
+
+    for (const breakdown of breakdowns) {
+      if (breakdown.acknowledged_at && breakdown.created_at) {
+        const responseTime = (new Date(breakdown.acknowledged_at) - new Date(breakdown.created_at)) / 60000;
+        if (responseTime > 0 && responseTime < 480) { // Ignore outliers > 8 hours
+          totalResponseTime += responseTime;
+          responseCount++;
+        }
+      }
+    }
+
+    const avgResponse = responseCount > 0 ? Math.round(totalResponseTime / responseCount) : null;
+
+    // Calculate resolution rate
+    const resolutionRate = totalBreakdowns > 0
+      ? Math.round((resolved / totalBreakdowns) * 100)
+      : 100;
+
+    // Get historical average for comparison (last 30 days, same duty code)
+    let historicalAvg = null;
+    if (duty_code) {
+      try {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        const historicalData = await query(`
+          SELECT
+            COUNT(*) as total,
+            AVG(TIMESTAMPDIFF(MINUTE, created_at, COALESCE(acknowledged_at, NOW()))) as avg_response
+          FROM breakdowns
+          WHERE duty_code = ?
+            AND created_at >= ?
+            AND created_at < ?
+        `, [duty_code, thirtyDaysAgo, shiftStartTime]);
+
+        if (historicalData && historicalData[0]) {
+          historicalAvg = {
+            breakdownsPerShift: Math.round(historicalData[0].total / 30) || 0,
+            avgResponse: Math.round(historicalData[0].avg_response) || null
+          };
+        }
+      } catch (err) {
+        console.warn('Could not fetch historical data:', err.message);
+      }
+    }
+
+    // Determine performance status
+    let performance = 'good';
+    if (stopDecisions > 2 || (avgResponse && avgResponse > 30)) {
+      performance = 'needs-attention';
+    } else if (stopDecisions === 0 && resolutionRate >= 80) {
+      performance = 'excellent';
+    }
+
+    res.json({
+      success: true,
+      stats: {
+        breakdownsHandled: totalBreakdowns,
+        assessments: assessments,
+        resolved: resolved,
+        avgResponse: avgResponse,
+        resolutionRate: resolutionRate,
+        bySeverity: {
+          stop: stopDecisions,
+          amber: amberDecisions,
+          continue: continueDecisions
+        },
+        performance: performance
+      },
+      comparison: historicalAvg ? {
+        avgBreakdownsPerShift: historicalAvg.breakdownsPerShift,
+        avgResponseHistorical: historicalAvg.avgResponse,
+        trend: totalBreakdowns > historicalAvg.breakdownsPerShift ? 'above' :
+               totalBreakdowns < historicalAvg.breakdownsPerShift ? 'below' : 'average'
+      } : null,
+      period: {
+        start: shiftStartTime.toISOString(),
+        end: shiftEndTime.toISOString(),
+        dutyCode: duty_code || null,
+        supervisorBadge: supervisor_badge || null
+      },
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error fetching shift statistics:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch shift statistics',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// GET /api/analytics/supervisor-performance - Supervisor Performance Dashboard
+// Provides comprehensive performance metrics for supervisors
+router.get('/supervisor-performance', async (req, res) => {
+  try {
+    const { period = 'week', supervisor_badge, include_leaderboard = 'true' } = req.query;
+
+    // Calculate date range based on period
+    const now = new Date();
+    let startDate = new Date();
+    let periodLabel = '';
+
+    switch (period) {
+      case 'week':
+        startDate.setDate(startDate.getDate() - 7);
+        periodLabel = 'Last 7 Days';
+        break;
+      case 'month':
+        startDate.setMonth(startDate.getMonth() - 1);
+        periodLabel = 'Last 30 Days';
+        break;
+      case 'quarter':
+        startDate.setMonth(startDate.getMonth() - 3);
+        periodLabel = 'Last 90 Days';
+        break;
+      default:
+        startDate.setDate(startDate.getDate() - 7);
+        periodLabel = 'Last 7 Days';
+    }
+
+    // Get all supervisors
+    let supervisors = [];
+    try {
+      supervisors = await query('SELECT id, badge_number, name, depot, role FROM supervisors WHERE is_active = 1');
+    } catch (err) {
+      console.warn('Could not fetch supervisors:', err.message);
+    }
+
+    // Get all breakdowns in the period
+    const allBreakdowns = await query(
+      `SELECT
+        id, breakdown_id, fleet_no, severity, status,
+        duty_code, supervisor_badge, supervisor_name,
+        wizard_type, wizard_decision,
+        created_at, acknowledged_at, resolved_at, received_at, depot
+      FROM breakdowns
+      WHERE created_at >= ?
+      ORDER BY created_at DESC`,
+      [startDate]
+    );
+
+    // Calculate per-supervisor metrics
+    const supervisorMetrics = [];
+
+    for (const supervisor of supervisors) {
+      const badge = supervisor.badge_number;
+      const supervisorBreakdowns = allBreakdowns.filter(b => b.supervisor_badge === badge);
+
+      if (supervisorBreakdowns.length === 0 && !supervisor_badge) continue;
+
+      // Calculate metrics
+      const totalHandled = supervisorBreakdowns.length;
+      const resolved = supervisorBreakdowns.filter(b => b.status === 'resolved').length;
+      const assessments = supervisorBreakdowns.filter(b => b.wizard_type).length;
+      const stopDecisions = supervisorBreakdowns.filter(b =>
+        b.severity === 'STOP' || b.wizard_decision === 'STOP'
+      ).length;
+
+      // Calculate average response time
+      let totalResponseTime = 0;
+      let responseCount = 0;
+      for (const b of supervisorBreakdowns) {
+        if (b.acknowledged_at && b.created_at) {
+          const responseTime = (new Date(b.acknowledged_at) - new Date(b.created_at)) / 60000;
+          if (responseTime > 0 && responseTime < 480) {
+            totalResponseTime += responseTime;
+            responseCount++;
+          }
+        }
+      }
+      const avgResponseTime = responseCount > 0 ? Math.round(totalResponseTime / responseCount) : null;
+
+      // Calculate resolution rate
+      const resolutionRate = totalHandled > 0 ? Math.round((resolved / totalHandled) * 100) : 100;
+
+      // Breakdowns by duty type
+      const byDutyType = {
+        '100': supervisorBreakdowns.filter(b => b.duty_code === '100').length,
+        '200': supervisorBreakdowns.filter(b => b.duty_code === '200').length,
+        '400': supervisorBreakdowns.filter(b => b.duty_code === '400').length,
+        '500': supervisorBreakdowns.filter(b => b.duty_code === '500').length
+      };
+
+      // Calculate performance score (0-100)
+      let performanceScore = 50; // Base score
+      if (avgResponseTime !== null) {
+        performanceScore += avgResponseTime <= 15 ? 20 : avgResponseTime <= 30 ? 10 : 0;
+      }
+      performanceScore += resolutionRate >= 90 ? 20 : resolutionRate >= 70 ? 10 : 0;
+      performanceScore += stopDecisions === 0 ? 10 : stopDecisions <= 2 ? 5 : 0;
+      performanceScore = Math.min(100, performanceScore);
+
+      supervisorMetrics.push({
+        badge: badge,
+        name: supervisor.name,
+        depot: supervisor.depot,
+        role: supervisor.role,
+        metrics: {
+          totalHandled,
+          resolved,
+          assessments,
+          stopDecisions,
+          avgResponseTime,
+          resolutionRate,
+          performanceScore
+        },
+        byDutyType
+      });
+    }
+
+    // Sort by performance score for leaderboard
+    supervisorMetrics.sort((a, b) => b.metrics.performanceScore - a.metrics.performanceScore);
+
+    // Generate response time trend data (daily averages)
+    const trendData = [];
+    const daysInPeriod = Math.ceil((now - startDate) / (1000 * 60 * 60 * 24));
+
+    for (let i = 0; i < Math.min(daysInPeriod, 30); i++) {
+      const dayStart = new Date(now);
+      dayStart.setDate(dayStart.getDate() - i);
+      dayStart.setHours(0, 0, 0, 0);
+
+      const dayEnd = new Date(dayStart);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      const dayBreakdowns = allBreakdowns.filter(b => {
+        const created = new Date(b.created_at);
+        return created >= dayStart && created <= dayEnd;
+      });
+
+      let dayResponseTime = 0;
+      let dayResponseCount = 0;
+      for (const b of dayBreakdowns) {
+        if (b.acknowledged_at && b.created_at) {
+          const rt = (new Date(b.acknowledged_at) - new Date(b.created_at)) / 60000;
+          if (rt > 0 && rt < 480) {
+            dayResponseTime += rt;
+            dayResponseCount++;
+          }
+        }
+      }
+
+      trendData.unshift({
+        date: dayStart.toISOString().split('T')[0],
+        label: dayStart.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric' }),
+        breakdowns: dayBreakdowns.length,
+        avgResponseTime: dayResponseCount > 0 ? Math.round(dayResponseTime / dayResponseCount) : null,
+        resolved: dayBreakdowns.filter(b => b.status === 'resolved').length
+      });
+    }
+
+    // If specific supervisor requested, filter to just that one
+    let filteredMetrics = supervisorMetrics;
+    if (supervisor_badge) {
+      filteredMetrics = supervisorMetrics.filter(s => s.badge === supervisor_badge);
+    }
+
+    // Build leaderboard (top 10)
+    const leaderboard = include_leaderboard === 'true'
+      ? supervisorMetrics.slice(0, 10).map((s, index) => ({
+          rank: index + 1,
+          badge: s.badge,
+          name: s.name,
+          depot: s.depot,
+          score: s.metrics.performanceScore,
+          breakdowns: s.metrics.totalHandled,
+          avgResponse: s.metrics.avgResponseTime
+        }))
+      : null;
+
+    // Calculate overall statistics
+    const overallStats = {
+      totalBreakdowns: allBreakdowns.length,
+      totalResolved: allBreakdowns.filter(b => b.status === 'resolved').length,
+      activeSupervisors: supervisorMetrics.length,
+      avgPerformanceScore: supervisorMetrics.length > 0
+        ? Math.round(supervisorMetrics.reduce((sum, s) => sum + s.metrics.performanceScore, 0) / supervisorMetrics.length)
+        : 0
+    };
+
+    res.json({
+      success: true,
+      period: {
+        type: period,
+        label: periodLabel,
+        start: startDate.toISOString(),
+        end: now.toISOString()
+      },
+      overallStats,
+      supervisors: filteredMetrics,
+      leaderboard,
+      trends: trendData,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error fetching supervisor performance:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch supervisor performance data',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// GET /api/analytics/coverage-gaps - Shift Coverage Gaps Analysis
+// Identifies times when no supervisor was on duty and overlap periods
+router.get('/coverage-gaps', async (req, res) => {
+  try {
+    const { period = 'week', depot } = req.query;
+
+    // Calculate date range
+    const now = new Date();
+    let startDate = new Date();
+
+    switch (period) {
+      case 'week':
+        startDate.setDate(startDate.getDate() - 7);
+        break;
+      case 'month':
+        startDate.setMonth(startDate.getMonth() - 1);
+        break;
+      default:
+        startDate.setDate(startDate.getDate() - 7);
+    }
+
+    // Define standard duty shifts
+    const DUTY_SHIFTS = {
+      '100': { name: 'Early Shift', start: '06:00', end: '15:30' },
+      '200': { name: 'Day Shift', start: '07:30', end: '17:00' },
+      '400': { name: 'Late Shift', start: '12:30', end: '22:00' },
+      '500': { name: 'Night Shift', start: '14:45', end: '00:15' }
+    };
+
+    // Get activity data to identify when supervisors were active
+    let activities = [];
+    try {
+      let activityQuery = `
+        SELECT
+          supervisor_badge,
+          supervisor_name,
+          duty_code,
+          depot,
+          created_at,
+          activity_type
+        FROM activities
+        WHERE created_at >= ?
+      `;
+      const params = [startDate];
+
+      if (depot) {
+        activityQuery += ' AND depot = ?';
+        params.push(depot);
+      }
+
+      activityQuery += ' ORDER BY created_at ASC';
+      activities = await query(activityQuery, params);
+    } catch (err) {
+      console.warn('Activities table not accessible:', err.message);
+    }
+
+    // Get breakdown data as proxy for coverage
+    let breakdownsQuery = `
+      SELECT
+        supervisor_badge,
+        supervisor_name,
+        duty_code,
+        depot,
+        created_at
+      FROM breakdowns
+      WHERE created_at >= ?
+    `;
+    const breakdownParams = [startDate];
+
+    if (depot) {
+      breakdownsQuery += ' AND depot = ?';
+      breakdownParams.push(depot);
+    }
+
+    breakdownsQuery += ' ORDER BY created_at ASC';
+    const breakdowns = await query(breakdownsQuery, breakdownParams);
+
+    // Combine activities and breakdowns for coverage analysis
+    const allEvents = [
+      ...activities.map(a => ({
+        timestamp: new Date(a.created_at),
+        supervisor: a.supervisor_badge,
+        name: a.supervisor_name,
+        duty: a.duty_code,
+        depot: a.depot,
+        type: 'activity'
+      })),
+      ...breakdowns.map(b => ({
+        timestamp: new Date(b.created_at),
+        supervisor: b.supervisor_badge,
+        name: b.supervisor_name,
+        duty: b.duty_code,
+        depot: b.depot,
+        type: 'breakdown'
+      }))
+    ].sort((a, b) => a.timestamp - b.timestamp);
+
+    // Analyze coverage by hour for each day
+    const coverageByDay = [];
+    const gapsIdentified = [];
+    const overlaps = [];
+
+    const daysInPeriod = Math.ceil((now - startDate) / (1000 * 60 * 60 * 24));
+
+    for (let dayOffset = 0; dayOffset < daysInPeriod; dayOffset++) {
+      const dayStart = new Date(startDate);
+      dayStart.setDate(dayStart.getDate() + dayOffset);
+      dayStart.setHours(0, 0, 0, 0);
+
+      const dayEnd = new Date(dayStart);
+      dayEnd.setHours(23, 59, 59, 999);
+
+      // Get events for this day
+      const dayEvents = allEvents.filter(e =>
+        e.timestamp >= dayStart && e.timestamp <= dayEnd
+      );
+
+      // Analyze hourly coverage
+      const hourlySlots = [];
+      for (let hour = 0; hour < 24; hour++) {
+        const hourStart = new Date(dayStart);
+        hourStart.setHours(hour, 0, 0, 0);
+        const hourEnd = new Date(dayStart);
+        hourEnd.setHours(hour, 59, 59, 999);
+
+        const hourEvents = dayEvents.filter(e =>
+          e.timestamp >= hourStart && e.timestamp <= hourEnd
+        );
+
+        // Check which duties should be active at this hour
+        const expectedDuties = [];
+        for (const [code, shift] of Object.entries(DUTY_SHIFTS)) {
+          const [startHour] = shift.start.split(':').map(Number);
+          const [endHour] = shift.end.split(':').map(Number);
+
+          // Handle overnight shifts
+          if (endHour < startHour) {
+            if (hour >= startHour || hour < endHour) {
+              expectedDuties.push(code);
+            }
+          } else {
+            if (hour >= startHour && hour < endHour) {
+              expectedDuties.push(code);
+            }
+          }
+        }
+
+        // Get unique supervisors active in this hour
+        const activeSupervisors = [...new Set(hourEvents.map(e => e.supervisor))].filter(Boolean);
+        const activeDuties = [...new Set(hourEvents.map(e => e.duty))].filter(Boolean);
+
+        hourlySlots.push({
+          hour,
+          label: `${hour.toString().padStart(2, '0')}:00`,
+          expectedDuties,
+          activeSupervisors: activeSupervisors.length,
+          activeDuties,
+          hasActivity: hourEvents.length > 0,
+          isCovered: activeSupervisors.length > 0 || expectedDuties.length === 0,
+          isOverlap: activeDuties.length > 1
+        });
+
+        // Track overlaps
+        if (activeDuties.length > 1) {
+          overlaps.push({
+            date: dayStart.toISOString().split('T')[0],
+            hour,
+            duties: activeDuties,
+            supervisorCount: activeSupervisors.length
+          });
+        }
+      }
+
+      // Identify gaps (periods with no coverage during expected duty hours)
+      let gapStart = null;
+      for (const slot of hourlySlots) {
+        if (!slot.isCovered && slot.expectedDuties.length > 0) {
+          if (!gapStart) {
+            gapStart = slot.hour;
+          }
+        } else if (gapStart !== null) {
+          gapsIdentified.push({
+            date: dayStart.toISOString().split('T')[0],
+            startHour: gapStart,
+            endHour: slot.hour,
+            duration: slot.hour - gapStart,
+            expectedDuties: hourlySlots.find(s => s.hour === gapStart)?.expectedDuties || []
+          });
+          gapStart = null;
+        }
+      }
+      // Handle gap that extends to end of day
+      if (gapStart !== null) {
+        gapsIdentified.push({
+          date: dayStart.toISOString().split('T')[0],
+          startHour: gapStart,
+          endHour: 24,
+          duration: 24 - gapStart,
+          expectedDuties: hourlySlots.find(s => s.hour === gapStart)?.expectedDuties || []
+        });
+      }
+
+      // Calculate daily coverage percentage
+      const coveredHours = hourlySlots.filter(s => s.isCovered).length;
+      const expectedHours = hourlySlots.filter(s => s.expectedDuties.length > 0).length;
+
+      coverageByDay.push({
+        date: dayStart.toISOString().split('T')[0],
+        dayOfWeek: dayStart.toLocaleDateString('en-GB', { weekday: 'long' }),
+        coveragePercent: expectedHours > 0 ? Math.round((coveredHours / expectedHours) * 100) : 100,
+        totalEvents: dayEvents.length,
+        uniqueSupervisors: [...new Set(dayEvents.map(e => e.supervisor))].filter(Boolean).length,
+        hourlySlots
+      });
+    }
+
+    // Calculate summary statistics
+    const summary = {
+      totalDays: daysInPeriod,
+      avgCoverage: coverageByDay.length > 0
+        ? Math.round(coverageByDay.reduce((sum, d) => sum + d.coveragePercent, 0) / coverageByDay.length)
+        : 0,
+      totalGaps: gapsIdentified.length,
+      totalGapHours: gapsIdentified.reduce((sum, g) => sum + g.duration, 0),
+      totalOverlaps: overlaps.length,
+      worstDay: coverageByDay.reduce((worst, day) =>
+        !worst || day.coveragePercent < worst.coveragePercent ? day : worst, null
+      ),
+      bestDay: coverageByDay.reduce((best, day) =>
+        !best || day.coveragePercent > best.coveragePercent ? day : best, null
+      )
+    };
+
+    // Generate optimization suggestions
+    const suggestions = [];
+
+    if (summary.avgCoverage < 80) {
+      suggestions.push({
+        priority: 'high',
+        type: 'coverage',
+        message: `Average coverage is ${summary.avgCoverage}%. Consider adding supervisors or adjusting shift schedules.`
+      });
+    }
+
+    if (gapsIdentified.length > 5) {
+      suggestions.push({
+        priority: 'medium',
+        type: 'gaps',
+        message: `${gapsIdentified.length} coverage gaps identified. Review shift handover procedures.`
+      });
+    }
+
+    // Find common gap hours
+    const gapHourCounts = {};
+    gapsIdentified.forEach(g => {
+      for (let h = g.startHour; h < g.endHour; h++) {
+        gapHourCounts[h] = (gapHourCounts[h] || 0) + 1;
+      }
+    });
+    const problemHours = Object.entries(gapHourCounts)
+      .filter(([_, count]) => count >= 3)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3);
+
+    if (problemHours.length > 0) {
+      suggestions.push({
+        priority: 'medium',
+        type: 'timing',
+        message: `Most common gap hours: ${problemHours.map(([h]) => `${h}:00`).join(', ')}. Consider shift adjustments.`
+      });
+    }
+
+    if (overlaps.length > daysInPeriod * 2) {
+      suggestions.push({
+        priority: 'low',
+        type: 'overlap',
+        message: `High overlap frequency (${overlaps.length} instances). This may indicate inefficient scheduling, but ensures coverage.`
+      });
+    }
+
+    res.json({
+      success: true,
+      period: {
+        type: period,
+        start: startDate.toISOString(),
+        end: now.toISOString(),
+        depot: depot || 'All'
+      },
+      summary,
+      coverageByDay: coverageByDay.slice(-14), // Last 14 days
+      gaps: gapsIdentified.slice(0, 20), // Most recent 20 gaps
+      overlaps: overlaps.slice(0, 20), // Most recent 20 overlaps
+      suggestions,
+      dutyShifts: DUTY_SHIFTS,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error analyzing coverage gaps:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to analyze coverage gaps',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// GET /api/analytics/coverage-alert - Real-time Coverage Alert for SDC
+// Checks current coverage status and alerts when gaps exist
+router.get('/coverage-alert', async (req, res) => {
+  try {
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+
+    // Define standard duty shifts with precise times
+    const DUTY_SHIFTS = {
+      '100': { name: 'Early Shift', start: '06:00', end: '15:30', color: '#3b82f6' },
+      '200': { name: 'Day Shift', start: '07:30', end: '17:00', color: '#10b981' },
+      '400': { name: 'Late Shift', start: '12:30', end: '22:00', color: '#f59e0b' },
+      '500': { name: 'Night Shift', start: '14:45', end: '00:15', color: '#8b5cf6' }
+    };
+
+    // Check which duties should be active right now
+    const expectedDuties = [];
+    const currentTimeMinutes = currentHour * 60 + currentMinute;
+
+    for (const [code, shift] of Object.entries(DUTY_SHIFTS)) {
+      const [startHour, startMin] = shift.start.split(':').map(Number);
+      const [endHour, endMin] = shift.end.split(':').map(Number);
+      const startMinutes = startHour * 60 + startMin;
+      const endMinutes = endHour * 60 + endMin;
+
+      // Handle overnight shifts (e.g., Night Shift 14:45 - 00:15)
+      let isActive = false;
+      if (endMinutes < startMinutes) {
+        // Overnight shift
+        isActive = currentTimeMinutes >= startMinutes || currentTimeMinutes < endMinutes;
+      } else {
+        isActive = currentTimeMinutes >= startMinutes && currentTimeMinutes < endMinutes;
+      }
+
+      if (isActive) {
+        expectedDuties.push({
+          code,
+          ...shift
+        });
+      }
+    }
+
+    // Get active supervisors from recent activity (last 30 minutes)
+    const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000);
+    let activeSupervisors = [];
+
+    try {
+      // Check activities table for recent supervisor activity
+      const recentActivities = await query(`
+        SELECT DISTINCT
+          supervisor_badge,
+          supervisor_name,
+          duty_code,
+          depot,
+          MAX(created_at) as last_active
+        FROM activities
+        WHERE created_at >= ?
+        GROUP BY supervisor_badge, supervisor_name, duty_code, depot
+        ORDER BY last_active DESC
+      `, [thirtyMinutesAgo]);
+
+      activeSupervisors = recentActivities.map(a => ({
+        badge: a.supervisor_badge,
+        name: a.supervisor_name,
+        duty: a.duty_code,
+        depot: a.depot,
+        lastActive: a.last_active
+      }));
+    } catch (err) {
+      console.warn('Activities table not accessible:', err.message);
+    }
+
+    // Also check recent breakdowns as activity proxy
+    try {
+      const recentBreakdowns = await query(`
+        SELECT DISTINCT
+          supervisor_badge,
+          supervisor_name,
+          duty_code,
+          depot,
+          MAX(created_at) as last_active
+        FROM breakdowns
+        WHERE created_at >= ?
+        GROUP BY supervisor_badge, supervisor_name, duty_code, depot
+        ORDER BY last_active DESC
+      `, [thirtyMinutesAgo]);
+
+      for (const b of recentBreakdowns) {
+        if (!activeSupervisors.find(s => s.badge === b.supervisor_badge)) {
+          activeSupervisors.push({
+            badge: b.supervisor_badge,
+            name: b.supervisor_name,
+            duty: b.duty_code,
+            depot: b.depot,
+            lastActive: b.last_active
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('Breakdowns table not accessible:', err.message);
+    }
+
+    // Determine coverage status
+    const activeDuties = [...new Set(activeSupervisors.map(s => s.duty).filter(Boolean))];
+    const coveredDuties = expectedDuties.filter(d => activeDuties.includes(d.code));
+    const uncoveredDuties = expectedDuties.filter(d => !activeDuties.includes(d.code));
+
+    // Calculate alert level
+    let alertLevel = 'normal';
+    let alertMessage = 'All expected duties are covered';
+
+    if (expectedDuties.length === 0) {
+      alertLevel = 'info';
+      alertMessage = 'No scheduled duties at this time';
+    } else if (uncoveredDuties.length === expectedDuties.length) {
+      alertLevel = 'critical';
+      alertMessage = `No supervisor coverage! Expected duties: ${expectedDuties.map(d => `Duty ${d.code}`).join(', ')}`;
+    } else if (uncoveredDuties.length > 0) {
+      alertLevel = 'warning';
+      alertMessage = `Partial coverage gap: ${uncoveredDuties.map(d => `Duty ${d.code}`).join(', ')} not covered`;
+    }
+
+    // Calculate time until next shift change
+    let nextShiftChange = null;
+    let minutesToChange = Infinity;
+
+    for (const duty of expectedDuties) {
+      const [endHour, endMin] = duty.end.split(':').map(Number);
+      let endMinutes = endHour * 60 + endMin;
+
+      // Handle overnight
+      if (endMinutes < currentTimeMinutes) {
+        endMinutes += 24 * 60;
+      }
+
+      const minsToEnd = endMinutes - currentTimeMinutes;
+      if (minsToEnd < minutesToChange) {
+        minutesToChange = minsToEnd;
+        nextShiftChange = {
+          duty: duty.code,
+          action: 'ends',
+          time: duty.end,
+          minutesRemaining: minsToEnd
+        };
+      }
+    }
+
+    // Check for upcoming shifts starting soon (within 60 min)
+    for (const [code, shift] of Object.entries(DUTY_SHIFTS)) {
+      if (expectedDuties.find(d => d.code === code)) continue;
+
+      const [startHour, startMin] = shift.start.split(':').map(Number);
+      let startMinutes = startHour * 60 + startMin;
+
+      // Handle next day
+      if (startMinutes < currentTimeMinutes) {
+        startMinutes += 24 * 60;
+      }
+
+      const minsToStart = startMinutes - currentTimeMinutes;
+      if (minsToStart <= 60 && minsToStart < minutesToChange) {
+        minutesToChange = minsToStart;
+        nextShiftChange = {
+          duty: code,
+          action: 'starts',
+          time: shift.start,
+          minutesRemaining: minsToStart
+        };
+      }
+    }
+
+    res.json({
+      success: true,
+      currentTime: now.toISOString(),
+      coverage: {
+        alertLevel,
+        alertMessage,
+        expectedDuties: expectedDuties.map(d => ({
+          code: d.code,
+          name: d.name,
+          timeRange: `${d.start} - ${d.end}`,
+          color: d.color,
+          isCovered: !uncoveredDuties.find(u => u.code === d.code)
+        })),
+        activeSupervisors: activeSupervisors.map(s => ({
+          badge: s.badge,
+          name: s.name,
+          duty: s.duty,
+          depot: s.depot,
+          lastActive: s.lastActive,
+          isRecent: new Date(s.lastActive) > new Date(now.getTime() - 10 * 60 * 1000)
+        })),
+        coveredDutyCount: coveredDuties.length,
+        uncoveredDutyCount: uncoveredDuties.length,
+        totalExpected: expectedDuties.length
+      },
+      nextShiftChange,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Error checking coverage alert:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to check coverage status',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 export default router;

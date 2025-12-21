@@ -10,18 +10,30 @@ import websocketService from '../services/websocket.js';
 const STORAGE_KEY = 'gobarry_activity_feed_cache';
 const WS_ENDPOINT = '/ws?channel=breakdowns';
 
+// Duty shift definitions for filtering
+const DUTY_OPTIONS = [
+  { code: null, name: 'All Shifts', icon: '📋' },
+  { code: '100', name: 'Early (06:00-15:30)', icon: '🌅' },
+  { code: '200', name: 'Day (07:30-17:00)', icon: '☀️' },
+  { code: '400', name: 'Late (12:30-22:00)', icon: '🌆' },
+  { code: '500', name: 'Night (14:45-00:15)', icon: '🌙' }
+];
+
 const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities: propActivities = [] }) => {
+  // SAFETY: Ensure activities is always an array even if undefined/null is explicitly passed
+  const safeActivities = Array.isArray(propActivities) ? propActivities : [];
+
   // Only cache in standalone mode, not embedded
   const shouldCache = !embedded;
 
   // Use ref to track if we've initialized to prevent re-renders
   const hasInitializedRef = useRef(false);
-  const prevActivitiesRef = useRef(propActivities);
+  const prevActivitiesRef = useRef(safeActivities);
   const subscriptionIdRef = useRef(null);
   const timeUpdateIntervalRef = useRef(null);
 
   // State management
-  const [activities, setActivities] = useState(propActivities);
+  const [activities, setActivities] = useState(safeActivities);
   const [isRealTimeConnected, setIsRealTimeConnected] = useState(false);
   const [lastUpdateTime, setLastUpdateTime] = useState(null);
   const [realTimeActivities, setRealTimeActivities] = useState([]);
@@ -33,6 +45,13 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
   const [isLoading, setIsLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(Date.now()); // For real-time updates
 
+  // Duty filter state
+  const [selectedDutyFilter, setSelectedDutyFilter] = useState(() => {
+    const saved = localStorage.getItem('activity_feed_duty_filter');
+    return saved || null; // null means "All Shifts"
+  });
+  const [showDutyDropdown, setShowDutyDropdown] = useState(false);
+
   // Toggle compact view
   const toggleCompactView = useCallback(() => {
     setIsCompactView(prev => {
@@ -42,6 +61,23 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
     });
   }, []);
 
+  // Handle duty filter selection
+  const handleDutyFilterChange = useCallback((dutyCode) => {
+    setSelectedDutyFilter(dutyCode);
+    setShowDutyDropdown(false);
+    if (dutyCode === null) {
+      localStorage.removeItem('activity_feed_duty_filter');
+    } else {
+      localStorage.setItem('activity_feed_duty_filter', dutyCode);
+    }
+    console.log(`📋 Activity Feed: Filtering by Duty ${dutyCode || 'All Shifts'}`);
+  }, []);
+
+  // Get selected duty option details
+  const selectedDutyOption = useMemo(() => {
+    return DUTY_OPTIONS.find(opt => opt.code === selectedDutyFilter) || DUTY_OPTIONS[0];
+  }, [selectedDutyFilter]);
+
   // Get activity type metadata (icon, color, label) - Enhanced with vibrant colors
   const getActivityTypeInfo = useCallback((activity) => {
     const type = activity.type || activity.activity_type || activity.activityType || '';
@@ -50,7 +86,7 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
     if (type.includes('breakdown') || type.includes('BREAKDOWN')) {
       return {
         icon: '🚨',
-        color: '#FFFFFF',
+        color: '#111827',
         bgColor: '#FF1744',
         gradient: 'linear-gradient(135deg, #FF1744 0%, #C62828 100%)',
         label: 'BREAKDOWN',
@@ -62,7 +98,7 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
     if (type.includes('resolved') || type.includes('RESOLVED') || activity.status === 'resolved') {
       return {
         icon: '✅',
-        color: '#FFFFFF',
+        color: '#111827',
         bgColor: '#6BCF7F',
         gradient: 'linear-gradient(135deg, #6BCF7F 0%, #43A047 100%)',
         label: 'RESOLVED',
@@ -74,7 +110,7 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
     if (type.includes('login') || type.includes('LOGIN') || activity.message?.includes('logged in')) {
       return {
         icon: '🔐',
-        color: '#FFFFFF',
+        color: '#111827',
         bgColor: '#0ea5e9',
         gradient: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
         label: 'LOGIN',
@@ -86,7 +122,7 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
     if (type.includes('logout') || type.includes('LOGOUT')) {
       return {
         icon: '👋',
-        color: '#FFFFFF',
+        color: '#111827',
         bgColor: '#6b7280',
         gradient: 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)',
         label: 'USER',
@@ -98,7 +134,7 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
     if (type.includes('duty') || type.includes('DUTY')) {
       return {
         icon: '⏰',
-        color: '#FFFFFF',
+        color: '#111827',
         bgColor: '#4A90E2',
         gradient: 'linear-gradient(135deg, #4A90E2 0%, #1976D2 100%)',
         label: 'DUTY',
@@ -110,7 +146,7 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
     if (type.includes('engineer') || type.includes('ENGINEER')) {
       return {
         icon: '🔧',
-        color: '#FFFFFF',
+        color: '#111827',
         bgColor: '#FF6B35',
         gradient: 'linear-gradient(135deg, #FF6B35 0%, #F4511E 100%)',
         label: 'ENGINEERING',
@@ -118,10 +154,91 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
       };
     }
 
+    // Break tracking - TEAL (Phase 5 enhancement)
+    if (type.includes('break') || type.includes('BREAK')) {
+      const isEnded = type.includes('ended') || type.includes('ENDED');
+      return {
+        icon: isEnded ? '▶️' : '☕',
+        color: '#111827',
+        bgColor: '#14b8a6',
+        gradient: 'linear-gradient(135deg, #14b8a6 0%, #0d9488 100%)',
+        label: isEnded ? 'BREAK ENDED' : 'BREAK',
+        category: 'break'
+      };
+    }
+
+    // Extension management - PURPLE (Phase 5 enhancement)
+    if (type.includes('extension') || type.includes('EXTENSION')) {
+      const isApproved = type.includes('approved') || type.includes('APPROVED');
+      const isDenied = type.includes('denied') || type.includes('DENIED');
+      return {
+        icon: isApproved ? '✅' : isDenied ? '❌' : '📝',
+        color: '#ffffff',
+        bgColor: '#8b5cf6',
+        gradient: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
+        label: isApproved ? 'APPROVED' : isDenied ? 'DENIED' : 'EXTENSION',
+        category: 'extension'
+      };
+    }
+
+    // Admin operations - INDIGO (Phase 5 enhancement)
+    if (type.includes('fleet_imported') || type.includes('FLEET_IMPORTED') ||
+        type.includes('gtfs_imported') || type.includes('GTFS_IMPORTED') ||
+        type.includes('settings') || type.includes('SETTINGS') ||
+        type.includes('supervisor_created') || type.includes('SUPERVISOR')) {
+      const icon = type.includes('fleet') ? '📦' :
+                   type.includes('gtfs') ? '🗺️' :
+                   type.includes('settings') ? '⚙️' : '👤';
+      return {
+        icon: icon,
+        color: '#ffffff',
+        bgColor: '#4f46e5',
+        gradient: 'linear-gradient(135deg, #4f46e5 0%, #4338ca 100%)',
+        label: 'ADMIN',
+        category: 'admin'
+      };
+    }
+
+    // Status changes - AMBER (Phase 5 enhancement)
+    if (type.includes('status_changed') || type.includes('STATUS_CHANGED')) {
+      return {
+        icon: '🔄',
+        color: '#111827',
+        bgColor: '#f59e0b',
+        gradient: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+        label: 'STATUS',
+        category: 'status'
+      };
+    }
+
+    // Notes added - SLATE (Phase 5 enhancement)
+    if (type.includes('note') || type.includes('NOTE')) {
+      return {
+        icon: '📝',
+        color: '#111827',
+        bgColor: '#64748b',
+        gradient: 'linear-gradient(135deg, #64748b 0%, #475569 100%)',
+        label: 'NOTE',
+        category: 'note'
+      };
+    }
+
+    // SDC operations - CYAN (Phase 5 enhancement)
+    if (type.includes('sdc') || type.includes('SDC') || type.includes('acknowledged') || type.includes('ACKNOWLEDGED')) {
+      return {
+        icon: '👁️',
+        color: '#111827',
+        bgColor: '#06b6d4',
+        gradient: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
+        label: 'SDC',
+        category: 'sdc'
+      };
+    }
+
     // Default - NEUTRAL
     return {
       icon: '📄',
-      color: '#FFFFFF',
+      color: '#111827',
       bgColor: '#6b7280',
       gradient: 'linear-gradient(135deg, #6b7280 0%, #4b5563 100%)',
       label: 'ACTIVITY',
@@ -279,20 +396,21 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
 
   // Update activities when props change (fallback polling data)
   useEffect(() => {
+    // SAFETY: Use safeActivities which is guaranteed to be an array
     // Deep comparison to prevent unnecessary updates
-    const activitiesChanged = JSON.stringify(prevActivitiesRef.current) !== JSON.stringify(propActivities);
+    const activitiesChanged = JSON.stringify(prevActivitiesRef.current) !== JSON.stringify(safeActivities);
 
     if (activitiesChanged || !hasInitializedRef.current) {
-      setActivities(propActivities);
-      prevActivitiesRef.current = propActivities;
+      setActivities(safeActivities);
+      prevActivitiesRef.current = safeActivities;
       hasInitializedRef.current = true;
       setIsLoading(false);
 
       // Only cache if in standalone mode
-      if (shouldCache && propActivities.length > 0) {
+      if (shouldCache && safeActivities.length > 0) {
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify({
-            activities: propActivities,
+            activities: safeActivities,
             timestamp: Date.now(),
             source: 'polling'
           }));
@@ -301,7 +419,7 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
         }
       }
     }
-  }, [propActivities, shouldCache]);
+  }, [safeActivities, shouldCache]);
 
   // Update current time every minute for real-time time ago updates
   useEffect(() => {
@@ -323,12 +441,24 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
     const pollingActivities = activities.filter(a => !realTimeIds.has(a.id));
 
     // Merge and sort by timestamp
-    const merged = [...realTimeActivities, ...pollingActivities]
-      .sort((a, b) => new Date(b.timestamp || b.created_at) - new Date(a.timestamp || a.created_at))
-      .slice(0, 25); // Limit to 25 most recent
+    let merged = [...realTimeActivities, ...pollingActivities]
+      .sort((a, b) => new Date(b.timestamp || b.created_at) - new Date(a.timestamp || a.created_at));
 
-    return merged;
-  }, [realTimeActivities, activities]);
+    // Apply duty filter if selected
+    if (selectedDutyFilter) {
+      merged = merged.filter(activity => {
+        // Check various locations where duty_code might be stored
+        const activityDuty = activity.duty_code ||
+                            activity.metadata?.duty_code ||
+                            activity.entity_details?.duty_code ||
+                            null;
+        return activityDuty === selectedDutyFilter;
+      });
+    }
+
+    // Limit to 25 most recent
+    return merged.slice(0, 25);
+  }, [realTimeActivities, activities, selectedDutyFilter]);
 
   // Helper function to enrich activities with route information
   const enrichActivityWithRouteData = useCallback((activity) => {
@@ -444,27 +574,75 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
 
   // Format status text with emojis
   const getStatusText = useCallback((status) => {
-    switch(status) {
+    // Handle objects (convert to string)
+    if (typeof status === 'object' && status !== null) {
+      // If it has a decision or status property, use that
+      const statusValue = status.decision || status.status || status.wizard_decision || JSON.stringify(status);
+      return getStatusText(statusValue); // Recursive call with string
+    }
+
+    // Convert to string and uppercase for comparison
+    const statusStr = String(status).toUpperCase();
+
+    switch(statusStr) {
       case 'STOP': return '🛑 Vehicle Disabled';
       case 'AMBER': return '⚠️ Assessment Required';
       case 'CONTINUE': return '✅ Can Continue';
-      case 'reported': return '📝 Reported';
-      case 'active': return '🔧 In Progress';
-      case 'resolved': return '✅ Resolved';
-      default: return status;
+      case 'REPORTED': return '📝 Reported';
+      case 'ACTIVE': return '🔧 In Progress';
+      case 'RESOLVED': return '✅ Resolved';
+      default: return status; // Return original if no match
     }
   }, []);
 
   // Handle location button clicks - Opens Google Maps
+  const handleFleetClick = useCallback(async (fleetNumber) => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
+      const response = await fetch(`${apiUrl}/api/fleet/vehicle/${fleetNumber}`, {
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const vehicle = data.vehicle || data;
+
+        const details = [
+          `🚌 Fleet ${fleetNumber}`,
+          vehicle.vehicle_type ? `Type: ${vehicle.vehicle_type}` : null,
+          vehicle.registration ? `Reg: ${vehicle.registration}` : null,
+          vehicle.depot ? `Depot: ${vehicle.depot}` : null,
+          vehicle.make && vehicle.model ? `${vehicle.make} ${vehicle.model}` : null
+        ].filter(Boolean).join('\n');
+
+        alert(details);
+      } else {
+        alert(`Fleet ${fleetNumber}\n\nVehicle details not available`);
+      }
+    } catch (error) {
+      console.error('Error fetching vehicle details:', error);
+      alert(`Fleet ${fleetNumber}\n\nFailed to load vehicle details`);
+    }
+  }, []);
+
   const handleLocationClick = useCallback(async (activity) => {
     const activityKey = activity.id || activity.timestamp;
 
     let location = activity.location || activity.location_description || activity.currentLocation?.name;
     let lat, lng;
 
-    // Extract coordinates from location string
-    if (location && /^[-+]?\d*\.?\d+,\s*[-+]?\d*\.?\d+$/.test(location.trim())) {
-      [lat, lng] = location.split(',').map(coord => parseFloat(coord.trim()));
+    // Extract coordinates from location string (handles both plain coords and "Name (lat, lng)" format)
+    if (location) {
+      // Try to extract coordinates from parentheses format: "Ticketer Location (55.004739, -1.620179)"
+      const parenMatch = location.match(/\(([^,]+),\s*([^)]+)\)/);
+      if (parenMatch) {
+        lat = parseFloat(parenMatch[1].trim());
+        lng = parseFloat(parenMatch[2].trim());
+      } else if (/^[-+]?\d*\.?\d+,\s*[-+]?\d*\.?\d+$/.test(location.trim())) {
+        // Plain coordinate format: "55.004739, -1.620179"
+        [lat, lng] = location.split(',').map(coord => parseFloat(coord.trim()));
+      }
     }
 
     // Extract coordinates from separate fields
@@ -506,11 +684,23 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
   const getLocationDisplay = useCallback((activity) => {
     let location = activity.location || activity.location_description || activity.currentLocation?.name;
 
-    // Check if location looks like coordinates
+    // Check if location contains coordinates in parentheses format: "Ticketer Location (55.004739, -1.620179)"
+    if (location && /\([-+]?\d*\.?\d+,\s*[-+]?\d*\.?\d+\)/.test(location)) {
+      const match = location.match(/\(([^,]+),\s*([^)]+)\)/);
+      if (match) {
+        return {
+          isCoordinates: true,
+          displayText: location.split('(')[0].trim() || 'Ticketer Location',
+          coordinates: `${match[1].trim()}, ${match[2].trim()}`
+        };
+      }
+    }
+
+    // Check if location looks like plain coordinates
     if (location && /^[-+]?\d*\.?\d+,\s*[-+]?\d*\.?\d+$/.test(location.trim())) {
       return {
         isCoordinates: true,
-        displayText: 'Click for location',
+        displayText: 'Coordinates',
         coordinates: location
       };
     }
@@ -519,7 +709,7 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
     if ((activity.latitude || activity.lat) && (activity.longitude || activity.lng)) {
       return {
         isCoordinates: true,
-        displayText: 'Click for location',
+        displayText: 'GPS Location',
         coordinates: `${activity.latitude || activity.lat}, ${activity.longitude || activity.lng}`
       };
     }
@@ -629,6 +819,48 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
     const diffInDays = Math.floor(diffInHours / 24);
     if (diffInDays === 1) return 'Yesterday';
     return `${diffInDays} days ago`;
+  }, [currentTime]);
+
+  // Phase 4: Group activities by time period for better visual scanning
+  const groupActivitiesByTime = useCallback((activities) => {
+    const now = new Date(currentTime);
+    const groups = {
+      'Just now': [],
+      'Last 15 minutes': [],
+      'Last hour': [],
+      'Earlier today': [],
+      'Yesterday': [],
+      'Older': []
+    };
+
+    activities.forEach(activity => {
+      const time = new Date(activity.timestamp || activity.created_at);
+      const diffMinutes = Math.floor((now - time) / 60000);
+
+      if (diffMinutes < 2) {
+        groups['Just now'].push(activity);
+      } else if (diffMinutes < 15) {
+        groups['Last 15 minutes'].push(activity);
+      } else if (diffMinutes < 60) {
+        groups['Last hour'].push(activity);
+      } else if (diffMinutes < 1440) { // 24 hours
+        groups['Earlier today'].push(activity);
+      } else if (diffMinutes < 2880) { // 48 hours
+        groups['Yesterday'].push(activity);
+      } else {
+        groups['Older'].push(activity);
+      }
+    });
+
+    // Return only non-empty groups with metadata
+    return Object.entries(groups)
+      .filter(([_, arr]) => arr.length > 0)
+      .map(([label, activities]) => ({
+        label,
+        activities,
+        count: activities.length,
+        isRecent: label === 'Just now' || label === 'Last 15 minutes'
+      }));
   }, [currentTime]);
 
   // Get exact timestamp for tooltip
@@ -778,6 +1010,11 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
     return groupActivities(formattedActivities);
   }, [formattedActivities, groupActivities]);
 
+  // Phase 4: Time-grouped activities for visual scanning
+  const timeGroupedActivities = useMemo(() => {
+    return groupActivitiesByTime(formattedActivities);
+  }, [formattedActivities, groupActivitiesByTime]);
+
   if (!isOpen && !embedded) return null;
 
   // Skeleton loader component
@@ -824,6 +1061,33 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
         <div className="header-content">
           <h3>Live Activity Feed</h3>
           <div className="header-actions">
+            {/* Duty Filter Dropdown */}
+            <div className="duty-filter-wrapper">
+              <button
+                className={`duty-filter-btn ${selectedDutyFilter ? 'active' : ''}`}
+                onClick={() => setShowDutyDropdown(!showDutyDropdown)}
+                title="Filter by duty shift"
+              >
+                <span className="duty-filter-icon">{selectedDutyOption.icon}</span>
+                <span className="duty-filter-label">{selectedDutyFilter ? `Duty ${selectedDutyFilter}` : 'All'}</span>
+                <span className="duty-filter-arrow">{showDutyDropdown ? '▲' : '▼'}</span>
+              </button>
+              {showDutyDropdown && (
+                <div className="duty-filter-dropdown">
+                  {DUTY_OPTIONS.map(option => (
+                    <button
+                      key={option.code || 'all'}
+                      className={`duty-filter-option ${selectedDutyFilter === option.code ? 'selected' : ''}`}
+                      onClick={() => handleDutyFilterChange(option.code)}
+                    >
+                      <span className="option-icon">{option.icon}</span>
+                      <span className="option-name">{option.name}</span>
+                      {selectedDutyFilter === option.code && <span className="option-check">✓</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <button
               className={`compact-toggle ${isCompactView ? 'active' : ''}`}
               onClick={toggleCompactView}
@@ -847,67 +1111,47 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
               })}
             </span>
           )}
+          {selectedDutyFilter && (
+            <span className="duty-filter-active">
+              Showing Duty {selectedDutyFilter} only
+            </span>
+          )}
         </div>
         {!embedded && <button className="close-btn" onClick={onClose}>×</button>}
       </div>
 
-      {/* Mini Stats Bar */}
-      {!isLoading && formattedActivities.length > 0 && (
-        <div className="mini-stats-bar">
-          {activityStats.breakdown > 0 && (
-            <div className="stat-item breakdown">
-              <span className="stat-icon">🚨</span>
-              <span className="stat-count">{activityStats.breakdown}</span>
-              <span className="stat-label">breakdowns</span>
-            </div>
-          )}
-          {activityStats.duty > 0 && (
-            <div className="stat-item duty">
-              <span className="stat-icon">⏰</span>
-              <span className="stat-count">{activityStats.duty}</span>
-              <span className="stat-label">duty changes</span>
-            </div>
-          )}
-          {activityStats.logout > 0 && (
-            <div className="stat-item logout">
-              <span className="stat-icon">👋</span>
-              <span className="stat-count">{activityStats.logout}</span>
-              <span className="stat-label">logouts</span>
-            </div>
-          )}
-          {activityStats.engineering > 0 && (
-            <div className="stat-item engineering">
-              <span className="stat-icon">🔧</span>
-              <span className="stat-count">{activityStats.engineering}</span>
-              <span className="stat-label">engineering</span>
-            </div>
-          )}
-          {activityStats.resolved > 0 && (
-            <div className="stat-item resolved">
-              <span className="stat-icon">✅</span>
-              <span className="stat-count">{activityStats.resolved}</span>
-              <span className="stat-label">resolved</span>
-            </div>
-          )}
-        </div>
-      )}
-      
+      {/* Mini Stats Bar removed - breakdown count shown at top of page */}
+
       <div className="live-activity-content">
         {isLoading ? (
           <SkeletonLoader />
-        ) : groupedActivities.length === 0 ? (
+        ) : timeGroupedActivities.length === 0 ? (
           <EmptyState />
         ) : (
           <div className={`activity-list ${isCompactView ? 'compact' : 'detailed'}`}>
-            {groupedActivities.map(group => {
-              const primaryActivity = group.events[0];
-              const hasMultipleEvents = group.events.length > 1;
+            {timeGroupedActivities.map((timeGroup, timeGroupIndex) => (
+              <div key={timeGroup.label} className={`activity-time-group ${timeGroup.isRecent ? 'recent' : ''}`}>
+                {/* Time Group Header */}
+                <div className={`time-group-header ${timeGroup.label === 'Just now' ? 'just-now' : ''}`}>
+                  <span className="time-group-icon">
+                    {timeGroup.label === 'Just now' ? '🔴' :
+                     timeGroup.label === 'Last 15 minutes' ? '🟡' :
+                     timeGroup.label === 'Last hour' ? '🟢' : '⏱️'}
+                  </span>
+                  <span className="time-group-label">{timeGroup.label}</span>
+                  <span className="time-group-count">{timeGroup.count}</span>
+                </div>
+
+                {/* Activities within this time group */}
+                {timeGroup.activities.map(activity => {
+              const primaryActivity = activity;
+              const hasMultipleEvents = false; // Simplified - no sub-grouping within time groups
 
               // Compact view rendering
               if (isCompactView) {
                 return (
                   <div
-                    key={group.id}
+                    key={primaryActivity.uniqueKey || primaryActivity.id}
                     className="activity-compact-item"
                     style={{
                       opacity: primaryActivity.opacity,
@@ -944,8 +1188,8 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
               // Detailed view rendering (original)
               return (
                 <div
-                  key={group.id}
-                  className={`activity-group ${primaryActivity.priorityClass || ''} activity-type-${primaryActivity.typeInfo?.category || 'info'} ${primaryActivity.isRealTime ? 'real-time' : 'polling'} ${hasMultipleEvents ? 'grouped' : 'single'}`}
+                  key={primaryActivity.uniqueKey || primaryActivity.id}
+                  className={`activity-group ${primaryActivity.priorityClass || ''} activity-type-${primaryActivity.typeInfo?.category || 'info'} ${primaryActivity.isRealTime ? 'real-time' : 'polling'}`}
                   style={{ opacity: primaryActivity.opacity }}
                   title={primaryActivity.isRealTime ? 'Real-time update' : 'Polling data'}
                 >
@@ -1062,7 +1306,12 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
 
                         {/* Fleet Number Badge */}
                         {primaryActivity.fleetNumber && (
-                          <span className="fleet-badge" onClick={() => alert(`Fleet ${primaryActivity.fleetNumber} details`)}>
+                          <span
+                            className="fleet-badge"
+                            onClick={() => handleFleetClick(primaryActivity.fleetNumber)}
+                            style={{ cursor: 'pointer' }}
+                            title="Click to view vehicle details"
+                          >
                             Fleet {primaryActivity.fleetNumber}
                           </span>
                         )}
@@ -1093,23 +1342,16 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
                           }
                         })()}
 
-                        {/* Bus number for grouped activities */}
-                        {group.busNumber && (
+                        {/* Bus number */}
+                        {primaryActivity.fleetNumber && (
                           <span className="activity-bus-number">
-                            • Bus {group.busNumber}
+                            • Bus {primaryActivity.fleetNumber}
                           </span>
                         )}
 
                         {primaryActivity.isRealTime && (
                           <span className="real-time-indicator" title="Real-time update">
                             LIVE
-                          </span>
-                        )}
-
-                        {/* Group indicator */}
-                        {hasMultipleEvents && (
-                          <span className="group-indicator" title={`${group.events.length} related events`}>
-                            • {group.events.length} events
                           </span>
                         )}
                       </div>
@@ -1183,9 +1425,15 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
                             className="action-btn secondary"
                             onClick={(e) => {
                               e.stopPropagation();
-                              window.location.href = `/dashboards/breakdown`;
+                              // Navigate to SDC dashboard with fleet number to highlight the breakdown
+                              const fleetNumber = primaryActivity.fleetNumber || primaryActivity.fleet_no || primaryActivity.fleet_number;
+                              if (fleetNumber) {
+                                window.location.href = `/dashboards/sdc?fleet=${fleetNumber}`;
+                              } else {
+                                window.location.href = `/dashboards/sdc`;
+                              }
                             }}
-                            title="View full breakdown details"
+                            title="View full breakdown details in SDC Dashboard"
                           >
                             📋 Details
                           </button>
@@ -1194,34 +1442,11 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
                     </div>
                   </div>
 
-                  {/* Additional Events in Group */}
-                  {hasMultipleEvents && (
-                    <div className="nested-events">
-                      {group.events.slice(1).map((event, eventIndex) => (
-                        <div key={`${group.id}-event-${eventIndex}`} className="nested-event">
-                          <span className="nested-icon">{event.icon || '↳'}</span>
-                          <div className="nested-details">
-                            {event.displayLines ? (
-                              <p className="nested-message">{event.displayLines[0]}</p>
-                            ) : (
-                              <p className="nested-message">{event.message}</p>
-                            )}
-                            <span className="nested-time">
-                              {formatTimeAgo(event.timestamp || event.created_at)}
-                            </span>
-                            {(event.status || event.decision) && (
-                              <span className={`nested-status ${(event.status || event.decision).toLowerCase()}`}>
-                                • {getStatusText(event.status || event.decision)}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
               );
-            })}
+                })}
+              </div>
+            ))}
           </div>
         )}
       </div>

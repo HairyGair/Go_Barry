@@ -9,7 +9,7 @@
 
 // Supabase import removed - no longer using Supabase for authentication
 
-const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://breakdowns.gobarry.co.uk/api';
+const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
 
 class AssessmentBroadcaster {
     constructor() {
@@ -255,6 +255,7 @@ class AssessmentBroadcaster {
                 headers: {
                     'Content-Type': 'application/json'
                 },
+                credentials: 'include', // Include HTTP-only auth cookie
                 body: JSON.stringify(data)
             });
             

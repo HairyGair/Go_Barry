@@ -132,7 +132,12 @@ body {
 .main-container {
   flex: 1;
   width: 100%;
-  padding-top: 85px; /* Account for sticky header */
+  padding-top: 0; /* No padding needed when using classic nav */
+}
+
+/* When using Modern Header (fixed position), add padding for header height */
+.main-container.with-modern-header {
+  padding-top: 120px; /* Account for status bar (28px) + header main (~85px) + buffer */
 }
 
 /* =====================================

@@ -96,12 +96,39 @@ const DutyIndicator = ({ currentDuty, onClick, isAdmin }) => {
 
     if (!currentDuty) return null;
 
+    // Phase 6.3: Generate ARIA label for screen readers
+    const getAriaLabel = () => {
+        let label = `Duty ${currentDuty.code}, ${currentDuty.name}`;
+        if (timeRemaining) {
+            label += `. Time remaining: ${timeRemaining}`;
+        }
+        if (warningState === 'warning') {
+            label += '. Warning: Shift ending soon';
+        } else if (warningState === 'urgent') {
+            label += '. Urgent: Less than 10 minutes remaining';
+        }
+        if (isAdmin) {
+            label += '. Click to change duty';
+        }
+        return label;
+    };
+
     return (
         <div
             className={`duty-indicator ${warningState} ${isAdmin ? 'clickable' : ''}`}
             onClick={handleClick}
             title={isAdmin ? 'Click to change duty (Admin)' : `Current duty: ${currentDuty.name}`}
             style={{ '--duty-color': currentDuty.color }}
+            role="status"
+            aria-label={getAriaLabel()}
+            aria-live={warningState !== 'normal' ? 'polite' : 'off'}
+            tabIndex={isAdmin ? 0 : -1}
+            onKeyDown={(e) => {
+                if (isAdmin && (e.key === 'Enter' || e.key === ' ')) {
+                    e.preventDefault();
+                    handleClick();
+                }
+            }}
         >
             <div className="duty-indicator-content">
                 <span className="duty-indicator-icon">{currentDuty.icon}</span>

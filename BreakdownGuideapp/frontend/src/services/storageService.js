@@ -644,7 +644,7 @@ class StorageService {
 const storageService = new StorageService();
 
 // Make it available globally for debugging in development
-if (process.env.NODE_ENV === 'development') {
+if (import.meta.env.DEV) {
   window.gneStorage = storageService;
 }
 

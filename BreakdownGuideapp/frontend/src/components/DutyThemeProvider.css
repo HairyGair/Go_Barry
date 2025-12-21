@@ -1,0 +1,94 @@
+/**
+ * Duty Theme Provider Styles
+ * Phase 8.2: Subtle color theming based on duty shift
+ */
+
+/* Theme transition for smooth changes */
+body {
+  transition: background-color 0.5s ease, box-shadow 0.5s ease;
+}
+
+/* Subtle background overlay for each duty */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--duty-theme-gradient, transparent);
+  pointer-events: none;
+  z-index: -1;
+  transition: background 0.5s ease;
+}
+
+/* Early Shift (100) - Cool Blue Theme */
+body.duty-theme-100 {
+  --accent-color: var(--duty-theme-primary, #3B82F6);
+}
+
+/* Day Shift (200) - Warm Green Theme */
+body.duty-theme-200 {
+  --accent-color: var(--duty-theme-primary, #10B981);
+}
+
+/* Late Shift (400) - Amber Theme */
+body.duty-theme-400 {
+  --accent-color: var(--duty-theme-primary, #F59E0B);
+}
+
+/* Night Shift (500) - Purple Theme */
+body.duty-theme-500 {
+  --accent-color: var(--duty-theme-primary, #8B5CF6);
+}
+
+/* Apply theme accent to interactive elements */
+body[class*="duty-theme-"] .btn-primary:not(.btn-danger) {
+  background: var(--duty-theme-primary, var(--color-red-primary));
+  border-color: var(--duty-theme-primary, var(--color-red-primary));
+}
+
+body[class*="duty-theme-"] .btn-primary:not(.btn-danger):hover {
+  box-shadow: 0 4px 16px var(--duty-theme-glow, rgba(227, 6, 19, 0.3));
+}
+
+/* Theme accent for cards */
+body[class*="duty-theme-"] .card--themed {
+  border-top: 3px solid var(--duty-theme-primary, var(--color-red-primary));
+}
+
+/* Theme accent for progress bars */
+body[class*="duty-theme-"] .progress-themed .progress-fill {
+  background: linear-gradient(90deg, var(--duty-theme-primary), var(--duty-theme-secondary));
+}
+
+/* Theme glow for focused inputs */
+body[class*="duty-theme-"] input:focus,
+body[class*="duty-theme-"] select:focus,
+body[class*="duty-theme-"] textarea:focus {
+  box-shadow: 0 0 0 3px var(--duty-theme-accent, rgba(227, 6, 19, 0.1));
+}
+
+/* Subtle corner glow effect */
+body[class*="duty-theme-"]::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, var(--duty-theme-accent, transparent) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0.5;
+}
+
+/* Accessible: respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  body,
+  body::before,
+  body::after {
+    transition: none;
+    animation: none;
+  }
+}

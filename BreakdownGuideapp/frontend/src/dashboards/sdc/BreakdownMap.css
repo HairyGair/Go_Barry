@@ -1,0 +1,521 @@
+/* ============================================================================
+   BREAKDOWN MAP STYLES
+   Enhanced for SDC Dashboard dark theme integration
+   ============================================================================ */
+
+/* Map Container */
+.breakdown-map-container {
+  height: 400px;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  border-radius: 0 0 16px 16px;
+  background: #1e293b;
+}
+
+/* Leaflet Map Override */
+.breakdown-map {
+  z-index: 1;
+  border-radius: 0 0 16px 16px;
+}
+
+.leaflet-container {
+  background: #1e293b !important;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.leaflet-control-container {
+  position: absolute;
+  z-index: 800;
+}
+
+/* ====================================
+   POPUP STYLING (Dark Theme)
+   ==================================== */
+.leaflet-popup-content-wrapper {
+  background: rgba(15, 23, 42, 0.95) !important;
+  backdrop-filter: blur(20px);
+  border-radius: 12px !important;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: #f8fafc !important;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.leaflet-popup-content {
+  margin: 0 !important;
+  min-width: 200px;
+}
+
+.leaflet-popup-tip-container {
+  margin-top: -1px;
+}
+
+.leaflet-popup-tip {
+  background: rgba(15, 23, 42, 0.95) !important;
+  box-shadow: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+}
+
+.leaflet-popup-close-button {
+  color: rgba(248, 250, 252, 0.6) !important;
+  font-size: 20px !important;
+  width: 32px !important;
+  height: 32px !important;
+  padding: 4px !important;
+  top: 8px !important;
+  right: 8px !important;
+  transition: all 0.2s ease;
+}
+
+.leaflet-popup-close-button:hover {
+  color: #f8fafc !important;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+}
+
+/* ====================================
+   CUSTOM POPUP CONTENT
+   ==================================== */
+.breakdown-popup {
+  padding: 16px;
+}
+
+.breakdown-popup-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 12px;
+}
+
+.breakdown-popup-fleet {
+  font-size: 24px;
+  font-weight: 800;
+  color: #E4002B;
+  text-shadow: 0 2px 8px rgba(228, 0, 43, 0.3);
+}
+
+.breakdown-popup-status {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.breakdown-popup-status.critical {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.2));
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.breakdown-popup-status.warning {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(217, 119, 6, 0.2));
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.breakdown-popup-status.active {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(37, 99, 235, 0.2));
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.breakdown-popup-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.breakdown-popup-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+
+.breakdown-popup-label {
+  color: rgba(248, 250, 252, 0.6);
+  font-weight: 500;
+}
+
+.breakdown-popup-value {
+  color: #f8fafc;
+  font-weight: 600;
+}
+
+/* ====================================
+   MARKER STYLING
+   ==================================== */
+.breakdown-marker {
+  animation: breakdownPulse 2s ease-in-out infinite;
+  cursor: pointer;
+  filter: drop-shadow(0 4px 8px rgba(220, 38, 38, 0.4));
+  transition: transform 0.3s ease;
+}
+
+.breakdown-marker:hover {
+  animation: none;
+  transform: scale(1.2);
+}
+
+/* Highlighted marker - pulsing ring effect */
+.breakdown-marker.highlighted {
+  animation: highlightedPulse 1.5s ease-in-out infinite;
+  z-index: 1000 !important;
+}
+
+.breakdown-marker.highlighted svg .pulse-ring {
+  animation: pulseRing 1.5s ease-out infinite;
+}
+
+@keyframes highlightedPulse {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 20px rgba(220, 38, 38, 0.8));
+  }
+  50% {
+    transform: scale(1.1);
+    filter: drop-shadow(0 0 30px rgba(220, 38, 38, 1));
+  }
+}
+
+@keyframes pulseRing {
+  0% {
+    opacity: 1;
+    r: 16;
+  }
+  100% {
+    opacity: 0;
+    r: 24;
+  }
+}
+
+.depot-marker {
+  animation: depotDropIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) both;
+  cursor: pointer;
+  filter: drop-shadow(0 4px 8px rgba(0, 59, 92, 0.4));
+}
+
+.depot-marker:hover {
+  transform: scale(1.1);
+}
+
+@keyframes depotDropIn {
+  0% {
+    transform: translateY(-50px) scale(0.5);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes breakdownPulse {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 4px 8px rgba(220, 38, 38, 0.4));
+  }
+  50% {
+    transform: scale(1.15);
+    filter: drop-shadow(0 6px 12px rgba(220, 38, 38, 0.6));
+  }
+}
+
+/* ====================================
+   ZOOM CONTROLS (Dark Theme)
+   ==================================== */
+.leaflet-control-zoom {
+  border: none !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3) !important;
+  border-radius: 10px !important;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+}
+
+.leaflet-control-zoom a {
+  background: rgba(30, 41, 59, 0.9) !important;
+  color: #f8fafc !important;
+  border: none !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  font-weight: 700;
+  font-size: 16px;
+  width: 36px !important;
+  height: 36px !important;
+  line-height: 36px !important;
+  transition: all 0.2s ease;
+}
+
+.leaflet-control-zoom a:last-child {
+  border-bottom: none !important;
+}
+
+.leaflet-control-zoom a:hover {
+  background: rgba(228, 0, 43, 0.2) !important;
+  color: #E4002B !important;
+}
+
+.leaflet-control-zoom-in {
+  border-radius: 10px 10px 0 0 !important;
+}
+
+.leaflet-control-zoom-out {
+  border-radius: 0 0 10px 10px !important;
+}
+
+/* ====================================
+   ATTRIBUTION (Minimal, Dark)
+   ==================================== */
+.leaflet-control-attribution {
+  background: rgba(15, 23, 42, 0.8) !important;
+  backdrop-filter: blur(8px);
+  font-size: 9px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  margin: 8px !important;
+  color: rgba(248, 250, 252, 0.5) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.leaflet-control-attribution a {
+  color: rgba(248, 250, 252, 0.7) !important;
+}
+
+/* ====================================
+   MAP OVERLAY STATS
+   ==================================== */
+.map-stats-overlay {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 1000;
+  display: flex;
+  gap: 8px;
+}
+
+.map-stat-badge {
+  background: rgba(15, 23, 42, 0.9);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #f8fafc;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.map-stat-badge .stat-icon {
+  font-size: 14px;
+}
+
+.map-stat-badge .stat-value {
+  color: #E4002B;
+  font-weight: 700;
+}
+
+/* ====================================
+   EMPTY MAP STATE
+   ==================================== */
+.map-empty-state {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 500;
+  text-align: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.9);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.map-empty-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+
+.map-empty-text {
+  font-size: 14px;
+  color: rgba(248, 250, 252, 0.7);
+  font-weight: 500;
+}
+
+.map-empty-subtext {
+  font-size: 12px;
+  color: rgba(248, 250, 252, 0.4);
+  margin-top: 4px;
+}
+
+/* ====================================
+   LOADING STATE
+   ==================================== */
+.map-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.map-loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(228, 0, 43, 0.2);
+  border-top-color: #E4002B;
+  border-radius: 50%;
+  animation: mapSpin 1s linear infinite;
+}
+
+@keyframes mapSpin {
+  to { transform: rotate(360deg); }
+}
+
+.map-loading-text {
+  font-size: 13px;
+  color: rgba(248, 250, 252, 0.7);
+  font-weight: 500;
+}
+
+/* ====================================
+   RESPONSIVE
+   ==================================== */
+@media (max-width: 768px) {
+  .breakdown-map-container {
+    height: 300px;
+  }
+
+  .leaflet-control-zoom a {
+    width: 32px !important;
+    height: 32px !important;
+    line-height: 32px !important;
+    font-size: 14px;
+  }
+
+  .map-stats-overlay {
+    top: 8px;
+    left: 8px;
+    gap: 6px;
+  }
+
+  .map-stat-badge {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+
+  .breakdown-popup {
+    padding: 12px;
+  }
+
+  .breakdown-popup-fleet {
+    font-size: 20px;
+  }
+}
+
+/* ====================================
+   ACCESSIBILITY
+   ==================================== */
+@media (prefers-reduced-motion: reduce) {
+  .breakdown-marker,
+  .depot-marker {
+    animation: none;
+  }
+
+  .leaflet-control-zoom a,
+  .breakdown-popup-close-button {
+    transition: none;
+  }
+}
+
+/* ====================================
+   MARKER CLUSTERING STYLES
+   ==================================== */
+.breakdown-cluster {
+  background: transparent;
+}
+
+.cluster-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 14px;
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  animation: clusterPulse 2s ease-in-out infinite;
+}
+
+.cluster-icon:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+.cluster-icon span {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Small cluster (1-4 breakdowns) */
+.cluster-icon.cluster-small {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  border: 3px solid #fff;
+}
+
+/* Medium cluster (5-9 breakdowns) */
+.cluster-icon.cluster-medium {
+  width: 42px;
+  height: 42px;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  border: 3px solid #fff;
+  font-size: 15px;
+}
+
+/* Large cluster (10+ breakdowns) */
+.cluster-icon.cluster-large {
+  width: 50px;
+  height: 50px;
+  background: linear-gradient(135deg, #7c3aed, #5b21b6);
+  border: 4px solid #fff;
+  font-size: 16px;
+}
+
+@keyframes clusterPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+/* Override default MarkerCluster styles */
+.marker-cluster-small,
+.marker-cluster-medium,
+.marker-cluster-large {
+  background: none !important;
+  background-clip: unset !important;
+}
+
+.marker-cluster-small div,
+.marker-cluster-medium div,
+.marker-cluster-large div {
+  background: none !important;
+}

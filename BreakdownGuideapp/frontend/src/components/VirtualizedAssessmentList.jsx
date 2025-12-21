@@ -266,7 +266,7 @@ const VirtualizedAssessmentList = memo(({
       />
       
       {/* Performance indicators (development only) */}
-      {process.env.NODE_ENV === 'development' && (
+      {import.meta.env.DEV && (
         <div className="virtual-debug">
           <div className="debug-info">
             Items: {items.length} | Visible: {visibleItems.length} | 

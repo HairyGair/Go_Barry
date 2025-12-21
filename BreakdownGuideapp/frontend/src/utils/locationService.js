@@ -89,12 +89,14 @@ const landmarks = [
   { name: 'A19 Testo\'s Roundabout', lat: 54.9800, lng: -1.5300, radius: 0.002, type: 'junction' },
   { name: 'A1(M) Junction 65 (Birtley)', lat: 54.9000, lng: -1.5800, radius: 0.002, type: 'junction' },
 
-  // Go North East Depots (Operational Locations)
-  { name: 'Riverside Depot', lat: 54.9650, lng: -1.6200, radius: 0.002, type: 'depot' },
-  { name: 'Chester-le-Street Depot', lat: 54.8550, lng: -1.5750, radius: 0.003, type: 'depot' },
-  { name: 'Washington Depot', lat: 54.9000, lng: -1.5150, radius: 0.003, type: 'depot' },
-  { name: 'Deptford Depot', lat: 54.9100, lng: -1.3900, radius: 0.003, type: 'depot' },
-  { name: 'Hexham Depot', lat: 54.9733, lng: -2.1014, radius: 0.003, type: 'depot' },
+  // Go North East Depots (Operational Locations) - VERIFIED from OpenStreetMap (December 2025)
+  { name: 'Washington Depot', lat: 54.9068, lng: -1.5140, radius: 0.003, type: 'depot' },
+  { name: 'Riverside Depot', lat: 54.9586, lng: -1.6579, radius: 0.002, type: 'depot' },
+  { name: 'Consett Depot', lat: 54.8403, lng: -1.8380, radius: 0.003, type: 'depot' },
+  { name: 'Deptford Depot', lat: 54.9142, lng: -1.3976, radius: 0.003, type: 'depot' },
+  { name: 'Percy Main Depot', lat: 55.0041, lng: -1.4774, radius: 0.003, type: 'depot' },
+  { name: 'Hexham Depot', lat: 54.9756, lng: -2.0960, radius: 0.003, type: 'depot' },
+  { name: 'Chester-le-Street Depot', lat: 54.8543, lng: -1.5740, radius: 0.003, type: 'depot' },
 
   // Residential Areas & Estates
   { name: 'Byker', lat: 54.9758, lng: -1.5736, radius: 0.003, type: 'residential' },

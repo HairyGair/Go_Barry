@@ -1,0 +1,226 @@
+/**
+ * LiveStatsBar Styles
+ * Real-time breakdown statistics dashboard
+ */
+
+.live-stats-bar {
+  background: linear-gradient(135deg, rgba(26, 26, 46, 0.95), rgba(22, 33, 62, 0.95));
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.live-stats-bar__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.live-stats-bar__title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.live-stats-bar__title-icon {
+  font-size: 1.25rem;
+}
+
+.live-stats-bar__avg-time {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: rgba(34, 197, 94, 0.15);
+  border-radius: 20px;
+  font-size: 0.875rem;
+}
+
+.avg-time-label {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.avg-time-value {
+  color: #22c55e;
+  font-weight: 700;
+}
+
+.live-stats-bar__stats {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+}
+
+/* Responsive: 3 columns on tablets */
+@media (max-width: 1200px) {
+  .live-stats-bar__stats {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Responsive: 2 columns on mobile */
+@media (max-width: 640px) {
+  .live-stats-bar__stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .live-stats-bar__header {
+    flex-direction: column;
+    gap: 12px;
+    align-items: flex-start;
+  }
+}
+
+/* Stat Card */
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 12px;
+  background: var(--stat-bg, rgba(255, 255, 255, 0.05));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: var(--stat-color, #3b82f6);
+  opacity: 0.8;
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  background: var(--stat-bg, rgba(255, 255, 255, 0.08));
+  border-color: var(--stat-color, rgba(255, 255, 255, 0.2));
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.stat-card:active {
+  transform: translateY(-2px);
+}
+
+.stat-card__icon {
+  font-size: 1.5rem;
+  margin-bottom: 8px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.stat-card__value {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--stat-color, white);
+  line-height: 1;
+  margin-bottom: 4px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.stat-card__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Pulse animation for value changes */
+.stat-card.pulse {
+  animation: statPulse 0.6s ease-out;
+}
+
+@keyframes statPulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 var(--stat-color, rgba(59, 130, 246, 0.7));
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 0 10px transparent;
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+/* Critical pulse animation for STOP breakdowns */
+.stat-card.critical-pulse {
+  animation: criticalPulse 2s ease-in-out infinite;
+}
+
+@keyframes criticalPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0);
+  }
+  50% {
+    box-shadow: 0 0 20px 4px rgba(220, 38, 38, 0.4);
+  }
+}
+
+/* Number ticker animation */
+@keyframes numberFlip {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stat-card__value.changing {
+  animation: numberFlip 0.3s ease-out;
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .live-stats-bar {
+    background: linear-gradient(135deg, rgba(15, 15, 30, 0.98), rgba(10, 20, 40, 0.98));
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .stat-card,
+  .stat-card.pulse,
+  .stat-card.critical-pulse {
+    animation: none;
+    transition: none;
+  }
+
+  .stat-card:hover {
+    transform: none;
+  }
+}
+
+/* Print styles */
+@media print {
+  .live-stats-bar {
+    background: white;
+    border: 1px solid #ccc;
+    box-shadow: none;
+  }
+
+  .stat-card__value,
+  .stat-card__label {
+    color: black;
+  }
+}

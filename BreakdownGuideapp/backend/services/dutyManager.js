@@ -49,6 +49,26 @@ export const DUTY_SHIFTS = {
 const SHIFT_END_WARNING_MINUTES = 15;
 
 /**
+ * Get duty display name from code
+ * @param {string} dutyCode - Duty code (e.g., '100', 'Duty 100')
+ * @returns {string} - Display name (e.g., 'Early Shift')
+ */
+export function getDutyName(dutyCode) {
+  // Handle null/undefined
+  if (!dutyCode) return 'Unknown';
+
+  // Normalize the code first
+  const normalizedCode = dutyCode.toString().replace('Duty ', '');
+  const duty = DUTY_SHIFTS[normalizedCode];
+
+  if (!duty) return `Duty ${normalizedCode}`;
+
+  // Extract just the shift name (e.g., 'Early Shift' from 'Duty 100 - Early Shift')
+  const namePart = duty.displayName.split(' - ')[1] || duty.displayName;
+  return namePart;
+}
+
+/**
  * Normalize duty code to numeric format
  * Accepts both 'Duty 100' and '100' formats, returns '100'
  * SECURITY FIX: Prevents duty code injection by standardizing to numeric format
@@ -372,6 +392,7 @@ export async function getShiftHistory(filters = {}) {
 
 export default {
   DUTY_SHIFTS,
+  getDutyName,
   normalizeDutyCode,
   calculateShiftEndTime,
   calculateWarningTime,

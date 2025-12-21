@@ -242,6 +242,80 @@ router.get('/fleet', (req, res) => {
   }
 });
 
+// GET /api/public/geocode/reverse - Reverse geocode coordinates to address
+// Public endpoint for engineering displays (uses Google Geocoding API)
+router.get('/geocode/reverse', async (req, res) => {
+  try {
+    const { lat, lng } = req.query;
+
+    if (!lat || !lng) {
+      return res.status(400).json({
+        success: false,
+        error: 'Latitude and longitude are required'
+      });
+    }
+
+    // Use Google Geocoding API
+    const GOOGLE_API_KEY = process.env.GOOGLE_MAPS_API_KEY || process.env.VITE_GOOGLE_MAPS_KEY;
+
+    if (!GOOGLE_API_KEY) {
+      console.error('Google Maps API key not configured');
+      return res.status(500).json({
+        success: false,
+        error: 'Geocoding service not configured'
+      });
+    }
+
+    const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${GOOGLE_API_KEY}`;
+    const response = await fetch(geocodeUrl);
+    const data = await response.json();
+
+    if (data.status === 'OK' && data.results && data.results.length > 0) {
+      const result = data.results[0];
+      const addressComponents = result.address_components;
+
+      // Extract street, city, and postcode
+      const street = addressComponents.find(c => c.types.includes('route'))?.long_name || '';
+      const streetNumber = addressComponents.find(c => c.types.includes('street_number'))?.long_name || '';
+      const city = addressComponents.find(c => c.types.includes('postal_town') || c.types.includes('locality'))?.long_name || '';
+      const postcode = addressComponents.find(c => c.types.includes('postal_code'))?.long_name || '';
+
+      // Format: "123 Street Name, City, Postcode"
+      const parts = [];
+      if (streetNumber && street) {
+        parts.push(`${streetNumber} ${street}`);
+      } else if (street) {
+        parts.push(street);
+      }
+      if (city) parts.push(city);
+      if (postcode) parts.push(postcode);
+
+      const formattedAddress = parts.length > 0 ? parts.join(', ') : result.formatted_address;
+
+      return res.json({
+        success: true,
+        address: formattedAddress,
+        full_address: result.formatted_address,
+        lat: parseFloat(lat),
+        lng: parseFloat(lng)
+      });
+    } else {
+      return res.json({
+        success: false,
+        error: 'Address not found',
+        address: `${lat}, ${lng}` // Fallback to coordinates
+      });
+    }
+  } catch (error) {
+    console.error('Reverse geocoding error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Geocoding failed',
+      address: `${req.query.lat}, ${req.query.lng}` // Fallback to coordinates
+    });
+  }
+});
+
 // GET /api/public/activity/feed - Get activity feed (no auth required)
 router.get('/activity/feed', async (req, res) => {
   try {

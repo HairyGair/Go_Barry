@@ -1,13 +1,18 @@
-import React, { useState, memo } from 'react';
+import React, { useState, memo, useMemo } from 'react';
 import { getWizardInfo } from './utils/wizardTypeMapping';
 import DepotContactBadge from '../../components/DepotContactBadge';
+import QuickDecisionButtons from './QuickDecisionButtons';
 
-const SDCBreakdownCard = memo(({ 
-  breakdown, 
-  onAcknowledge, 
-  onMakeDecision, 
+const SDCBreakdownCard = memo(({
+  breakdown,
+  onAcknowledge,
+  onMakeDecision,
   onRequestEngineering,
   onEditAssessment,
+  onQuickDecision,
+  onAddNote,
+  onResolve,
+  onContact,
   animationDelay = 0,
   isHighlighted = false,
   engineeringTimer = null,
@@ -15,6 +20,36 @@ const SDCBreakdownCard = memo(({
 }) => {
   const [showAssessmentDetails, setShowAssessmentDetails] = useState(false);
   const [showWizardResponses, setShowWizardResponses] = useState(false);
+  const [showNoteInput, setShowNoteInput] = useState(false);
+  const [noteText, setNoteText] = useState('');
+
+  // Phase 7.4: Check if shift is ending soon (priority indicator)
+  const shiftPriorityInfo = useMemo(() => {
+    try {
+      const dutyStr = sessionStorage.getItem('currentDuty');
+      if (!dutyStr) return null;
+
+      const duty = JSON.parse(dutyStr);
+      if (!duty.shiftEnd) return null;
+
+      const shiftEnd = new Date(duty.shiftEnd);
+      const now = new Date();
+      const remainingMinutes = Math.floor((shiftEnd - now) / 60000);
+
+      // Show priority badge when <60 minutes remaining
+      if (remainingMinutes > 0 && remainingMinutes <= 60) {
+        return {
+          showBadge: true,
+          remainingMinutes,
+          isUrgent: remainingMinutes <= 30,
+          dutyCode: duty.code
+        };
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }, []);
 
   // Determine criticality class with decision color coding
   const getCriticalityClass = () => {
@@ -121,7 +156,14 @@ const SDCBreakdownCard = memo(({
           <span>✨ Recently Updated</span>
         </div>
       )}
-      
+
+      {/* Phase 7.4: Shift-End Priority Badge */}
+      {shiftPriorityInfo?.showBadge && (
+        <div className={`shift-priority-badge ${shiftPriorityInfo.isUrgent ? 'shift-priority-badge--urgent' : ''}`}>
+          <span>⏰ {shiftPriorityInfo.remainingMinutes}min left in Duty {shiftPriorityInfo.dutyCode}</span>
+        </div>
+      )}
+
       <div className="breakdown-header">
         <div className="fleet-info">
           <div className="fleet-number">Fleet {breakdown.fleet_no}</div>
@@ -350,6 +392,15 @@ const SDCBreakdownCard = memo(({
                         <span className="timeline-value">{breakdown.supervisor_name}</span>
                       </div>
                     )}
+                    {breakdown.duty_code && (
+                      <div className="timeline-item">
+                        <span className="timeline-label">During Shift:</span>
+                        <span className="timeline-value duty-tag">
+                          Duty {breakdown.duty_code}
+                          {breakdown.duty_name && ` (${breakdown.duty_name})`}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -360,41 +411,124 @@ const SDCBreakdownCard = memo(({
       
       <div className="breakdown-actions">
         {breakdown.currentStage === 'received' && (
-          <button 
-            className="action-btn acknowledge" 
+          <button
+            className="action-btn acknowledge"
             onClick={() => onAcknowledge(breakdown.breakdown_id)}
           >
             ✓ Acknowledge
           </button>
         )}
+
+        {/* Quick Decision Buttons - Show for acknowledged breakdowns or when no decision yet */}
+        {(breakdown.currentStage === 'acknowledged' || !breakdown.wizard_decision) && (
+          <div className="quick-decision-section">
+            <QuickDecisionButtons
+              breakdownId={breakdown.breakdown_id}
+              currentDecision={breakdown.wizard_decision || breakdown.severity}
+              onDecisionMade={(decision, data) => {
+                if (onQuickDecision) {
+                  onQuickDecision(breakdown.breakdown_id, decision, data);
+                }
+              }}
+              compact={false}
+            />
+          </div>
+        )}
+
         {breakdown.currentStage === 'acknowledged' && (
-          <button 
-            className="action-btn decision" 
+          <button
+            className="action-btn decision"
             onClick={() => onMakeDecision(breakdown.breakdown_id)}
           >
-            📋 Decision
+            📋 Full Assessment
           </button>
         )}
         {breakdown.currentStage === 'decision' && !breakdown.assigned_engineer_id && (
-          <button 
-            className="action-btn engineering" 
+          <button
+            className="action-btn engineering"
             onClick={() => onRequestEngineering(breakdown.breakdown_id)}
           >
             🔧 Engineering
           </button>
         )}
-        
+
         {/* Edit Assessment Button - Show if assessment exists */}
         {(breakdown.wizard_decision || breakdown.severity) && onEditAssessment && (
-          <button 
-            className="action-btn edit-assessment" 
+          <button
+            className="action-btn edit-assessment"
             onClick={() => onEditAssessment(breakdown.breakdown_id)}
             title="Edit the original assessment for this breakdown"
           >
             ✏️ Edit Assessment
           </button>
         )}
+
+        {/* Add Note Button */}
+        <button
+          className={`action-btn add-note ${showNoteInput ? 'active' : ''}`}
+          onClick={() => setShowNoteInput(!showNoteInput)}
+          title="Add a note to this breakdown"
+        >
+          📝 Note
+        </button>
+
+        {/* Resolve Button - Show when decision has been made */}
+        {breakdown.wizard_decision && onResolve && breakdown.status !== 'resolved' && (
+          <button
+            className="action-btn resolve"
+            onClick={() => onResolve(breakdown)}
+            title="Mark this breakdown as resolved"
+          >
+            ✅ Resolve
+          </button>
+        )}
+
+        {/* Contact Depot Button */}
+        <button
+          className="action-btn contact"
+          onClick={() => onContact ? onContact(breakdown) : null}
+          title="Contact depot or driver"
+        >
+          📞 Contact
+        </button>
       </div>
+
+      {/* Inline Note Input */}
+      {showNoteInput && (
+        <div className="note-input-container">
+          <textarea
+            className="note-input"
+            placeholder="Add a note about this breakdown..."
+            value={noteText}
+            onChange={(e) => setNoteText(e.target.value)}
+            rows={2}
+          />
+          <div className="note-actions">
+            <button
+              className="note-btn save"
+              onClick={() => {
+                if (noteText.trim() && onAddNote) {
+                  onAddNote(breakdown.breakdown_id, noteText.trim());
+                  setNoteText('');
+                  setShowNoteInput(false);
+                }
+              }}
+              disabled={!noteText.trim()}
+            >
+              Save Note
+            </button>
+            <button
+              className="note-btn cancel"
+              onClick={() => {
+                setNoteText('');
+                setShowNoteInput(false);
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       <style jsx>{`
         .sdc-breakdown-card {
@@ -634,11 +768,65 @@ const SDCBreakdownCard = memo(({
           font-weight: 700;
           letter-spacing: 0.5px;
           text-transform: uppercase;
-          box-shadow: 
+          box-shadow:
             0 4px 12px rgba(6,182,212,0.4),
             0 2px 4px rgba(6,182,212,0.2);
           animation: bounce 2s infinite;
           border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        /* Phase 7.4: Shift-End Priority Badge */
+        .shift-priority-badge {
+          position: absolute;
+          top: -12px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: linear-gradient(135deg, #f59e0b, #d97706);
+          color: white;
+          padding: 6px 16px;
+          border-radius: 24px;
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.5px;
+          box-shadow:
+            0 4px 12px rgba(245, 158, 11, 0.4),
+            0 2px 4px rgba(245, 158, 11, 0.2);
+          animation: shiftWarning 2s infinite;
+          border: 1px solid rgba(255,255,255,0.2);
+          white-space: nowrap;
+          z-index: 15;
+        }
+
+        .shift-priority-badge--urgent {
+          background: linear-gradient(135deg, #ef4444, #dc2626);
+          box-shadow:
+            0 4px 12px rgba(239, 68, 68, 0.5),
+            0 2px 4px rgba(239, 68, 68, 0.3);
+          animation: shiftUrgent 1s infinite;
+        }
+
+        @keyframes shiftWarning {
+          0%, 100% {
+            transform: translateX(-50%) scale(1);
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+          }
+          50% {
+            transform: translateX(-50%) scale(1.02);
+            box-shadow: 0 6px 16px rgba(245, 158, 11, 0.5);
+          }
+        }
+
+        @keyframes shiftUrgent {
+          0%, 100% {
+            transform: translateX(-50%) scale(1);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.5);
+            opacity: 1;
+          }
+          50% {
+            transform: translateX(-50%) scale(1.03);
+            box-shadow: 0 8px 20px rgba(239, 68, 68, 0.6);
+            opacity: 0.95;
+          }
         }
 
         @keyframes pulse-shadow {
@@ -1042,10 +1230,139 @@ const SDCBreakdownCard = memo(({
 
         .action-btn.edit-assessment:hover {
           transform: translateY(-2px);
-          box-shadow: 
+          box-shadow:
             0 6px 20px rgba(147, 51, 234, 0.3),
             inset 0 1px 0 rgba(255,255,255,0.3);
           border-color: rgba(147, 51, 234, 0.3);
+        }
+
+        .action-btn.add-note {
+          background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(217, 119, 6, 0.05));
+          border-color: rgba(245, 158, 11, 0.2);
+          color: #d97706;
+        }
+
+        .action-btn.add-note:hover,
+        .action-btn.add-note.active {
+          transform: translateY(-2px);
+          background: linear-gradient(135deg, #fbbf24, #f59e0b);
+          box-shadow: 0 6px 20px rgba(245, 158, 11, 0.3);
+          border-color: rgba(251, 191, 36, 0.4);
+          color: white;
+        }
+
+        .action-btn.resolve {
+          background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(22, 163, 74, 0.05));
+          border-color: rgba(34, 197, 94, 0.2);
+          color: #16a34a;
+        }
+
+        .action-btn.resolve:hover {
+          transform: translateY(-2px);
+          background: linear-gradient(135deg, #4ade80, #22c55e);
+          box-shadow: 0 6px 20px rgba(34, 197, 94, 0.3);
+          border-color: rgba(74, 222, 128, 0.4);
+          color: white;
+        }
+
+        .action-btn.contact {
+          background: linear-gradient(135deg, rgba(14, 165, 233, 0.1), rgba(2, 132, 199, 0.05));
+          border-color: rgba(14, 165, 233, 0.2);
+          color: #0284c7;
+        }
+
+        .action-btn.contact:hover {
+          transform: translateY(-2px);
+          background: linear-gradient(135deg, #38bdf8, #0ea5e9);
+          box-shadow: 0 6px 20px rgba(14, 165, 233, 0.3);
+          border-color: rgba(56, 189, 248, 0.4);
+          color: white;
+        }
+
+        /* Note Input Styles */
+        .note-input-container {
+          margin-top: 16px;
+          padding: 16px;
+          background: linear-gradient(135deg, rgba(245, 158, 11, 0.05), rgba(217, 119, 6, 0.02));
+          border: 1px solid rgba(245, 158, 11, 0.15);
+          border-radius: 16px;
+          animation: slideDown 0.2s ease-out;
+        }
+
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .note-input {
+          width: 100%;
+          padding: 12px 14px;
+          border: 1px solid rgba(0, 0, 0, 0.1);
+          border-radius: 12px;
+          font-size: 14px;
+          font-family: inherit;
+          resize: vertical;
+          min-height: 70px;
+          background: white;
+          transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .note-input:focus {
+          outline: none;
+          border-color: #f59e0b;
+          box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+        }
+
+        .note-input::placeholder {
+          color: #9ca3af;
+        }
+
+        .note-actions {
+          display: flex;
+          gap: 10px;
+          margin-top: 12px;
+          justify-content: flex-end;
+        }
+
+        .note-btn {
+          padding: 10px 18px;
+          border-radius: 10px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          border: none;
+        }
+
+        .note-btn.save {
+          background: linear-gradient(135deg, #f59e0b, #d97706);
+          color: white;
+        }
+
+        .note-btn.save:hover:not(:disabled) {
+          background: linear-gradient(135deg, #fbbf24, #f59e0b);
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+        }
+
+        .note-btn.save:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .note-btn.cancel {
+          background: rgba(0, 0, 0, 0.05);
+          color: #6b7280;
+        }
+
+        .note-btn.cancel:hover {
+          background: rgba(0, 0, 0, 0.1);
         }
 
         /* New Badge Styles */
@@ -1151,10 +1468,12 @@ const SDCBreakdownCard = memo(({
           }
 
           .completion-badge,
-          .timer-badge {
+          .timer-badge,
+          .shift-priority-badge {
             position: static;
             margin-top: 8px;
             align-self: flex-start;
+            transform: none;
           }
         }
 

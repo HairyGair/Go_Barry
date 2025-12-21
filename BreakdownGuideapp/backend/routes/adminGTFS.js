@@ -18,6 +18,7 @@ import multer from 'multer';
 import { parse } from 'csv-parse/sync';
 import { query, transaction } from '../config/mysql.js';
 import { validate } from '../middleware/validationMiddleware.js';
+import { activityLogger, ACTIVITY_TYPES, ACTOR_TYPES, ENTITY_TYPES, SEVERITY_LEVELS } from '../services/activityLogger.js';
 
 const router = express.Router();
 
@@ -217,6 +218,26 @@ router.post('/routes', upload.single('csvFile'), async (req, res) => {
       console.log(`   Updated records: ${updateCount}`);
       console.log(`   Failed: ${importErrors.length}`);
 
+      // Log activity with WebSocket broadcast
+      await activityLogger.logActivity({
+        activityType: ACTIVITY_TYPES.GTFS_IMPORTED,
+        action: `imported ${successCount} routes, updated ${updateCount}`,
+        actorType: ACTOR_TYPES.ADMIN,
+        actorId: req.user?.badge_number || 'ADMIN',
+        actorName: req.user?.name || 'Admin',
+        entityType: ENTITY_TYPES.GTFS,
+        entityDetails: {
+          file_type: 'routes',
+          new_count: successCount,
+          updated_count: updateCount,
+          failed_count: importErrors.length,
+          total_rows: parseResult.recordCount
+        },
+        severity: SEVERITY_LEVELS.SUCCESS,
+        source: 'admin_panel',
+        icon: '🗺️'
+      });
+
       return res.json({
         success: true,
         message: 'Routes imported successfully',
@@ -340,6 +361,27 @@ router.post('/stops', upload.single('csvFile'), async (req, res) => {
       });
 
       console.log('✅ Stops import completed');
+
+      // Log activity with WebSocket broadcast
+      await activityLogger.logActivity({
+        activityType: ACTIVITY_TYPES.GTFS_IMPORTED,
+        action: `imported ${successCount} stops, updated ${updateCount}`,
+        actorType: ACTOR_TYPES.ADMIN,
+        actorId: req.user?.badge_number || 'ADMIN',
+        actorName: req.user?.name || 'Admin',
+        entityType: ENTITY_TYPES.GTFS,
+        entityDetails: {
+          file_type: 'stops',
+          new_count: successCount,
+          updated_count: updateCount,
+          failed_count: importErrors.length,
+          total_rows: parseResult.recordCount
+        },
+        severity: SEVERITY_LEVELS.SUCCESS,
+        source: 'admin_panel',
+        icon: '📍'
+      });
+
       return res.json({
         success: true,
         message: 'Stops imported successfully',
@@ -452,6 +494,27 @@ router.post('/trips', upload.single('csvFile'), async (req, res) => {
       });
 
       console.log('✅ Trips import completed');
+
+      // Log activity with WebSocket broadcast
+      await activityLogger.logActivity({
+        activityType: ACTIVITY_TYPES.GTFS_IMPORTED,
+        action: `imported ${successCount} trips, updated ${updateCount}`,
+        actorType: ACTOR_TYPES.ADMIN,
+        actorId: req.user?.badge_number || 'ADMIN',
+        actorName: req.user?.name || 'Admin',
+        entityType: ENTITY_TYPES.GTFS,
+        entityDetails: {
+          file_type: 'trips',
+          new_count: successCount,
+          updated_count: updateCount,
+          failed_count: importErrors.length,
+          total_rows: parseResult.recordCount
+        },
+        severity: SEVERITY_LEVELS.SUCCESS,
+        source: 'admin_panel',
+        icon: '🚌'
+      });
+
       return res.json({
         success: true,
         message: 'Trips imported successfully',
@@ -573,6 +636,26 @@ router.post('/stop-times', upload.single('csvFile'), async (req, res) => {
       }
 
       console.log('✅ Stop times import completed');
+
+      // Log activity with WebSocket broadcast
+      await activityLogger.logActivity({
+        activityType: ACTIVITY_TYPES.GTFS_IMPORTED,
+        action: `imported ${successCount} stop times`,
+        actorType: ACTOR_TYPES.ADMIN,
+        actorId: req.user?.badge_number || 'ADMIN',
+        actorName: req.user?.name || 'Admin',
+        entityType: ENTITY_TYPES.GTFS,
+        entityDetails: {
+          file_type: 'stop_times',
+          processed_count: successCount,
+          failed_count: importErrors.length,
+          total_rows: parseResult.recordCount
+        },
+        severity: SEVERITY_LEVELS.SUCCESS,
+        source: 'admin_panel',
+        icon: '⏱️'
+      });
+
       return res.json({
         success: true,
         message: 'Stop times imported successfully',

@@ -1,5 +1,14 @@
 // Notification Service for Go North East Breakdown Management System
+// Phase 7.5: Duty-Aware Notifications - Only notify during active duty
 import { apiConfig } from '../breakdown-guide/components/common/constants';
+
+// Standard duty shift definitions (matching backend)
+const DUTY_SHIFTS = {
+  '100': { name: 'Early Shift', start: '06:00', end: '15:30' },
+  '200': { name: 'Day Shift', start: '07:30', end: '17:00' },
+  '400': { name: 'Late Shift', start: '12:30', end: '22:00' },
+  '500': { name: 'Night Shift', start: '14:45', end: '00:15' }
+};
 
 // Notification types and priorities
 export const NotificationTypes = {
@@ -24,6 +33,108 @@ class NotificationService {
   constructor() {
     this.notifications = [];
     this.subscribers = [];
+    this.dutyAwareEnabled = true; // Phase 7.5: Enable duty-aware notifications by default
+    this.emergencyOverrideEnabled = true; // Phase 7.5: Always allow emergency notifications
+    this.loadSettings();
+  }
+
+  // Phase 7.5: Load settings from localStorage
+  loadSettings() {
+    try {
+      const stored = localStorage.getItem('dutyAwareNotificationSettings');
+      if (stored) {
+        const settings = JSON.parse(stored);
+        this.dutyAwareEnabled = settings.dutyAwareEnabled ?? true;
+        this.emergencyOverrideEnabled = settings.emergencyOverrideEnabled ?? true;
+      }
+    } catch (e) {
+      console.warn('Error loading notification settings:', e);
+    }
+  }
+
+  // Phase 7.5: Save settings to localStorage
+  saveSettings() {
+    try {
+      localStorage.setItem('dutyAwareNotificationSettings', JSON.stringify({
+        dutyAwareEnabled: this.dutyAwareEnabled,
+        emergencyOverrideEnabled: this.emergencyOverrideEnabled
+      }));
+    } catch (e) {
+      console.warn('Error saving notification settings:', e);
+    }
+  }
+
+  // Phase 7.5: Check if supervisor is currently on duty
+  isOnDuty() {
+    try {
+      const stored = sessionStorage.getItem('currentDuty');
+      if (!stored) return false;
+
+      const duty = JSON.parse(stored);
+      if (!duty?.code) return false;
+
+      const shiftInfo = DUTY_SHIFTS[duty.code];
+      if (!shiftInfo) return true; // Custom duty, assume on duty
+
+      // Check if current time is within shift hours
+      const now = new Date();
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+      const [startH, startM] = shiftInfo.start.split(':').map(Number);
+      const [endH, endM] = shiftInfo.end.split(':').map(Number);
+
+      const startMinutes = startH * 60 + startM;
+      let endMinutes = endH * 60 + endM;
+
+      // Handle overnight shifts
+      if (endMinutes < startMinutes) {
+        // Shift crosses midnight
+        return currentMinutes >= startMinutes || currentMinutes < endMinutes;
+      }
+
+      return currentMinutes >= startMinutes && currentMinutes < endMinutes;
+    } catch (e) {
+      console.error('Error checking duty status:', e);
+      return false;
+    }
+  }
+
+  // Phase 7.5: Check if notifications should be shown
+  shouldShowNotifications(isEmergency = false) {
+    // Emergency override: always show emergency notifications if override is enabled
+    if (isEmergency && this.emergencyOverrideEnabled) {
+      console.log('🚨 Emergency notification - bypassing duty check');
+      return true;
+    }
+
+    // If duty-aware is disabled, always show
+    if (!this.dutyAwareEnabled) return true;
+
+    // Otherwise, only show if on duty
+    return this.isOnDuty();
+  }
+
+  // Phase 7.5: Enable/disable duty-aware mode
+  setDutyAwareEnabled(enabled) {
+    this.dutyAwareEnabled = enabled;
+    this.saveSettings();
+    console.log(`📢 Duty-aware notifications: ${enabled ? 'enabled' : 'disabled'}`);
+  }
+
+  // Phase 7.5: Enable/disable emergency override
+  setEmergencyOverrideEnabled(enabled) {
+    this.emergencyOverrideEnabled = enabled;
+    this.saveSettings();
+    console.log(`🚨 Emergency override: ${enabled ? 'enabled' : 'disabled'}`);
+  }
+
+  // Phase 7.5: Get current settings
+  getSettings() {
+    return {
+      dutyAwareEnabled: this.dutyAwareEnabled,
+      emergencyOverrideEnabled: this.emergencyOverrideEnabled,
+      isOnDuty: this.isOnDuty()
+    };
   }
 
   // Generate realistic notifications based on supervisor context
@@ -237,23 +348,97 @@ class NotificationService {
         randomNotification.id = `rt-${Date.now()}`;
         randomNotification.time = 'Just now';
         randomNotification.read = false;
+
+        // Phase 7.5: Check if emergency/critical notification
+        const isEmergency = randomNotification.priority === NotificationPriority.CRITICAL ||
+                           randomNotification.type === NotificationTypes.EMERGENCY;
+
+        // Phase 7.5: Only send notifications if on duty (or emergency override)
+        if (!this.shouldShowNotifications(isEmergency)) {
+          console.log('📵 Notification suppressed - not on duty');
+          return;
+        }
+
         this.notifications.unshift(randomNotification);
         this.notifySubscribers();
-        
+
         // Play notification sound if critical
-        if (randomNotification.priority === NotificationPriority.CRITICAL) {
-          this.playNotificationSound('critical');
+        if (isEmergency) {
+          this.playNotificationSound('critical', true);
         } else {
-          this.playNotificationSound('normal');
+          this.playNotificationSound('normal', false);
         }
       }
     }, 45000); // Every 45 seconds
   }
 
   // Play notification sound
-  playNotificationSound(type = 'normal') {
+  playNotificationSound(type = 'normal', isEmergency = false) {
+    // Phase 7.5: Only play sounds if on duty (or emergency override)
+    if (!this.shouldShowNotifications(isEmergency)) {
+      console.log('🔇 Sound suppressed - not on duty');
+      return;
+    }
+
     // Implementation would use Web Audio API or <audio> element
-    console.log(`🔊 Notification sound: ${type}`);
+    console.log(`🔊 Notification sound: ${type}${isEmergency ? ' (emergency)' : ''}`);
+  }
+
+  // Phase 7.5: Send browser notification (duty-aware with emergency override)
+  sendBrowserNotification(title, options = {}) {
+    const isEmergency = options.priority === NotificationPriority.CRITICAL ||
+                        options.type === NotificationTypes.EMERGENCY ||
+                        options.isEmergency === true;
+
+    // Only send if on duty (or emergency override)
+    if (!this.shouldShowNotifications(isEmergency)) {
+      console.log('📵 Browser notification suppressed - not on duty');
+      return;
+    }
+
+    // Check if browser notifications are supported and permitted
+    if (!('Notification' in window)) {
+      console.log('Browser notifications not supported');
+      return;
+    }
+
+    if (Notification.permission === 'granted') {
+      new Notification(title, {
+        icon: '/icons/barry-icon.png',
+        badge: '/icons/barry-badge.png',
+        tag: options.tag || 'barry-notification',
+        requireInteraction: isEmergency, // Emergency notifications require interaction
+        ...options
+      });
+    } else if (Notification.permission !== 'denied') {
+      Notification.requestPermission().then(permission => {
+        if (permission === 'granted') {
+          this.sendBrowserNotification(title, options);
+        }
+      });
+    }
+  }
+
+  // Phase 7.5: Get duty status for display
+  getDutyStatus() {
+    const onDuty = this.isOnDuty();
+    const stored = sessionStorage.getItem('currentDuty');
+    let dutyInfo = null;
+
+    if (stored) {
+      try {
+        dutyInfo = JSON.parse(stored);
+      } catch (e) {
+        // Ignore parsing errors
+      }
+    }
+
+    return {
+      isOnDuty: onDuty,
+      dutyCode: dutyInfo?.code || null,
+      dutyName: dutyInfo?.name || null,
+      notificationsEnabled: this.dutyAwareEnabled ? onDuty : true
+    };
   }
 }
 

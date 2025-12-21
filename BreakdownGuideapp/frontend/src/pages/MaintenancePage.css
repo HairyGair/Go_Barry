@@ -1,0 +1,360 @@
+/* Maintenance Page - Professional Design */
+
+.maintenance-page {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  background:
+    radial-gradient(ellipse at top left, rgba(59, 130, 246, 0.2) 0%, transparent 45%),
+    radial-gradient(ellipse at bottom right, rgba(147, 51, 234, 0.15) 0%, transparent 45%),
+    radial-gradient(ellipse at center, rgba(99, 102, 241, 0.1) 0%, transparent 70%),
+    linear-gradient(180deg, #0a0f1b 0%, #0f172a 40%, #1a2332 100%);
+  color: var(--text-primary, #ffffff);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  overflow: auto;
+}
+
+/* Animated background grid */
+.maintenance-grid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image:
+    linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+  animation: gridMove 20s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes gridMove {
+  0% {
+    transform: translate(0, 0);
+  }
+  100% {
+    transform: translate(50px, 50px);
+  }
+}
+
+/* Main content container */
+.maintenance-content {
+  position: relative;
+  max-width: 900px;
+  width: 100%;
+  text-align: center;
+  z-index: 10;
+}
+
+/* Logo */
+.maintenance-logo {
+  margin-bottom: 30px;
+  animation: logoFloat 3s ease-in-out infinite;
+}
+
+@keyframes logoFloat {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* Status icon */
+.maintenance-icon {
+  font-size: 120px;
+  margin-bottom: 30px;
+  animation: iconRotate 4s ease-in-out infinite;
+  filter: drop-shadow(0 10px 30px rgba(59, 130, 246, 0.4));
+}
+
+@keyframes iconRotate {
+  0%, 100% {
+    transform: rotate(-5deg);
+  }
+  50% {
+    transform: rotate(5deg);
+  }
+}
+
+/* Title */
+.maintenance-title {
+  font-size: 56px;
+  font-weight: 900;
+  margin: 0 0 20px 0;
+  background: linear-gradient(135deg, #ffffff 0%, #60a5fa 50%, #a78bfa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
+  animation: titleGlow 3s ease-in-out infinite;
+}
+
+@keyframes titleGlow {
+  0%, 100% {
+    filter: drop-shadow(0 4px 20px rgba(59, 130, 246, 0.3));
+  }
+  50% {
+    filter: drop-shadow(0 6px 30px rgba(59, 130, 246, 0.5));
+  }
+}
+
+/* Message */
+.maintenance-message {
+  font-size: 22px;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 50px;
+  line-height: 1.6;
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Info cards */
+.maintenance-info {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 30px;
+  margin-bottom: 50px;
+}
+
+.info-card {
+  background:
+    linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(99, 102, 241, 0.06) 100%),
+    radial-gradient(ellipse at top, rgba(147, 51, 234, 0.12) 0%, transparent 70%);
+  border: 2px solid rgba(59, 130, 246, 0.4);
+  border-radius: 20px;
+  padding: 30px;
+  backdrop-filter: blur(20px);
+  box-shadow:
+    0 10px 40px -10px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  transition: all 0.3s ease;
+  animation: cardBreathing 4s ease-in-out infinite;
+}
+
+@keyframes cardBreathing {
+  0%, 100% {
+    box-shadow:
+      0 10px 40px -10px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1),
+      0 0 30px -10px rgba(59, 130, 246, 0.3);
+  }
+  50% {
+    box-shadow:
+      0 12px 50px -10px rgba(0, 0, 0, 0.6),
+      inset 0 1px 0 rgba(255, 255, 255, 0.15),
+      0 0 40px -10px rgba(59, 130, 246, 0.5);
+  }
+}
+
+.info-icon {
+  font-size: 48px;
+  filter: drop-shadow(0 4px 12px rgba(59, 130, 246, 0.4));
+}
+
+.info-content {
+  flex: 1;
+  text-align: left;
+}
+
+.info-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-bottom: 8px;
+}
+
+.info-value {
+  font-size: 28px;
+  font-weight: 800;
+  font-family: 'JetBrains Mono', monospace;
+  color: #ffffff;
+  text-shadow: 0 2px 10px rgba(59, 130, 246, 0.4);
+}
+
+/* Details section */
+.maintenance-details {
+  background:
+    linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(59, 130, 246, 0.05) 100%);
+  border: 2px solid rgba(99, 102, 241, 0.3);
+  border-radius: 20px;
+  padding: 40px;
+  margin-bottom: 40px;
+  backdrop-filter: blur(20px);
+  box-shadow:
+    0 10px 40px -10px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.maintenance-details h2 {
+  font-size: 28px;
+  font-weight: 800;
+  margin: 0 0 25px 0;
+  color: #ffffff;
+  text-shadow: 0 2px 10px rgba(99, 102, 241, 0.4);
+}
+
+.maintenance-details ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.maintenance-details li {
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.8);
+  padding: 15px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  position: relative;
+  padding-left: 35px;
+}
+
+.maintenance-details li:last-child {
+  border-bottom: none;
+}
+
+.maintenance-details li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: #60a5fa;
+  font-weight: bold;
+  font-size: 20px;
+}
+
+/* Contact section */
+.maintenance-contact {
+  margin-bottom: 40px;
+}
+
+.maintenance-contact > p {
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 20px;
+}
+
+.contact-details {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+  flex-wrap: wrap;
+}
+
+.contact-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 25px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 2px solid rgba(59, 130, 246, 0.3);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.contact-item:hover {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px -8px rgba(59, 130, 246, 0.4);
+}
+
+.contact-icon {
+  font-size: 24px;
+  filter: drop-shadow(0 2px 8px rgba(59, 130, 246, 0.4));
+}
+
+.contact-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+/* Footer */
+.maintenance-footer {
+  margin-top: 60px;
+  padding-top: 30px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.maintenance-footer p {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 10px 0;
+}
+
+.footer-copyright {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.4);
+  margin-top: 15px;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .maintenance-title {
+    font-size: 40px;
+  }
+
+  .maintenance-message {
+    font-size: 18px;
+  }
+
+  .maintenance-icon {
+    font-size: 80px;
+  }
+
+  .info-card {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .info-content {
+    text-align: center;
+  }
+
+  .maintenance-details {
+    padding: 30px 20px;
+  }
+
+  .maintenance-details h2 {
+    font-size: 24px;
+  }
+
+  .maintenance-details li {
+    font-size: 16px;
+  }
+
+  .contact-details {
+    flex-direction: column;
+    align-items: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .maintenance-title {
+    font-size: 32px;
+  }
+
+  .maintenance-info {
+    grid-template-columns: 1fr;
+  }
+}

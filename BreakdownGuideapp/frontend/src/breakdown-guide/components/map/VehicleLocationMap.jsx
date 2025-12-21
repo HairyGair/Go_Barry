@@ -19,17 +19,17 @@ const VehicleLocationMap = ({
   const [userLocation, setUserLocation] = useState(null);
   const [geocodedLocation, setGeocodedLocation] = useState(null);
 
-  // Go North East depot locations
+  // Go North East depot locations - VERIFIED from OpenStreetMap (December 2025)
   const depots = {
-    'Washington': { lat: 54.9000, lng: -1.5333 },
-    'Riverside': { lat: 54.9669, lng: -1.6255 },
-    'Percy Main': { lat: 55.0333, lng: -1.4667 },
-    'Consett': { lat: 54.8540, lng: -1.8322 },
-    'Deptford': { lat: 54.8842, lng: -1.3775 },
-    'Hexham': { lat: 54.9719, lng: -2.1038 },
-    'Chester-le-Street': { lat: 54.8597, lng: -1.5698 },
+    'Washington': { lat: 54.9068, lng: -1.5140 },
+    'Riverside': { lat: 54.9586, lng: -1.6579 },
+    'Percy Main': { lat: 55.0041, lng: -1.4774 },
+    'Consett': { lat: 54.8403, lng: -1.8380 },
+    'Deptford': { lat: 54.9142, lng: -1.3976 },
+    'Hexham': { lat: 54.9756, lng: -2.0960 },
+    'Chester-le-Street': { lat: 54.8543, lng: -1.5740 },
     'Stanley': { lat: 54.8677, lng: -1.6980 },
-    'Gateshead Riverside': { lat: 54.9669, lng: -1.6255 }
+    'Gateshead Riverside': { lat: 54.9586, lng: -1.6579 }
   };
 
   // Initialize map with OpenStreetMap/Leaflet (free alternative)

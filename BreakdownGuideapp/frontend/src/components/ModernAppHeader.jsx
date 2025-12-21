@@ -5,6 +5,7 @@ import notificationService from '../services/notificationService';
 import EnhancedNotifications from './notifications/EnhancedNotifications';
 import ChangePasswordModal from './ChangePasswordModal.jsx';
 import DepotSelectionModal from './DepotSelectionModal.jsx';
+import DutyBadge from './DutyBadge.jsx';
 import apiClient from '../services/api-client';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import './ModernAppHeader.css';
@@ -14,8 +15,15 @@ const ModernAppHeader = ({
   activeBreakdowns: propActiveBreakdowns = 0,
   isAuthenticated = false,
   supervisorSession = null,
+  currentDuty = null,
+  onDutyClick,
   onSignOut,
-  onLoginSuccess
+  onLoginSuccess,
+  // NEW: Unified header props
+  showBreadcrumbs = true,           // Enable/disable breadcrumbs
+  sdcStats = null,                  // SDC stats: { total, critical, dispatched }
+  connectionManager = null,         // For real-time status display
+  onRefresh = null,                 // Refresh callback for SDC mode
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -51,6 +59,64 @@ const ModernAppHeader = ({
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showDepotModal, setShowDepotModal] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
+
+  // Auto-detect SDC mode based on current route
+  const isSDCMode = location.pathname.startsWith('/dashboards/sdc');
+
+  // Keyboard shortcuts data
+  const shortcuts = [
+    { key: 'Alt+1', description: 'Go to Breakdown Guide' },
+    { key: 'Alt+2', description: 'Go to SDC Operations' },
+    { key: 'Alt+3', description: 'Go to Control Room' },
+    { key: 'Alt+4', description: 'Go to Fleet Intelligence' },
+    { key: 'Alt+5', description: 'Go to Management' },
+    { key: 'Alt+H', description: 'Go to Home' },
+    { key: 'Alt+Q', description: 'Toggle Shortcuts Panel' },
+    { key: 'Cmd+K', description: 'Open Command Palette' },
+  ];
+
+  // Breadcrumb generation function
+  const getBreadcrumbs = () => {
+    const paths = location.pathname.split('/').filter(Boolean);
+    const breadcrumbs = [{ path: '/', label: 'Home' }];
+
+    let currentPath = '';
+    paths.forEach((segment) => {
+      currentPath += `/${segment}`;
+      let label = segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, ' ');
+
+      // Custom labels for known routes
+      if (segment === 'breakdown-guide') label = 'Breakdown Guide';
+      if (segment === 'dashboards') label = 'Dashboards';
+      if (segment === 'sdc') label = 'SDC Operations';
+      if (segment === 'engineering') label = 'Fleet Intelligence';
+      if (segment === 'control-room') label = 'Control Room';
+      if (segment === 'management') label = 'Management';
+      if (segment === 'fleet-defects') label = 'Fleet Defects';
+
+      breadcrumbs.push({ path: currentPath, label });
+    });
+
+    return breadcrumbs;
+  };
+
+  // SDC connection status helpers
+  const getConnectionStatus = () => {
+    if (!connectionManager?.isConnected) return 'disconnected';
+    if (connectionManager.currentMode === 'websocket') return 'realtime';
+    if (connectionManager.currentMode === 'polling') return 'polling';
+    return 'unknown';
+  };
+
+  const getConnectionLabel = () => {
+    switch (getConnectionStatus()) {
+      case 'realtime': return 'Real-time';
+      case 'polling': return 'Polling';
+      case 'disconnected': return 'Disconnected';
+      default: return 'Unknown';
+    }
+  };
 
   // Quick actions for command palette
   const quickActions = [
@@ -231,9 +297,11 @@ const ModernAppHeader = ({
     // Load initial notifications
     const loadNotifications = async () => {
       const notifs = await notificationService.fetchNotifications(supervisorData?.id);
-      setNotifications(notifs);
+      // SAFETY: Ensure notifs is always an array
+      const safeNotifs = Array.isArray(notifs) ? notifs : [];
+      setNotifications(safeNotifs);
       // Count critical and high priority as active breakdowns
-      const activeCount = notifs.filter(n => 
+      const activeCount = safeNotifs.filter(n =>
         n.priority === 'critical' || n.priority === 'high'
       ).length;
       setActiveBreakdowns(activeCount);
@@ -241,11 +309,13 @@ const ModernAppHeader = ({
 
     if (supervisorData) {
       loadNotifications();
-      
+
       // Subscribe to notification updates
       const unsubscribe = notificationService.subscribe((updatedNotifications) => {
-        setNotifications(updatedNotifications);
-        const activeCount = updatedNotifications.filter(n => 
+        // SAFETY: Ensure updatedNotifications is always an array
+        const safeUpdatedNotifs = Array.isArray(updatedNotifications) ? updatedNotifications : [];
+        setNotifications(safeUpdatedNotifs);
+        const activeCount = safeUpdatedNotifs.filter(n =>
           n.priority === 'critical' || n.priority === 'high'
         ).length;
         setActiveBreakdowns(activeCount);
@@ -305,14 +375,19 @@ const ModernAppHeader = ({
         setShowNotifications(false);
         setShowProfileMenu(false);
         setShowMoreMenu(false);
+        setShowShortcuts(false);
       }
-      
+
       // Quick navigation shortcuts
       if (e.altKey && !e.ctrlKey && !e.shiftKey) {
         switch(e.key) {
           case '1': e.preventDefault(); navigate('/breakdown-guide'); break;
           case '2': e.preventDefault(); navigate('/dashboards/sdc'); break;
-          case '3': e.preventDefault(); navigate('/dashboards/breakdown'); break;
+          case '3': e.preventDefault(); navigate('/dashboards/control-room'); break;
+          case 'q':
+          case 'Q': e.preventDefault(); setShowShortcuts(prev => !prev); break;
+          case 'h':
+          case 'H': e.preventDefault(); navigate('/'); break;
           case '4': e.preventDefault(); navigate('/dashboards/engineering'); break;
           case '5': e.preventDefault(); navigate('/dashboards/management'); break;
         }
@@ -334,6 +409,7 @@ const ModernAppHeader = ({
   const handleLogout = useCallback(async () => {
     if (isLoggingOut) return; // Prevent double-clicks
 
+    console.log('🚪 ModernAppHeader: Logout button clicked');
     setIsLoggingOut(true);
     setShowProfileMenu(false); // Close profile menu
 
@@ -341,25 +417,51 @@ const ModernAppHeader = ({
       console.log('🚪 ModernAppHeader: Initiating logout...');
 
       // Call AuthContext logout to clear user state
-      logout();
+      await logout();
+
+      console.log('✅ ModernAppHeader: AuthContext logout complete');
 
       // Clear any additional storage items
       localStorage.clear();
       sessionStorage.clear();
 
-      console.log('✅ ModernAppHeader: Logout complete, forcing page reload...');
+      // CRITICAL: Also clear all cookies manually (belt and suspenders approach)
+      document.cookie.split(";").forEach(function(c) {
+        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+        document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/;domain=.gobarry.co.uk");
+      });
 
-      // Force page reload to show login page
-      window.location.href = '/';
+      console.log('✅ ModernAppHeader: Storage and cookies cleared, forcing page reload...');
+
+      // Longer delay to ensure everything is cleared
+      setTimeout(() => {
+        // Use replace instead of href to prevent back button from going to authenticated state
+        // Add timestamp to prevent any caching
+        window.location.replace('/?logout=' + Date.now());
+      }, 200);
     } catch (error) {
       console.error('❌ ModernAppHeader logout error:', error);
 
-      // Emergency logout fallback
-      localStorage.clear();
-      sessionStorage.clear();
-      window.location.href = '/';
+      // Emergency logout fallback - ALWAYS succeeds
+      try {
+        localStorage.clear();
+        sessionStorage.clear();
+        // Clear cookies
+        document.cookie.split(";").forEach(function(c) {
+          document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+          document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/;domain=.gobarry.co.uk");
+        });
+      } catch (storageError) {
+        console.error('❌ Storage clear error:', storageError);
+      }
+
+      // Force reload no matter what
+      setTimeout(() => {
+        window.location.replace('/?logout=' + Date.now());
+      }, 200);
     } finally {
-      setIsLoggingOut(false);
+      // Don't reset isLoggingOut - we're leaving the page anyway
+      console.log('🚪 ModernAppHeader: Logout sequence complete');
     }
   }, [logout, isLoggingOut]);
 
@@ -396,39 +498,12 @@ const ModernAppHeader = ({
 
   return (
     <>
-      {/* Modern Header with Glassmorphism */}
-      <header 
+      {/* Single Unified Header */}
+      <header
         ref={headerRef}
-        className={`modern-app-header ${headerVisible ? 'visible' : 'hidden'} ${theme}`}
+        className={`modern-app-header unified ${headerVisible ? 'visible' : 'hidden'} ${theme}`}
       >
-        {/* Top Status Bar - Compact */}
-        <div className="status-bar-modern compact">
-          <div className="status-bar-left">
-            <div className={`system-health ${getSystemHealthClass()}`}>
-              <span className="health-indicator"></span>
-              <span className="health-text">System OK</span>
-            </div>
-            {weatherData && (
-              <>
-                <span className="separator">|</span>
-                <span className="weather-compact">
-                  {weatherData.icon} {weatherData.temp}
-                </span>
-              </>
-            )}
-            <span className="separator">|</span>
-            <span className="fleet-status">
-              Fleet: {liveStats.fleetHealth}% • Active: {liveStats.active}
-            </span>
-          </div>
-          <div className="status-bar-right">
-            <span className="current-time">
-              {currentTime.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-            </span>
-          </div>
-        </div>
-
-        {/* Main Header Content */}
+        {/* Single Header Bar */}
         <div className="header-main compact">
           <div className="header-container-modern">
             {/* Logo Section - Compact */}
@@ -488,47 +563,47 @@ const ModernAppHeader = ({
               ))}
             </nav>
 
-            {/* Right Actions - Streamlined */}
+            {/* Right Actions - Clean & Professional */}
             <div className="header-actions-modern compact">
-              {/* Search */}
-              <button 
-                className="action-btn-modern icon-only"
+              {/* Active Breakdowns Indicator */}
+              {activeBreakdowns > 0 && (
+                <button
+                  className="header-alert-chip"
+                  onClick={() => navigate('/dashboards/sdc')}
+                  title={`${activeBreakdowns} active breakdown${activeBreakdowns > 1 ? 's' : ''}`}
+                >
+                  <span className="alert-pulse"></span>
+                  <span className="alert-count">{activeBreakdowns}</span>
+                  <span className="alert-label">Active</span>
+                </button>
+              )}
+
+              {/* Report Breakdown - Primary Action */}
+              <button
+                className="header-primary-action"
+                onClick={() => navigate('/breakdown-guide')}
+                title="Report New Breakdown"
+              >
+                <span>🚨</span>
+                <span>Report</span>
+              </button>
+
+              {/* Quick Actions Menu */}
+              <button
+                className="header-icon-btn"
                 onClick={() => setShowCommandPalette(true)}
-                title="Search (Cmd+K)"
+                title="Search & Commands (⌘K)"
               >
                 🔍
               </button>
 
               {/* Notifications */}
-              <button 
-                className={`action-btn-modern icon-only ${activeBreakdowns > 0 ? 'has-notifications' : ''}`}
+              <button
+                className={`header-icon-btn ${activeBreakdowns > 0 ? 'has-badge' : ''}`}
                 onClick={() => setShowNotifications(!showNotifications)}
-                title={`${activeBreakdowns} notifications`}
+                title="Notifications"
               >
                 🔔
-                {activeBreakdowns > 0 && (
-                  <span className="notification-badge">{activeBreakdowns}</span>
-                )}
-              </button>
-
-              {/* Engineering Display Button */}
-              <button
-                className="engineering-display-btn"
-                onClick={() => setShowDepotModal(true)}
-                title="Open Engineering Display (Choose Depot)"
-              >
-                <span className="display-icon">📺</span>
-                <span className="display-label">Display</span>
-              </button>
-
-              {/* Report Breakdown Button - Always Visible */}
-              <button
-                className="report-breakdown-btn"
-                onClick={() => navigate('/breakdown-guide')}
-                title="Report New Breakdown"
-              >
-                <span className="breakdown-icon">🚨</span>
-                <span className="breakdown-label">Report Breakdown</span>
               </button>
 
               {/* User Menu with All Settings */}
@@ -665,6 +740,22 @@ const ModernAppHeader = ({
 
         {/* Mobile Navigation */}
         <div className={`mobile-nav-modern ${isMenuOpen ? 'open' : ''}`}>
+          {/* Mobile Duty Indicator */}
+          {currentDuty && (
+            <div className="mobile-duty-indicator" onClick={onDutyClick}>
+              <span className="mobile-duty-icon">
+                {currentDuty.code === '100' ? '🌅' :
+                 currentDuty.code === '200' ? '☀️' :
+                 currentDuty.code === '400' ? '🌆' : '🌙'}
+              </span>
+              <span className="mobile-duty-text">
+                Duty {currentDuty.code}
+              </span>
+              <span className="mobile-duty-time">
+                {currentDuty.startTime} - {currentDuty.endTime}
+              </span>
+            </div>
+          )}
           {navigationItems.map(item => (
             <Link
               key={item.path}
@@ -687,6 +778,46 @@ const ModernAppHeader = ({
             </Link>
           ))}
         </div>
+
+        {/* Duty Status Bar - Appears below main header when duty is active */}
+        {currentDuty && (
+          <div className="duty-status-bar" data-duty={currentDuty.code} onClick={onDutyClick}>
+            <div className="duty-status-container">
+              <div className="duty-status-left">
+                <span className="duty-status-icon">
+                  {currentDuty.code === '100' ? '🌅' :
+                   currentDuty.code === '200' ? '☀️' :
+                   currentDuty.code === '400' ? '🌆' : '🌙'}
+                </span>
+                <div className="duty-status-info">
+                  <span className="duty-status-label">
+                    Duty {currentDuty.code} - {currentDuty.name || (
+                      currentDuty.code === '100' ? 'Early Shift' :
+                      currentDuty.code === '200' ? 'Day Shift' :
+                      currentDuty.code === '400' ? 'Late Shift' : 'Night Shift'
+                    )}
+                  </span>
+                  <span className="duty-status-time">
+                    {currentDuty.startTime} - {currentDuty.endTime}
+                  </span>
+                </div>
+              </div>
+              <div className="duty-status-center">
+                <span className="duty-status-user">
+                  👤 {currentUser?.name || supervisorData?.name || 'Supervisor'}
+                </span>
+                {(currentUser?.depot || supervisorData?.depot) && (
+                  <span className="duty-status-depot">
+                    📍 {currentUser?.depot || supervisorData?.depot}
+                  </span>
+                )}
+              </div>
+              <div className="duty-status-right">
+                <DutyBadge currentDuty={currentDuty} onClick={onDutyClick} />
+              </div>
+            </div>
+          </div>
+        )}
       </header>
 
       {/* Command Palette Modal */}
@@ -769,6 +900,31 @@ const ModernAppHeader = ({
         onClose={() => setShowDepotModal(false)}
         onSelectDepot={handleDepotSelection}
       />
+
+      {/* Keyboard Shortcuts Modal */}
+      {showShortcuts && (
+        <div className="shortcuts-modal-overlay" onClick={() => setShowShortcuts(false)}>
+          <div className="shortcuts-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="shortcuts-header">
+              <h3>⌨️ Keyboard Shortcuts</h3>
+              <button className="shortcuts-close-btn" onClick={() => setShowShortcuts(false)}>
+                ESC
+              </button>
+            </div>
+            <div className="shortcuts-list">
+              {shortcuts.map((shortcut) => (
+                <div key={shortcut.key} className="shortcut-item">
+                  <kbd className="shortcut-key">{shortcut.key}</kbd>
+                  <span className="shortcut-description">{shortcut.description}</span>
+                </div>
+              ))}
+            </div>
+            <div className="shortcuts-footer">
+              <span>Press any shortcut to navigate</span>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

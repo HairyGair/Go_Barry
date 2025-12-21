@@ -186,7 +186,7 @@ export function getGlobalPollingManager() {
 }
 
 // Clean up on hot module reload in development
-if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+if (typeof window !== 'undefined' && import.meta.env.DEV) {
   // Clean up any existing instances when this module reloads
   if (window.__GLOBAL_POLLING_INSTANCE__) {
     console.log('🔥 HMR: Cleaning up existing polling manager');

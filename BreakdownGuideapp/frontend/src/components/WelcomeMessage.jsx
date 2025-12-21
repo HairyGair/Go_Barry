@@ -12,12 +12,40 @@ const WelcomeMessage = ({ currentUser, currentDuty, onClose }) => {
     const navigate = useNavigate();
     const [timeInfo, setTimeInfo] = useState({ greeting: '', progressPercent: 0, message: '' });
     const [warningState, setWarningState] = useState('normal'); // 'normal', 'warning', 'urgent'
+    const [showCelebration, setShowCelebration] = useState(true); // Phase 8.3: Show celebration on mount
+    const [celebrationPhase, setCelebrationPhase] = useState(1); // 1: confetti, 2: sparkles, 3: settled
 
     // Check if dismissed
     const dismissKey = `welcomeDismissed_${currentUser?.email}_${currentDuty?.code}`;
     const [isDismissed, setIsDismissed] = useState(() => {
         return localStorage.getItem(dismissKey) === 'true';
     });
+
+    // Phase 8.3: Celebration animation phases
+    useEffect(() => {
+        if (!showCelebration) return;
+
+        // Phase 1: Confetti burst (0-1.5s)
+        const phase2Timer = setTimeout(() => {
+            setCelebrationPhase(2);
+        }, 1500);
+
+        // Phase 2: Sparkle glow (1.5-3s)
+        const phase3Timer = setTimeout(() => {
+            setCelebrationPhase(3);
+        }, 3000);
+
+        // Phase 3: Settled - end celebration (3.5s)
+        const endTimer = setTimeout(() => {
+            setShowCelebration(false);
+        }, 3500);
+
+        return () => {
+            clearTimeout(phase2Timer);
+            clearTimeout(phase3Timer);
+            clearTimeout(endTimer);
+        };
+    }, [showCelebration]);
 
     // Update time info every minute
     useEffect(() => {
@@ -136,14 +164,64 @@ const WelcomeMessage = ({ currentUser, currentDuty, onClose }) => {
 
     if (isDismissed || !currentDuty || !currentUser) return null;
 
+    // Get duty theme color for celebration
+    const dutyColors = {
+        '100': '#3B82F6', // Blue
+        '200': '#10B981', // Green
+        '400': '#F59E0B', // Amber
+        '500': '#8B5CF6'  // Purple
+    };
+    const celebrationColor = dutyColors[currentDuty.code] || '#0066A1';
+
     return (
-        <div className={`welcome-message ${warningState}`}>
+        <div className={`welcome-message ${warningState} ${showCelebration ? 'celebrating' : ''} celebration-phase-${celebrationPhase}`}
+             style={{ '--celebration-color': celebrationColor }}>
+
+            {/* Phase 8.3: Celebration Overlay */}
+            {showCelebration && (
+                <div className="welcome-celebration">
+                    {/* Confetti particles */}
+                    <div className="confetti-container">
+                        {[...Array(12)].map((_, i) => (
+                            <div
+                                key={i}
+                                className="confetti-piece"
+                                style={{
+                                    '--delay': `${i * 0.1}s`,
+                                    '--x-offset': `${(i % 4) * 25 - 37.5}%`,
+                                    '--rotation': `${Math.random() * 360}deg`,
+                                    backgroundColor: i % 2 === 0 ? celebrationColor : '#FFD700'
+                                }}
+                            />
+                        ))}
+                    </div>
+                    {/* Sparkle stars */}
+                    <div className="sparkle-container">
+                        {[...Array(8)].map((_, i) => (
+                            <div
+                                key={i}
+                                className="sparkle-star"
+                                style={{
+                                    '--delay': `${i * 0.15}s`,
+                                    '--x': `${10 + (i * 12)}%`,
+                                    '--y': `${20 + (i % 3) * 30}%`
+                                }}
+                            >✨</div>
+                        ))}
+                    </div>
+                    {/* Welcome burst text */}
+                    <div className="welcome-burst">
+                        <span className="burst-text">Welcome!</span>
+                    </div>
+                </div>
+            )}
+
             <button className="welcome-close" onClick={handleDismiss} title="Dismiss">
                 ✕
             </button>
 
             <div className="welcome-header">
-                <h2 className="welcome-greeting">
+                <h2 className={`welcome-greeting ${showCelebration ? 'greeting-animated' : ''}`}>
                     {timeInfo.greeting}, {currentUser.name}!
                 </h2>
                 <p className="welcome-subtitle">

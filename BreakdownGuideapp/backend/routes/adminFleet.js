@@ -15,6 +15,7 @@ import { authenticateAdmin } from '../middleware/authMiddleware.js';
 import { query, transaction } from '../config/mysql.js';
 import { validate } from '../middleware/validationMiddleware.js';
 import Joi from 'joi';
+import { activityLogger, ACTIVITY_TYPES, ACTOR_TYPES, ENTITY_TYPES, SEVERITY_LEVELS } from '../services/activityLogger.js';
 
 const router = express.Router();
 
@@ -333,20 +334,26 @@ router.post(
         console.log(`   Updated records: ${duplicateCount}`);
         console.log(`   Failed: ${failedRows.length + importErrors.length}`);
 
-        // Log activity
+        // Log activity with WebSocket broadcast
         try {
-          await query(
-            `INSERT INTO activities
-            (activity_type, message, supervisor_name, supervisor_badge, timestamp, source)
-            VALUES (?, ?, ?, ?, NOW(), ?)`,
-            [
-              'fleet_import',
-              `Imported ${successCount} new vehicles, updated ${duplicateCount} existing vehicles from CSV`,
-              req.user.name,
-              req.user.badge_number,
-              'admin_panel'
-            ]
-          );
+          await activityLogger.logActivity({
+            activityType: ACTIVITY_TYPES.FLEET_IMPORTED,
+            action: `imported ${successCount} new vehicles, updated ${duplicateCount} existing`,
+            actorType: ACTOR_TYPES.ADMIN,
+            actorId: req.user.badge_number,
+            actorName: req.user.name,
+            entityType: ENTITY_TYPES.FLEET,
+            entityDetails: {
+              new_count: successCount,
+              updated_count: duplicateCount,
+              failed_count: failedRows.length + importErrors.length,
+              total_rows: records.length,
+              filename: req.file?.originalname
+            },
+            severity: SEVERITY_LEVELS.SUCCESS,
+            source: 'admin_panel',
+            icon: '📦'
+          });
         } catch (activityError) {
           console.error('Failed to log activity:', activityError);
         }

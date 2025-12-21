@@ -148,7 +148,7 @@ const TrendsDefectsPanel = () => {
 
     const unsubscribe = connectionManager.onMessage((message) => {
       // Log message in development mode
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.log('[Defect Intelligence] WebSocket message received:', message);
       }
 

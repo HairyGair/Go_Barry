@@ -22,6 +22,7 @@ import dutyManager from '../services/dutyManager.js';
 import { validate } from '../middleware/validationMiddleware.js';
 import { authSchemas } from '../validation/schemas.js';
 import webSocketHandler from './webSocketHandler.js';
+import { logAuditEvent, ACTION_TYPES as AUDIT_ACTIONS } from './dutyAudit.js';
 
 // Load environment variables
 dotenv.config();
@@ -713,6 +714,43 @@ router.post('/logout', verifyToken, validate(authSchemas.logout), async (req, re
           logoutTime: new Date().toISOString()
         }
       });
+
+      // Phase 9.2: Log duty end to audit trail (if they had a duty)
+      if (supervisorInfo.current_duty) {
+        const now = new Date();
+        let overtimeMinutes = 0;
+
+        // Calculate overtime if duty_end_time exists
+        if (supervisorInfo.duty_end_time) {
+          const scheduledEnd = new Date(supervisorInfo.duty_end_time);
+          if (now > scheduledEnd) {
+            overtimeMinutes = Math.floor((now - scheduledEnd) / 60000);
+          }
+        }
+
+        await logAuditEvent({
+          supervisorId: supervisorInfo.id,
+          supervisorBadge: supervisorInfo.badge_number,
+          supervisorName: supervisorInfo.name,
+          supervisorDepot: supervisorInfo.depot,
+          actionType: AUDIT_ACTIONS.DUTY_END,
+          dutyCode: supervisorInfo.current_duty,
+          dutyName: dutyManager.getDutyName(supervisorInfo.current_duty),
+          shiftStartTime: supervisorInfo.duty_start_time ? new Date(supervisorInfo.duty_start_time).toTimeString().slice(0, 5) : null,
+          shiftEndTime: supervisorInfo.duty_end_time ? new Date(supervisorInfo.duty_end_time).toTimeString().slice(0, 5) : null,
+          actualEndTime: now,
+          overtimeMinutes,
+          ipAddress: req.ip || req.connection?.remoteAddress,
+          userAgent: req.get('User-Agent'),
+          notes: overtimeMinutes > 0 ? `Logged out ${overtimeMinutes} minutes after scheduled shift end` : null,
+          metadata: {
+            email: supervisorInfo.email,
+            role: supervisorInfo.role,
+            logoutType: 'manual'
+          }
+        });
+      }
+
       console.log(`👋 User logged out: ${supervisorInfo.name} (${supervisorInfo.email})`);
     } else {
       console.log('👋 User logged out successfully');
@@ -1349,7 +1387,47 @@ router.post('/end-shift', async (req, res) => {
       });
     }
 
+    // Get supervisor info before ending shift (for audit trail)
+    const { data: supervisorInfo } = await from('supervisors')
+      .select('*')
+      .eq('id', supervisorId)
+      .single();
+
     const result = await dutyManager.endShift(supervisorId);
+
+    // Phase 9.2: Log to duty audit trail
+    if (supervisorInfo && supervisorInfo.current_duty) {
+      const now = new Date();
+      let overtimeMinutes = 0;
+
+      if (supervisorInfo.duty_end_time) {
+        const scheduledEnd = new Date(supervisorInfo.duty_end_time);
+        if (now > scheduledEnd) {
+          overtimeMinutes = Math.floor((now - scheduledEnd) / 60000);
+        }
+      }
+
+      await logAuditEvent({
+        supervisorId: supervisorInfo.id,
+        supervisorBadge: supervisorInfo.badge_number,
+        supervisorName: supervisorInfo.name,
+        supervisorDepot: supervisorInfo.depot,
+        actionType: AUDIT_ACTIONS.DUTY_END,
+        dutyCode: supervisorInfo.current_duty,
+        dutyName: dutyManager.getDutyName(supervisorInfo.current_duty),
+        shiftStartTime: supervisorInfo.duty_start_time ? new Date(supervisorInfo.duty_start_time).toTimeString().slice(0, 5) : null,
+        shiftEndTime: supervisorInfo.duty_end_time ? new Date(supervisorInfo.duty_end_time).toTimeString().slice(0, 5) : null,
+        actualEndTime: now,
+        overtimeMinutes,
+        ipAddress: req.ip || req.connection?.remoteAddress,
+        userAgent: req.get('User-Agent'),
+        notes: overtimeMinutes > 0 ? `Shift ended ${overtimeMinutes} minutes after scheduled end` : 'Shift ended on time',
+        metadata: {
+          endMethod: 'explicit_end_shift',
+          breakdownsHandled: result.breakdownsHandled || 0
+        }
+      });
+    }
 
     res.json({
       success: true,
@@ -1505,7 +1583,7 @@ router.post('/set-duty', verifyToken, validate(authSchemas.setDuty), async (req,
     // Get supervisor details (including duty_locked_at field for security check)
     console.log(`🔍 [set-duty] Fetching supervisor details for ID: ${supervisorId}`);
     const supervisorResult = await query(
-      'SELECT id, name, badge_number, current_duty, duty_locked_at FROM supervisors WHERE id = ?',
+      'SELECT id, name, badge_number, current_duty, duty_locked_at, depot, email, role FROM supervisors WHERE id = ?',
       [supervisorId]
     );
 
@@ -1568,6 +1646,46 @@ router.post('/set-duty', verifyToken, validate(authSchemas.setDuty), async (req,
 
     console.log(`✅ [set-duty] Shift started successfully:`, shiftInfo);
     console.log(`✅ Duty set after login: ${supervisor.name} -> Duty ${normalizedDuty}`);
+
+    // Log duty selection to Activity Feed
+    await activityLogger.logActivity({
+      activityType: ACTIVITY_TYPES.USER_LOGIN,
+      action: `started ${normalizedDuty}`,
+      actorType: ACTOR_TYPES.SUPERVISOR,
+      actorId: supervisor.badge_number || supervisor.id,
+      actorName: supervisor.name,
+      depot: supervisor.depot,
+      severity: SEVERITY_LEVELS.INFO,
+      source: 'authentication',
+      metadata: {
+        email: supervisor.email,
+        role: supervisor.role,
+        duty: normalizedDuty,
+        shiftEnd: shiftInfo ? shiftInfo.shiftEnd.toISOString() : null,
+        dutyStartTime: new Date().toISOString()
+      }
+    });
+
+    // Phase 9.2: Log to duty audit trail
+    await logAuditEvent({
+      supervisorId: supervisor.id,
+      supervisorBadge: supervisor.badge_number,
+      supervisorName: supervisor.name,
+      supervisorDepot: supervisor.depot,
+      actionType: AUDIT_ACTIONS.DUTY_START,
+      dutyCode: normalizedDuty,
+      dutyName: dutyManager.getDutyName(normalizedDuty),
+      previousDutyCode: supervisor.current_duty || null,
+      shiftStartTime: shiftInfo.shiftStart.toTimeString().slice(0, 5),
+      shiftEndTime: shiftInfo.shiftEnd.toTimeString().slice(0, 5),
+      actualStartTime: new Date(),
+      ipAddress: req.ip || req.connection?.remoteAddress,
+      userAgent: req.get('User-Agent'),
+      metadata: {
+        email: supervisor.email,
+        role: supervisor.role
+      }
+    });
 
     // Update supervisor session with duty information (using normalized code)
     try {
@@ -1724,6 +1842,175 @@ router.post('/admin/reset-password', verifyToken, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Password reset failed. Please try again.',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// =====================================================
+// GET /api/auth/supervisors/:id/history - Get supervisor activity history
+// Admin only - Returns full history of activities, breakdowns, and actions
+// =====================================================
+router.get('/supervisors/:id/history', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { limit = 100, offset = 0, dateFrom, dateTo } = req.query;
+
+    // 1. Get supervisor info
+    const supervisorResult = await query(
+      'SELECT id, name, email, role, depot, badge_number, is_active, created_at FROM supervisors WHERE id = ?',
+      [id]
+    );
+
+    if (supervisorResult.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Supervisor not found'
+      });
+    }
+
+    const supervisor = supervisorResult[0];
+
+    // Build date filter for queries
+    let dateFilter = '';
+    const dateParams = [];
+    if (dateFrom) {
+      dateFilter += ' AND created_at >= ?';
+      dateParams.push(new Date(dateFrom));
+    }
+    if (dateTo) {
+      dateFilter += ' AND created_at <= ?';
+      dateParams.push(new Date(dateTo));
+    }
+
+    // 2. Get activities from activities table (where they are the actor)
+    const parsedLimit = parseInt(limit) || 100;
+    const parsedOffset = parseInt(offset) || 0;
+
+    const activitiesQuery = `
+      SELECT id, activity_type, action, actor_name, entity_type, entity_id,
+             severity, source, icon, created_at, depot
+      FROM activities
+      WHERE (actor_id = ? OR actor_id = ?)
+      ${dateFilter}
+      ORDER BY created_at DESC
+      LIMIT ${parsedLimit} OFFSET ${parsedOffset}
+    `;
+    const activities = await query(activitiesQuery, [
+      supervisor.badge_number,
+      supervisor.id,
+      ...dateParams
+    ]);
+
+    // 3. Get breakdowns they logged
+    const breakdownsQuery = `
+      SELECT id, breakdown_id, fleet_no, location_description, issue_category,
+             severity, status, wizard_decision, created_at, resolved_at, depot
+      FROM breakdowns
+      WHERE supervisor_badge = ?
+      ${dateFilter}
+      ORDER BY created_at DESC
+      LIMIT 50
+    `;
+    const breakdowns = await query(breakdownsQuery, [supervisor.badge_number, ...dateParams]);
+
+    // 4. Get duty audit log entries
+    const auditQuery = `
+      SELECT id, action_type, duty_code, duty_name, notes, created_at,
+             overtime_minutes, previous_duty_code
+      FROM duty_audit_log
+      WHERE supervisor_badge = ?
+      ${dateFilter}
+      ORDER BY created_at DESC
+      LIMIT 50
+    `;
+    let auditEntries = [];
+    try {
+      auditEntries = await query(auditQuery, [supervisor.badge_number, ...dateParams]);
+    } catch (auditError) {
+      console.warn('Audit log query failed (table may not exist):', auditError.message);
+    }
+
+    // 5. Get login analytics
+    const loginQuery = `
+      SELECT id, login_time, logout_time, session_duration_minutes,
+             ip_address, user_agent, duty_selected
+      FROM login_analytics
+      WHERE supervisor_id = ?
+      ${dateFilter}
+      ORDER BY login_time DESC
+      LIMIT 30
+    `;
+    let loginHistory = [];
+    try {
+      loginHistory = await query(loginQuery, [supervisor.id, ...dateParams]);
+    } catch (loginError) {
+      console.warn('Login analytics query failed:', loginError.message);
+    }
+
+    // 6. Get duty notes they created
+    const notesQuery = `
+      SELECT id, note, note_type, duty_code, is_priority, breakdown_id, created_at
+      FROM duty_notes
+      WHERE supervisor_badge = ?
+      ${dateFilter}
+      ORDER BY created_at DESC
+      LIMIT 30
+    `;
+    let dutyNotes = [];
+    try {
+      dutyNotes = await query(notesQuery, [supervisor.badge_number, ...dateParams]);
+    } catch (notesError) {
+      console.warn('Duty notes query failed:', notesError.message);
+    }
+
+    // 7. Calculate summary stats
+    const stats = {
+      totalActivities: activities.length,
+      totalBreakdowns: breakdowns.length,
+      breakdownsByStatus: {
+        active: breakdowns.filter(b => b.status === 'active' || b.status === 'pending').length,
+        resolved: breakdowns.filter(b => b.status === 'resolved' || b.status === 'cleared').length
+      },
+      breakdownsBySeverity: {
+        STOP: breakdowns.filter(b => b.severity === 'STOP' || b.wizard_decision === 'STOP').length,
+        AMBER: breakdowns.filter(b => b.severity === 'AMBER' || b.wizard_decision === 'AMBER').length,
+        CONTINUE: breakdowns.filter(b => b.severity === 'CONTINUE' || b.wizard_decision === 'CONTINUE').length
+      },
+      totalLoginSessions: loginHistory.length,
+      totalDutyNotes: dutyNotes.length,
+      priorityNotes: dutyNotes.filter(n => n.is_priority).length
+    };
+
+    res.json({
+      success: true,
+      supervisor: {
+        id: supervisor.id,
+        name: supervisor.name,
+        email: supervisor.email,
+        role: supervisor.role,
+        depot: supervisor.depot,
+        badge_number: supervisor.badge_number,
+        is_active: supervisor.is_active,
+        member_since: supervisor.created_at
+      },
+      stats,
+      activities,
+      breakdowns,
+      auditEntries,
+      loginHistory,
+      dutyNotes,
+      pagination: {
+        limit: parseInt(limit),
+        offset: parseInt(offset)
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching supervisor history:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch supervisor history',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }

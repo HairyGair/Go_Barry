@@ -3,21 +3,22 @@
  * Premium styling with gradients, animations, and responsive layout
  */
 
-/* Modal Overlay */
+/* Modal Overlay - MUST be above all headers */
 .duty-modal-overlay {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(135deg, rgba(0, 59, 92, 0.95) 0%, rgba(0, 102, 161, 0.95) 100%);
-    backdrop-filter: blur(20px);
+    background: linear-gradient(135deg, rgba(0, 20, 40, 0.97) 0%, rgba(0, 59, 92, 0.97) 50%, rgba(0, 102, 161, 0.95) 100%);
+    backdrop-filter: blur(30px);
+    -webkit-backdrop-filter: blur(30px);
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 10000;
+    z-index: 999999; /* Above everything including headers */
     padding: 20px;
-    animation: fadeIn 0.3s ease-out;
+    animation: fadeIn 0.4s ease-out;
 }
 
 @keyframes fadeIn {
@@ -31,15 +32,21 @@
 
 /* Modal Container */
 .duty-modal-container {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
-    border-radius: 24px;
-    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.3);
+    position: relative;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 28px;
+    box-shadow:
+        0 30px 80px rgba(0, 0, 0, 0.4),
+        0 15px 40px rgba(0, 0, 0, 0.2),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.5);
     max-width: 900px;
     width: 100%;
-    max-height: 90vh;
+    max-height: 85vh;
     overflow-y: auto;
-    animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow-x: hidden;
+    animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes slideUp {
@@ -53,45 +60,119 @@
     }
 }
 
-/* Header */
-.duty-modal-header {
-    text-align: center;
-    padding: 48px 32px 40px;
-    background: linear-gradient(135deg, #002D45 0%, #003B5C 50%, #0066A1 100%);
-    color: white;
-    border-radius: 24px 24px 0 0;
-    position: relative;
-    box-shadow:
-        inset 0 -1px 0 rgba(255, 255, 255, 0.1),
-        0 4px 12px rgba(0, 0, 0, 0.1);
+/* Close Button - Top Right Corner */
+.duty-modal-close-btn {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 44px;
+    height: 44px;
+    border: none;
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
+.duty-modal-close-btn span {
+    font-size: 28px;
+    font-weight: 300;
+    color: white;
+    line-height: 1;
+    margin-top: -2px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.duty-modal-close-btn:hover {
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: scale(1.1) rotate(90deg);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.duty-modal-close-btn:active {
+    transform: scale(0.95) rotate(90deg);
+}
+
+/* Header - Premium Go North East Styling */
+.duty-modal-header {
+    text-align: center;
+    padding: 56px 32px 48px;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, transparent 100%),
+        linear-gradient(135deg, #001F30 0%, #003B5C 40%, #0066A1 80%, #0080C8 100%);
+    color: white;
+    border-radius: 28px 28px 0 0;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Animated gradient bar at top */
 .duty-modal-header::before {
     content: '';
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, #10B981 0%, #0066A1 50%, #9333EA 100%);
-    border-radius: 24px 24px 0 0;
+    height: 4px;
+    background: linear-gradient(90deg,
+        #E30613 0%,
+        #FF6B35 25%,
+        #10B981 50%,
+        #3B82F6 75%,
+        #8B5CF6 100%
+    );
+    background-size: 200% 100%;
+    animation: gradientShift 3s ease-in-out infinite;
+    border-radius: 28px 28px 0 0;
+}
+
+@keyframes gradientShift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+}
+
+/* Decorative glow */
+.duty-modal-header::after {
+    content: '';
+    position: absolute;
+    top: 60%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80%;
+    height: 100px;
+    background: radial-gradient(ellipse, rgba(255, 255, 255, 0.05) 0%, transparent 70%);
+    pointer-events: none;
 }
 
 .duty-modal-header h2 {
     margin: 0 0 16px 0;
-    font-size: 36px;
-    font-weight: 900;
-    text-shadow:
-        0 4px 12px rgba(0, 0, 0, 0.3),
-        0 2px 6px rgba(0, 0, 0, 0.2);
-    letter-spacing: 0.5px;
+    font-size: 32px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    background: linear-gradient(135deg, #ffffff 0%, #e0e7ff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: none;
+    position: relative;
+    z-index: 1;
 }
 
 .duty-modal-header p {
     margin: 0;
-    font-size: 17px;
-    font-weight: 600;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    font-size: 16px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.85);
+    position: relative;
+    z-index: 1;
 }
 
 .recommended-hint {
@@ -121,28 +202,30 @@
 .duty-cards-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 20px;
-    padding: 32px;
+    gap: 24px;
+    padding: 36px;
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
 }
 
 /* Duty Card */
 .duty-card {
     background: var(--duty-gradient);
-    border-radius: 20px;
-    padding: 32px;
+    border-radius: 24px;
+    padding: 28px;
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     position: relative;
     overflow: hidden;
     color: white;
-    border: 3px solid rgba(255, 255, 255, 0.3);
+    border: 2px solid rgba(255, 255, 255, 0.4);
     box-shadow:
-        0 8px 24px rgba(0, 0, 0, 0.2),
-        0 4px 12px rgba(0, 0, 0, 0.15),
-        inset 0 0 0 1px rgba(255, 255, 255, 0.1);
-    min-height: 240px;
+        0 12px 32px rgba(0, 0, 0, 0.15),
+        0 4px 12px rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    min-height: 220px;
     display: flex;
     flex-direction: column;
+    backdrop-filter: blur(10px);
 }
 
 .duty-card::before {
@@ -170,12 +253,16 @@
 }
 
 .duty-card:hover {
-    transform: translateY(-10px) scale(1.03);
+    transform: translateY(-8px) scale(1.02);
     box-shadow:
-        0 24px 48px rgba(0, 0, 0, 0.3),
-        0 12px 24px rgba(0, 0, 0, 0.2),
-        inset 0 0 0 1px rgba(255, 255, 255, 0.2);
-    border-color: rgba(255, 255, 255, 0.5);
+        0 28px 56px rgba(0, 0, 0, 0.25),
+        0 14px 28px rgba(0, 0, 0, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.6);
+}
+
+.duty-card:active {
+    transform: translateY(-4px) scale(1.01);
 }
 
 .duty-card:hover::before {
@@ -688,6 +775,98 @@
     background: rgba(0, 102, 161, 0.5);
 }
 
+/* View Only / Skip Duty Section */
+.duty-skip-section {
+    margin-top: 32px;
+    padding: 0 24px 32px;
+}
+
+.skip-divider {
+    text-align: center;
+    position: relative;
+    margin-bottom: 24px;
+}
+
+.skip-divider::before,
+.skip-divider::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: calc(50% - 30px);
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(0, 59, 92, 0.2), transparent);
+}
+
+.skip-divider::before {
+    left: 0;
+}
+
+.skip-divider::after {
+    right: 0;
+}
+
+.skip-divider span {
+    display: inline-block;
+    padding: 0 16px;
+    color: rgba(0, 59, 92, 0.6);
+    font-size: 14px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.btn-view-only {
+    width: 100%;
+    padding: 20px 24px;
+    background: linear-gradient(135deg, rgba(107, 114, 128, 0.1) 0%, rgba(156, 163, 175, 0.1) 100%);
+    border: 2px solid rgba(107, 114, 128, 0.3);
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-family: inherit;
+}
+
+.btn-view-only:hover {
+    background: linear-gradient(135deg, rgba(107, 114, 128, 0.15) 0%, rgba(156, 163, 175, 0.15) 100%);
+    border-color: rgba(107, 114, 128, 0.5);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(107, 114, 128, 0.2);
+}
+
+.btn-view-only:active {
+    transform: translateY(0);
+    box-shadow: 0 4px 10px rgba(107, 114, 128, 0.15);
+}
+
+.view-only-icon {
+    font-size: 32px;
+    flex-shrink: 0;
+    filter: grayscale(30%);
+}
+
+.view-only-content {
+    flex: 1;
+    text-align: left;
+}
+
+.view-only-content strong {
+    display: block;
+    font-size: 16px;
+    font-weight: 600;
+    color: rgba(0, 59, 92, 0.9);
+    margin-bottom: 4px;
+}
+
+.view-only-content p {
+    font-size: 13px;
+    color: rgba(0, 59, 92, 0.6);
+    margin: 0;
+    line-height: 1.4;
+}
+
 /* Mobile Responsive */
 @media (max-width: 768px) {
     .duty-cards-grid {
@@ -723,6 +902,36 @@
         flex-direction: column;
         text-align: center;
     }
+
+    .duty-mandatory-notice {
+        flex-direction: column;
+    }
+}
+
+/* Mandatory Duty Notice (Phase 9.1) */
+.duty-mandatory-notice {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin: 32px 24px;
+    padding: 20px 24px;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(124, 58, 237, 0.05));
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    border-radius: 12px;
+    text-align: center;
+}
+
+.duty-mandatory-notice .mandatory-icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.duty-mandatory-notice p {
+    margin: 0;
+    font-size: 0.9375rem;
+    color: #8B5CF6;
+    font-weight: 500;
 }
 
 @media (max-width: 480px) {

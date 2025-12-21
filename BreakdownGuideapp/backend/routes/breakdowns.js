@@ -13,10 +13,11 @@
 import express from 'express';
 import { from, query, insert, update } from '../utils/queryHelpers.js';
 import breakdownIdGenerator from '../services/breakdownIdGenerator.js';
-import { activityLogger } from '../services/activityLogger.js';
+import { activityLogger, ACTIVITY_TYPES, ACTOR_TYPES, ENTITY_TYPES, SEVERITY_LEVELS } from '../services/activityLogger.js';
 import webSocketHandler from './webSocketHandler.js';
 import { validate } from '../middleware/validationMiddleware.js';
 import { breakdownSchemas } from '../validation/schemas.js';
+import breakdownAssignmentService from '../services/breakdownAssignmentService.js';
 
 const router = express.Router();
 
@@ -294,6 +295,8 @@ router.get('/live', async (req, res) => {
         // Location and issue information
         location: b.location_description || b.location || 'Location TBC',
         location_description: b.location_description || b.location || 'Location TBC',
+        location_lat: b.location_lat || b.wizard_assessment_data?.location_coords?.lat || null,
+        location_lng: b.location_lng || b.wizard_assessment_data?.location_coords?.lng || null,
         issue_type: b.issue_category || 'Assessment Required',
         issue_category: b.issue_category || 'Assessment Required',
         issue_description: b.description,
@@ -440,12 +443,24 @@ router.post('/', async (req, res) => {
     // Generate unique breakdown ID with daily counter
     const idResult = await breakdownIdGenerator.generateId();
 
+    // Extract duty context from request (sent by frontend from sessionStorage)
+    const dutyCode = req.body.duty_code || null;
+    const dutyName = req.body.duty_name || null;
+
     const breakdownData = {
       ...req.body,
       breakdown_id: idResult.id,
       created_at: toMySQLDatetime(),
-      status: req.body.status || 'received'
+      status: req.body.status || 'received',
+      // Add duty context for shift-based reporting
+      duty_code: dutyCode,
+      duty_name: dutyName
     };
+
+    // Log duty context if present
+    if (dutyCode) {
+      console.log(`📋 Breakdown created during ${dutyName || dutyCode} shift`);
+    }
 
     const insertResult = await insert('breakdowns', breakdownData);
 
@@ -514,9 +529,38 @@ router.post('/', async (req, res) => {
       // Don't fail the main request if pattern detection fails
     }
 
+    // Phase 7.1: Auto-assign breakdown to on-duty supervisor
+    let assignmentResult = null;
+    try {
+      assignmentResult = await breakdownAssignmentService.autoAssignBreakdown({
+        breakdownId: data.breakdown_id,
+        fleetNo: data.fleet_no,
+        depot: data.depot,
+        severity: data.severity,
+        issueCategory: data.issue_category,
+        location: data.location_description
+      });
+
+      if (assignmentResult.assigned) {
+        console.log(`✅ Auto-assigned to ${assignmentResult.supervisor.name}`);
+        // Broadcast assignment to WebSocket clients
+        webSocketHandler.broadcast('sdc-dashboard', {
+          type: 'breakdown_assigned',
+          breakdown_id: data.breakdown_id,
+          assigned_to: assignmentResult.supervisor.name,
+          assigned_badge: assignmentResult.supervisor.badge_number,
+          timestamp: new Date().toISOString()
+        });
+      }
+    } catch (assignError) {
+      console.error('⚠️ Auto-assignment failed:', assignError);
+      // Don't fail the main request if assignment fails
+    }
+
     res.status(201).json({
       ...transformedData,
-      breakdown_id: idResult.id
+      breakdown_id: idResult.id,
+      assignment: assignmentResult
     });
   } catch (error) {
     console.error('Error creating breakdown:', error);
@@ -562,7 +606,19 @@ router.put('/:id', async (req, res) => {
 // PATCH /api/breakdowns/:id/status - Update breakdown status
 router.patch('/:id/status', async (req, res) => {
   try {
-    const { status } = req.body;
+    const { status, supervisor_badge, supervisor_name } = req.body;
+
+    // First, get the current breakdown to capture old status
+    const { data: currentBreakdown, error: fetchError } = await from('breakdowns')
+      .select('*')
+      .eq('id', req.params.id)
+      .single();
+
+    if (fetchError || !currentBreakdown) {
+      return res.status(404).json({ error: 'Breakdown not found' });
+    }
+
+    const oldStatus = currentBreakdown.status;
 
     await update('breakdowns', { id: req.params.id }, {
       status,
@@ -577,12 +633,48 @@ router.patch('/:id/status', async (req, res) => {
 
     if (error) throw error;
 
-    if (!data) {
-      return res.status(404).json({ error: 'Breakdown not found' });
+    // Log activity for status change
+    try {
+      await activityLogger.logActivity({
+        activityType: ACTIVITY_TYPES.BREAKDOWN_STATUS_CHANGED,
+        action: `changed status from ${oldStatus} to ${status}`,
+        actorType: ACTOR_TYPES.SUPERVISOR,
+        actorId: supervisor_badge || req.supervisor?.badge_number || 'system',
+        actorName: supervisor_name || req.supervisor?.name || 'System',
+        entityType: ENTITY_TYPES.BREAKDOWN,
+        entityId: data.breakdown_id,
+        entityDetails: {
+          fleetNo: data.fleet_no,
+          oldStatus: oldStatus,
+          newStatus: status,
+          issueCategory: data.issue_category
+        },
+        depot: data.depot,
+        severity: status === 'resolved' || status === 'cleared' ? SEVERITY_LEVELS.SUCCESS :
+                 status === 'active' ? SEVERITY_LEVELS.WARNING : SEVERITY_LEVELS.INFO,
+        source: 'breakdown_dashboard',
+        icon: status === 'resolved' ? '✅' : status === 'cleared' ? '🧹' : '🔄'
+      });
+      console.log(`📝 Activity logged: Status changed from ${oldStatus} to ${status} for ${data.breakdown_id}`);
+    } catch (activityError) {
+      console.error('⚠️ Failed to log status change activity:', activityError);
     }
 
     // Transform breakdown for frontend compatibility
     const transformedData = transformBreakdownForFrontend(data);
+
+    // Broadcast status change to WebSocket clients
+    try {
+      webSocketHandler.broadcast('sdc-dashboard', {
+        type: 'breakdown_status_changed',
+        breakdown_id: data.breakdown_id,
+        old_status: oldStatus,
+        new_status: status,
+        timestamp: new Date().toISOString()
+      });
+    } catch (broadcastError) {
+      console.error('⚠️ Failed to broadcast status change:', broadcastError);
+    }
 
     res.json(transformedData);
   } catch (error) {
@@ -720,7 +812,7 @@ router.post('/id-generator/validate', async (req, res) => {
 router.put('/:id/resolve', async (req, res) => {
   try {
     const { id } = req.params;
-    const { resolution_notes, resolving_supervisor, returned_to_service } = req.body;
+    const { resolution_notes, resolving_supervisor, returned_to_service, supervisor_badge } = req.body;
 
     // Update the breakdown using breakdown_id
     await update('breakdowns', { breakdown_id: id }, {
@@ -762,8 +854,49 @@ router.put('/:id/resolve', async (req, res) => {
       console.error('Error creating event:', eventError);
     }
 
+    // Log activity to the unified activity feed
+    try {
+      await activityLogger.logActivity({
+        activityType: ACTIVITY_TYPES.BREAKDOWN_RESOLVED,
+        action: `resolved breakdown on ${data.fleet_no}${returned_to_service ? ' - returned to service' : ''}`,
+        actorType: ACTOR_TYPES.SUPERVISOR,
+        actorId: supervisor_badge || req.supervisor?.badge_number || 'system',
+        actorName: resolving_supervisor || req.supervisor?.name || 'Supervisor',
+        entityType: ENTITY_TYPES.BREAKDOWN,
+        entityId: data.breakdown_id,
+        entityDetails: {
+          fleetNo: data.fleet_no,
+          issueCategory: data.issue_category,
+          location: data.location_description,
+          resolutionNotes: resolution_notes,
+          returnedToService: returned_to_service
+        },
+        depot: data.depot,
+        severity: SEVERITY_LEVELS.SUCCESS,
+        source: 'breakdown_dashboard',
+        icon: '✅'
+      });
+      console.log(`📝 Activity logged: Breakdown ${data.breakdown_id} resolved`);
+    } catch (activityError) {
+      console.error('⚠️ Failed to log resolve activity:', activityError);
+    }
+
     // Transform breakdown for frontend compatibility
     const transformedData = transformBreakdownForFrontend(data);
+
+    // Broadcast resolution to WebSocket clients
+    try {
+      webSocketHandler.broadcast('sdc-dashboard', {
+        type: 'breakdown_resolved',
+        breakdown_id: data.breakdown_id,
+        fleet_no: data.fleet_no,
+        resolved_by: resolving_supervisor,
+        returned_to_service: returned_to_service,
+        timestamp: new Date().toISOString()
+      });
+    } catch (broadcastError) {
+      console.error('⚠️ Failed to broadcast resolution:', broadcastError);
+    }
 
     res.json({
       success: true,
@@ -925,12 +1058,13 @@ router.post('/:id/activities', async (req, res) => {
       activity_type,
       description,
       user_name,
+      supervisor_badge,
       metadata
     } = req.body;
 
-    // Verify breakdown exists
+    // Verify breakdown exists and get full data for activity logging
     const { data: breakdown, error: breakdownError } = await from('breakdowns')
-      .select('id, breakdown_id')
+      .select('id, breakdown_id, fleet_no, depot, issue_category')
       .eq('breakdown_id', id)
       .single();
 
@@ -963,6 +1097,32 @@ router.post('/:id/activities', async (req, res) => {
       .single();
 
     if (eventError) throw eventError;
+
+    // Log to unified activity feed
+    try {
+      await activityLogger.logActivity({
+        activityType: ACTIVITY_TYPES.BREAKDOWN_NOTE_ADDED,
+        action: `added note to breakdown on ${breakdown.fleet_no}`,
+        actorType: ACTOR_TYPES.SUPERVISOR,
+        actorId: supervisor_badge || req.supervisor?.badge_number || 'system',
+        actorName: user_name || req.supervisor?.name || 'Supervisor',
+        entityType: ENTITY_TYPES.BREAKDOWN,
+        entityId: breakdown.breakdown_id,
+        entityDetails: {
+          fleetNo: breakdown.fleet_no,
+          issueCategory: breakdown.issue_category,
+          noteType: activity_type || 'comment',
+          notePreview: description?.substring(0, 100) // First 100 chars of note
+        },
+        depot: breakdown.depot,
+        severity: SEVERITY_LEVELS.INFO,
+        source: 'breakdown_dashboard',
+        icon: '📝'
+      });
+      console.log(`📝 Activity logged: Note added to breakdown ${breakdown.breakdown_id}`);
+    } catch (activityError) {
+      console.error('⚠️ Failed to log note activity:', activityError);
+    }
 
     res.status(201).json({
       success: true,
@@ -1109,7 +1269,7 @@ router.post('/from-wizard', async (req, res) => {
     if (!allocatedDepot || allocatedDepot === 'Unknown') {
       try {
         const results = await query(
-          'SELECT depot FROM fleet_vehicles WHERE fleet_number = ?',
+          'SELECT depot FROM fleet_vehicles WHERE fleet_no = ?',  // FIXED: Use fleet_no not fleet_number
           [fleet_number]
         );
         const fleetVehicle = results[0];
@@ -1257,11 +1417,40 @@ router.post('/from-wizard', async (req, res) => {
       // Don't fail the main request if pattern detection fails
     }
 
+    // Phase 7.1: Auto-assign breakdown to on-duty supervisor
+    let assignmentResult = null;
+    try {
+      assignmentResult = await breakdownAssignmentService.autoAssignBreakdown({
+        breakdownId: transformedData.breakdown_id,
+        fleetNo: fleet_number,
+        depot: allocatedDepot,
+        severity: determinedSeverity,
+        issueCategory: issue_category,
+        location: location
+      });
+
+      if (assignmentResult.assigned) {
+        console.log(`✅ Auto-assigned to ${assignmentResult.supervisor.name}`);
+        // Broadcast assignment to WebSocket clients
+        webSocketHandler.broadcast('sdc-dashboard', {
+          type: 'breakdown_assigned',
+          breakdown_id: transformedData.breakdown_id,
+          assigned_to: assignmentResult.supervisor.name,
+          assigned_badge: assignmentResult.supervisor.badge_number,
+          timestamp: new Date().toISOString()
+        });
+      }
+    } catch (assignError) {
+      console.error('⚠️ Auto-assignment failed:', assignError);
+      // Don't fail the main request if assignment fails
+    }
+
     res.status(201).json({
       success: true,
       breakdown_id: transformedData.breakdown_id,
       breakdown: transformedData,
-      message: 'Breakdown created from wizard assessment'
+      message: 'Breakdown created from wizard assessment',
+      assignment: assignmentResult
     });
 
   } catch (error) {
@@ -1407,6 +1596,93 @@ router.post('/:breakdown_id/update-card', async (req, res) => {
   }
 });
 
+// PATCH /api/breakdowns/:breakdown_id/decision - Quick decision update (STOP/AMBER/CONTINUE)
+// Used by SDC Dashboard QuickDecisionButtons for fast triage
+router.patch('/:breakdown_id/decision', async (req, res) => {
+  try {
+    const { breakdown_id } = req.params;
+    const { decision, quick_decision = false } = req.body;
+
+    // Validate decision type
+    const validDecisions = ['STOP', 'AMBER', 'CONTINUE'];
+    if (!decision || !validDecisions.includes(decision.toUpperCase())) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid decision. Must be one of: ${validDecisions.join(', ')}`
+      });
+    }
+
+    const normalizedDecision = decision.toUpperCase();
+    const now = toMySQLDatetime();
+
+    // Update the breakdown with the new decision
+    // Note: Only updating columns that definitely exist in the schema
+    const updateData = {
+      wizard_decision: normalizedDecision,
+      severity: normalizedDecision,
+      updated_at: now
+    };
+
+    await update('breakdowns', { breakdown_id }, updateData);
+
+    // Fetch the updated breakdown
+    const { data: updatedBreakdown, error: fetchError } = await from('breakdowns')
+      .select('*')
+      .eq('breakdown_id', breakdown_id)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    if (!updatedBreakdown) {
+      return res.status(404).json({
+        success: false,
+        error: 'Breakdown not found'
+      });
+    }
+
+    // Log the activity
+    await activityLogger.log({
+      type: ACTIVITY_TYPES.BREAKDOWN_UPDATED,
+      action: quick_decision ? 'quick_decision_made' : 'decision_updated',
+      description: `Decision changed to ${normalizedDecision}${quick_decision ? ' (quick decision)' : ''}`,
+      entity_type: ENTITY_TYPES.BREAKDOWN,
+      entity_id: breakdown_id,
+      breakdown_id: breakdown_id,
+      fleet_no: updatedBreakdown.fleet_no,
+      severity: normalizedDecision === 'STOP' ? SEVERITY_LEVELS.CRITICAL :
+                normalizedDecision === 'AMBER' ? SEVERITY_LEVELS.WARNING :
+                SEVERITY_LEVELS.SUCCESS,
+      metadata: {
+        decision: normalizedDecision,
+        quick_decision,
+        previous_decision: updatedBreakdown.wizard_decision
+      }
+    });
+
+    // Broadcast WebSocket update
+    webSocketHandler.broadcast({
+      type: 'breakdown_updated',
+      breakdown_id,
+      decision: normalizedDecision,
+      fleet_no: updatedBreakdown.fleet_no,
+      timestamp: now
+    });
+
+    res.json({
+      success: true,
+      breakdown: transformBreakdownForFrontend(updatedBreakdown),
+      message: `Decision updated to ${normalizedDecision}`
+    });
+
+  } catch (error) {
+    console.error('Error updating breakdown decision:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update breakdown decision'
+    });
+  }
+});
+
 // POST /api/breakdowns/smart-route-match - Find routes passing through breakdown location
 // Returns all bus routes serving stops within 1km of the breakdown location
 router.post('/smart-route-match', async (req, res) => {
@@ -1459,8 +1735,9 @@ router.post('/smart-route-match', async (req, res) => {
     // Query: Find all routes serving stops within the radius
     // Using geospatial distance calculation:
     // SQRT((lat - stop_lat)^2 + (lng - stop_lon)^2) < radiusDegrees
+    // Note: Using MIN() for distance to comply with only_full_group_by sql_mode
     const sql = `
-      SELECT DISTINCT
+      SELECT
         gr.route_id,
         gr.route_short_name,
         gr.route_long_name,
@@ -1469,10 +1746,10 @@ router.post('/smart-route-match', async (req, res) => {
         GROUP_CONCAT(DISTINCT gs.stop_name SEPARATOR ', ') as serving_stop_names,
         MIN(gs.stop_lat) as nearest_lat,
         MIN(gs.stop_lon) as nearest_lon,
-        SQRT(
+        MIN(SQRT(
           POW((gs.stop_lat - ?), 2) +
           POW((gs.stop_lon - ?), 2)
-        ) as distance_degrees
+        )) as distance_degrees
       FROM gtfs_stops gs
       JOIN gtfs_stop_times gst ON gs.stop_id = gst.stop_id
       JOIN gtfs_trips gt ON gst.trip_id = gt.trip_id
@@ -1481,7 +1758,7 @@ router.post('/smart-route-match', async (req, res) => {
         POW((gs.stop_lat - ?), 2) +
         POW((gs.stop_lon - ?), 2)
       ) < ?
-      GROUP BY gr.route_id
+      GROUP BY gr.route_id, gr.route_short_name, gr.route_long_name
       ORDER BY trips_per_period DESC, distance_degrees ASC
     `;
 
@@ -1518,6 +1795,30 @@ router.post('/smart-route-match', async (req, res) => {
 
   } catch (error) {
     console.error('Error finding smart routes:', error);
+
+    // Check if GTFS tables don't exist (common in production without GTFS data)
+    // Handle multiple possible error formats from MySQL
+    const errorMsg = error.message || '';
+    const errorCode = error.code || '';
+    const isTableMissing =
+      errorMsg.includes("doesn't exist") ||
+      errorMsg.includes('doesn\'t exist') ||
+      errorMsg.includes('Table') ||
+      errorMsg.includes('gtfs_') ||
+      errorCode === 'ER_NO_SUCH_TABLE' ||
+      errorCode === 'ER_BAD_TABLE_ERROR';
+
+    if (isTableMissing) {
+      console.log('GTFS tables not available - returning empty result');
+      return res.json({
+        success: true,
+        breakdown_location: { latitude: req.body.latitude, longitude: req.body.longitude },
+        affected_routes: [],
+        total_routes: 0,
+        message: 'GTFS route data not available - manual route selection required'
+      });
+    }
+
     res.status(500).json({
       success: false,
       error: 'Failed to find routes for location',
@@ -1575,7 +1876,7 @@ router.post('/resolve', async (req, res) => {
     }
 
     const resolvedAt = toMySQLDatetime(new Date());
-    const resolvingUser = resolved_by || supervisor_badge || req.supervisor?.name || 'System';
+    const resolvingUser = resolved_by || req.supervisor?.name || supervisor_badge || 'System';
 
     // Update breakdown status to resolved
     await update('breakdowns',
@@ -1669,6 +1970,127 @@ router.post('/resolve', async (req, res) => {
       success: false,
       error: 'Failed to resolve breakdown',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// ============================================
+// PHASE 7.1: ASSIGNMENT MANAGEMENT ENDPOINTS
+// ============================================
+
+// POST /api/breakdowns/:breakdown_id/assign - Manually assign breakdown to supervisor
+router.post('/:breakdown_id/assign', async (req, res) => {
+  try {
+    const { breakdown_id } = req.params;
+    const { supervisor_id } = req.body;
+    const assignedBy = req.supervisor?.badge_number || req.supervisor?.id || 'admin';
+
+    if (!supervisor_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'supervisor_id is required'
+      });
+    }
+
+    const result = await breakdownAssignmentService.manualAssignBreakdown(
+      breakdown_id,
+      supervisor_id,
+      assignedBy
+    );
+
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+
+    // Broadcast assignment
+    webSocketHandler.broadcast('sdc-dashboard', {
+      type: 'breakdown_assigned',
+      breakdown_id: breakdown_id,
+      assigned_to: result.supervisor.name,
+      assigned_badge: result.supervisor.badge_number,
+      assigned_by: assignedBy,
+      timestamp: new Date().toISOString()
+    });
+
+    res.json({
+      success: true,
+      message: `Breakdown assigned to ${result.supervisor.name}`,
+      ...result
+    });
+
+  } catch (error) {
+    console.error('Error manually assigning breakdown:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to assign breakdown',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// GET /api/breakdowns/assignments/stats - Get assignment statistics
+router.get('/assignments/stats', async (req, res) => {
+  try {
+    const stats = await breakdownAssignmentService.getAssignmentStats();
+
+    res.json({
+      success: true,
+      ...stats
+    });
+
+  } catch (error) {
+    console.error('Error getting assignment stats:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get assignment statistics'
+    });
+  }
+});
+
+// GET /api/breakdowns/assignments/unassigned - Get unassigned breakdowns
+router.get('/assignments/unassigned', async (req, res) => {
+  try {
+    const { data, error } = await from('breakdowns')
+      .select('breakdown_id, fleet_no, depot, location_description, issue_category, severity, status, created_at')
+      .isNull('assigned_supervisor_id')
+      .notIn('status', ['resolved', 'cleared', 'completed'])
+      .order('created_at', 'ASC')
+      .execute();
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      count: data?.length || 0,
+      unassigned: data || []
+    });
+
+  } catch (error) {
+    console.error('Error getting unassigned breakdowns:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get unassigned breakdowns'
+    });
+  }
+});
+
+// GET /api/breakdowns/assignments/on-duty - Get supervisors currently on duty
+router.get('/assignments/on-duty', async (req, res) => {
+  try {
+    const { depot } = req.query;
+    const supervisors = await breakdownAssignmentService.getOnDutySupervisors(depot || null);
+
+    res.json({
+      success: true,
+      count: supervisors.length,
+      supervisors: supervisors
+    });
+
+  } catch (error) {
+    console.error('Error getting on-duty supervisors:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get on-duty supervisors'
     });
   }
 });

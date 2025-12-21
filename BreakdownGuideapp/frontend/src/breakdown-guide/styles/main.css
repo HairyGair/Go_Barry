@@ -1,24 +1,42 @@
 /* Breakdown Guide Styles - Dark Theme */
+/* Integrated with Go BARRY Design System - November 2025 */
 
-/* Root variables for dark theme */
+/* Import design tokens for consistency */
+@import '../../styles/design-tokens.css';
+
+/* Root variables for dark theme - Now using design tokens + wizard-specific overrides */
 :root {
-  --bg-primary: #0a0a0a;
-  --bg-secondary: #1a1a1a;
-  --bg-tertiary: #2a2a2a;
-  --bg-card: #1e1e1e;
-  --border-color: #333;
-  --border-hover: #E4002B;
-  --text-primary: #ffffff;
-  --text-secondary: #b0b0b0;
-  --text-muted: #888;
-  --navy: #003B5C;
-  --red: #E4002B;
-  --amber: #ffa500;
-  --green: #28a745;
+  /* Core backgrounds - Dark theme specific */
+  --bg-primary: var(--color-dark-bg-primary, #0F172A);
+  --bg-secondary: var(--color-dark-bg-secondary, #1E293B);
+  --bg-tertiary: var(--color-dark-bg-tertiary, #334155);
+  --bg-card: rgba(30, 41, 59, 0.9);
+
+  /* Borders */
+  --border-color: var(--color-dark-border, #475569);
+  --border-hover: var(--color-red-primary, #E30613);
+
+  /* Text */
+  --text-primary: var(--color-dark-text-primary, #F1F5F9);
+  --text-secondary: var(--color-dark-text-secondary, #94A3B8);
+  --text-muted: var(--color-dark-text-tertiary, #64748B);
+
+  /* Brand colors - from design tokens */
+  --navy: var(--color-navy-primary, #003B5C);
+  --red: var(--color-red-primary, #E30613);
+  --amber: var(--color-warning, #F59E0B);
+  --green: var(--color-success, #10B981);
+
+  /* Accent colors */
   --neon-cyan: #00ffff;
   --neon-green: #00ff41;
   --neon-purple: #8a2be2;
   --neon-pink: #ff1493;
+
+  /* Wizard-specific spacing (uses design token base) */
+  --wizard-card-gap: var(--spacing-md, 16px);
+  --wizard-card-padding: var(--spacing-lg, 24px);
+  --wizard-touch-target: var(--touch-target-comfortable, 48px);
 }
 
 /* Global dark theme styles */
@@ -171,23 +189,26 @@ body[data-theme="dark"] {
   }
 }
 
-/* Enhanced Wizard Cards */
+/* Enhanced Wizard Cards - Improved layout Nov 2025 */
 .wizard-card-enhanced {
   background: var(--bg-card);
   border: 2px solid var(--border-color);
-  border-radius: 12px;
-  padding: 18px;
+  border-radius: var(--radius-lg, 12px);
+  padding: var(--wizard-card-padding, 24px);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all var(--transition-base, 200ms ease-out);
   text-align: center;
   position: relative;
   overflow: visible;
-  height: 220px;
+  /* Removed fixed height - allow content to flow naturally */
+  min-height: 180px;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
   align-items: center;
-  gap: 6px;
+  gap: var(--spacing-sm, 8px);
+  /* Ensure minimum touch target on mobile */
+  min-width: var(--wizard-touch-target, 48px);
 }
 
 .wizard-card-enhanced::before {
@@ -255,13 +276,19 @@ body[data-theme="dark"] {
 .wizard-card-enhanced p {
   margin: 0;
   color: var(--text-secondary);
-  font-size: 12px;
-  line-height: 1.35;
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  font-size: var(--text-xs, 12px);
+  line-height: 1.5;
+  /* Allow text to flow naturally with clamping */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
   text-align: center;
+  /* Grow to fill available space */
+  flex: 1;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding-top: var(--spacing-xs, 4px);
 }
 
 /* Wizard Grid */
@@ -648,45 +675,160 @@ input:focus, select:focus, textarea:focus {
   background-color: rgba(255, 255, 255, 0.1);
 }
 
-/* Responsive design */
+/* ============================================================================
+   RESPONSIVE DESIGN - Mobile-First Optimizations
+   ============================================================================ */
+
+/* Tablet and below */
 @media (max-width: 768px) {
   .main-content {
-    padding: 15px;
-    gap: 20px;
+    padding: var(--spacing-md, 15px);
+    gap: var(--spacing-lg, 20px);
   }
-  
+
   .dashboard-stats {
-    padding: 15px;
+    padding: var(--spacing-md, 15px);
   }
-  
+
   .stat-card {
     justify-content: center;
-    padding: 15px;
+    padding: var(--spacing-md, 15px);
+    /* Ensure good touch target */
+    min-height: var(--wizard-touch-target, 48px);
   }
-  
+
   .section-title {
-    font-size: 18px;
+    font-size: var(--text-lg, 18px);
   }
-  
+
   .assessment-grid-container {
     padding: 0;
-    margin-top: 20px;
+    margin-top: var(--spacing-lg, 20px);
+  }
+
+  /* Improved touch targets for wizard cards */
+  .wizard-card-enhanced {
+    padding: var(--spacing-md, 16px);
+    min-height: 160px;
+    /* Ensure comfortable touch area */
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: rgba(227, 6, 19, 0.2);
+  }
+
+  .wizard-icon {
+    font-size: 32px;
+  }
+
+  .wizard-icon-img {
+    height: 40px;
+  }
+
+  .wizard-icon-png {
+    max-width: 40px;
+  }
+
+  /* Larger touch targets for buttons inside wizards */
+  .wizard-container button,
+  .btn-previous,
+  .btn-next,
+  .btn-complete {
+    min-height: var(--wizard-touch-target, 48px);
+    font-size: var(--text-base, 16px); /* Prevents iOS zoom on focus */
+    padding: var(--spacing-md, 16px) var(--spacing-lg, 24px);
+  }
+
+  /* Better spacing for form elements */
+  input, select, textarea {
+    min-height: var(--wizard-touch-target, 48px);
+    font-size: var(--text-base, 16px); /* Prevents iOS zoom */
+  }
+}
+
+/* Mobile phones */
+@media (max-width: 480px) {
+  .main-content {
+    padding: var(--spacing-sm, 12px);
+    gap: var(--spacing-md, 16px);
+  }
+
+  /* Stack wizard cards in single column */
+  .wizard-grid-enhanced {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-sm, 12px);
   }
 
   .wizard-card-enhanced {
-    padding: 16px;
+    padding: var(--spacing-md, 16px);
+    min-height: 140px;
+    /* Horizontal layout for small screens */
+    flex-direction: row;
+    text-align: left;
+    gap: var(--spacing-md, 16px);
   }
-  
-  .wizard-icon {
+
+  .wizard-card-enhanced .wizard-icon,
+  .wizard-card-enhanced .wizard-icon-img {
+    flex-shrink: 0;
+  }
+
+  .wizard-card-enhanced h3 {
+    font-size: var(--text-sm, 14px);
+  }
+
+  .wizard-card-enhanced p {
+    font-size: 11px;
+    -webkit-line-clamp: 2;
+  }
+
+  /* Stat cards horizontal on mobile */
+  .dashboard-stats {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-sm, 12px);
+  }
+
+  .stat-card {
+    flex-direction: row;
+    gap: var(--spacing-md, 16px);
+  }
+
+  .stat-icon {
     font-size: 28px;
   }
-  
-  .wizard-icon-img {
-    height: 36px;
+
+  .stat-value {
+    font-size: var(--text-xl, 20px);
   }
-  
+
+  /* Modal improvements for mobile */
+  .modal-content {
+    width: 95%;
+    max-height: 90vh;
+    padding: var(--spacing-md, 16px);
+    border-radius: var(--radius-lg, 12px);
+  }
+}
+
+/* Extra small phones */
+@media (max-width: 360px) {
+  .wizard-card-enhanced {
+    padding: var(--spacing-sm, 12px);
+    min-height: 120px;
+  }
+
+  .wizard-card-enhanced h3 {
+    font-size: 13px;
+  }
+
+  .wizard-icon {
+    font-size: 24px;
+  }
+
+  .wizard-icon-img {
+    height: 32px;
+  }
+
   .wizard-icon-png {
-    max-width: 36px;
+    max-width: 32px;
   }
 }
 

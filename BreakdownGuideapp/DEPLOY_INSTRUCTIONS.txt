@@ -1,0 +1,32 @@
+===========================================
+MANUAL DEPLOYMENT INSTRUCTIONS
+===========================================
+Date: $(date)
+
+FILES TO UPLOAD TO PRODUCTION:
+
+BACKEND (upload to ~/api/):
+-------------------------------------------
+1. backend/routes/fleet.js        -> ~/api/routes/fleet.js
+2. backend/routes/assessment.js   -> ~/api/routes/assessment.js (NEW FILE)
+3. backend/routes/breakdowns.js   -> ~/api/routes/breakdowns.js
+4. backend/server.js              -> ~/api/server.js
+
+FRONTEND (upload to breakdowns.gobarry.co.uk):
+-------------------------------------------
+5. frontend/dist/* -> public_html/breakdowns.gobarry.co.uk/
+
+AFTER UPLOAD:
+-------------------------------------------
+SSH to server and run:
+  cd ~/api
+  pm2 restart breakdown-backend
+  pm2 logs breakdown-backend --lines 30
+
+FIXES INCLUDED:
+-------------------------------------------
+1. fleet.js: Changed fleet_number -> fleet_no (matches database)
+2. assessment.js: NEW endpoint for wizard broadcasts
+3. breakdowns.js: smart-route-match gracefully handles missing GTFS
+4. server.js: Registered assessment routes
+5. Frontend: Fixed credentials for API calls

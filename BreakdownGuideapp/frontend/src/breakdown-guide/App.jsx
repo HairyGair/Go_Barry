@@ -26,7 +26,6 @@ import './styles/RouteSelection.css';  // Route selection and new component styl
 import './styles/wizard-enhancements.css';  // UI/UX enhancements for wizard buttons and interactions
 
 // Import shared components
-import AppHeader from '../shared/AppHeader.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 
 // Import supervisorBreakdownLogger
@@ -39,6 +38,10 @@ import LocationModal from './components/LocationModal.jsx';
 import BreakdownInfoStep from './components/common/BreakdownInfoStep.jsx';
 import LocationDisplay from './components/common/LocationDisplay.jsx';
 import AssessmentSummary from './components/common/AssessmentSummary.jsx';
+
+// Import new UI enhancement components (Nov 2025)
+import WizardProgressBar from './components/common/WizardProgressBar.jsx';
+import WizardContextHeader from './components/common/WizardContextHeader.jsx';
 
 // Import all wizards
 import SteeringWizard from './components/wizards/SteeringWizard.jsx';
@@ -215,7 +218,7 @@ const App = () => {
             
             // Get wizard config for total steps
             const wizardConfig = wizards[pendingWizardType];
-            const totalSteps = wizardConfig?.steps || 5;
+            const totalSteps = Array.isArray(wizardConfig?.steps) ? wizardConfig.steps.length : (wizardConfig?.steps || 5);
             
             // Initialize assessment broadcaster for real-time tracking
             assessmentBroadcaster.initAssessment({
@@ -246,7 +249,6 @@ const App = () => {
         if (showSummary && assessmentDecision) {
             return (
                 <>
-                    <AppHeader />
                     <div className="min-h-screen bg-gray-900">
                     <div className="main-content">
                         <AssessmentSummary
@@ -529,19 +531,42 @@ const App = () => {
         }
         
         if (!currentWizard || !selectedVehicle) return null;
-        
+
         const WizardComponent = wizardComponents[currentWizard];
         if (!WizardComponent) {
             console.error(`No wizard component found for: ${currentWizard}`);
             return <div>Wizard not found: {currentWizard}</div>;
         }
-        
+
+        // Get wizard config for total steps and title
+        const wizardConfig = wizards[currentWizard];
+        const totalSteps = Array.isArray(wizardConfig?.steps) ? wizardConfig.steps.length : (wizardConfig?.steps || 5);
+        const wizardTitle = wizardConfig?.title || currentWizard;
+
         return (
             <>
-                <AppHeader />
                 <div className="min-h-screen bg-gray-900">
+                    {/* Progress Bar - Sticky at top */}
+                    <WizardProgressBar
+                        currentStep={currentStep}
+                        totalSteps={totalSteps}
+                        wizardTitle={wizardTitle}
+                    />
+
                     <div className="main-content">
-                        {/* Location Display */}
+                        {/* Context Header - Shows vehicle being assessed */}
+                        <WizardContextHeader
+                            vehicle={selectedVehicle}
+                            wizardType={wizardTitle}
+                            location={breakdownLocation}
+                            assessmentId={assessmentId}
+                            routeInfo={{
+                                route: selectedRoute,
+                                routeName: routeName
+                            }}
+                        />
+
+                        {/* Location Display - More detailed location info */}
                         {breakdownLocation && (
                             <LocationDisplay
                                 vehicle={{
@@ -555,7 +580,7 @@ const App = () => {
                                 }}
                             />
                         )}
-                    
+
                     <WizardComponent
                         key={`wizard-${currentWizard}-step-${currentStep}`}
                         vehicle={selectedVehicle}
@@ -642,8 +667,6 @@ const App = () => {
     // Main dashboard view
     const Dashboard = () => (
         <div className="breakdown-guide-container">
-            <AppHeader />
-            
             <main className="main-content">
                 <div className="dashboard-stats">
                     <div className="stat-card">

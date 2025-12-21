@@ -44,7 +44,24 @@ class SupervisorBreakdownLogger {
             this.setSupervisor(config.supervisorData);
         }
     }
-    
+
+    // Get current duty context from sessionStorage
+    getDutyContext() {
+        try {
+            const dutyData = sessionStorage.getItem('currentDuty');
+            if (dutyData) {
+                const duty = JSON.parse(dutyData);
+                return {
+                    duty_code: duty.code || null,
+                    duty_name: duty.name || null
+                };
+            }
+        } catch (error) {
+            console.warn('[BREAKDOWN-LOGGER] Error reading duty context:', error);
+        }
+        return { duty_code: null, duty_name: null };
+    }
+
     // Set the current supervisor session
     setSupervisor(session) {
         this.supervisor = session;
@@ -224,7 +241,10 @@ class SupervisorBreakdownLogger {
             engineering_required: data.decision === 'STOP',
             replacement_vehicle_required: data.decision === 'STOP',
             secured_mileage: this.currentBreakdown.securedMileage || false,
-            not_in_service: this.currentBreakdown.notInService || false
+            not_in_service: this.currentBreakdown.notInService || false,
+
+            // Duty context for shift-based reporting
+            ...this.getDutyContext()
         };
 
         console.log('🚀 Sending wizard completion data to dashboard:', wizardData);

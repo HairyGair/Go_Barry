@@ -423,7 +423,7 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
           <div className="space-y-6">
             <div className="text-center">
               <div className={`mx-auto w-16 h-16 ${hasCriticalIssue ? 'bg-red-500/20' : 'bg-green-500/20'} rounded-full flex items-center justify-center mb-4`}>
-                {hasCriticalIssue ? AlertTriangle : CheckCircle}
+                {hasCriticalIssue ? <AlertTriangle className="w-8 h-8 text-red-400" /> : <CheckCircle className="w-8 h-8 text-green-400" />}
               </div>
               <h2 className="text-2xl font-bold text-white mb-2">Initial Assessment</h2>
               <p className="text-gray-300">
@@ -530,7 +530,7 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
           <div className="space-y-6">
             <div className="text-center">
               <div className={`mx-auto w-16 h-16 ${needsImmediate ? 'bg-red-500/20' : responses.otherBrakeConcerns === 'yes' ? 'bg-amber-500/20' : 'bg-green-500/20'} rounded-full flex items-center justify-center mb-4`}>
-                {needsImmediate ? AlertTriangle : responses.otherBrakeConcerns === 'yes' ? Wrench : CheckCircle}
+                {needsImmediate ? <AlertTriangle className="w-8 h-8 text-red-400" /> : responses.otherBrakeConcerns === 'yes' ? <Wrench className="w-8 h-8 text-amber-400" /> : <CheckCircle className="w-8 h-8 text-green-400" />}
               </div>
               <h2 className="text-2xl font-bold text-white mb-2">Action Required</h2>
               <p className="text-gray-300">Final recommendations and next steps</p>
@@ -650,7 +650,7 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
           <div className="space-y-6">
             <div className="text-center">
               <div className="mx-auto w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mb-4">
-                {FileText}
+                <FileText className="w-8 h-8 text-blue-400" />
               </div>
               <h2 className="text-2xl font-bold text-white mb-2">Summary & Documentation</h2>
               <p className="text-gray-300">Assessment complete</p>
@@ -696,7 +696,7 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
 
             <div className="bg-blue-500/20 rounded-lg p-4 border border-blue-400/30">
               <div className="flex items-start space-x-3">
-                {Info}
+                <Info className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
                 <div>
                   <h4 className="font-semibold text-blue-200">Important Reminders</h4>
                   <ul className="list-disc ml-6 space-y-1 text-blue-300/90 text-sm mt-2">

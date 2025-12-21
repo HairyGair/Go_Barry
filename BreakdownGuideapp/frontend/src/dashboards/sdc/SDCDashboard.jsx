@@ -20,10 +20,10 @@ import { getSDCGuidance, getSLAForIssue } from './utils/sdcGuideReference';
 import PriorityAlerts from './PriorityAlerts';
 import StatusWidget from './StatusWidget';
 import RecentDecisions from './RecentDecisions';
+import BreakdownMap from './BreakdownMap';
 import AssessmentProgressTracker from './AssessmentProgressTracker';
 import AssessmentProgressCard from './AssessmentProgressCard';
 import EngineeringTimerAlert from './EngineeringTimerAlert';
-import SDCDashboardHeader from './SDCDashboardHeader';
 import BreakdownResolutionDialog from './components/BreakdownResolutionDialog';
 import { apiClient } from '../../services/api-client';
 import { fetchAllActivities } from '../../api/activityAggregator';
@@ -33,9 +33,13 @@ import useConnectionManager from '../../hooks/useConnectionManager';
 import useAssessmentData from '../../hooks/useAssessmentData';
 import assessmentAPI from '../../services/assessmentAPI';
 import AssessmentDataFallback from '../../components/AssessmentDataFallback';
+import CoverageAlertWidget from '../../components/CoverageAlertWidget';
+import { useAuth } from '../../contexts/AuthContext';
+import { alertSoundService } from '../../services/alertSoundService';
 
 const SDCDashboard = () => {
   const location = useLocation();
+  const { currentUser } = useAuth(); // Get authenticated user from AuthContext
   const [breakdowns, setBreakdowns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('all');
@@ -51,11 +55,20 @@ const SDCDashboard = () => {
   // Additional dashboard state
   const [engineeringTimers, setEngineeringTimers] = useState(new Map());
 
+  // Sound alert state
+  const [soundEnabled, setSoundEnabled] = useState(() => alertSoundService.isEnabled());
+  const prevBreakdownsRef = useRef([]);
+  const [screenFlash, setScreenFlash] = useState(null); // 'stop' | 'amber' | null
+
   // Resolution dialog state
   const [resolutionDialog, setResolutionDialog] = useState({
     isOpen: false,
     breakdown: null
   });
+
+  // Full-screen map mode
+  const [fullScreenMap, setFullScreenMap] = useState(false);
+  const [expandedCard, setExpandedCard] = useState(null);
 
   // URL parameter handling state
   const [redirectNotification, setRedirectNotification] = useState(null);
@@ -99,7 +112,16 @@ const SDCDashboard = () => {
   });
 
   // Current supervisor state (must be declared before getEnhancedFilters)
-  const [currentSupervisor, setCurrentSupervisor] = useState(null);
+  // Use currentUser from AuthContext instead of localStorage (SECURITY FIX)
+  const currentSupervisor = currentUser ? {
+    name: currentUser.name,
+    badge: currentUser.badge_number,
+    supervisorBadge: currentUser.badge_number,
+    depot: currentUser.depot,
+    id: currentUser.id,
+    email: currentUser.email,
+    role: currentUser.role
+  } : null;
 
   // Enhanced filter options with dynamic counts and assessment details (memoized for performance)
   const enhancedFilters = useMemo(() => {
@@ -319,7 +341,7 @@ const SDCDashboard = () => {
       const criticalCount = activeBreakdowns.filter(b => b.isCritical).length;
       const pendingCount = activeBreakdowns.filter(b => b.isPending).length;
       const dispatchedCount = activeBreakdowns.filter(b => b.isDispatched).length;
-      
+
       setStats(prevStats => ({
         ...prevStats,
         total: activeBreakdowns.length,
@@ -328,21 +350,105 @@ const SDCDashboard = () => {
         dispatched: dispatchedCount,
         inAssessment: assessmentsInProgress.length
       }));
-      
+
       console.log(`📊 Stats updated: ${assessmentsInProgress.length} assessments in progress`);
     }
   }, [breakdowns, assessmentsInProgress.length]);
+
+  // Sound alert effect - detect new breakdowns and play appropriate sounds
+  useEffect(() => {
+    // Skip on first render or when loading
+    if (loading || prevBreakdownsRef.current.length === 0) {
+      prevBreakdownsRef.current = breakdowns.map(b => b.breakdown_id);
+      return;
+    }
+
+    // Find new breakdowns (not in previous list)
+    const prevIds = new Set(prevBreakdownsRef.current);
+    const newBreakdowns = breakdowns.filter(b => !prevIds.has(b.breakdown_id));
+
+    if (newBreakdowns.length > 0) {
+      console.log(`🔔 Detected ${newBreakdowns.length} new breakdown(s)`);
+
+      // Play sound for the most critical new breakdown
+      const hasStop = newBreakdowns.some(b => b.severity === 'STOP' || b.wizard_decision === 'STOP');
+      const hasAmber = newBreakdowns.some(b => b.severity === 'AMBER' || b.wizard_decision === 'AMBER');
+
+      if (hasStop) {
+        alertSoundService.playStopAlert();
+        alertSoundService.showNotification(
+          '🛑 STOP Breakdown',
+          `Critical breakdown requires immediate attention`,
+          'STOP'
+        );
+        // Trigger screen flash for STOP
+        setScreenFlash('stop');
+        setTimeout(() => setScreenFlash(null), 1500);
+      } else if (hasAmber) {
+        alertSoundService.playAmberAlert();
+        alertSoundService.showNotification(
+          '⚠️ AMBER Breakdown',
+          `Breakdown requires assessment`,
+          'AMBER'
+        );
+        // Trigger screen flash for AMBER
+        setScreenFlash('amber');
+        setTimeout(() => setScreenFlash(null), 1000);
+      } else {
+        alertSoundService.playNewBreakdownAlert();
+      }
+    }
+
+    // Update previous breakdowns reference
+    prevBreakdownsRef.current = breakdowns.map(b => b.breakdown_id);
+  }, [breakdowns, loading]);
 
   // Enhanced URL parameter handling for breakdown guide redirects
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
     const highlightId = urlParams.get('highlight');
+    const fleetParam = urlParams.get('fleet'); // Support fleet number parameter from Activity Feed
     const decision = urlParams.get('decision');
     const supervisor = urlParams.get('supervisor');
     const duration = urlParams.get('duration');
     const timestamp = urlParams.get('timestamp');
     const source = urlParams.get('source');
-    
+
+    // Handle fleet number parameter (from Activity Feed Details button)
+    if (fleetParam && breakdowns.length > 0) {
+      console.log('📍 Processing fleet parameter redirect:', { fleet: fleetParam });
+
+      // Find breakdown by fleet number
+      const targetBreakdown = breakdowns.find(b =>
+        b.fleet_no === fleetParam ||
+        b.fleet_number === fleetParam ||
+        String(b.fleet_no) === String(fleetParam)
+      );
+
+      if (targetBreakdown) {
+        console.log('✅ Found breakdown for fleet:', fleetParam, targetBreakdown);
+        setHighlightedBreakdown(targetBreakdown.breakdown_id);
+        setScrollToBreakdown(targetBreakdown.breakdown_id);
+
+        // Auto-expand the card
+        setExpandedCard(targetBreakdown.breakdown_id);
+
+        // Clear highlight after 10 seconds
+        setTimeout(() => {
+          setHighlightedBreakdown(null);
+        }, 10000);
+      } else {
+        console.warn('⚠️ No breakdown found for fleet:', fleetParam);
+      }
+
+      // Clean up URL parameter
+      const newUrl = new URL(window.location);
+      newUrl.searchParams.delete('fleet');
+      if (newUrl.search !== window.location.search) {
+        window.history.replaceState({}, '', newUrl.toString());
+      }
+    }
+
     if (highlightId) {
       console.log('📍 Processing breakdown guide redirect:', {
         highlightId,
@@ -427,7 +533,7 @@ const SDCDashboard = () => {
         window.history.replaceState({}, '', newUrl.toString());
       }
     }
-  }, [location.search]);
+  }, [location.search, breakdowns]);
   
   // Auto-scroll to highlighted breakdown when data loads
   useEffect(() => {
@@ -470,47 +576,8 @@ const SDCDashboard = () => {
     }
   }, []);
   
-  // Get current supervisor for "My Breakdowns" filter
-  useEffect(() => {
-    const getSupervisor = () => {
-      try {
-        const sources = [
-          localStorage.getItem('currentUser'), // Primary auth source (AuthContext)
-          sessionStorage.getItem('currentUser'), // AuthContext sessionStorage
-          localStorage.getItem('supervisor_session'),
-          localStorage.getItem('currentSupervisor'),
-          localStorage.getItem('supervisorData'),
-          sessionStorage.getItem('currentSupervisor')
-        ];
-
-        for (const source of sources) {
-          if (source) {
-            try {
-              const supervisor = JSON.parse(source);
-              // Accept if has badge, supervisorBadge, or name (covers all session formats)
-              if (supervisor.badge || supervisor.supervisorBadge || supervisor.name) {
-                // Normalize the supervisor object to include both badge and name
-                const normalizedSupervisor = {
-                  name: supervisor.name || supervisor.supervisorName || 'Unknown',
-                  badge: supervisor.badge || supervisor.supervisorBadge || supervisor.supervisorId || supervisor.id,
-                  depot: supervisor.depot || 'SDC',
-                  ...supervisor // Keep all original fields
-                };
-                setCurrentSupervisor(normalizedSupervisor);
-                return;
-              }
-            } catch (e) {
-              // Continue to next source
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error getting supervisor data:', error);
-      }
-    };
-
-    getSupervisor();
-  }, []);
+  // Supervisor data now comes from AuthContext (useAuth hook)
+  // No need for localStorage lookup - security improvement
 
   // Handle real-time messages from connection manager
   useEffect(() => {
@@ -652,6 +719,30 @@ const SDCDashboard = () => {
         
       case 'breakdown_created':
         console.log('📡 SDC Dashboard: New breakdown created, refreshing list');
+        // Play alert sound based on severity
+        if (data.severity === 'STOP' || data.decision === 'STOP') {
+          alertSoundService.playStopAlert();
+          alertSoundService.showNotification(
+            '🛑 New STOP Breakdown',
+            `Fleet ${data.fleet_no || 'Unknown'} - ${data.location || 'Location pending'}`,
+            'STOP'
+          );
+          // Trigger screen flash
+          setScreenFlash('stop');
+          setTimeout(() => setScreenFlash(null), 1500);
+        } else if (data.severity === 'AMBER' || data.decision === 'AMBER') {
+          alertSoundService.playAmberAlert();
+          alertSoundService.showNotification(
+            '⚠️ New AMBER Breakdown',
+            `Fleet ${data.fleet_no || 'Unknown'} - ${data.location || 'Location pending'}`,
+            'AMBER'
+          );
+          // Trigger screen flash
+          setScreenFlash('amber');
+          setTimeout(() => setScreenFlash(null), 1000);
+        } else {
+          alertSoundService.playNewBreakdownAlert();
+        }
         fetchBreakdowns(); // Refresh breakdown data
         break;
 
@@ -832,21 +923,32 @@ const SDCDashboard = () => {
           breakdown_id: b.breakdown_id,
           daily_id: b.daily_id,
           fleet_number: b.fleet_no, // Use enhanced fleet_no
+          fleet_no: b.fleet_no, // Keep original field name for map
           location: b.location, // Use enhanced location
+          location_description: b.location_description, // Preserve location description
           depot_id: b.depot_id, // Use enhanced depot
+          depot: b.depot, // Keep depot for map popup
+          depot_display: b.depot_display || b.depot, // For display
           issue_category: b.issue_type, // Use enhanced issue type
           severity: b.severity || b.wizard_decision,
           status: b.status || 'active',
           created_at: b.created_at,
-          
+
+          // GPS COORDINATES - Critical for map rendering
+          location_lat: b.location_lat,
+          location_lng: b.location_lng,
+
+          // Also check wizard assessment data for coordinates
+          wizard_assessment_data: b.wizard_assessment_data,
+
           // SDC-specific fields
           isCritical: b.severity === 'STOP' || b.wizard_decision === 'STOP',
           isPending: !b.acknowledged_at,
           isDispatched: b.engineer_assigned || b.dispatched_at,
-          isPriorityRoute: PRIORITY_ROUTES.some(route => 
+          isPriorityRoute: PRIORITY_ROUTES.some(route =>
             b.location?.includes(route)
           ),
-          
+
           // Timeline for SDC stages
           timeline: {
             received: b.created_at,
@@ -854,19 +956,26 @@ const SDCDashboard = () => {
             decision: b.decision_at || b.dispatched_at || null,
             engineering: b.engineer_assigned ? b.dispatched_at : null
           },
-          
+
           // Supervisor info
           supervisor_name: b.supervisor_name,
           supervisor_badge: b.supervisor_badge,
-          
+
           // Engineering assignment
           engineer_assigned: b.engineer_assigned,
           engineer_name: b.engineer_name,
-          
+
           // Decision data
           decision: b.wizard_decision || b.severity,
           decision_notes: b.decision_notes || '',
-          
+
+          // Route info for map popup
+          route_id: b.route_id,
+
+          // Elapsed time for map popup
+          elapsed: b.created_at ?
+            Math.floor((new Date() - new Date(b.created_at)) / 1000 / 60) : 0,
+
           // Activities
           activities: b.activities || []
         }));
@@ -1379,16 +1488,34 @@ const SDCDashboard = () => {
     fetchActiveAssessments();
   };
 
+  // Handle sound toggle
+  const handleSoundToggle = () => {
+    const newState = alertSoundService.toggle();
+    setSoundEnabled(newState);
+
+    // Initialize audio context on first user interaction (required by browsers)
+    alertSoundService.initializeAudio();
+
+    // Request notification permission if enabling
+    if (newState) {
+      alertSoundService.requestNotificationPermission();
+    }
+
+    console.log(`🔊 Sound alerts ${newState ? 'enabled' : 'disabled'}`);
+  };
+
   return (
     <DashboardLayout title="SDC Operations Centre" icon="🎯">
-      {/* Enhanced Dashboard Header */}
-      <SDCDashboardHeader 
-        stats={stats}
-        connectionManager={connectionManager}
-        onReportBreakdown={handleReportBreakdown}
-        onRefresh={handleRefresh}
-      />
-      
+      {/* Screen Flash Overlay for Critical Alerts */}
+      {screenFlash && (
+        <div className={`screen-flash-overlay flash-${screenFlash}`} />
+      )}
+
+      {/* Coverage Alert Widget - Shows shift coverage status */}
+      <div className="sdc-coverage-alert-wrapper">
+        <CoverageAlertWidget variant="full" refreshInterval={60000} />
+      </div>
+
       {/* LocalStorage Data Notification */}
       {breakdowns.some(b => b.source && b.source.includes('localStorage')) && (
         <div className="localStorage-notification">
@@ -1508,25 +1635,6 @@ const SDCDashboard = () => {
       )}
 
 
-      {/* Enhanced Stats with My Breakdowns count */}
-      {currentSupervisor && (
-        <div className="supervisor-stats">
-          <div className="supervisor-breakdown-count">
-            <span className="supervisor-icon">👤</span>
-            <span className="supervisor-text">
-              {currentSupervisor.name || currentSupervisor.badge}: 
-              {filteredBreakdowns.filter(b => 
-                b.supervisor_badge === (currentSupervisor.badge || currentSupervisor.supervisorBadge) ||
-                b.supervisor_name === currentSupervisor.name
-              ).length} breakdown{filteredBreakdowns.filter(b => 
-                b.supervisor_badge === (currentSupervisor.badge || currentSupervisor.supervisorBadge) ||
-                b.supervisor_name === currentSupervisor.name
-              ).length !== 1 ? 's' : ''}
-            </span>
-          </div>
-        </div>
-      )}
-
       {/* Enhanced Filter Bar with Assessment Details */}
       <EnhancedFilterBar
         filters={filters}
@@ -1605,13 +1713,162 @@ const SDCDashboard = () => {
           </div>
         </div>
 
-        {/* Right sidebar - Status and Recent Decisions */}
+        {/* Right sidebar - Breakdown Map */}
         <div className="right-sidebar">
-          <StatusWidget stats={stats} />
-
-          <RecentDecisions decisions={recentDecisions} />
+          <div className="breakdown-map-widget">
+            <div className="map-header-row">
+              <h3 className="map-header">📍 Live Breakdown Locations</h3>
+              <button
+                className="fullscreen-map-btn"
+                onClick={() => setFullScreenMap(true)}
+                title="Open full-screen map"
+              >
+                🗺️ Full Screen
+              </button>
+            </div>
+            <BreakdownMap
+              breakdowns={(() => {
+                console.log('🗺️ SDC Dashboard passing to map:', filteredBreakdowns?.length, 'breakdowns');
+                if (filteredBreakdowns && filteredBreakdowns.length > 0) {
+                  console.log('📍 First breakdown data:', {
+                    id: filteredBreakdowns[0].breakdown_id,
+                    fleet: filteredBreakdowns[0].fleet_no,
+                    location_lat: filteredBreakdowns[0].location_lat,
+                    location_lng: filteredBreakdowns[0].location_lng,
+                    hasCoords: !!(filteredBreakdowns[0].location_lat && filteredBreakdowns[0].location_lng)
+                  });
+                }
+                return filteredBreakdowns;
+              })()}
+              highlightedId={highlightedBreakdown}
+              onMarkerClick={(breakdownId) => {
+                // Highlight the breakdown
+                setHighlightedBreakdown(breakdownId);
+                // Scroll to the card
+                const cardElement = breakdownRefs.current.get(breakdownId);
+                if (cardElement) {
+                  cardElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+                // Clear highlight after 5 seconds
+                setTimeout(() => setHighlightedBreakdown(null), 5000);
+              }}
+            />
+          </div>
         </div>
       </div>
+
+      {/* Full-Screen Map Overlay */}
+      {fullScreenMap && (
+        <div className="fullscreen-map-overlay">
+          <div className="fullscreen-map-header">
+            <div className="fullscreen-map-title">
+              <span className="title-icon">🗺️</span>
+              <h2>Live Breakdown Locations</h2>
+              <span className="breakdown-count">
+                {filteredBreakdowns.length} active breakdown{filteredBreakdowns.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+            <div className="fullscreen-map-info">
+              <span className="live-dot"></span>
+              <span className="info-text">Auto-refreshing every 30 seconds</span>
+              <span className="current-time">
+                {new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </div>
+            <button
+              className="close-fullscreen-btn"
+              onClick={() => setFullScreenMap(false)}
+              title="Close full-screen map"
+            >
+              ✕ Close
+            </button>
+          </div>
+          <div className="fullscreen-map-container">
+            <div className="fullscreen-map-content">
+              <BreakdownMap
+                breakdowns={filteredBreakdowns}
+                highlightedId={highlightedBreakdown}
+                onMarkerClick={(breakdownId) => {
+                  setHighlightedBreakdown(breakdownId);
+                  // Expand the sidebar card for this breakdown
+                  setExpandedCard(breakdownId);
+                  // Clear highlight after 10 seconds
+                  setTimeout(() => setHighlightedBreakdown(null), 10000);
+                }}
+              />
+            </div>
+            <div className="fullscreen-map-sidebar">
+              <div className="sidebar-header">
+                <h3>Active Breakdowns</h3>
+                <button
+                  className="toggle-sidebar-btn"
+                  onClick={(e) => {
+                    e.currentTarget.closest('.fullscreen-map-sidebar').classList.toggle('collapsed');
+                  }}
+                >
+                  ◀
+                </button>
+              </div>
+              <div className="sidebar-breakdown-list">
+                {filteredBreakdowns.map(breakdown => (
+                  <div
+                    key={breakdown.breakdown_id}
+                    className={`sidebar-breakdown-card ${
+                      highlightedBreakdown === breakdown.breakdown_id ? 'highlighted' : ''
+                    } ${expandedCard === breakdown.breakdown_id ? 'expanded' : ''}`}
+                    onClick={() => {
+                      setHighlightedBreakdown(breakdown.breakdown_id);
+                      setExpandedCard(expandedCard === breakdown.breakdown_id ? null : breakdown.breakdown_id);
+                    }}
+                  >
+                    <div className="card-header-mini">
+                      <span className={`severity-badge severity-${(breakdown.wizard_decision || breakdown.severity || 'continue').toLowerCase()}`}>
+                        {breakdown.wizard_decision || breakdown.severity || 'PENDING'}
+                      </span>
+                      <span className="fleet-number">Fleet {breakdown.fleet_no}</span>
+                      <span className="elapsed-time">
+                        {breakdown.elapsed || Math.floor((new Date() - new Date(breakdown.created_at)) / 1000 / 60)} min
+                      </span>
+                    </div>
+                    <div className="card-location">
+                      📍 {breakdown.location_description || breakdown.location || 'Location TBC'}
+                    </div>
+                    {expandedCard === breakdown.breakdown_id && (
+                      <div className="card-details-mini">
+                        <div className="detail-row">
+                          <span className="label">Route:</span>
+                          <span className="value">{breakdown.route_id || 'N/A'}</span>
+                        </div>
+                        <div className="detail-row">
+                          <span className="label">Depot:</span>
+                          <span className="value">{breakdown.depot || 'Unknown'}</span>
+                        </div>
+                        <div className="detail-row">
+                          <span className="label">Issue:</span>
+                          <span className="value">{breakdown.issue_category || 'Not specified'}</span>
+                        </div>
+                        <button
+                          className="view-details-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setFullScreenMap(false);
+                            const cardElement = breakdownRefs.current.get(breakdown.breakdown_id);
+                            if (cardElement) {
+                              cardElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }
+                          }}
+                        >
+                          View Full Details
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Real-time indicator */}
       <div className="dashboard-footer">
@@ -1619,9 +1876,21 @@ const SDCDashboard = () => {
           <span className="pulse"></span>
           SDC Live Data - Real breakdowns from assessments
         </span>
-        <span className="last-update">
-          {filteredBreakdowns.length} breakdown{filteredBreakdowns.length !== 1 ? 's' : ''} displayed
-        </span>
+        <div className="footer-controls">
+          <button
+            className={`sound-toggle-btn ${soundEnabled ? 'enabled' : 'disabled'}`}
+            onClick={handleSoundToggle}
+            title={soundEnabled ? 'Click to disable sound alerts' : 'Click to enable sound alerts'}
+          >
+            {soundEnabled ? '🔊' : '🔇'}
+            <span className="sound-toggle-label">
+              {soundEnabled ? 'Sound ON' : 'Sound OFF'}
+            </span>
+          </button>
+          <span className="last-update">
+            {filteredBreakdowns.length} breakdown{filteredBreakdowns.length !== 1 ? 's' : ''} displayed
+          </span>
+        </div>
       </div>
 
       {/* Breakdown Resolution Dialog */}
@@ -1633,33 +1902,7 @@ const SDCDashboard = () => {
         currentSupervisor={currentSupervisor}
       />
 
-      <style jsx>{`
-        .supervisor-stats {
-          background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.05));
-          border: 1px solid rgba(59, 130, 246, 0.2);
-          border-radius: 12px;
-          padding: 12px 16px;
-          margin-bottom: 20px;
-          backdrop-filter: blur(10px);
-        }
-        
-        .supervisor-breakdown-count {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          color: #3b82f6;
-          font-weight: 500;
-          font-size: 14px;
-        }
-        
-        .supervisor-icon {
-          font-size: 16px;
-        }
-        
-        .supervisor-text {
-          color: #1e293b;
-        }
-
+      <style>{`
         .breakdown-list {
           min-height: 400px;
         }
@@ -1952,9 +2195,105 @@ const SDCDashboard = () => {
           }
         }
 
+        .footer-controls {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+        }
+
+        .sound-toggle-btn {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 16px;
+          border: none;
+          border-radius: 20px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .sound-toggle-btn.enabled {
+          background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+          color: white;
+        }
+
+        .sound-toggle-btn.enabled:hover {
+          background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+          transform: scale(1.02);
+          box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+        }
+
+        .sound-toggle-btn.disabled {
+          background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+          color: rgba(255, 255, 255, 0.9);
+        }
+
+        .sound-toggle-btn.disabled:hover {
+          background: linear-gradient(135deg, #475569 0%, #334155 100%);
+          transform: scale(1.02);
+        }
+
+        .sound-toggle-label {
+          font-size: 12px;
+        }
+
         .last-update {
           color: #888;
           font-size: 12px;
+        }
+
+        /* Screen Flash Overlay for Critical Alerts */
+        .screen-flash-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          pointer-events: none;
+          z-index: 9999;
+          animation: screenFlash 1.5s ease-out forwards;
+        }
+
+        .screen-flash-overlay.flash-stop {
+          background: radial-gradient(ellipse at center,
+            rgba(220, 38, 38, 0.4) 0%,
+            rgba(220, 38, 38, 0.2) 50%,
+            rgba(220, 38, 38, 0) 100%
+          );
+          animation-duration: 1.5s;
+        }
+
+        .screen-flash-overlay.flash-amber {
+          background: radial-gradient(ellipse at center,
+            rgba(245, 158, 11, 0.3) 0%,
+            rgba(245, 158, 11, 0.15) 50%,
+            rgba(245, 158, 11, 0) 100%
+          );
+          animation-duration: 1s;
+        }
+
+        @keyframes screenFlash {
+          0% {
+            opacity: 0;
+          }
+          15% {
+            opacity: 1;
+          }
+          30% {
+            opacity: 0.7;
+          }
+          50% {
+            opacity: 0.9;
+          }
+          70% {
+            opacity: 0.5;
+          }
+          100% {
+            opacity: 0;
+          }
         }
 
         /* Mobile Responsive Styles */
@@ -1987,6 +2326,457 @@ const SDCDashboard = () => {
 
           .breakdown-card-container {
             scroll-margin-top: 80px;
+          }
+        }
+
+        /* Breakdown Map Widget Styles */
+        .breakdown-map-widget {
+          background:
+            linear-gradient(135deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.95) 100%),
+            radial-gradient(circle at 50% 0%, rgba(16, 185, 129, 0.02) 0%, transparent 50%);
+          backdrop-filter: blur(10px);
+          border: 1px solid rgba(255,255,255,0.9);
+          border-radius: 20px;
+          padding: 0;
+          box-shadow:
+            0 10px 40px rgba(0,0,0,0.06),
+            0 2px 10px rgba(0,0,0,0.04),
+            inset 0 2px 0 rgba(255,255,255,0.7);
+          overflow: hidden;
+          height: calc(100vh - 180px);
+          display: flex;
+          flex-direction: column;
+        }
+
+        .map-header {
+          font-size: 18px;
+          color: #0f172a;
+          margin: 0;
+          padding: 24px 28px 20px 28px;
+          font-weight: 800;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          letter-spacing: -0.02em;
+          background: linear-gradient(135deg, rgba(248,250,252,0.5) 0%, rgba(241,245,249,0.5) 100%);
+          border-bottom: 1px solid rgba(226,232,240,0.3);
+        }
+
+        .breakdown-map-widget > div:last-child {
+          flex: 1;
+          min-height: 0;
+          padding: 20px;
+        }
+
+        @media (max-width: 1200px) {
+          .breakdown-map-widget {
+            height: 500px;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .breakdown-map-widget {
+            height: 400px;
+          }
+        }
+
+        /* Full-Screen Map Button */
+        .map-header-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 24px 28px 20px 28px;
+          background: linear-gradient(135deg, rgba(248,250,252,0.5) 0%, rgba(241,245,249,0.5) 100%);
+          border-bottom: 1px solid rgba(226,232,240,0.3);
+        }
+
+        .map-header-row .map-header {
+          padding: 0;
+          background: none;
+          border: none;
+        }
+
+        .fullscreen-map-btn {
+          background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+          color: white;
+          border: none;
+          padding: 10px 18px;
+          border-radius: 10px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .fullscreen-map-btn:hover {
+          background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+          transform: translateY(-2px);
+          box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+        }
+
+        /* Full-Screen Map Overlay */
+        .fullscreen-map-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          z-index: 9998;
+          background: #0f172a;
+          display: flex;
+          flex-direction: column;
+          animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        .fullscreen-map-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 16px 24px;
+          background: linear-gradient(135deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.98) 100%);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+          backdrop-filter: blur(10px);
+        }
+
+        .fullscreen-map-title {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+        }
+
+        .fullscreen-map-title .title-icon {
+          font-size: 28px;
+        }
+
+        .fullscreen-map-title h2 {
+          margin: 0;
+          font-size: 22px;
+          font-weight: 700;
+          color: white;
+          letter-spacing: -0.02em;
+        }
+
+        .fullscreen-map-title .breakdown-count {
+          background: rgba(59, 130, 246, 0.2);
+          color: #60a5fa;
+          padding: 6px 14px;
+          border-radius: 20px;
+          font-size: 13px;
+          font-weight: 600;
+          border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .fullscreen-map-info {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          color: rgba(248, 250, 252, 0.7);
+          font-size: 14px;
+        }
+
+        .fullscreen-map-info .live-dot {
+          width: 10px;
+          height: 10px;
+          background: #22c55e;
+          border-radius: 50%;
+          animation: pulse 2s infinite;
+        }
+
+        .fullscreen-map-info .current-time {
+          font-weight: 700;
+          color: #f8fafc;
+          font-size: 18px;
+          font-family: 'Monaco', monospace;
+        }
+
+        .close-fullscreen-btn {
+          background: rgba(239, 68, 68, 0.2);
+          color: #fca5a5;
+          border: 1px solid rgba(239, 68, 68, 0.3);
+          padding: 10px 20px;
+          border-radius: 10px;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s ease;
+        }
+
+        .close-fullscreen-btn:hover {
+          background: rgba(239, 68, 68, 0.3);
+          color: white;
+          border-color: rgba(239, 68, 68, 0.5);
+        }
+
+        .fullscreen-map-container {
+          flex: 1;
+          display: flex;
+          min-height: 0;
+        }
+
+        .fullscreen-map-content {
+          flex: 1;
+          position: relative;
+          min-width: 0;
+        }
+
+        .fullscreen-map-content .breakdown-map-container {
+          height: 100% !important;
+          border-radius: 0 !important;
+        }
+
+        /* Sidebar */
+        .fullscreen-map-sidebar {
+          width: 380px;
+          background: linear-gradient(180deg, rgba(15, 23, 42, 0.98) 0%, rgba(30, 41, 59, 0.95) 100%);
+          border-left: 1px solid rgba(255, 255, 255, 0.1);
+          display: flex;
+          flex-direction: column;
+          transition: all 0.3s ease;
+          overflow: hidden;
+        }
+
+        .fullscreen-map-sidebar.collapsed {
+          width: 50px;
+        }
+
+        .fullscreen-map-sidebar.collapsed .sidebar-breakdown-list,
+        .fullscreen-map-sidebar.collapsed .sidebar-header h3 {
+          display: none;
+        }
+
+        .fullscreen-map-sidebar.collapsed .toggle-sidebar-btn {
+          transform: rotate(180deg);
+        }
+
+        .sidebar-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 16px 20px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar-header h3 {
+          margin: 0;
+          font-size: 16px;
+          font-weight: 700;
+          color: #f8fafc;
+        }
+
+        .toggle-sidebar-btn {
+          background: rgba(255, 255, 255, 0.1);
+          border: none;
+          color: #94a3b8;
+          padding: 8px 12px;
+          border-radius: 6px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .toggle-sidebar-btn:hover {
+          background: rgba(255, 255, 255, 0.15);
+          color: white;
+        }
+
+        .sidebar-breakdown-list {
+          flex: 1;
+          overflow-y: auto;
+          padding: 12px;
+        }
+
+        .sidebar-breakdown-card {
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 12px;
+          padding: 14px;
+          margin-bottom: 10px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .sidebar-breakdown-card:hover {
+          background: rgba(255, 255, 255, 0.08);
+          border-color: rgba(59, 130, 246, 0.3);
+        }
+
+        .sidebar-breakdown-card.highlighted {
+          border-color: #3b82f6;
+          background: rgba(59, 130, 246, 0.15);
+          box-shadow: 0 0 20px rgba(59, 130, 246, 0.2);
+        }
+
+        .sidebar-breakdown-card.expanded {
+          border-color: #22c55e;
+        }
+
+        .card-header-mini {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 8px;
+        }
+
+        .severity-badge {
+          padding: 4px 10px;
+          border-radius: 6px;
+          font-size: 11px;
+          font-weight: 700;
+          text-transform: uppercase;
+        }
+
+        .severity-badge.severity-stop {
+          background: rgba(220, 38, 38, 0.2);
+          color: #fca5a5;
+          border: 1px solid rgba(220, 38, 38, 0.3);
+        }
+
+        .severity-badge.severity-amber {
+          background: rgba(245, 158, 11, 0.2);
+          color: #fcd34d;
+          border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .severity-badge.severity-continue {
+          background: rgba(16, 185, 129, 0.2);
+          color: #6ee7b7;
+          border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .severity-badge.severity-pending {
+          background: rgba(100, 116, 139, 0.2);
+          color: #94a3b8;
+          border: 1px solid rgba(100, 116, 139, 0.3);
+        }
+
+        .card-header-mini .fleet-number {
+          font-weight: 700;
+          color: #f8fafc;
+          font-size: 15px;
+        }
+
+        .card-header-mini .elapsed-time {
+          margin-left: auto;
+          font-size: 12px;
+          color: #94a3b8;
+          font-weight: 600;
+        }
+
+        .card-location {
+          font-size: 13px;
+          color: #cbd5e1;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .card-details-mini {
+          margin-top: 12px;
+          padding-top: 12px;
+          border-top: 1px solid rgba(255, 255, 255, 0.1);
+          animation: slideDown 0.2s ease-out;
+        }
+
+        @keyframes slideDown {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .card-details-mini .detail-row {
+          display: flex;
+          justify-content: space-between;
+          font-size: 12px;
+          margin-bottom: 8px;
+        }
+
+        .card-details-mini .label {
+          color: #64748b;
+        }
+
+        .card-details-mini .value {
+          color: #e2e8f0;
+          font-weight: 600;
+        }
+
+        .view-details-btn {
+          width: 100%;
+          margin-top: 12px;
+          background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+          color: white;
+          border: none;
+          padding: 10px;
+          border-radius: 8px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .view-details-btn:hover {
+          background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        }
+
+        @media (max-width: 768px) {
+          .fullscreen-map-sidebar {
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 85%;
+            max-width: 380px;
+            transform: translateX(100%);
+            z-index: 10;
+          }
+
+          .fullscreen-map-sidebar:not(.collapsed) {
+            transform: translateX(0);
+          }
+
+          .fullscreen-map-container {
+            position: relative;
+          }
+
+          .toggle-sidebar-btn {
+            position: fixed;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 5;
+            background: rgba(59, 130, 246, 0.9);
+            color: white;
+            padding: 12px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+          }
+
+          .fullscreen-map-header {
+            flex-wrap: wrap;
+            gap: 12px;
+            padding: 12px 16px;
+          }
+
+          .fullscreen-map-title h2 {
+            font-size: 18px;
+          }
+
+          .fullscreen-map-info {
+            order: 1;
+            width: 100%;
+            justify-content: center;
           }
         }
       `}</style>

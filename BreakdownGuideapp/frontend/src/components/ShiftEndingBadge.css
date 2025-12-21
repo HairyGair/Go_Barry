@@ -1,0 +1,134 @@
+/**
+ * Shift Ending Badge Styles
+ * Phase 7.4: Breakdown Priority Based on Shift Time
+ */
+
+/* Base Badge Styles */
+.shift-ending-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Warning State (< 1 hour remaining) */
+.shift-ending-badge.warning {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(234, 179, 8, 0.1));
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #fbbf24;
+}
+
+/* Critical State (< 30 minutes remaining) */
+.shift-ending-badge.critical {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.1));
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #f87171;
+  animation: pulse-critical 1s ease-in-out infinite;
+}
+
+/* Badge Icon */
+.shift-ending-badge .badge-icon {
+  font-size: 1rem;
+}
+
+.shift-ending-badge.critical .badge-icon {
+  animation: bounce-icon 0.5s ease-in-out infinite;
+}
+
+/* Badge Text */
+.shift-ending-badge .badge-text {
+  white-space: nowrap;
+}
+
+/* Badge Time */
+.shift-ending-badge .badge-time {
+  font-size: 0.7rem;
+  opacity: 0.8;
+  white-space: nowrap;
+}
+
+/* Compact Variant */
+.shift-ending-badge.compact {
+  padding: 0.35rem 0.5rem;
+  gap: 0.25rem;
+  border-radius: 6px;
+}
+
+.shift-ending-badge.compact .badge-icon {
+  font-size: 0.85rem;
+}
+
+.shift-ending-badge.compact .badge-time {
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+/* Animations */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(245, 158, 11, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(245, 158, 11, 0.5);
+  }
+}
+
+@keyframes pulse-critical {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(239, 68, 68, 0.3);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.6);
+    transform: scale(1.02);
+  }
+}
+
+@keyframes bounce-icon {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .shift-ending-badge {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.75rem;
+    gap: 0.35rem;
+  }
+
+  .shift-ending-badge .badge-icon {
+    font-size: 0.9rem;
+  }
+
+  .shift-ending-badge .badge-time {
+    display: none;
+  }
+
+  .shift-ending-badge.compact .badge-time {
+    display: block;
+  }
+}
+
+@media (max-width: 480px) {
+  .shift-ending-badge {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.7rem;
+  }
+
+  .shift-ending-badge .badge-text {
+    display: none;
+  }
+
+  .shift-ending-badge.compact {
+    padding: 0.25rem 0.4rem;
+  }
+}

@@ -7,6 +7,10 @@ import React, { useState, useEffect } from 'react';
 import { apiClient } from '../../services/api-client.js';
 import AdminFleetImportSettings from '../AdminFleetImportSettings.jsx';
 import AdminGTFSSettings from '../AdminGTFSSettings.jsx';
+import DutyScheduleDashboard from '../admin/DutyScheduleDashboard.jsx';
+import AdminDutyAudit from '../admin/AdminDutyAudit.jsx';
+import AdminComplianceSettings from '../admin/AdminComplianceSettings.jsx';
+import SupervisorHistoryModal from '../SupervisorHistoryModal.jsx';
 
 const AdminSettings = () => {
   const [supervisors, setSupervisors] = useState([]);
@@ -14,7 +18,7 @@ const AdminSettings = () => {
   const [error, setError] = useState(null);
 
   // Admin tab state
-  const [adminTab, setAdminTab] = useState('supervisors'); // 'supervisors', 'fleet', or 'gtfs'
+  const [adminTab, setAdminTab] = useState('supervisors'); // 'supervisors', 'fleet', 'gtfs', 'duty', 'audit', or 'test'
 
   // Password reset modal state
   const [showResetModal, setShowResetModal] = useState(false);
@@ -24,6 +28,22 @@ const AdminSettings = () => {
   const [passwordError, setPasswordError] = useState('');
   const [resetting, setResetting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+
+  // Supervisor history modal state
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [historySuperviorId, setHistorySupervisorId] = useState(null);
+
+  // Open supervisor history modal
+  const openHistoryModal = (supervisor) => {
+    setHistorySupervisorId(supervisor.id);
+    setShowHistoryModal(true);
+  };
+
+  // Close supervisor history modal
+  const closeHistoryModal = () => {
+    setShowHistoryModal(false);
+    setHistorySupervisorId(null);
+  };
 
   // Load supervisors on mount
   useEffect(() => {
@@ -277,6 +297,87 @@ const AdminSettings = () => {
           🗺️ GTFS Data
         </button>
         <button
+          onClick={() => setAdminTab('duty')}
+          style={{
+            padding: '12px 20px',
+            background: adminTab === 'duty' ? 'var(--primary-color, #667eea)' : 'transparent',
+            color: adminTab === 'duty' ? 'white' : 'var(--text-secondary)',
+            border: 'none',
+            borderBottom: adminTab === 'duty' ? '3px solid var(--primary-color, #667eea)' : 'none',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: '600',
+            transition: 'all 0.2s ease',
+            marginBottom: '-1px'
+          }}
+          onMouseEnter={(e) => {
+            if (adminTab !== 'duty') {
+              e.target.style.background = 'rgba(102, 126, 234, 0.1)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (adminTab !== 'duty') {
+              e.target.style.background = 'transparent';
+            }
+          }}
+        >
+          📅 Duty Schedules
+        </button>
+        <button
+          onClick={() => setAdminTab('audit')}
+          style={{
+            padding: '12px 20px',
+            background: adminTab === 'audit' ? 'var(--primary-color, #667eea)' : 'transparent',
+            color: adminTab === 'audit' ? 'white' : 'var(--text-secondary)',
+            border: 'none',
+            borderBottom: adminTab === 'audit' ? '3px solid var(--primary-color, #667eea)' : 'none',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: '600',
+            transition: 'all 0.2s ease',
+            marginBottom: '-1px'
+          }}
+          onMouseEnter={(e) => {
+            if (adminTab !== 'audit') {
+              e.target.style.background = 'rgba(102, 126, 234, 0.1)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (adminTab !== 'audit') {
+              e.target.style.background = 'transparent';
+            }
+          }}
+        >
+          📋 Audit Trail
+        </button>
+        <button
+          onClick={() => setAdminTab('compliance')}
+          style={{
+            padding: '12px 20px',
+            background: adminTab === 'compliance' ? 'var(--primary-color, #667eea)' : 'transparent',
+            color: adminTab === 'compliance' ? 'white' : 'var(--text-secondary)',
+            border: 'none',
+            borderBottom: adminTab === 'compliance' ? '3px solid var(--primary-color, #667eea)' : 'none',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: '600',
+            transition: 'all 0.2s ease',
+            marginBottom: '-1px'
+          }}
+          onMouseEnter={(e) => {
+            if (adminTab !== 'compliance') {
+              e.target.style.background = 'rgba(102, 126, 234, 0.1)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (adminTab !== 'compliance') {
+              e.target.style.background = 'transparent';
+            }
+          }}
+        >
+          &#x1F512; Compliance
+        </button>
+        <button
           onClick={() => setAdminTab('test')}
           style={{
             padding: '12px 20px',
@@ -368,12 +469,42 @@ const AdminSettings = () => {
                 onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-hover, #333333)'}
                 onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
               >
-                <div style={{
-                  color: 'var(--text-primary)',
-                  fontWeight: '500',
-                  fontSize: '14px'
-                }}>
-                  {supervisor.name || supervisor.full_name}
+                <div
+                  style={{
+                    color: 'var(--text-primary)',
+                    fontWeight: '500',
+                    fontSize: '14px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                  onClick={() => openHistoryModal(supervisor)}
+                  title="Click to view full history"
+                >
+                  <span style={{
+                    width: '32px',
+                    height: '32px',
+                    background: 'linear-gradient(135deg, #3B82F6, #8B5CF6)',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'white',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    flexShrink: 0
+                  }}>
+                    {(supervisor.name || supervisor.full_name || '?').charAt(0).toUpperCase()}
+                  </span>
+                  <span style={{
+                    textDecoration: 'underline',
+                    textDecorationColor: 'rgba(59, 130, 246, 0.5)',
+                    textUnderlineOffset: '2px'
+                  }}>
+                    {supervisor.name || supervisor.full_name}
+                  </span>
+                  <span style={{ fontSize: '10px', opacity: 0.6 }}>📋</span>
                 </div>
 
                 <div style={{
@@ -565,6 +696,14 @@ const AdminSettings = () => {
           </div>
         </div>
       )}
+
+      {/* Supervisor History Modal */}
+      {showHistoryModal && historySuperviorId && (
+        <SupervisorHistoryModal
+          supervisorId={historySuperviorId}
+          onClose={closeHistoryModal}
+        />
+      )}
         </>
       )}
 
@@ -588,6 +727,21 @@ const AdminSettings = () => {
 
           <AdminGTFSSettings />
         </>
+      )}
+
+      {/* Duty Schedules Tab */}
+      {adminTab === 'duty' && (
+        <DutyScheduleDashboard />
+      )}
+
+      {/* Audit Trail Tab */}
+      {adminTab === 'audit' && (
+        <AdminDutyAudit />
+      )}
+
+      {/* Compliance Tab */}
+      {adminTab === 'compliance' && (
+        <AdminComplianceSettings />
       )}
 
       {/* Test Pages Tab */}

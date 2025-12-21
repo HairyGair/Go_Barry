@@ -27,6 +27,18 @@ export const AuthProvider = ({ children }) => {
     // Restore session from backend on mount (SECURITY FIX: XSS prevention)
     useEffect(() => {
         const restoreSession = async () => {
+            // CRITICAL: Check if we just logged out - skip session restoration
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('logout')) {
+                console.log('🚪 Logout detected - skipping session restoration');
+                setIsAuthenticated(false);
+                setCurrentUser(null);
+                setIsSessionChecking(false);
+                // Clean up URL without triggering navigation
+                window.history.replaceState({}, '', '/');
+                return;
+            }
+
             try {
                 const apiUrl = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
                 const response = await fetch(`${apiUrl}/api/auth/me`, {

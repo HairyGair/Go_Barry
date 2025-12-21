@@ -21,14 +21,14 @@ router.get('/', async (req, res) => {
     // Build base query
     let queryBuilder = from('fleet_vehicles')
       .select('*')
-      .order('fleet_number', 'ASC');
+      .order('fleet_no', 'ASC');
 
-    // Apply search filter (fleet_number, registration, or depot)
+    // Apply search filter (fleet_no, registration, or depot)
     if (search) {
       const searchConditions = [];
       const searchParams = [];
 
-      searchConditions.push('fleet_number LIKE ?');
+      searchConditions.push('fleet_no LIKE ?');
       searchParams.push(`%${search}%`);
 
       searchConditions.push('registration LIKE ?');
@@ -54,7 +54,7 @@ router.get('/', async (req, res) => {
       }
 
       // Add order, limit, offset
-      sql += ' ORDER BY fleet_number ASC LIMIT ? OFFSET ?';
+      sql += ' ORDER BY fleet_no ASC LIMIT ? OFFSET ?';
       params.push(pageLimit, offset);
 
       const data = await query(sql, params);
@@ -149,14 +149,14 @@ router.get('/vehicles', async (req, res) => {
     // Build base query
     let queryBuilder = from('fleet_vehicles')
       .select('*')
-      .order('fleet_number', 'ASC');
+      .order('fleet_no', 'ASC');
 
-    // Apply search filter (fleet_number, registration, or depot)
+    // Apply search filter (fleet_no, registration, or depot)
     if (search) {
       const searchConditions = [];
       const searchParams = [];
 
-      searchConditions.push('fleet_number LIKE ?');
+      searchConditions.push('fleet_no LIKE ?');
       searchParams.push(`%${search}%`);
 
       searchConditions.push('registration LIKE ?');
@@ -182,7 +182,7 @@ router.get('/vehicles', async (req, res) => {
       }
 
       // Add order, limit, offset
-      sql += ' ORDER BY fleet_number ASC LIMIT ? OFFSET ?';
+      sql += ' ORDER BY fleet_no ASC LIMIT ? OFFSET ?';
       params.push(pageLimit, offset);
 
       const data = await query(sql, params);
@@ -273,12 +273,12 @@ router.get('/search/:term', async (req, res) => {
   try {
     const searchTerm = req.params.term;
 
-    // Search in fleet_number and registration with LIKE
+    // Search in fleet_no and registration with LIKE (FIXED: was fleet_number)
     const sql = `
       SELECT *
       FROM fleet_vehicles
-      WHERE fleet_number LIKE ? OR registration LIKE ?
-      ORDER BY fleet_number ASC
+      WHERE fleet_no LIKE ? OR registration LIKE ?
+      ORDER BY fleet_no ASC
       LIMIT 20
     `;
 
@@ -297,7 +297,7 @@ router.get('/vehicle/:fleetNumber', async (req, res) => {
   try {
     const { data, error } = await from('fleet_vehicles')
       .select('*')
-      .eq('fleet_number', req.params.fleetNumber)
+      .eq('fleet_no', req.params.fleetNumber)  // FIXED: Use fleet_no not fleet_number
       .single();
 
     if (error) throw error;
@@ -318,7 +318,7 @@ router.get('/:fleetNumber', async (req, res) => {
   try {
     const { data, error } = await from('fleet_vehicles')
       .select('*')
-      .eq('fleet_number', req.params.fleetNumber)
+      .eq('fleet_no', req.params.fleetNumber)  // FIXED: Use fleet_no not fleet_number
       .single();
 
     if (error) throw error;
@@ -428,8 +428,8 @@ router.put('/:fleetNumber', async (req, res) => {
       updated_at: new Date()
     };
 
-    // Remove fleet_number and id from update data if present
-    delete updateData.fleet_number;
+    // Remove fleet_no and id from update data if present
+    delete updateData.fleet_no;
     delete updateData.id;
 
     // Build update query
@@ -437,7 +437,7 @@ router.put('/:fleetNumber', async (req, res) => {
     const sql = `
       UPDATE fleet_vehicles
       SET ${keys.map(k => `${k} = ?`).join(', ')}
-      WHERE fleet_number = ?
+      WHERE fleet_no = ?
     `;
 
     const params = [...keys.map(k => updateData[k]), fleetNumber];
@@ -446,7 +446,7 @@ router.put('/:fleetNumber', async (req, res) => {
     // Fetch updated record
     const { data, error } = await from('fleet_vehicles')
       .select('*')
-      .eq('fleet_number', fleetNumber)
+      .eq('fleet_no', fleetNumber)
       .single();
 
     if (error) throw error;
@@ -475,7 +475,7 @@ router.patch('/:fleetNumber/status', async (req, res) => {
     const sql = `
       UPDATE fleet_vehicles
       SET status = ?, updated_at = ?
-      WHERE fleet_number = ?
+      WHERE fleet_no = ?
     `;
 
     const params = [status, new Date(), fleetNumber];
@@ -484,7 +484,7 @@ router.patch('/:fleetNumber/status', async (req, res) => {
     // Fetch updated record
     const { data, error } = await from('fleet_vehicles')
       .select('*')
-      .eq('fleet_number', fleetNumber)
+      .eq('fleet_no', fleetNumber)
       .single();
 
     if (error) throw error;

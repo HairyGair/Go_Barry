@@ -7,6 +7,8 @@ import PerformanceTrends from './PerformanceTrends';
 import DepotComparison from './DepotComparison';
 import FleetHealth from './FleetHealth';
 import ExportPanel from './ExportPanel';
+import SupervisorPerformance from './SupervisorPerformance';
+import CoverageGapsAnalysis from './CoverageGapsAnalysis';
 
 const REFRESH_INTERVAL = 30000; // 30 seconds for executive dashboard
 
@@ -182,13 +184,19 @@ const ManagementDashboard = () => {
           <div className="two-column-layout">
             {/* Depot Comparison */}
             <DepotComparison depotData={depotData} />
-            
+
             {/* Fleet Health */}
             <FleetHealth fleetHealth={fleetHealth} />
           </div>
 
+          {/* Supervisor Performance Dashboard */}
+          <SupervisorPerformance period={selectedPeriod === 'today' ? 'week' : selectedPeriod} />
+
+          {/* Coverage Gaps Analysis */}
+          <CoverageGapsAnalysis />
+
           {/* Export Panel */}
-          <ExportPanel 
+          <ExportPanel
             onExport={handleExport}
             period={selectedPeriod}
           />

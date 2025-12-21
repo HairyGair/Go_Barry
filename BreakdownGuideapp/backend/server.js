@@ -213,6 +213,14 @@ import adminFleetRoutes from './routes/adminFleet.js';
 import adminGTFSRoutes from './routes/adminGTFS.js';
 import gtfsPhase1Routes from './routes/gtfsPhase1.js';
 import supervisorSessionsRoutes from './routes/supervisorSessions.js';
+import assessmentRoutes from './routes/assessment.js';
+import dutyHandoverRoutes from './routes/dutyHandover.js';
+import dutyNotesRoutes from './routes/dutyNotes.js';
+import dutySchedulesRoutes from './routes/dutySchedules.js';
+import dutyAuditRoutes from './routes/dutyAudit.js';
+import dutyBreaksRoutes from './routes/dutyBreaks.js';
+import dutyExtensionsRoutes from './routes/dutyExtensions.js';
+import systemSettingsRoutes from './routes/systemSettings.js';
 import webSocketHandler from './routes/webSocketHandler.js';
 
 // Root API documentation endpoint
@@ -626,10 +634,18 @@ app.use('/api/defects', authenticateSupervisor, defectsRoutes);
 app.use('/api/displays', authenticateSupervisor, displayRoutes); // Display control - requires auth
 app.use('/api/bug-reports', bugReportsRoutes); // Bug reports - no auth required for submission, auth for viewing
 app.use('/api/supervisors', supervisorRoutes); // Stats endpoint is read-only, no auth required
+app.use('/api/assessment', assessmentRoutes); // Assessment broadcasts - no auth required for real-time updates
+app.use('/api/duty', authenticateSupervisor, dutyHandoverRoutes); // Duty handover routes
+app.use('/api/duty', authenticateSupervisor, dutyNotesRoutes); // Duty notes/log routes
 
 // Admin-only routes (require admin role)
 app.use('/api/admin/fleet', authenticateAdmin, adminFleetRoutes); // Fleet CSV import and management
 app.use('/api/admin/gtfs', authenticateAdmin, adminGTFSRoutes); // GTFS transit data import
+app.use('/api/admin/duty', authenticateAdmin, dutySchedulesRoutes); // Duty schedule management (Phase 5)
+app.use('/api/audit', authenticateAdmin, dutyAuditRoutes); // Duty audit trail (Phase 9.2)
+app.use('/api/breaks', authenticateSupervisor, dutyBreaksRoutes); // Break tracking (Phase 2.3)
+app.use('/api/extensions', authenticateSupervisor, dutyExtensionsRoutes); // Duty extensions (Phase 2.5)
+app.use('/api/settings', systemSettingsRoutes); // System settings (Phase 9.1) - compliance endpoint is public, others require admin
 
 // GTFS Phase 1 Features - Live route status, coverage analysis, incident heatmap
 app.use('/api/gtfs', authenticateSupervisor, gtfsPhase1Routes);

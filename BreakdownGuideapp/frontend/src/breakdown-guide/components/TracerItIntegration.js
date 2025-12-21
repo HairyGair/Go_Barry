@@ -50,12 +50,12 @@ class TracerItIntegration {
     
     getApiBaseUrl() {
         // In production, this would come from environment variables
-        return process.env.TRACERIT_API_URL || 'https://api.tracerit.gonortheast.co.uk';
+        return import.meta.env.VITE_TRACERIT_API_URL || 'https://api.tracerit.gonortheast.co.uk';
     }
     
     getApiKey() {
         // In production, this would be securely managed
-        return process.env.TRACERIT_API_KEY || 'demo_api_key_breakdown_guide';
+        return import.meta.env.VITE_TRACERIT_API_KEY || 'demo_api_key_breakdown_guide';
     }
     
     async testConnection() {

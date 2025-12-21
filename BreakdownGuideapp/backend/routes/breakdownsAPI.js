@@ -18,7 +18,7 @@ import {
   requestEngineeringSchema,
   sanitizeNotes
 } from '../middleware/validationMiddleware.js';
-import { activityLogger, ACTIVITY_TYPES, SEVERITY_LEVELS } from '../services/activityLogger.js';
+import { activityLogger, ACTIVITY_TYPES, ACTOR_TYPES, ENTITY_TYPES, SEVERITY_LEVELS } from '../services/activityLogger.js';
 
 const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
@@ -170,7 +170,11 @@ router.get('/live', async (req, res) => {
 
         // Location and context
         location: breakdown.location_description || breakdown.location || 'Location not specified',
+        location_description: breakdown.location_description || breakdown.location || 'Location not specified',
         coordinates: breakdown.coordinates || null,
+        // Extract GPS coordinates from wizard_assessment_data or use top-level fields
+        location_lat: breakdown.location_lat || breakdown.wizard_assessment_data?.location_coords?.lat || null,
+        location_lng: breakdown.location_lng || breakdown.wizard_assessment_data?.location_coords?.lng || null,
         
         // Assessment details
         assessmentType: breakdown.issue_category || breakdown.issue_type || 'General',
@@ -434,14 +438,40 @@ router.post('/:id/edit', async (req, res) => {
     };
     
     activitiesData.activities.unshift(newActivity);
-    
+
     // Keep only last 500 activities
     if (activitiesData.activities.length > 500) {
       activitiesData.activities = activitiesData.activities.slice(0, 500);
     }
-    
+
     saveJSONFile(ACTIVITIES_PATH, activitiesData);
-    
+
+    // Parallel logging to unified activity feed (Phase 1 - Activity Feed Enhancement)
+    try {
+      await activityLogger.logActivity({
+        activityType: ACTIVITY_TYPES.BREAKDOWN_UPDATED,
+        action: `initiated assessment edit for ${breakdown.fleet_number}: ${reason.substring(0, 50)}`,
+        actorType: ACTOR_TYPES.SUPERVISOR,
+        actorId: breakdown.supervisor_badge || user_type,
+        actorName: breakdown.supervisor_name || 'SDC Operator',
+        entityType: ENTITY_TYPES.BREAKDOWN,
+        entityId: breakdownId,
+        entityDetails: {
+          fleetNo: breakdown.fleet_number,
+          location: breakdown.location,
+          issueCategory: breakdown.issue_category,
+          originalDecision: breakdown.wizard_decision || breakdown.decision,
+          editReason: reason
+        },
+        depot: breakdown.depot,
+        severity: SEVERITY_LEVELS.INFO,
+        source: source || 'sdc_operations',
+        icon: '✏️'
+      });
+    } catch (activityError) {
+      console.error('⚠️ Failed to log edit initiated activity:', activityError);
+    }
+
     // Prepare edit context
     const editContext = {
       breakdown_id: breakdownId,
@@ -455,7 +485,7 @@ router.post('/:id/edit', async (req, res) => {
       return_url: req.body.return_url || `/dashboards/sdc?highlight=${breakdownId}`,
       audit_id: auditEvent.id
     };
-    
+
     const response = {
       success: true,
       message: 'Assessment edit initiated successfully',
@@ -464,7 +494,7 @@ router.post('/:id/edit', async (req, res) => {
       redirect_url: `/breakdown-guide?edit=${breakdownId}&return=${encodeURIComponent(editContext.return_url)}&reason=${encodeURIComponent(reason)}`,
       timestamp: new Date().toISOString()
     };
-    
+
     console.log(`✏️ SDC API: Edit initiated for ${breakdownId} with reason: ${reason}`);
     
     res.json(response);
@@ -841,6 +871,31 @@ router.post('/acknowledge', validateBody(acknowledgeBreakdownSchema), sanitizeNo
     }
     saveJSONFile(ACTIVITIES_PATH, activitiesData);
 
+    // Parallel logging to unified activity feed (Phase 1 - Activity Feed Enhancement)
+    try {
+      await activityLogger.logActivity({
+        activityType: ACTIVITY_TYPES.BREAKDOWN_ACKNOWLEDGED,
+        action: `acknowledged breakdown on ${breakdown?.fleet_number || 'unknown vehicle'}`,
+        actorType: ACTOR_TYPES.SUPERVISOR,
+        actorId: supervisor_badge || acknowledged_by || 'SDC',
+        actorName: acknowledged_by || 'SDC Operator',
+        entityType: ENTITY_TYPES.BREAKDOWN,
+        entityId: breakdown_id,
+        entityDetails: {
+          fleetNo: breakdown?.fleet_number,
+          location: breakdown?.location,
+          issueCategory: breakdown?.issue_category,
+          notes: notes
+        },
+        depot: breakdown?.depot,
+        severity: SEVERITY_LEVELS.INFO,
+        source: 'sdc_operations',
+        icon: '👁️'
+      });
+    } catch (activityError) {
+      console.error('⚠️ Failed to log acknowledge activity:', activityError);
+    }
+
     // Log audit event
     logAuditEvent({
       action: 'sdc_acknowledged',
@@ -967,6 +1022,33 @@ router.post('/decision', validateBody(recordDecisionSchema), sanitizeNotes, asyn
       activitiesData.activities = activitiesData.activities.slice(0, 500);
     }
     saveJSONFile(ACTIVITIES_PATH, activitiesData);
+
+    // Parallel logging to unified activity feed (Phase 1 - Activity Feed Enhancement)
+    try {
+      await activityLogger.logActivity({
+        activityType: ACTIVITY_TYPES.SDC_DECISION,
+        action: `made ${normalizedDecision} decision on ${breakdown?.fleet_number || 'unknown vehicle'}`,
+        actorType: ACTOR_TYPES.SUPERVISOR,
+        actorId: supervisor_badge || decided_by || 'SDC',
+        actorName: decided_by || 'SDC Operator',
+        entityType: ENTITY_TYPES.BREAKDOWN,
+        entityId: breakdown_id,
+        entityDetails: {
+          fleetNo: breakdown?.fleet_number,
+          location: breakdown?.location,
+          issueCategory: breakdown?.issue_category,
+          decision: normalizedDecision,
+          notes: decision_notes || notes
+        },
+        depot: breakdown?.depot,
+        severity: normalizedDecision === 'STOP' ? SEVERITY_LEVELS.CRITICAL :
+                  normalizedDecision === 'AMBER' ? SEVERITY_LEVELS.WARNING : SEVERITY_LEVELS.SUCCESS,
+        source: 'sdc_operations',
+        icon: normalizedDecision === 'STOP' ? '🚨' : normalizedDecision === 'AMBER' ? '⚡' : '✅'
+      });
+    } catch (activityError) {
+      console.error('⚠️ Failed to log SDC decision activity:', activityError);
+    }
 
     // Log audit event
     logAuditEvent({
@@ -1130,6 +1212,32 @@ router.post('/add-note', validateBody(addNoteSchema), sanitizeNotes, async (req,
     }
     saveJSONFile(ACTIVITIES_PATH, activitiesData);
 
+    // Parallel logging to unified activity feed (Phase 1 - Activity Feed Enhancement)
+    try {
+      await activityLogger.logActivity({
+        activityType: ACTIVITY_TYPES.BREAKDOWN_NOTE_ADDED,
+        action: `added ${note_type || 'operational'} note to ${currentBreakdown.fleet_number || 'unknown vehicle'}`,
+        actorType: ACTOR_TYPES.SUPERVISOR,
+        actorId: supervisor_badge || added_by || 'SDC',
+        actorName: added_by || 'SDC Operator',
+        entityType: ENTITY_TYPES.BREAKDOWN,
+        entityId: breakdown_id,
+        entityDetails: {
+          fleetNo: currentBreakdown.fleet_number,
+          location: currentBreakdown.location,
+          issueCategory: currentBreakdown.issue_category,
+          noteType: note_type || 'operational',
+          notePreview: sanitizedNote.substring(0, 100)
+        },
+        depot: currentBreakdown.depot,
+        severity: SEVERITY_LEVELS.INFO,
+        source: 'sdc_operations',
+        icon: '📝'
+      });
+    } catch (activityError) {
+      console.error('⚠️ Failed to log note activity:', activityError);
+    }
+
     // Log audit event
     logAuditEvent({
       action: 'note_added',
@@ -1287,6 +1395,35 @@ router.post('/request-engineering', validateBody(requestEngineeringSchema), sani
       activitiesData.activities = activitiesData.activities.slice(0, 500);
     }
     saveJSONFile(ACTIVITIES_PATH, activitiesData);
+
+    // Parallel logging to unified activity feed (Phase 1 - Activity Feed Enhancement)
+    try {
+      await activityLogger.logActivity({
+        activityType: ACTIVITY_TYPES.ENGINEER_DISPATCHED,
+        action: `requested engineering for ${currentBreakdown.fleet_number} - Priority: ${requestPriority}`,
+        actorType: ACTOR_TYPES.SUPERVISOR,
+        actorId: supervisor_badge || requested_by || 'SDC',
+        actorName: requested_by || 'SDC Operator',
+        entityType: ENTITY_TYPES.BREAKDOWN,
+        entityId: breakdown_id,
+        entityDetails: {
+          fleetNo: currentBreakdown.fleet_number,
+          location: currentBreakdown.location,
+          issueCategory: currentBreakdown.issue_category,
+          priority: requestPriority,
+          requiredSkills: required_skills,
+          estimatedArrival: estimated_arrival,
+          requestId: engineeringRequest.request_id
+        },
+        depot: currentBreakdown.depot,
+        severity: requestPriority === 'urgent' ? SEVERITY_LEVELS.CRITICAL :
+                  requestPriority === 'high' ? SEVERITY_LEVELS.WARNING : SEVERITY_LEVELS.INFO,
+        source: 'sdc_operations',
+        icon: '🔧'
+      });
+    } catch (activityError) {
+      console.error('⚠️ Failed to log engineering request activity:', activityError);
+    }
 
     // Log audit event
     logAuditEvent({

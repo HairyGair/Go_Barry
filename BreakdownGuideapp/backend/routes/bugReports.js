@@ -48,6 +48,11 @@ router.post('/', async (req, res) => {
       });
     }
 
+    // Truncate fields to prevent ER_DATA_TOO_LONG errors
+    const truncatedTitle = title.substring(0, 250);
+    const truncatedErrorMessage = errorMessage ? errorMessage.substring(0, 65000) : null;
+    const truncatedErrorStack = errorStack ? errorStack.substring(0, 65000) : null;
+
     // Get reporter info from token if available
     let reporterId = null;
     if (req.user) {
@@ -67,7 +72,7 @@ router.post('/', async (req, res) => {
     `;
 
     const result = await db.query(query, [
-      title,
+      truncatedTitle,
       description || null,
       type,
       severity,
@@ -78,8 +83,8 @@ router.post('/', async (req, res) => {
       pageUrl || null,
       userAgent || null,
       browserInfo ? JSON.stringify(browserInfo) : null,
-      errorMessage || null,
-      errorStack || null,
+      truncatedErrorMessage,
+      truncatedErrorStack,
       appVersion || null,
       environment,
       screenshotUrl || null,
@@ -116,6 +121,24 @@ router.post('/', async (req, res) => {
 
   } catch (error) {
     console.error('Error creating bug report:', error);
+
+    // Check for various database errors - return success to not break frontend
+    const errorCode = error.code || '';
+    const isNonCriticalError =
+      errorCode === 'ER_NO_SUCH_TABLE' ||
+      errorCode === 'ER_BAD_TABLE_ERROR' ||
+      errorCode === 'ER_DATA_TOO_LONG' ||
+      errorCode === 'ER_TRUNCATED_WRONG_VALUE';
+
+    if (isNonCriticalError) {
+      console.log(`Bug reports non-critical error (${errorCode}) - returning success to prevent frontend errors`);
+      return res.json({
+        success: true,
+        bugReportId: null,
+        message: 'Feedback received'
+      });
+    }
+
     res.status(500).json({
       success: false,
       error: 'Failed to create bug report'

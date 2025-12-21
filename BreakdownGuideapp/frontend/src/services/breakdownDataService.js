@@ -2,7 +2,7 @@
 // This service ensures proper data flow from assessments to dashboard
 
 // Google Maps Geocoding (free up to 40,000 requests/month with billing enabled, or 2,500/day without)
-const GOOGLE_MAPS_API_KEY = process.env.VITE_GOOGLE_MAPS_API_KEY || '';
+const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
 
 // Depot mapping based on location/fleet ranges
 const DEPOT_MAPPINGS = {
@@ -433,6 +433,7 @@ class BreakdownDataService {
         headers: {
           'Content-Type': 'application/json'
         },
+        credentials: 'include', // Include HTTP-only auth cookie
         body: JSON.stringify({
           latitude,
           longitude,
