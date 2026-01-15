@@ -668,30 +668,6 @@ const App = () => {
     const Dashboard = () => (
         <div className="breakdown-guide-container">
             <main className="main-content">
-                <div className="dashboard-stats">
-                    <div className="stat-card">
-                        <div className="stat-icon">⚠️</div>
-                        <div className="stat-content">
-                            <h3>Active Breakdowns</h3>
-                            <p className="stat-value">0</p>
-                        </div>
-                    </div>
-                    <div className="stat-card">
-                        <div className="stat-icon">📋</div>
-                        <div className="stat-content">
-                            <h3>Today's Assessments</h3>
-                            <p className="stat-value">0</p>
-                        </div>
-                    </div>
-                    <div className="stat-card">
-                        <div className="stat-icon">⏱️</div>
-                        <div className="stat-content">
-                            <h3>Avg Response Time</h3>
-                            <p className="stat-value">- min</p>
-                        </div>
-                    </div>
-                </div>
-                
                 <div className="assessment-grid-container">
                     <h2 className="section-title">Select Assessment Type</h2>
                     <div className="wizard-grid-enhanced">

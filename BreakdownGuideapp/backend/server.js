@@ -221,6 +221,7 @@ import dutyAuditRoutes from './routes/dutyAudit.js';
 import dutyBreaksRoutes from './routes/dutyBreaks.js';
 import dutyExtensionsRoutes from './routes/dutyExtensions.js';
 import systemSettingsRoutes from './routes/systemSettings.js';
+import mileageRoutes from './routes/mileage.js';
 import webSocketHandler from './routes/webSocketHandler.js';
 
 // Root API documentation endpoint
@@ -649,6 +650,7 @@ app.use('/api/settings', systemSettingsRoutes); // System settings (Phase 9.1) -
 
 // GTFS Phase 1 Features - Live route status, coverage analysis, incident heatmap
 app.use('/api/gtfs', authenticateSupervisor, gtfsPhase1Routes);
+app.use('/api/mileage', authenticateSupervisor, mileageRoutes); // Mileage lost calculation
 
 // SDC Dashboard API routes (requires SDC operator authentication and rate limiting)
 app.use('/api/sdc', rateLimitSDC, authenticateSDC, breakdownsAPIRoutes);

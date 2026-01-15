@@ -619,6 +619,10 @@
 }
 
 /* Details Card */
+.details-card {
+  color: #111827 !important; /* Override dark theme inheritance */
+}
+
 .details-list {
   display: flex;
   flex-direction: column;
@@ -634,6 +638,7 @@
   border: 1px solid #e5e7eb;
   border-radius: var(--radius-md);
   transition: all var(--transition-base);
+  color: #111827; /* Explicit dark text */
 }
 
 .detail-row:hover {
@@ -644,7 +649,7 @@
 
 .detail-label {
   font-size: 13px;
-  color: #6b7280;
+  color: #6b7280 !important; /* Gray label - force override */
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -652,7 +657,7 @@
 
 .detail-value {
   font-size: 15px;
-  color: #111827;
+  color: #111827 !important; /* Dark text - force override */
   font-weight: 600;
 }
 

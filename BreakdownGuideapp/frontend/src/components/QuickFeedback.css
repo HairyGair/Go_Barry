@@ -1,8 +1,8 @@
 /* Quick Feedback Widget - Ultra Simple */
 .quick-feedback-widget {
   position: fixed;
-  top: 140px; /* Below fixed header (status bar 28px + header 85px + buffer) */
-  right: 24px;
+  bottom: 24px;
+  left: 80px; /* Next to Notes button */
   z-index: 998;
 }
 
@@ -32,8 +32,8 @@
 /* Expanded Panel */
 .quick-feedback-widget.expanded {
   width: 360px;
-  top: 140px;
-  right: 24px;
+  bottom: 24px;
+  left: 80px;
 }
 
 .quick-feedback-panel {
@@ -348,8 +348,8 @@
 /* Mobile Responsive */
 @media (max-width: 640px) {
   .quick-feedback-widget {
-    top: 70px;
-    right: 16px;
+    bottom: 16px;
+    left: 70px;
   }
 
   .quick-feedback-trigger {
@@ -362,7 +362,7 @@
     width: calc(100% - 32px);
     left: 16px;
     right: 16px;
-    top: 70px;
+    bottom: 80px;
   }
 
   .sentiment-selector {

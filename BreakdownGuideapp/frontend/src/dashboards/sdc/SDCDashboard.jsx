@@ -34,6 +34,7 @@ import useAssessmentData from '../../hooks/useAssessmentData';
 import assessmentAPI from '../../services/assessmentAPI';
 import AssessmentDataFallback from '../../components/AssessmentDataFallback';
 import CoverageAlertWidget from '../../components/CoverageAlertWidget';
+import SupervisorCoverageBar from '../../components/SupervisorCoverageBar';
 import { useAuth } from '../../contexts/AuthContext';
 import { alertSoundService } from '../../services/alertSoundService';
 
@@ -1511,11 +1512,6 @@ const SDCDashboard = () => {
         <div className={`screen-flash-overlay flash-${screenFlash}`} />
       )}
 
-      {/* Coverage Alert Widget - Shows shift coverage status */}
-      <div className="sdc-coverage-alert-wrapper">
-        <CoverageAlertWidget variant="full" refreshInterval={60000} />
-      </div>
-
       {/* LocalStorage Data Notification */}
       {breakdowns.some(b => b.source && b.source.includes('localStorage')) && (
         <div className="localStorage-notification">
@@ -1641,6 +1637,11 @@ const SDCDashboard = () => {
         activeFilter={activeFilter}
         onFilterChange={setActiveFilter}
       />
+
+      {/* Supervisor Coverage Bar - Shows shift coverage status with stats */}
+      <div className="sdc-coverage-bar-wrapper">
+        <SupervisorCoverageBar refreshInterval={60000} />
+      </div>
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">

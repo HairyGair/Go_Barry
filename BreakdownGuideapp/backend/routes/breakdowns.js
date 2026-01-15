@@ -18,6 +18,7 @@ import webSocketHandler from './webSocketHandler.js';
 import { validate } from '../middleware/validationMiddleware.js';
 import { breakdownSchemas } from '../validation/schemas.js';
 import breakdownAssignmentService from '../services/breakdownAssignmentService.js';
+import { calculateMileageLost } from '../services/mileageCalculationService.js';
 
 const router = express.Router();
 
@@ -447,6 +448,13 @@ router.post('/', async (req, res) => {
     const dutyCode = req.body.duty_code || null;
     const dutyName = req.body.duty_name || null;
 
+    // Extract route_id from wizard_assessment_data if not provided directly
+    const wizardData = req.body.wizard_assessment_data || {};
+    const routeId = req.body.route_id ||
+                    wizardData.route ||
+                    req.body.route ||
+                    null;
+
     const breakdownData = {
       ...req.body,
       breakdown_id: idResult.id,
@@ -454,7 +462,9 @@ router.post('/', async (req, res) => {
       status: req.body.status || 'received',
       // Add duty context for shift-based reporting
       duty_code: dutyCode,
-      duty_name: dutyName
+      duty_name: dutyName,
+      // Ensure route_id is populated for mileage calculations
+      route_id: routeId
     };
 
     // Log duty context if present
@@ -557,10 +567,36 @@ router.post('/', async (req, res) => {
       // Don't fail the main request if assignment fails
     }
 
+    // Calculate mileage lost if route_id is available
+    let mileageResult = null;
+    if (data.route_id) {
+      try {
+        mileageResult = await calculateMileageLost({
+          routeId: data.route_id,
+          lat: data.location_lat,
+          lng: data.location_lng,
+          estimatedDowntimeMinutes: 60, // Default 1 hour estimate
+        });
+
+        if (mileageResult.success) {
+          // Update breakdown with mileage data
+          await update('breakdowns', { id: data.id }, {
+            estimated_mileage_lost: mileageResult.mileageLost.totalMiles,
+            mileage_calculation_data: JSON.stringify(mileageResult)
+          });
+          console.log(`📏 Mileage calculated for ${data.breakdown_id}: ${mileageResult.mileageLost.totalMiles} miles`);
+        }
+      } catch (mileageError) {
+        console.error('⚠️ Mileage calculation failed:', mileageError);
+        // Don't fail the main request if mileage calculation fails
+      }
+    }
+
     res.status(201).json({
       ...transformedData,
       breakdown_id: idResult.id,
-      assignment: assignmentResult
+      assignment: assignmentResult,
+      estimated_mileage_lost: mileageResult?.mileageLost?.totalMiles || null
     });
   } catch (error) {
     console.error('Error creating breakdown:', error);

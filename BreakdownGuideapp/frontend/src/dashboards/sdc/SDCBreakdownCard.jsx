@@ -225,6 +225,14 @@ const SDCBreakdownCard = memo(({
           <span className="info-label">Depot</span>
           <span className="info-value">{breakdown.depot_display || breakdown.depot_id || 'Unknown'}</span>
         </div>
+        {breakdown.estimated_mileage_lost > 0 && (
+          <div className="info-item mileage-lost">
+            <span className="info-label">📏 Mileage Lost</span>
+            <span className="info-value mileage-value">
+              {breakdown.estimated_mileage_lost.toFixed(1)} mi
+            </span>
+          </div>
+        )}
         <div className="info-item full-width">
           <DepotContactBadge
             fleetNumber={breakdown.fleet_no || breakdown.fleet_number}

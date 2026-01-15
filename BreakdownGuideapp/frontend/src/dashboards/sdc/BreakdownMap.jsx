@@ -7,6 +7,27 @@ import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import './BreakdownMap.css';
 
+// Zoom tracker component to monitor zoom level changes
+const ZoomTracker = ({ onZoomChange }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    const handleZoom = () => {
+      onZoomChange(map.getZoom());
+    };
+
+    map.on('zoomend', handleZoom);
+    // Initial zoom level
+    onZoomChange(map.getZoom());
+
+    return () => {
+      map.off('zoomend', handleZoom);
+    };
+  }, [map, onZoomChange]);
+
+  return null;
+};
+
 // Heatmap layer component
 const HeatmapLayer = ({ points, options }) => {
   const map = useMap();
@@ -219,6 +240,11 @@ const BreakdownMap = ({
   // Clustering and heatmap state
   const [clusteringEnabled, setClusteringEnabled] = useState(true);
   const [heatmapEnabled, setHeatmapEnabled] = useState(false);
+
+  // Traffic layer state
+  const [currentZoom, setCurrentZoom] = useState(11);
+  const [trafficEnabled, setTrafficEnabled] = useState(true);
+  const TRAFFIC_MIN_ZOOM = 12; // Show traffic when zoom >= 12
 
   // Refs for map instance
   const mapRef = useRef(null);
@@ -456,6 +482,24 @@ const BreakdownMap = ({
         >
           🔥 Heatmap {heatmapEnabled ? 'ON' : 'OFF'}
         </button>
+
+        {/* Traffic toggle button */}
+        <button
+          onClick={() => setTrafficEnabled(!trafficEnabled)}
+          style={{
+            background: trafficEnabled ? '#10b981' : 'rgba(0, 0, 0, 0.7)',
+            color: 'white',
+            border: 'none',
+            padding: '8px 12px',
+            borderRadius: '8px',
+            fontSize: '12px',
+            cursor: 'pointer',
+            fontWeight: '600'
+          }}
+          title={currentZoom < TRAFFIC_MIN_ZOOM ? `Zoom in to level ${TRAFFIC_MIN_ZOOM} to see traffic` : 'Toggle live traffic overlay'}
+        >
+          🚗 Traffic {trafficEnabled ? (currentZoom >= TRAFFIC_MIN_ZOOM ? 'ON' : `(zoom ${TRAFFIC_MIN_ZOOM}+)`) : 'OFF'}
+        </button>
       </div>
 
       {/* Debug overlay */}
@@ -582,9 +626,22 @@ const BreakdownMap = ({
         attributionControl={true}
       >
         <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://mt1.google.com/vt/lyrs=m&hl=en&x={x}&y={y}&z={z}"
+          attribution='&copy; Google Maps'
+          maxZoom={20}
         />
+
+        {/* Google Traffic Layer - shows when zoomed in and enabled */}
+        {trafficEnabled && currentZoom >= TRAFFIC_MIN_ZOOM && (
+          <TileLayer
+            url="https://mt1.google.com/vt/lyrs=h,traffic&hl=en&x={x}&y={y}&z={z}"
+            maxZoom={20}
+            opacity={0.7}
+          />
+        )}
+
+        {/* Zoom tracker to monitor zoom level */}
+        <ZoomTracker onZoomChange={setCurrentZoom} />
 
         {/* Priority routes area circle */}
         <Circle

@@ -42,6 +42,9 @@ import BreakdownGuideApp from './breakdown-guide/App.jsx'
 // Import Dashboard Router
 import { DashboardRouter } from './dashboards'
 
+// Import Fleet Intelligence Dashboard
+import FleetIntelligenceDashboard from './dashboards/fleet-intelligence/FleetIntelligenceDashboard'
+
 // Import Engineering Display (public standalone route)
 import EngineeringDisplay from './dashboards/engineering/EngineeringDisplay'
 
@@ -634,7 +637,7 @@ const AppContent = () => {
           <Route path="/" element={<HomePage onStatsChange={handleStatsChange} />} />
           <Route path="/breakdown-guide/*" element={<BreakdownGuide />} />
           <Route path="/dashboards/*" element={<DashboardRouter />} />
-          <Route path="/fleet-intelligence" element={<ComingSoon title="Fleet Intelligence" />} />
+          <Route path="/fleet-intelligence" element={<FleetIntelligenceDashboard />} />
           <Route path="/management" element={<ComingSoon title="Management Portal" />} />
           <Route path="/sdc-operations" element={<Navigate to="/dashboards/sdc" replace />} />
           <Route path="/profile" element={<Navigate to="/settings" replace />} />
@@ -659,19 +662,19 @@ const AppContent = () => {
       {/* App Footer - GairWare Branding */}
       {!hideNav && <AppFooter variant="default" />}
 
-      {/* Quick Feedback Widget - Always visible when logged in */}
-      {isAuthenticated && <QuickFeedback />}
+      {/* Quick Feedback Widget - Always visible when logged in (hidden on Control Room Display) */}
+      {isAuthenticated && !hideNav && <QuickFeedback />}
 
-      {/* Duty Notes Widget - Quick note input */}
-      {isAuthenticated && currentDuty && (
+      {/* Duty Notes Widget - Quick note input (hidden on Control Room Display) */}
+      {isAuthenticated && currentDuty && !hideNav && (
         <DutyNotesWidget
           currentDuty={currentDuty}
           position="bottom-left"
         />
       )}
 
-      {/* End of Shift Warning Modal */}
-      {isAuthenticated && currentDuty && (
+      {/* End of Shift Warning Modal (hidden on Control Room Display) */}
+      {isAuthenticated && currentDuty && !hideNav && (
         <EndOfShiftModal
           currentDuty={currentDuty}
           activeBreakdowns={activeBreakdowns}
@@ -686,8 +689,8 @@ const AppContent = () => {
         />
       )}
 
-      {/* Handover Reminder Toast - Shows near shift end with active breakdowns */}
-      {isAuthenticated && currentDuty && (
+      {/* Handover Reminder Toast - Shows near shift end with active breakdowns (hidden on Control Room Display) */}
+      {isAuthenticated && currentDuty && !hideNav && (
         <HandoverReminderToast
           activeBreakdowns={activeBreakdownsList}
           currentDuty={currentDuty}
@@ -698,8 +701,8 @@ const AppContent = () => {
         />
       )}
 
-      {/* Phase 8.4: Shift Summary Modal - Shows before ending shift */}
-      {isAuthenticated && currentDuty && (
+      {/* Phase 8.4: Shift Summary Modal - Shows before ending shift (hidden on Control Room Display) */}
+      {isAuthenticated && currentDuty && !hideNav && (
         <ShiftSummaryModal
           isVisible={showShiftSummary}
           currentDuty={currentDuty}

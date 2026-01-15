@@ -1595,6 +1595,59 @@ router.get('/coverage-alert', async (req, res) => {
       console.warn('Breakdowns table not accessible:', err.message);
     }
 
+    // Get breakdown counts and response times per supervisor (today)
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+
+    let supervisorStats = {};
+    try {
+      // Get active breakdown counts per supervisor
+      const breakdownCounts = await query(`
+        SELECT
+          supervisor_badge,
+          COUNT(*) as active_count
+        FROM breakdowns
+        WHERE status NOT IN ('resolved', 'cleared')
+        GROUP BY supervisor_badge
+      `);
+
+      for (const row of breakdownCounts) {
+        if (row.supervisor_badge) {
+          supervisorStats[row.supervisor_badge] = {
+            activeBreakdowns: row.active_count,
+            todayResolved: 0,
+            avgResponseTime: null
+          };
+        }
+      }
+
+      // Get today's resolved count and average response time
+      const todayStats = await query(`
+        SELECT
+          supervisor_badge,
+          COUNT(*) as resolved_count,
+          AVG(TIMESTAMPDIFF(MINUTE, created_at, resolved_at)) as avg_response_minutes
+        FROM breakdowns
+        WHERE resolved_at IS NOT NULL
+          AND DATE(created_at) = CURDATE()
+        GROUP BY supervisor_badge
+      `);
+
+      for (const row of todayStats) {
+        if (row.supervisor_badge) {
+          if (!supervisorStats[row.supervisor_badge]) {
+            supervisorStats[row.supervisor_badge] = { activeBreakdowns: 0 };
+          }
+          supervisorStats[row.supervisor_badge].todayResolved = row.resolved_count;
+          supervisorStats[row.supervisor_badge].avgResponseTime = row.avg_response_minutes
+            ? Math.round(row.avg_response_minutes)
+            : null;
+        }
+      }
+    } catch (err) {
+      console.warn('Error fetching supervisor stats:', err.message);
+    }
+
     // Determine coverage status
     const activeDuties = [...new Set(activeSupervisors.map(s => s.duty).filter(Boolean))];
     const coveredDuties = expectedDuties.filter(d => activeDuties.includes(d.code));
@@ -1677,14 +1730,20 @@ router.get('/coverage-alert', async (req, res) => {
           color: d.color,
           isCovered: !uncoveredDuties.find(u => u.code === d.code)
         })),
-        activeSupervisors: activeSupervisors.map(s => ({
-          badge: s.badge,
-          name: s.name,
-          duty: s.duty,
-          depot: s.depot,
-          lastActive: s.lastActive,
-          isRecent: new Date(s.lastActive) > new Date(now.getTime() - 10 * 60 * 1000)
-        })),
+        activeSupervisors: activeSupervisors.map(s => {
+          const stats = supervisorStats[s.badge] || {};
+          return {
+            badge: s.badge,
+            name: s.name,
+            duty: s.duty,
+            depot: s.depot,
+            lastActive: s.lastActive,
+            isRecent: new Date(s.lastActive) > new Date(now.getTime() - 10 * 60 * 1000),
+            activeBreakdowns: stats.activeBreakdowns || 0,
+            todayResolved: stats.todayResolved || 0,
+            avgResponseTime: stats.avgResponseTime || null
+          };
+        }),
         coveredDutyCount: coveredDuties.length,
         uncoveredDutyCount: uncoveredDuties.length,
         totalExpected: expectedDuties.length

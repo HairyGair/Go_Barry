@@ -46,8 +46,43 @@ const ControlRoomDisplay = () => {
   const [currentWeatherIndex, setCurrentWeatherIndex] = useState(0);
   const [weatherData, setWeatherData] = useState(null);
   const [geocodedLocations, setGeocodedLocations] = useState({});
+  const [previousBreakdownCount, setPreviousBreakdownCount] = useState(0);
+  const [soundEnabled, setSoundEnabled] = useState(true);
 
   const scrollIntervalRef = useRef(null);
+  const audioRef = useRef(null);
+
+  // New breakdown alert sound (using Web Audio API for reliability)
+  const playAlertSound = useCallback(() => {
+    if (!soundEnabled) return;
+
+    try {
+      // Create audio context
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+      // Create oscillator for alert tone
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      // Alert tone: two-tone beep
+      oscillator.frequency.setValueAtTime(880, audioContext.currentTime); // A5
+      oscillator.frequency.setValueAtTime(660, audioContext.currentTime + 0.15); // E5
+      oscillator.frequency.setValueAtTime(880, audioContext.currentTime + 0.3); // A5
+
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.5);
+
+      console.log('🔔 New breakdown alert sound played');
+    } catch (error) {
+      console.warn('Could not play alert sound:', error);
+    }
+  }, [soundEnabled]);
 
   // Google Maps API key
   const GOOGLE_MAPS_API_KEY = 'AIzaSyBhBN_kVOnIRTKXYhzrDwpr8kvb0Uy0IY8';
@@ -296,6 +331,13 @@ const ControlRoomDisplay = () => {
             return new Date(b.created_at) - new Date(a.created_at);
           });
 
+        // Check if new breakdown was added (play sound)
+        if (activeBreakdowns.length > previousBreakdownCount && previousBreakdownCount > 0) {
+          console.log('🚨 New breakdown detected! Playing alert sound...');
+          playAlertSound();
+        }
+        setPreviousBreakdownCount(activeBreakdowns.length);
+
         setBreakdowns(activeBreakdowns);
         setLastUpdated(new Date());
 
@@ -506,90 +548,97 @@ const ControlRoomDisplay = () => {
               </div>
 
               <div className="card-header-right">
-                <div className="breakdown-time">
+                <div className={`breakdown-time ${
+                    (() => {
+                      const createdAt = new Date(currentBreakdown.created_at);
+                      const hoursAgo = (new Date() - createdAt) / (1000 * 60 * 60);
+                      return hoursAgo >= 1 ? 'time-warning' : '';
+                    })()
+                  }`}>
                   {currentBreakdown.duration_text || getTimeAgo(currentBreakdown.created_at)}
-                </div>
-                <div className="meta-location">
-                  <span className="meta-label">📍 LOCATION</span>
-                  <span className="meta-value">
-                    {(() => {
-                      // Get location from various possible fields
-                      const loc = currentBreakdown.location ||
-                                 currentBreakdown.location_description ||
-                                 currentBreakdown.breakdown_location ||
-                                 '';
-
-                      // Check for common "unavailable" indicators
-                      const isUnavailable = !loc ||
-                                          loc.toLowerCase().includes('unavailable') ||
-                                          loc.toLowerCase().includes('unknown') ||
-                                          loc.toLowerCase().includes('tbc') ||
-                                          loc.toLowerCase().includes('to be added') ||
-                                          loc.trim() === '';
-
-                      // Try to extract coordinates
-                      let coords = null;
-
-                      // Check wizard_assessment_data first
-                      if (currentBreakdown.wizard_assessment_data?.location_coords) {
-                        coords = currentBreakdown.wizard_assessment_data.location_coords;
-                      }
-                      // Check lat/lng fields directly
-                      else if (currentBreakdown.location_lat && currentBreakdown.location_lng) {
-                        coords = {
-                          lat: parseFloat(currentBreakdown.location_lat),
-                          lng: parseFloat(currentBreakdown.location_lng)
-                        };
-                      }
-                      // Parse from location string (Ticketer format)
-                      else if (loc) {
-                        const coordMatch = loc.match(/\(?\s*(-?\d+\.?\d+)\s*,\s*(-?\d+\.?\d+)\s*\)?/);
-                        if (coordMatch) {
-                          coords = { lat: parseFloat(coordMatch[1]), lng: parseFloat(coordMatch[2]) };
-                        }
-                      }
-
-                      // If we have coordinates, show geocoded place name
-                      if (coords && coords.lat && coords.lng) {
-                        const cacheKey = `${coords.lat},${coords.lng}`;
-                        const placeName = geocodedLocations[cacheKey];
-
-                        if (placeName) {
-                          return placeName;
-                        }
-
-                        // Geocode in background
-                        reverseGeocode(coords.lat, coords.lng);
-
-                        // While geocoding, show depot as fallback
-                        const depot = currentBreakdown.depot || currentBreakdown.supervisor_depot;
-                        if (depot && !isUnavailable) {
-                          return `${depot} Area`;
-                        }
-
-                        return 'Locating...';
-                      }
-
-                      // If location is unavailable but we have depot info
-                      if (isUnavailable) {
-                        const depot = currentBreakdown.depot || currentBreakdown.supervisor_depot;
-                        if (depot) {
-                          return `${depot} Depot`;
-                        }
-                        return 'Location Not Recorded';
-                      }
-
-                      // Clean up location text
-                      const cleanLoc = loc.split(/\(/)[0].trim().replace(/\s+/g, ' ');
-                      return cleanLoc || 'Location Not Recorded';
-                    })()}
-                  </span>
                 </div>
               </div>
             </div>
 
             {/* Card Body */}
             <div className="card-body">
+              {/* Location Bar - Full Width Above Issue/Supervisor */}
+              <div className="location-bar">
+                <span className="location-bar-value">
+                  {(() => {
+                    // Get location from various possible fields
+                    const loc = currentBreakdown.location ||
+                               currentBreakdown.location_description ||
+                               currentBreakdown.breakdown_location ||
+                               '';
+
+                    // Check for common "unavailable" indicators
+                    const isUnavailable = !loc ||
+                                        loc.toLowerCase().includes('unavailable') ||
+                                        loc.toLowerCase().includes('unknown') ||
+                                        loc.toLowerCase().includes('tbc') ||
+                                        loc.toLowerCase().includes('to be added') ||
+                                        loc.trim() === '';
+
+                    // Try to extract coordinates
+                    let coords = null;
+
+                    // Check wizard_assessment_data first
+                    if (currentBreakdown.wizard_assessment_data?.location_coords) {
+                      coords = currentBreakdown.wizard_assessment_data.location_coords;
+                    }
+                    // Check lat/lng fields directly
+                    else if (currentBreakdown.location_lat && currentBreakdown.location_lng) {
+                      coords = {
+                        lat: parseFloat(currentBreakdown.location_lat),
+                        lng: parseFloat(currentBreakdown.location_lng)
+                      };
+                    }
+                    // Parse from location string (Ticketer format)
+                    else if (loc) {
+                      const coordMatch = loc.match(/\(?\s*(-?\d+\.?\d+)\s*,\s*(-?\d+\.?\d+)\s*\)?/);
+                      if (coordMatch) {
+                        coords = { lat: parseFloat(coordMatch[1]), lng: parseFloat(coordMatch[2]) };
+                      }
+                    }
+
+                    // If we have coordinates, show geocoded place name
+                    if (coords && coords.lat && coords.lng) {
+                      const cacheKey = `${coords.lat},${coords.lng}`;
+                      const placeName = geocodedLocations[cacheKey];
+
+                      if (placeName) {
+                        return placeName;
+                      }
+
+                      // Geocode in background
+                      reverseGeocode(coords.lat, coords.lng);
+
+                      // While geocoding, show depot as fallback
+                      const depot = currentBreakdown.depot || currentBreakdown.supervisor_depot;
+                      if (depot && !isUnavailable) {
+                        return `${depot} Area`;
+                      }
+
+                      return 'Locating...';
+                    }
+
+                    // If location is unavailable but we have depot info
+                    if (isUnavailable) {
+                      const depot = currentBreakdown.depot || currentBreakdown.supervisor_depot;
+                      if (depot) {
+                        return `${depot} Depot`;
+                      }
+                      return 'Location Not Recorded';
+                    }
+
+                    // Clean up location text
+                    const cleanLoc = loc.split(/\(/)[0].trim().replace(/\s+/g, ' ');
+                    return cleanLoc || 'Location Not Recorded';
+                  })()}
+                </span>
+              </div>
+
               <div className="info-grid-top">
                 <div className="info-item">
                   <div className="info-label">ISSUE</div>
@@ -807,8 +856,27 @@ const ControlRoomDisplay = () => {
         <div className="footer-info">
           Breakdown Management System
         </div>
-        <div className="footer-refresh">
-          Auto-refresh: 30s | Card rotation: 20s
+        <div className="footer-status">
+          <div className="live-indicator">
+            <span className="live-dot"></span>
+            <span className="live-text">LIVE</span>
+          </div>
+          <div className={`connection-status ${connectionManager.isConnected ? 'connected' : 'disconnected'}`}>
+            <span className="connection-dot"></span>
+            <span className="connection-text">
+              {connectionManager.isConnected ? 'Connected' : 'Reconnecting...'}
+            </span>
+          </div>
+          <div className="footer-refresh">
+            Auto-refresh: 30s | Card rotation: 20s
+          </div>
+          <button
+            className={`sound-toggle ${soundEnabled ? 'enabled' : 'disabled'}`}
+            onClick={() => setSoundEnabled(!soundEnabled)}
+            title={soundEnabled ? 'Sound alerts ON - Click to mute' : 'Sound alerts OFF - Click to enable'}
+          >
+            {soundEnabled ? '🔔' : '🔕'}
+          </button>
         </div>
         <div className="footer-watermark">
           <GairWareLogo size={16} variant="minimal" color="rgba(255,255,255,0.15)" />

@@ -231,6 +231,11 @@ router.get('/live', async (req, res) => {
         returned_to_service: breakdown.returned_to_service !== undefined ? breakdown.returned_to_service : null,
         estimated_arrival_time: breakdown.estimated_arrival_time || null,
 
+        // Mileage tracking
+        estimated_mileage_lost: breakdown.estimated_mileage_lost || null,
+        mileage_calculation_data: breakdown.mileage_calculation_data || null,
+        route_id: breakdown.route_id || null,
+
         // Dashboard flags
         isCritical: decision === 'STOP' || breakdown.severity === 'STOP',
         isPending: !breakdown.acknowledged_at,

@@ -122,7 +122,7 @@ const ModernAppHeader = ({
   const quickActions = [
     { id: 'new-breakdown', label: 'Report New Breakdown', icon: '🚨', shortcut: 'Ctrl+N', action: () => navigate('/breakdown-guide') },
     { id: 'view-dashboard', label: 'Control Room Display', icon: '📺', shortcut: 'Alt+D', action: () => navigate('/dashboards/control-room') },
-    { id: 'fleet-status', label: 'Fleet Status', icon: '🚌', shortcut: 'Alt+F', action: () => navigate('/dashboards/engineering'), comingSoon: true },
+    { id: 'fleet-status', label: 'Fleet Intelligence', icon: '🚌', shortcut: 'Alt+F', action: () => navigate('/fleet-intelligence') },
     { id: 'recent-assessments', label: 'Recent Assessments', icon: '📋', shortcut: 'Alt+R', action: () => navigate('/breakdown-guide/history') },
     { id: 'sdc-operations', label: 'SDC Control Centre', icon: '🎛️', shortcut: 'Alt+S', action: () => navigate('/dashboards/sdc'), comingSoon: true },
     { id: 'emergency-protocol', label: 'Emergency Protocol', icon: '⚠️', shortcut: 'Ctrl+E', action: () => alert('Emergency Protocol Activated') },
@@ -178,19 +178,18 @@ const ModernAppHeader = ({
       ]
     },
     {
-      path: '/dashboards/engineering',
+      path: '/fleet-intelligence',
       label: 'Fleet',
       fullLabel: 'Fleet Intelligence',
       icon: '⚙️',
       color: '#f59e0b',
-      description: 'Engineering & maintenance',
+      description: 'Fleet analytics & insights',
       priority: 4,
-      comingSoon: true, // Add coming soon flag
       stats: { label: 'Health', value: `${liveStats.fleetHealth}%` },
       quickLinks: [
-        { path: '/dashboards/engineering', label: 'Status' },
-        { path: '/dashboards/engineering/teams', label: 'Teams' },
-        { path: '/dashboards/engineering/maintenance', label: 'Schedule' }
+        { path: '/fleet-intelligence', label: 'Command Center' },
+        { path: '/dashboards/engineering', label: 'Engineering' },
+        { path: '/dashboards/fleet-defects', label: 'Defects' }
       ]
     },
     {
@@ -388,7 +387,7 @@ const ModernAppHeader = ({
           case 'Q': e.preventDefault(); setShowShortcuts(prev => !prev); break;
           case 'h':
           case 'H': e.preventDefault(); navigate('/'); break;
-          case '4': e.preventDefault(); navigate('/dashboards/engineering'); break;
+          case '4': e.preventDefault(); navigate('/fleet-intelligence'); break;
           case '5': e.preventDefault(); navigate('/dashboards/management'); break;
         }
       }

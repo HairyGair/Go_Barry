@@ -1,0 +1,395 @@
+/**
+ * SupervisorCoverageBar.css
+ *
+ * Horizontal stats bar for supervisor coverage
+ * Go North East Brand Colors: Red #E30613, Navy #003B5C
+ */
+
+/* Base Bar */
+.supervisor-coverage-bar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 16px 24px;
+  background: linear-gradient(135deg, #003B5C 0%, #002a42 100%);
+  border-radius: 12px;
+  border: 2px solid rgba(227, 6, 19, 0.3);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  position: relative;
+  min-height: 70px;
+}
+
+/* Alert Level Variants - Static borders, no animations */
+.supervisor-coverage-bar--normal {
+  border-color: rgba(16, 185, 129, 0.6);
+}
+
+.supervisor-coverage-bar--warning {
+  border-color: rgba(245, 158, 11, 0.7);
+}
+
+.supervisor-coverage-bar--critical {
+  border-color: rgba(227, 6, 19, 0.8);
+}
+
+/* Loading & Error States */
+.supervisor-coverage-bar.loading,
+.supervisor-coverage-bar.error {
+  justify-content: center;
+  gap: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+}
+
+.coverage-bar__spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #E30613;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.coverage-bar__retry {
+  padding: 4px 12px;
+  background: rgba(227, 6, 19, 0.2);
+  border: 1px solid rgba(227, 6, 19, 0.4);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.coverage-bar__retry:hover {
+  background: rgba(227, 6, 19, 0.4);
+}
+
+/* Header Label */
+.coverage-bar__header {
+  display: flex;
+  align-items: center;
+  padding-right: 20px;
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.coverage-bar__title {
+  font-size: 11px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Coverage Status Section */
+.coverage-bar__status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 20px;
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.coverage-bar__status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.coverage-bar__status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.coverage-bar__status-indicator--normal .coverage-bar__status-dot {
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+}
+
+.coverage-bar__status-indicator--warning .coverage-bar__status-dot {
+  background: #f59e0b;
+  box-shadow: 0 0 8px #f59e0b;
+}
+
+.coverage-bar__status-indicator--critical .coverage-bar__status-dot {
+  background: #E30613;
+  box-shadow: 0 0 8px #E30613;
+}
+
+.coverage-bar__status-indicator--info .coverage-bar__status-dot {
+  background: #3b82f6;
+  box-shadow: 0 0 8px #3b82f6;
+}
+
+.coverage-bar__status-text {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+/* Duties Section */
+.coverage-bar__duties {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-right: 20px;
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.coverage-bar__duties-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.coverage-bar__duty-pills {
+  display: flex;
+  gap: 8px;
+}
+
+.coverage-bar__duty-pill {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.coverage-bar__duty-pill.covered {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.coverage-bar__duty-pill.uncovered {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
+}
+
+/* Supervisors Section */
+.coverage-bar__supervisors {
+  display: flex;
+  gap: 16px;
+  flex: 1;
+  overflow-x: auto;
+  padding: 4px 0;
+}
+
+.coverage-bar__no-supervisors {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+  font-style: italic;
+}
+
+.coverage-bar__supervisor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  min-width: 150px;
+  transition: all 0.2s;
+}
+
+.coverage-bar__supervisor:hover {
+  background: rgba(255, 255, 255, 0.12);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.coverage-bar__supervisor-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.coverage-bar__activity-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.coverage-bar__activity-dot.active {
+  background: #10b981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
+}
+
+.coverage-bar__activity-dot.idle {
+  background: #64748b;
+}
+
+.coverage-bar__supervisor-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.coverage-bar__supervisor-duty {
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.coverage-bar__supervisor-stats {
+  display: flex;
+  gap: 12px;
+}
+
+.coverage-bar__stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.coverage-bar__stat-icon {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.coverage-bar__stat-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.coverage-bar__stat-value.high {
+  color: #E30613;
+}
+
+.coverage-bar__stat-value.slow {
+  color: #f59e0b;
+}
+
+/* Next Shift Change */
+.coverage-bar__next-change {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  padding-left: 20px;
+  border-left: 1px solid rgba(255, 255, 255, 0.15);
+  min-width: 110px;
+}
+
+.coverage-bar__next-label {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.coverage-bar__next-time {
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+}
+
+/* Refresh Button */
+.coverage-bar__refresh {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: all 0.2s;
+}
+
+.coverage-bar__refresh:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .supervisor-coverage-bar {
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .coverage-bar__header {
+    border-right: none;
+    padding-right: 0;
+    width: 100%;
+  }
+
+  .coverage-bar__status {
+    border-right: none;
+    padding-right: 0;
+  }
+
+  .coverage-bar__duties {
+    border-right: none;
+    padding-right: 0;
+  }
+
+  .coverage-bar__supervisors {
+    width: 100%;
+  }
+
+  .coverage-bar__next-change {
+    border-left: none;
+    padding-left: 0;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 600px) {
+  .supervisor-coverage-bar {
+    padding: 12px 16px;
+  }
+
+  .coverage-bar__supervisor {
+    min-width: 130px;
+    padding: 8px 12px;
+  }
+
+  .coverage-bar__supervisor-stats {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .coverage-bar__duty-pill {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+}
