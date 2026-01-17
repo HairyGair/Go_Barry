@@ -258,7 +258,7 @@ const HomePage = ({ onStatsChange }) => {
       {/* Welcome Section */}
       <div className="welcome-section">
         <h1>Welcome back, {currentUser?.name || 'Supervisor'}!</h1>
-        <p className="subtitle">Go North East Breakdown Management System</p>
+        <p className="subtitle">Breakdown Management System</p>
       </div>
 
       {/* Duty & Weather Row */}
