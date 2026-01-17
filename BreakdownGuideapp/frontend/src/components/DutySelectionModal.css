@@ -123,10 +123,10 @@
     right: 0;
     height: 4px;
     background: linear-gradient(90deg,
-        #E30613 0%,
-        #FF6B35 25%,
+        #0066CC 0%,
+        #00B4D8 25%,
         #10B981 50%,
-        #3B82F6 75%,
+        #F59E0B 75%,
         #8B5CF6 100%
     );
     background-size: 200% 100%;

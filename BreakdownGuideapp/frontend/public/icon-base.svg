@@ -1,0 +1,43 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0066CC"/>
+      <stop offset="100%" stop-color="#00B4D8"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background with rounded corners for maskable icon -->
+  <rect width="512" height="512" rx="96" fill="url(#bg-gradient)"/>
+
+  <!-- Bus icon - centered with safe area padding -->
+  <g transform="translate(96, 80)">
+    <!-- Bus body -->
+    <rect x="40" y="100" width="240" height="180" rx="20" fill="white"/>
+
+    <!-- Windows -->
+    <rect x="60" y="130" width="80" height="60" rx="8" fill="#0066CC" opacity="0.5"/>
+    <rect x="180" y="130" width="80" height="60" rx="8" fill="#0066CC" opacity="0.5"/>
+
+    <!-- Destination display -->
+    <rect x="60" y="50" width="200" height="40" rx="8" fill="white"/>
+    <text x="160" y="80" text-anchor="middle" fill="#0066CC" font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="bold">BARRY</text>
+
+    <!-- Headlights -->
+    <circle cx="80" cy="260" r="16" fill="#00B4D8"/>
+    <circle cx="240" cy="260" r="16" fill="#00B4D8"/>
+
+    <!-- Grille -->
+    <rect x="100" y="230" width="120" height="8" rx="4" fill="#E5E7EB"/>
+    <rect x="100" y="245" width="120" height="8" rx="4" fill="#E5E7EB"/>
+  </g>
+
+  <!-- Wrench badge -->
+  <g transform="translate(340, 340)">
+    <circle cx="60" cy="60" r="70" fill="#1E3A5F"/>
+    <circle cx="60" cy="60" r="56" fill="none" stroke="white" stroke-width="4" opacity="0.3"/>
+    <!-- Wrench -->
+    <path d="M35 45 L85 95" stroke="white" stroke-width="12" stroke-linecap="round"/>
+    <circle cx="35" cy="45" r="14" fill="white" opacity="0.4"/>
+    <circle cx="85" cy="95" r="14" fill="white" opacity="0.4"/>
+  </g>
+</svg>

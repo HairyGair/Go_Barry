@@ -2,17 +2,18 @@
  * Comprehensive Duty Selection Modal
  * Two-step process: Selection → Confirmation
  * Features: Smart recommendations, time-based logic, duty locking, admin override
+ * Updated: January 2026 - Custom badge icons
  */
 
 import React, { useState, useEffect } from 'react';
 import './DutySelectionModal.css';
+import { DutyBadge } from './icons/DutyBadgeIcons';
 
 // Duty shift definitions - Go North East Standard Shifts
 const DUTY_SHIFTS = [
     {
         code: '100',
         name: 'Early Shift',
-        icon: '🌅',
         startTime: '06:00',
         endTime: '15:30',
         duration: '9h 30m',
@@ -24,7 +25,6 @@ const DUTY_SHIFTS = [
     {
         code: '200',
         name: 'Day Shift',
-        icon: '☀️',
         startTime: '07:30',
         endTime: '17:00',
         duration: '9h 30m',
@@ -36,7 +36,6 @@ const DUTY_SHIFTS = [
     {
         code: '400',
         name: 'Late Shift',
-        icon: '🌆',
         startTime: '12:30',
         endTime: '22:00',
         duration: '9h 30m',
@@ -48,7 +47,6 @@ const DUTY_SHIFTS = [
     {
         code: '500',
         name: 'Night Shift',
-        icon: '🌙',
         startTime: '14:45',
         endTime: '00:15',
         duration: '9h 30m',
@@ -415,7 +413,9 @@ const DutySelectionModal = ({ onDutySelected, currentUser, onClose }) => {
                                         </div>
                                     )}
 
-                                    <div className="duty-icon">{duty.icon}</div>
+                                    <div className="duty-icon">
+                                        <DutyBadge dutyCode={duty.code} size={56} />
+                                    </div>
                                     <div className="duty-code">Duty {duty.code}</div>
                                     <div className="duty-name">{duty.name}</div>
                                     <div className="duty-time">
@@ -490,7 +490,9 @@ const DutySelectionModal = ({ onDutySelected, currentUser, onClose }) => {
                                     boxShadow: `0 20px 40px ${selectedDuty.color}40`
                                 }}
                             >
-                                <div className="selected-duty-icon">{selectedDuty.icon}</div>
+                                <div className="selected-duty-icon">
+                                    <DutyBadge dutyCode={selectedDuty.code} size={72} />
+                                </div>
                                 <div className="selected-duty-code">Duty {selectedDuty.code}</div>
                                 <div className="selected-duty-name">{selectedDuty.name}</div>
                                 <div className="selected-duty-time">

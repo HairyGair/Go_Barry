@@ -7,6 +7,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import GairWareLogo from './GairWareLogo.jsx';
+import { GoBarryLogo } from './GoBarryLogo.jsx';
 import './MySQLLoginPage.css';
 
 const MySQLLoginPage = () => {
@@ -239,16 +240,11 @@ const MySQLLoginPage = () => {
 
                     {/* Logo */}
                     <div className="logo-section">
-                        <img
-                            src="/gne-logo-horizontal-colour.png"
-                            alt="Go North East"
-                            className="login-logo"
-                        />
+                        <GoBarryLogo size="lg" variant="full" theme="dark" />
                     </div>
 
                     {/* Title */}
                     <div className="title-section">
-                        <h1>Breakdown Management System</h1>
                         <p className="subtitle-primary">SECURE SUPERVISOR ACCESS PORTAL</p>
                         <p className="subtitle-secondary">Real-time Fleet Management & Assessment Tools</p>
                     </div>

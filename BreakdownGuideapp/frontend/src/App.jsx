@@ -33,6 +33,9 @@ import WelcomeMessage from './components/WelcomeMessage.jsx'
 // Import Modern Header Component
 import ModernAppHeader from './components/ModernAppHeader.jsx'
 
+// Import Go BARRY Logo
+import { GoBarryBanner } from './components/GoBarryLogo.jsx'
+
 // Import Footer Component
 import AppFooter from './components/AppFooter.jsx'
 
@@ -148,8 +151,7 @@ const Navigation = ({ hide = false, activeBreakdowns = 0, currentDuty, onDutyCli
     <nav className="main-nav">
       <div className="nav-container">
         <Link to="/" className="logo">
-          <img src="/GO_NORTHEAST_WHITE_RGB.png" alt="Go North East" />
-          <span className="logo-text">Breakdown System</span>
+          <GoBarryBanner height={40} theme="dark" showTagline={false} />
         </Link>
         
         <button 

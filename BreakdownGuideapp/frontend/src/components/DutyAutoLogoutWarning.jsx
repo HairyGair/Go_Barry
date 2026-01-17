@@ -50,7 +50,7 @@ const DutyAutoLogoutWarning = ({ currentDuty, onExtensionRequest }) => {
         if ('Notification' in window && Notification.permission === 'granted' && diffMinutes === 15) {
           new Notification('Shift Ending Soon', {
             body: 'Your shift ends in 15 minutes. You will be logged out automatically.',
-            icon: '/gne-logo-horizontal-colour.png',
+            icon: '/favicon.ico',
             requireInteraction: true
           });
         }

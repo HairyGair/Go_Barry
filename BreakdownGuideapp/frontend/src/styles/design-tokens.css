@@ -4,8 +4,8 @@
    Master file for all design tokens used throughout the Go BARRY application
    Includes: Colors, Typography, Spacing, Shadows, Transitions, Z-Index
 
-   Last Updated: November 11, 2025
-   Version: 1.0.0
+   Last Updated: January 2026
+   Version: 2.0.0 - Go BARRY Brand Refresh (Blue-based identity)
    ============================================================================ */
 
 :root {
@@ -13,17 +13,33 @@
      COLOR SYSTEM - Primary Palette
      ========================================================================= */
 
-  /* Primary Brand Colors */
-  --color-red-primary: #E30613;           /* Go North East Red - Primary action */
-  --color-red-dark: #B80410;              /* Go North East Red - Hover/Active */
-  --color-red-darker: #8A0309;            /* Go North East Red - Pressed */
-  --color-red-light: #F5E5E5;             /* Go North East Red - Background */
+  /* Primary Brand Colors - Go BARRY Blue */
+  --color-primary: #0066CC;               /* Go BARRY Blue - Primary action */
+  --color-primary-dark: #004C99;          /* Go BARRY Blue - Hover/Active */
+  --color-primary-darker: #003366;        /* Go BARRY Blue - Pressed */
+  --color-primary-light: #E6F0FA;         /* Go BARRY Blue - Background */
+  --color-primary-50: #EBF5FF;            /* Go BARRY Blue - Subtle */
+  --color-primary-100: #CCE4FF;           /* Go BARRY Blue - Light */
+  --color-primary-600: #0052A3;           /* Go BARRY Blue - Strong */
+  --color-primary-700: #004080;           /* Go BARRY Blue - Stronger */
+  --color-primary-800: #003366;           /* Go BARRY Blue - Dark */
 
-  /* Secondary Brand Colors */
-  --color-navy-primary: #003B5C;          /* Navy - Secondary actions */
-  --color-navy-dark: #1A2332;             /* Navy - Text/Headlines */
-  --color-navy-darker: #0F1419;           /* Navy - Deep backgrounds */
-  --color-navy-light: #1E3A4F;            /* Navy - Hover/Focus */
+  /* Legacy Red Colors (kept for status/critical indicators only) */
+  --color-red-primary: #DC2626;           /* Critical/Error Red */
+  --color-red-dark: #B91C1C;              /* Critical - Hover */
+  --color-red-darker: #991B1B;            /* Critical - Pressed */
+  --color-red-light: #FEE2E2;             /* Critical - Background */
+
+  /* Secondary Brand Colors - Slate/Navy */
+  --color-navy-primary: #1E3A5F;          /* Slate Navy - Secondary actions */
+  --color-navy-dark: #152A46;             /* Slate Navy - Text/Headlines */
+  --color-navy-darker: #0D1B2E;           /* Slate Navy - Deep backgrounds */
+  --color-navy-light: #2D4A6F;            /* Slate Navy - Hover/Focus */
+
+  /* Go BARRY Accent Colors */
+  --color-accent: #00B4D8;                /* Cyan Accent - Highlights */
+  --color-accent-dark: #0096B4;           /* Cyan Accent - Hover */
+  --color-accent-light: #E0F7FA;          /* Cyan Accent - Background */
 
   /* Status Colors - Success */
   --color-success: #10B981;               /* Emerald Green - Success/OK */
@@ -163,7 +179,8 @@
   /* Lift Effects - For interactive elements */
   --shadow-lift: 0 4px 12px rgba(0, 0, 0, 0.08);
   --shadow-hover: 0 8px 16px rgba(0, 0, 0, 0.12);
-  --shadow-focus: 0 0 0 3px rgba(227, 6, 19, 0.1);
+  --shadow-focus: 0 0 0 3px rgba(0, 102, 204, 0.2);
+  --shadow-focus-primary: 0 0 0 3px rgba(0, 102, 204, 0.25);
 
   /* Glassmorphism Effect - Semi-transparent */
   --glass-bg: rgba(255, 255, 255, 0.7);
@@ -246,14 +263,19 @@
      GRADIENTS - Professional Gradients
      ========================================================================= */
 
-  /* Red Gradients - Primary Brand */
-  --gradient-red: linear-gradient(135deg, #E30613 0%, #B80410 100%);
-  --gradient-red-light: linear-gradient(135deg, #F5E5E5 0%, #E30613 100%);
-  --gradient-red-to-navy: linear-gradient(135deg, #E30613 0%, #003B5C 100%);
+  /* Primary Brand Gradients - Go BARRY Blue */
+  --gradient-primary: linear-gradient(135deg, #0066CC 0%, #004C99 100%);
+  --gradient-primary-light: linear-gradient(135deg, #3B8ED9 0%, #0066CC 100%);
+  --gradient-primary-to-navy: linear-gradient(135deg, #0066CC 0%, #1E3A5F 100%);
+  --gradient-primary-vibrant: linear-gradient(135deg, #00B4D8 0%, #0066CC 100%);
+
+  /* Legacy Red Gradients (for critical/error states only) */
+  --gradient-red: linear-gradient(135deg, #DC2626 0%, #991B1B 100%);
+  --gradient-red-light: linear-gradient(135deg, #FEE2E2 0%, #DC2626 100%);
 
   /* Navy Gradients - Secondary */
-  --gradient-navy: linear-gradient(135deg, #003B5C 0%, #1A2332 100%);
-  --gradient-navy-light: linear-gradient(135deg, #1E3A4F 0%, #003B5C 100%);
+  --gradient-navy: linear-gradient(135deg, #1E3A5F 0%, #152A46 100%);
+  --gradient-navy-light: linear-gradient(135deg, #2D4A6F 0%, #1E3A5F 100%);
 
   /* Status Gradients */
   --gradient-success: linear-gradient(135deg, #10B981 0%, #059669 100%);
@@ -261,12 +283,20 @@
   --gradient-critical: linear-gradient(135deg, #DC2626 0%, #991B1B 100%);
   --gradient-info: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
 
-  /* Glassmorphism Gradient - Aurora-like */
+  /* Go BARRY Signature Gradient - Professional Blue Aurora */
+  --gradient-barry: linear-gradient(
+    135deg,
+    rgba(0, 102, 204, 0.15) 0%,
+    rgba(0, 180, 216, 0.1) 50%,
+    rgba(30, 58, 95, 0.15) 100%
+  );
+
+  /* Glassmorphism Gradient - Blue Aurora */
   --gradient-aurora: linear-gradient(
     135deg,
-    rgba(227, 6, 19, 0.1) 0%,
-    rgba(59, 130, 246, 0.1) 50%,
-    rgba(139, 92, 246, 0.1) 100%
+    rgba(0, 102, 204, 0.1) 0%,
+    rgba(0, 180, 216, 0.08) 50%,
+    rgba(30, 58, 95, 0.1) 100%
   );
 
   /* =========================================================================
@@ -293,7 +323,7 @@
   --input-padding-x: var(--spacing-md);
   --input-padding-y: var(--spacing-sm);
   --input-border: 1px solid var(--color-grey-300);
-  --input-border-focus: 1px solid var(--color-red-primary);
+  --input-border-focus: 1px solid var(--color-primary);
   --input-border-error: 1px solid var(--color-critical);
 
   /* Card Sizing */

@@ -6,6 +6,7 @@ import EnhancedNotifications from './notifications/EnhancedNotifications';
 import ChangePasswordModal from './ChangePasswordModal.jsx';
 import DepotSelectionModal from './DepotSelectionModal.jsx';
 import DutyBadge from './DutyBadge.jsx';
+import { GoBarryBanner } from './GoBarryLogo.jsx';
 import apiClient from '../services/api-client';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import './ModernAppHeader.css';
@@ -507,11 +508,7 @@ const ModernAppHeader = ({
           <div className="header-container-modern">
             {/* Logo Section - Compact */}
             <Link to="/" className="brand-section compact">
-              <img 
-                src="/gne-logo-horizontal-colour.png" 
-                alt="Go North East" 
-                className="brand-logo-modern"
-              />
+              <GoBarryBanner height={45} theme="dark" showTagline={false} />
             </Link>
 
             {/* Main Navigation - Priority Items Only */}
