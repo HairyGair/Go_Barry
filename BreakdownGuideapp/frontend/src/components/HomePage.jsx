@@ -261,31 +261,6 @@ const HomePage = ({ onStatsChange }) => {
         <p className="subtitle">Go North East Breakdown Management System</p>
       </div>
 
-      {/* Quick Stats Dashboard with Weather Widget */}
-      <div className="dashboard-stats">
-        <div className={`stat-card ${dashboardData.stats?.activeBreakdowns > 0 ? 'active' : ''}`}>
-          <div className="stat-icon">⚠️</div>
-          <div className="stat-content">
-            <h3>Active Breakdowns</h3>
-            <p className="stat-value">{dashboardData.stats?.activeBreakdowns || 0}</p>
-          </div>
-        </div>
-        <div className={`stat-card ${dashboardData.stats?.todayTotal > 0 ? 'active' : ''}`}>
-          <div className="stat-icon">📋</div>
-          <div className="stat-content">
-            <h3>Today's Assessments</h3>
-            <p className="stat-value">{dashboardData.stats?.todayTotal || 0}</p>
-          </div>
-        </div>
-        <div className={`stat-card ${dashboardData.stats?.avgResponseTime > 0 ? 'active' : ''}`}>
-          <div className="stat-icon">⏱️</div>
-          <div className="stat-content">
-            <h3>Avg Response Time</h3>
-            <p className="stat-value">{dashboardData.stats?.avgResponseTime || 0} min</p>
-          </div>
-        </div>
-      </div>
-
       {/* Duty & Weather Row */}
       <div className="duty-weather-row">
         <div className="duty-card-container">
