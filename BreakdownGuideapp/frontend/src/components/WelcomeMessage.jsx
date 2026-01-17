@@ -2,10 +2,12 @@
  * Welcome Message Component
  * Personalized greeting with duty info, progress, and quick actions
  * Dismissible per user+duty combination
+ * Updated January 2026: Custom SVG badge icons
  */
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { DutyBadge as DutyBadgeIcon } from './icons/DutyBadgeIcons';
 import './WelcomeMessage.css';
 
 const WelcomeMessage = ({ currentUser, currentDuty, onClose }) => {
@@ -230,7 +232,9 @@ const WelcomeMessage = ({ currentUser, currentDuty, onClose }) => {
             </div>
 
             <div className="welcome-duty-card" style={{ '--duty-color': currentDuty.color }}>
-                <div className="duty-card-icon">{currentDuty.icon}</div>
+                <div className="duty-card-icon">
+                    <DutyBadgeIcon dutyCode={currentDuty.code} size={48} />
+                </div>
                 <div className="duty-card-info">
                     <div className="duty-card-code">Duty {currentDuty.code}</div>
                     <div className="duty-card-time">

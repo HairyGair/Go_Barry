@@ -2,9 +2,11 @@
  * FloatingDutyBadge Component
  * Persistent floating badge that appears when header scrolls out of view
  * Shows duty status with live countdown timer
+ * Updated January 2026: Custom SVG badge icons
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { DutyBadge as DutyBadgeIcon } from './icons/DutyBadgeIcons';
 import './FloatingDutyBadge.css';
 
 // Duty shift configurations
@@ -12,26 +14,22 @@ const DUTY_CONFIG = {
   '100': {
     name: 'Early',
     color: '#3B82F6',
-    gradient: 'linear-gradient(135deg, #3B82F6, #60A5FA)',
-    icon: '🌅'
+    gradient: 'linear-gradient(135deg, #3B82F6, #60A5FA)'
   },
   '200': {
     name: 'Day',
     color: '#10B981',
-    gradient: 'linear-gradient(135deg, #10B981, #34D399)',
-    icon: '☀️'
+    gradient: 'linear-gradient(135deg, #10B981, #34D399)'
   },
   '400': {
     name: 'Late',
     color: '#F59E0B',
-    gradient: 'linear-gradient(135deg, #F59E0B, #FCD34D)',
-    icon: '🌆'
+    gradient: 'linear-gradient(135deg, #F59E0B, #FCD34D)'
   },
   '500': {
     name: 'Night',
     color: '#8B5CF6',
-    gradient: 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
-    icon: '🌙'
+    gradient: 'linear-gradient(135deg, #8B5CF6, #A78BFA)'
   }
 };
 
@@ -151,7 +149,9 @@ const FloatingDutyBadge = ({ currentDuty, onClick, scrollThreshold = 100 }) => {
     >
       {/* Main Badge Content */}
       <div className="floating-duty-badge__main">
-        <span className="floating-duty-badge__icon">{dutyConfig.icon}</span>
+        <span className="floating-duty-badge__icon">
+          <DutyBadgeIcon dutyCode={currentDuty.code} size={24} />
+        </span>
         <span className="floating-duty-badge__code">{currentDuty.code}</span>
       </div>
 

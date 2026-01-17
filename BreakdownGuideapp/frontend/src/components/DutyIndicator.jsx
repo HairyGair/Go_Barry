@@ -2,9 +2,11 @@
  * Duty Indicator Component
  * Shows current duty with real-time countdown, progress bar, and color states
  * Updates every 30 seconds, auto-clears 5 minutes after shift end
+ * Updated January 2026: Custom SVG badge icons
  */
 
 import React, { useState, useEffect } from 'react';
+import { DutyBadge as DutyBadgeIcon } from './icons/DutyBadgeIcons';
 import './DutyIndicator.css';
 
 const DutyIndicator = ({ currentDuty, onClick, isAdmin }) => {
@@ -131,7 +133,9 @@ const DutyIndicator = ({ currentDuty, onClick, isAdmin }) => {
             }}
         >
             <div className="duty-indicator-content">
-                <span className="duty-indicator-icon">{currentDuty.icon}</span>
+                <span className="duty-indicator-icon">
+                    <DutyBadgeIcon dutyCode={currentDuty.code} size={32} />
+                </span>
                 <div className="duty-indicator-info">
                     <div className="duty-indicator-code">
                         Duty {currentDuty.code}

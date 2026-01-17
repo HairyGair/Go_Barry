@@ -9,9 +9,11 @@
  * - Glassmorphic design matching design system
  * - Tooltip with full duty details
  * - Responsive (hidden on mobile)
+ * - Updated January 2026: Custom SVG badge icons
  */
 
 import React, { useState, useEffect } from 'react';
+import { DutyBadge as DutyBadgeIcon } from './icons/DutyBadgeIcons';
 import './DutyBadge.css';
 
 // Duty shift definitions (matching DutySelectionModal)
@@ -19,26 +21,22 @@ const DUTY_CONFIG = {
   '100': {
     name: 'Early Shift',
     color: '#3B82F6',
-    gradient: 'linear-gradient(135deg, #3B82F6, #60A5FA)',
-    icon: '🌅'
+    gradient: 'linear-gradient(135deg, #3B82F6, #60A5FA)'
   },
   '200': {
     name: 'Day Shift',
     color: '#10B981',
-    gradient: 'linear-gradient(135deg, #10B981, #34D399)',
-    icon: '☀️'
+    gradient: 'linear-gradient(135deg, #10B981, #34D399)'
   },
   '400': {
     name: 'Late Shift',
     color: '#F59E0B',
-    gradient: 'linear-gradient(135deg, #F59E0B, #FCD34D)',
-    icon: '🌆'
+    gradient: 'linear-gradient(135deg, #F59E0B, #FCD34D)'
   },
   '500': {
     name: 'Night Shift',
     color: '#8B5CF6',
-    gradient: 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
-    icon: '🌙'
+    gradient: 'linear-gradient(135deg, #8B5CF6, #A78BFA)'
   }
 };
 
@@ -101,7 +99,9 @@ const DutyBadge = ({ currentDuty, onClick }) => {
       onMouseLeave={() => setShowTooltip(false)}
     >
       <div className="duty-badge-content">
-        <span className="duty-icon">{dutyConfig.icon}</span>
+        <span className="duty-icon">
+          <DutyBadgeIcon dutyCode={currentDuty.code} size={28} />
+        </span>
         <div className="duty-info">
           <span className="duty-label">Duty {currentDuty.code}</span>
           <span className="duty-countdown">{timeRemaining}</span>
@@ -115,7 +115,9 @@ const DutyBadge = ({ currentDuty, onClick }) => {
       {showTooltip && (
         <div className="duty-tooltip">
           <div className="tooltip-header">
-            <span className="tooltip-icon">{dutyConfig.icon}</span>
+            <span className="tooltip-icon">
+              <DutyBadgeIcon dutyCode={currentDuty.code} size={24} />
+            </span>
             <span className="tooltip-title">Duty {currentDuty.code} - {dutyConfig.name}</span>
           </div>
           <div className="tooltip-time">

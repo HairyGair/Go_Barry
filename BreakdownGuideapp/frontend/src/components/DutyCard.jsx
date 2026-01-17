@@ -9,10 +9,12 @@
  * - Shift statistics
  * - Warning states when ending soon
  * - Break time tracking (Phase 2.3)
+ * - Updated January 2026: Custom SVG badge icons
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '../services/api-client.js';
+import { DutyBadge as DutyBadgeIcon } from './icons/DutyBadgeIcons';
 import './DutyCard.css';
 
 // Duty shift definitions
@@ -21,29 +23,25 @@ const DUTY_CONFIG = {
     name: 'Early Shift',
     color: '#3B82F6',
     gradient: 'linear-gradient(135deg, #3B82F6, #60A5FA)',
-    bgGradient: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(96, 165, 250, 0.08))',
-    icon: '🌅'
+    bgGradient: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(96, 165, 250, 0.08))'
   },
   '200': {
     name: 'Day Shift',
     color: '#10B981',
     gradient: 'linear-gradient(135deg, #10B981, #34D399)',
-    bgGradient: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(52, 211, 153, 0.08))',
-    icon: '☀️'
+    bgGradient: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(52, 211, 153, 0.08))'
   },
   '400': {
     name: 'Late Shift',
     color: '#F59E0B',
     gradient: 'linear-gradient(135deg, #F59E0B, #FCD34D)',
-    bgGradient: 'linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(252, 211, 77, 0.08))',
-    icon: '🌆'
+    bgGradient: 'linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(252, 211, 77, 0.08))'
   },
   '500': {
     name: 'Night Shift',
     color: '#8B5CF6',
     gradient: 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
-    bgGradient: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(167, 139, 250, 0.08))',
-    icon: '🌙'
+    bgGradient: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(167, 139, 250, 0.08))'
   }
 };
 
@@ -266,7 +264,9 @@ const DutyCard = ({ currentDuty, onChangeDuty, onStartHandover, onExtendShift, s
       {/* Header */}
       <div className="duty-card__header">
         <div className="duty-card__icon-wrapper">
-          <span className="duty-card__icon">{dutyConfig.icon}</span>
+          <span className="duty-card__icon">
+            <DutyBadgeIcon dutyCode={currentDuty.code} size={48} />
+          </span>
         </div>
         <div className="duty-card__title-group">
           <h3 className="duty-card__title">Duty {currentDuty.code}</h3>
