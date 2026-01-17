@@ -14,18 +14,20 @@
 
   /* Borders */
   --border-color: var(--color-dark-border, #475569);
-  --border-hover: var(--color-red-primary, #E30613);
+  --border-hover: var(--color-primary, #0066CC);
 
   /* Text */
   --text-primary: var(--color-dark-text-primary, #F1F5F9);
   --text-secondary: var(--color-dark-text-secondary, #94A3B8);
   --text-muted: var(--color-dark-text-tertiary, #64748B);
 
-  /* Brand colors - from design tokens */
-  --navy: var(--color-navy-primary, #003B5C);
-  --red: var(--color-red-primary, #E30613);
+  /* Brand colors - GoBarry blue theme */
+  --navy: var(--color-navy-primary, #003366);
+  --primary: var(--color-primary, #0066CC);
+  --accent: var(--color-accent, #00B4D8);
   --amber: var(--color-warning, #F59E0B);
   --green: var(--color-success, #10B981);
+  --red: var(--color-critical, #DC2626); /* Keep red for critical/stop states only */
 
   /* Accent colors */
   --neon-cyan: #00ffff;
@@ -218,7 +220,7 @@ body[data-theme="dark"] {
   left: 0;
   right: 0;
   height: 4px;
-  background: var(--red);
+  background: var(--primary);
   transform: scaleX(0);
   transition: transform 0.3s ease;
 }
@@ -226,7 +228,7 @@ body[data-theme="dark"] {
 .wizard-card-enhanced:hover {
   border-color: var(--border-hover);
   transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(228, 0, 43, 0.3);
+  box-shadow: 0 8px 24px rgba(0, 102, 204, 0.3);
   background: var(--bg-tertiary);
 }
 
@@ -261,7 +263,7 @@ body[data-theme="dark"] {
 }
 
 .wizard-card-enhanced:hover .wizard-icon-png {
-  filter: brightness(1.1) drop-shadow(0 2px 8px rgba(228, 0, 43, 0.3));
+  filter: brightness(1.1) drop-shadow(0 2px 8px rgba(0, 102, 204, 0.3));
 }
 
 .wizard-card-enhanced h3 {
@@ -313,7 +315,7 @@ body[data-theme="dark"] {
 .wizard-card:hover {
   border-color: var(--border-hover);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(228, 0, 43, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 102, 204, 0.2);
   background: var(--bg-tertiary);
 }
 
@@ -411,15 +413,15 @@ body[data-theme="dark"] {
 
 .btn-next,
 .btn-complete {
-  background: var(--red);
+  background: var(--primary);
   color: white;
 }
 
 .btn-next:hover,
 .btn-complete:hover {
-  background: #cc0024;
+  background: #0052a3;
   transform: translateY(-1px);
-  box-shadow: 0 4px 10px rgba(228, 0, 43, 0.3);
+  box-shadow: 0 4px 10px rgba(0, 102, 204, 0.3);
 }
 
 /* Decision displays */
@@ -464,7 +466,7 @@ input, select, textarea {
 input:focus, select:focus, textarea:focus {
   outline: none;
   border-color: var(--border-hover);
-  box-shadow: 0 0 0 3px rgba(228, 0, 43, 0.1);
+  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.15);
 }
 
 /* Alert boxes */
@@ -565,7 +567,7 @@ input:focus, select:focus, textarea:focus {
   height: 40px;
   margin-left: 20px;
   border: 4px solid var(--border-color);
-  border-top-color: var(--red);
+  border-top-color: var(--primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -712,7 +714,7 @@ input:focus, select:focus, textarea:focus {
     min-height: 160px;
     /* Ensure comfortable touch area */
     touch-action: manipulation;
-    -webkit-tap-highlight-color: rgba(227, 6, 19, 0.2);
+    -webkit-tap-highlight-color: rgba(0, 102, 204, 0.2);
   }
 
   .wizard-icon {
@@ -882,7 +884,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .login-header h2 {
-  color: var(--red);
+  color: var(--primary);
   font-size: 18px;
   font-weight: 600;
   margin: 0 0 15px 0;
@@ -940,9 +942,9 @@ input:focus, select:focus, textarea:focus {
 
 .form-control:focus {
   outline: none;
-  border-color: var(--red);
+  border-color: var(--primary);
   background: var(--bg-tertiary) !important;
-  box-shadow: 0 0 0 3px rgba(228, 0, 43, 0.1);
+  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.15);
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
 }
@@ -972,12 +974,12 @@ input:focus, select:focus, textarea:focus {
 .checkbox-label input[type="checkbox"] {
   width: 18px;
   height: 18px;
-  accent-color: var(--red);
+  accent-color: var(--primary);
 }
 
 /* Submit Button */
 .btn-login {
-  background: linear-gradient(135deg, var(--red) 0%, #c8001f 100%);
+  background: linear-gradient(135deg, var(--primary) 0%, #0052a3 100%);
   color: white;
   border: none;
   border-radius: 8px;
@@ -990,9 +992,9 @@ input:focus, select:focus, textarea:focus {
 }
 
 .btn-login:hover:not(:disabled) {
-  background: linear-gradient(135deg, #c8001f 0%, var(--red) 100%);
+  background: linear-gradient(135deg, #0052a3 0%, var(--primary) 100%);
   transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(228, 0, 43, 0.4);
+  box-shadow: 0 5px 15px rgba(0, 102, 204, 0.4);
 }
 
 .btn-login:disabled {
@@ -1069,7 +1071,7 @@ input:focus, select:focus, textarea:focus {
   width: 50px;
   height: 50px;
   border: 4px solid var(--border-color);
-  border-top: 4px solid var(--red);
+  border-top: 4px solid var(--primary);
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin: 0 auto 20px;
