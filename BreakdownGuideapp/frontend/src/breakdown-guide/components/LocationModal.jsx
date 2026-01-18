@@ -131,6 +131,14 @@ const LocationModal = ({
 
     saveLocation(locationData);
 
+    // Also save to sessionStorage for WizardTrackerIntegration to access
+    try {
+      sessionStorage.setItem('breakdownLocation', JSON.stringify(locationData));
+      console.log('[LocationModal] Saved location to sessionStorage:', locationData);
+    } catch (e) {
+      console.warn('[LocationModal] Failed to save to sessionStorage:', e);
+    }
+
     // Call the onConfirm callback
     onConfirm({
       description: trimmedDescription,

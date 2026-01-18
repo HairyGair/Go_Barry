@@ -209,18 +209,58 @@ const geocodeLocation = async (locationDescription) => {
   return null;
 };
 
-// Known location coordinates - constant data
+// Known location coordinates - constant data for Go North East area
 const LOCATION_COORDINATES = {
+  // Newcastle
   'Newcastle City Centre': [54.9783, -1.6178],
-  'Gateshead Interchange': [54.9614, -1.6010],
-  'Team Valley': [54.9225, -1.5745],
+  'Newcastle': [54.9783, -1.6178],
   'Eldon Square': [54.9766, -1.6147],
-  'Great Park': [55.0367, -1.6462],
-  'Gosforth': [55.0072, -1.6087],
+  'Central Station': [54.9686, -1.6174],
+  'Haymarket': [54.9794, -1.6137],
   'Quayside': [54.9675, -1.6028],
-  'MetroCentre': [54.9588, -1.6658],
+  'Heaton': [54.9947, -1.5810],
+  'Byker': [54.9733, -1.5650],
+  'Jesmond': [54.9883, -1.5978],
+  'Gosforth': [55.0072, -1.6087],
+  'Great Park': [55.0367, -1.6462],
+  'Kingston Park': [55.0150, -1.6750],
   'Airport': [55.0375, -1.6917],
-  'Heaton': [54.9947, -1.5810]
+
+  // Gateshead
+  'Gateshead': [54.9614, -1.6010],
+  'Gateshead Interchange': [54.9614, -1.6010],
+  'MetroCentre': [54.9588, -1.6658],
+  'Team Valley': [54.9225, -1.5745],
+  'Low Fell': [54.9375, -1.5867],
+  'Felling': [54.9483, -1.5600],
+
+  // Sunderland
+  'Sunderland': [54.9069, -1.3838],
+  'Park Lane': [54.9042, -1.3872],
+  'Pennywell': [54.9217, -1.4300],
+  'Washington': [54.9000, -1.5200],
+
+  // Durham
+  'Durham': [54.7761, -1.5733],
+  'Chester-le-Street': [54.8544, -1.5700],
+  'Stanley': [54.8678, -1.6967],
+  'Consett': [54.8500, -1.8300],
+
+  // North Tyneside
+  'North Shields': [55.0100, -1.4500],
+  'Wallsend': [54.9908, -1.5333],
+  'Whitley Bay': [55.0461, -1.4442],
+  'Tynemouth': [55.0178, -1.4250],
+
+  // South Tyneside
+  'South Shields': [54.9983, -1.4317],
+  'Jarrow': [54.9833, -1.4833],
+  'Hebburn': [54.9717, -1.5133],
+
+  // Other
+  'Hexham': [54.9710, -2.1010],
+  'Cramlington': [55.0858, -1.5900],
+  'Blyth': [55.1250, -1.5083]
 };
 
 const BreakdownMap = ({
@@ -251,21 +291,31 @@ const BreakdownMap = ({
 
   // Memoized coordinate extraction function
   const getCoordinates = useCallback((breakdown) => {
+    // Parse wizard_assessment_data if it's a JSON string
+    let wizardData = breakdown.wizard_assessment_data;
+    if (typeof wizardData === 'string') {
+      try {
+        wizardData = JSON.parse(wizardData);
+      } catch (e) {
+        wizardData = null;
+      }
+    }
+
     // 1. Top-level fields (location_lat, location_lng)
     if (breakdown.location_lat && breakdown.location_lng) {
       const lat = parseFloat(breakdown.location_lat);
       const lng = parseFloat(breakdown.location_lng);
-      if (!isNaN(lat) && !isNaN(lng)) {
+      if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
         return [lat, lng];
       }
     }
 
     // 2. Nested in wizard_assessment_data.location_coords
-    if (breakdown.wizard_assessment_data?.location_coords?.lat &&
-        breakdown.wizard_assessment_data?.location_coords?.lng) {
-      const lat = parseFloat(breakdown.wizard_assessment_data.location_coords.lat);
-      const lng = parseFloat(breakdown.wizard_assessment_data.location_coords.lng);
-      if (!isNaN(lat) && !isNaN(lng)) {
+    if (wizardData?.location_coords?.lat && wizardData?.location_coords?.lng) {
+      const lat = parseFloat(wizardData.location_coords.lat);
+      const lng = parseFloat(wizardData.location_coords.lng);
+      if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+        console.log(`📍 Using wizard location_coords for ${breakdown.breakdown_id}`);
         return [lat, lng];
       }
     }
@@ -274,7 +324,7 @@ const BreakdownMap = ({
     if (breakdown.lat && breakdown.lng) {
       const lat = parseFloat(breakdown.lat);
       const lng = parseFloat(breakdown.lng);
-      if (!isNaN(lat) && !isNaN(lng)) {
+      if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
         return [lat, lng];
       }
     }
@@ -283,7 +333,7 @@ const BreakdownMap = ({
     if (breakdown.gps_location?.lat && breakdown.gps_location?.lng) {
       const lat = parseFloat(breakdown.gps_location.lat);
       const lng = parseFloat(breakdown.gps_location.lng);
-      if (!isNaN(lat) && !isNaN(lng)) {
+      if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
         return [lat, lng];
       }
     }
@@ -296,7 +346,8 @@ const BreakdownMap = ({
     // 6. Location description fuzzy match
     if (breakdown.location_description) {
       for (const [locationName, coords] of Object.entries(LOCATION_COORDINATES)) {
-        if (breakdown.location_description.includes(locationName)) {
+        if (breakdown.location_description.toLowerCase().includes(locationName.toLowerCase())) {
+          console.log(`📍 Matched location "${locationName}" for ${breakdown.breakdown_id}`);
           return coords;
         }
       }
@@ -312,10 +363,10 @@ const BreakdownMap = ({
     }
 
     // 8. Depot from wizard_assessment_data
-    if (breakdown.wizard_assessment_data?.depot) {
-      const depotCoords = DEPOT_COORDINATES[breakdown.wizard_assessment_data.depot];
+    if (wizardData?.depot) {
+      const depotCoords = DEPOT_COORDINATES[wizardData.depot];
       if (depotCoords) {
-        console.log(`🏢 Using wizard depot fallback for ${breakdown.breakdown_id}: ${breakdown.wizard_assessment_data.depot}`);
+        console.log(`🏢 Using wizard depot fallback for ${breakdown.breakdown_id}: ${wizardData.depot}`);
         return depotCoords;
       }
     }
@@ -325,8 +376,10 @@ const BreakdownMap = ({
       return geocodedCoords[breakdown.breakdown_id];
     }
 
-    // 10. No coordinates found - will try geocoding later
-    return null;
+    // 10. Final fallback - use SDC/Sunderland as default location
+    // This ensures all breakdowns appear on the map
+    console.log(`📍 Using SDC default location for ${breakdown.breakdown_id} (no coords found)`);
+    return DEPOT_COORDINATES['SDC'];
   }, [geocodedCoords]);
 
   // Effect to geocode breakdowns without coordinates

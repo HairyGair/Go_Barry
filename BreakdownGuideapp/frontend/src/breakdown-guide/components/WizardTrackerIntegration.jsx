@@ -58,30 +58,78 @@ class WizardTrackerIntegration {
   }
 
   // Extract vehicle information from current context
-  getVehicleInfo() {
-    // Try to get from existing breakdown logger
-    if (window.SupervisorBreakdownLogger?.currentAssessment?.vehicleReg) {
-      const assessment = window.SupervisorBreakdownLogger.currentAssessment;
-      return {
-        vehicle_id: assessment.vehicleReg,
-        location: assessment.location,
-        location_coords: assessment.locationData?.type === 'ticketer' ? {
-          lat: assessment.locationData.lat,
-          lng: assessment.locationData.lng
-        } : null
-      };
+  getVehicleInfo(wizardResponses = null) {
+    let location_coords = null;
+    let location = 'Assessment Location';
+    let vehicle_id = 'UNKNOWN';
+    let route_id = null;
+
+    // 1. Try to get coordinates from wizard responses (captured via GPS in wizard)
+    if (wizardResponses?.currentLocation?.coordinates) {
+      const coords = wizardResponses.currentLocation.coordinates;
+      if (coords.lat && coords.lng) {
+        location_coords = { lat: coords.lat, lng: coords.lng };
+        location = wizardResponses.currentLocation.name || `GPS: ${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`;
+        console.log('[WIZARD-TRACKER] Got coords from wizard responses:', location_coords);
+      }
     }
 
-    // Try to get from form inputs if available
+    // 2. Try to get from sessionStorage (set by LocationModal)
+    if (!location_coords) {
+      try {
+        const storedLocation = sessionStorage.getItem('breakdownLocation');
+        if (storedLocation) {
+          const locData = JSON.parse(storedLocation);
+          if (locData.coordinates?.lat && locData.coordinates?.lng) {
+            location_coords = locData.coordinates;
+            location = locData.description || location;
+            console.log('[WIZARD-TRACKER] Got coords from sessionStorage:', location_coords);
+          }
+        }
+      } catch (e) {
+        console.warn('[WIZARD-TRACKER] Error reading sessionStorage location:', e);
+      }
+    }
+
+    // 3. Try to get from existing breakdown logger
+    if (window.SupervisorBreakdownLogger?.currentAssessment?.vehicleReg) {
+      const assessment = window.SupervisorBreakdownLogger.currentAssessment;
+      vehicle_id = assessment.vehicleReg || vehicle_id;
+      location = assessment.location || location;
+
+      // Check for coordinates in various formats
+      if (!location_coords) {
+        if (assessment.locationData?.lat && assessment.locationData?.lng) {
+          location_coords = { lat: assessment.locationData.lat, lng: assessment.locationData.lng };
+          console.log('[WIZARD-TRACKER] Got coords from breakdown logger locationData:', location_coords);
+        } else if (assessment.locationData?.coordinates) {
+          location_coords = assessment.locationData.coordinates;
+          console.log('[WIZARD-TRACKER] Got coords from breakdown logger coordinates:', location_coords);
+        }
+      }
+    }
+
+    // 4. Try to get from form inputs if available
     const vehicleInput = document.getElementById('vehicle-reg') || document.getElementById('vehicleId');
     const locationInput = document.getElementById('location');
     const routeInput = document.getElementById('route') || document.getElementById('service');
 
+    if (vehicleInput?.value) vehicle_id = vehicleInput.value;
+    if (locationInput?.value && location === 'Assessment Location') location = locationInput.value;
+    if (routeInput?.value) route_id = routeInput.value;
+
+    // 5. Check for fleet number in wizard responses
+    if (wizardResponses?.fleetNumber) {
+      vehicle_id = wizardResponses.fleetNumber;
+    }
+
+    console.log('[WIZARD-TRACKER] Final vehicle info:', { vehicle_id, location, location_coords, route_id });
+
     return {
-      vehicle_id: vehicleInput?.value || 'UNKNOWN',
-      route_id: routeInput?.value || null,
-      location: locationInput?.value || 'Assessment Location',
-      location_coords: null
+      vehicle_id,
+      route_id,
+      location,
+      location_coords
     };
   }
 
@@ -217,7 +265,7 @@ class WizardTrackerIntegration {
         return null;
       }
 
-      const vehicleInfo = this.getVehicleInfo();
+      const vehicleInfo = this.getVehicleInfo(responses);
       const { supervisorBadge, supervisorName } = this.getSupervisorInfo();
 
       // Determine issue category and description based on wizard type
