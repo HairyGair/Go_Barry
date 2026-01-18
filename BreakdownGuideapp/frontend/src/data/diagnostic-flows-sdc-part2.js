@@ -79,7 +79,7 @@ const additionalFlows = {
                     'If the vehicle can safely continue, ensure a changeover is arranged at the earliest opportunity.',
                     'Ensure that all actions, including top-ups and changeovers, are communicated to the driver promptly.',
                     'Monitor the situation and provide updates to the driver as needed.',
-                    'Record any defects immediately on the Go-Check System when the bus is stationary and in a safe location.'
+                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.'
                 ]
             },
             {
@@ -93,7 +93,7 @@ const additionalFlows = {
                     'If the vehicle can safely continue, ensure a changeover is arranged at the earliest opportunity.',
                     'Ensure that all actions, including top-ups and changeovers, are communicated to the driver promptly.',
                     'Monitor the situation and provide updates to the driver as needed.',
-                    'Record any defects immediately on the Go-Check System when the bus is stationary and in a safe location.'
+                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.'
                 ]
             }
         ]
@@ -278,7 +278,7 @@ const additionalFlows = {
                     'If the vehicle can safely continue, ensure a changeover is arranged at the earliest opportunity.',
                     'Ensure that all actions, including top-ups and changeovers, are communicated to the driver promptly.',
                     'Monitor the situation and provide updates to the driver as needed.',
-                    'Record any defects immediately on the Go-Check System when the bus is stationary and in a safe location.'
+                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.'
                 ]
             },
             {
@@ -293,7 +293,7 @@ const additionalFlows = {
                     'If the vehicle can safely continue, ensure a changeover is arranged at the earliest opportunity.',
                     'Ensure that all actions, including top-ups and changeovers, are communicated to the driver promptly.',
                     'Monitor the situation and provide updates to the driver as needed.',
-                    'Record any defects immediately on the Go-Check System when the bus is stationary and in a safe location.'
+                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.'
                 ]
             }
         ]

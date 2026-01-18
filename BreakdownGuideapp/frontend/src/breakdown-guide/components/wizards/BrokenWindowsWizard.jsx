@@ -64,7 +64,7 @@ const BrokenWindowsWizard = ({ currentStep, responses, updateResponse, onNext, o
             finalDecision = 'AMBER';
             notes += 'Vehicle may continue to changeover point with driver vigilance. ';
             notes += `Damage extent: ${responses.damage_extent}. `;
-            notes += 'Monitor situation and arrange replacement vehicle. Record defect in Tranzaura.';
+            notes += 'Monitor situation and arrange replacement vehicle. Record defect on their handheld device.';
         } else {
             finalDecision = 'AMBER';
             notes += 'Complex situation requiring professional evaluation. Contact engineering for guidance.';
@@ -239,7 +239,7 @@ const BrokenWindowsWizard = ({ currentStep, responses, updateResponse, onNext, o
                                                         <li>Secure scene and provide assistance as appropriate</li>
                                                     </>
                                                 )}
-                                                <li>Record all incidents immediately in Tranzaura</li>
+                                                <li>Record all incidents immediately on their handheld device</li>
                                             </ul>
                                         </div>
                                     </div>
@@ -499,7 +499,7 @@ const BrokenWindowsWizard = ({ currentStep, responses, updateResponse, onNext, o
                         <div className="flex items-start space-x-4">
                             <FileText className="w-6 h-6 text-blue-400 mt-1" />
                             <div>
-                                <h4 className="font-semibold text-blue-200 mb-2">📱 Tranzaura Documentation Requirements</h4>
+                                <h4 className="font-semibold text-blue-200 mb-2">📱 Defect Documentation Requirements</h4>
                                 <ul className="list-disc list-inside space-y-1 text-blue-300/80 text-sm">
                                     <li>Record defects immediately when bus is stationary and in safe location</li>
                                     <li>Document extent of window damage and any additional damage</li>

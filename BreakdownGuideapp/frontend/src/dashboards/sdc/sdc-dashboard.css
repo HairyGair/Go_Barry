@@ -1,6 +1,6 @@
 /* ============================================================================
    SDC OPERATIONS DASHBOARD - PROFESSIONAL DARK THEME
-   Modern glassmorphism design with Go North East branding
+   Modern glassmorphism design with GoBarry branding
    ============================================================================ */
 
 /* ====================================
@@ -13,7 +13,7 @@
   --sdc-bg-card: rgba(30, 41, 59, 0.8);
   --sdc-bg-elevated: rgba(51, 65, 85, 0.6);
   --sdc-border: rgba(255, 255, 255, 0.1);
-  --sdc-border-accent: rgba(228, 6, 19, 0.3);
+  --sdc-border-accent: rgba(0, 102, 204, 0.3);
 
   /* Status colors */
   --sdc-critical: #ef4444;
@@ -50,7 +50,7 @@
   gap: 24px;
   padding: 20px 24px;
   background: linear-gradient(135deg,
-    rgba(228, 6, 19, 0.15) 0%,
+    rgba(0, 102, 204, 0.15) 0%,
     rgba(0, 59, 92, 0.15) 100%
   );
   backdrop-filter: blur(20px);
@@ -233,7 +233,7 @@
 
 .sdc-section-header {
   background: linear-gradient(135deg,
-    rgba(228, 6, 19, 0.1) 0%,
+    rgba(0, 102, 204, 0.1) 0%,
     rgba(0, 59, 92, 0.1) 100%
   );
   padding: 16px 20px;
@@ -256,7 +256,7 @@
   content: '';
   width: 4px;
   height: 24px;
-  background: linear-gradient(180deg, #E4002B, #ff1744);
+  background: linear-gradient(180deg, #0066CC, #0088DD);
   border-radius: 2px;
 }
 
@@ -286,10 +286,10 @@
 }
 
 .sdc-inline-filter .filter-btn.active {
-  background: linear-gradient(135deg, #E4002B, #ff1744);
+  background: linear-gradient(135deg, #0066CC, #0088DD);
   border-color: transparent;
   color: white;
-  box-shadow: 0 4px 12px rgba(228, 0, 43, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
 }
 
 /* ====================================
@@ -316,12 +316,12 @@
 }
 
 .sdc-breakdown-list::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #E4002B, #ff1744);
+  background: linear-gradient(180deg, #0066CC, #0088DD);
   border-radius: 4px;
 }
 
 .sdc-breakdown-list::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #ff1744, #E4002B);
+  background: linear-gradient(180deg, #0088DD, #0066CC);
 }
 
 /* ====================================
@@ -351,7 +351,7 @@
   color: var(--sdc-text-primary);
   padding: 16px 20px;
   background: linear-gradient(135deg,
-    rgba(228, 6, 19, 0.1) 0%,
+    rgba(0, 102, 204, 0.1) 0%,
     rgba(0, 59, 92, 0.1) 100%
   );
   border-bottom: 1px solid var(--sdc-border);
@@ -439,8 +439,8 @@
 .sdc-loading .spinner-border {
   width: 48px;
   height: 48px;
-  border: 3px solid rgba(228, 6, 19, 0.2);
-  border-top-color: #E4002B;
+  border: 3px solid rgba(0, 102, 204, 0.2);
+  border-top-color: #0066CC;
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 16px;

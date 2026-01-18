@@ -268,7 +268,7 @@ const VoiceAnnouncementSettings = () => {
         <span>&#x1F4A1;</span>
         <p>
           Voice announcements use your browser's text-to-speech engine.
-          Works best in Chrome and Edge. Make sure your device volume is up.
+          Works best in Chrome and Edge. Make sure the device volume is up.
         </p>
       </div>
     </div>

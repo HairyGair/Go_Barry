@@ -681,7 +681,7 @@ const EngineeringDisplay = () => {
             Display ID: {displayId} | Auto-refresh: 30s
           </div>
           <div className="footer-watermark">
-            <GairWareLogo size={16} variant="minimal" color="rgba(255,255,255,0.15)" />
+            <GairWareLogo height={16} variant="mono" style={{ opacity: 0.15 }} />
             <span className="watermark-text">GairWare</span>
           </div>
         </div>

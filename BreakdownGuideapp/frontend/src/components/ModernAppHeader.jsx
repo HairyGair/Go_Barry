@@ -70,8 +70,10 @@ const ModernAppHeader = ({
     { key: 'Alt+1', description: 'Go to Breakdown Guide' },
     { key: 'Alt+2', description: 'Go to SDC Operations' },
     { key: 'Alt+3', description: 'Go to Control Room' },
-    { key: 'Alt+4', description: 'Go to Fleet Intelligence' },
-    { key: 'Alt+5', description: 'Go to Management' },
+    { key: 'Alt+4', description: 'Go to Engineering' },
+    { key: 'Alt+5', description: 'Go to Fleet Intelligence' },
+    { key: 'Alt+6', description: 'Go to Management' },
+    { key: 'Alt+Y', description: 'Open Yard Display (new tab)' },
     { key: 'Alt+H', description: 'Go to Home' },
     { key: 'Alt+Q', description: 'Toggle Shortcuts Panel' },
     { key: 'Cmd+K', description: 'Open Command Palette' },
@@ -91,10 +93,12 @@ const ModernAppHeader = ({
       if (segment === 'breakdown-guide') label = 'Breakdown Guide';
       if (segment === 'dashboards') label = 'Dashboards';
       if (segment === 'sdc') label = 'SDC Operations';
-      if (segment === 'engineering') label = 'Fleet Intelligence';
+      if (segment === 'engineering') label = 'Engineering';
+      if (segment === 'display') label = 'Yard Display';
       if (segment === 'control-room') label = 'Control Room';
       if (segment === 'management') label = 'Management';
       if (segment === 'fleet-defects') label = 'Fleet Defects';
+      if (segment === 'fleet-intelligence') label = 'Fleet Intelligence';
 
       breadcrumbs.push({ path: currentPath, label });
     });
@@ -123,11 +127,12 @@ const ModernAppHeader = ({
   const quickActions = [
     { id: 'new-breakdown', label: 'Report New Breakdown', icon: '🚨', shortcut: 'Ctrl+N', action: () => navigate('/breakdown-guide') },
     { id: 'view-dashboard', label: 'Control Room Display', icon: '📺', shortcut: 'Alt+D', action: () => navigate('/dashboards/control-room') },
-    { id: 'fleet-status', label: 'Fleet Intelligence', icon: '🚌', shortcut: 'Alt+F', action: () => navigate('/fleet-intelligence') },
+    { id: 'engineering', label: 'Engineering Dashboard', icon: '🔧', shortcut: 'Alt+4', action: () => navigate('/dashboards/engineering') },
+    { id: 'yard-display', label: 'Open Yard Display', icon: '🖥️', shortcut: 'Alt+Y', action: () => window.open('/dashboards/engineering/display', '_blank') },
+    { id: 'fleet-status', label: 'Fleet Intelligence', icon: '📊', shortcut: 'Alt+F', action: () => navigate('/fleet-intelligence') },
     { id: 'recent-assessments', label: 'Recent Assessments', icon: '📋', shortcut: 'Alt+R', action: () => navigate('/breakdown-guide/history') },
-    { id: 'sdc-operations', label: 'SDC Control Centre', icon: '🎛️', shortcut: 'Alt+S', action: () => navigate('/dashboards/sdc'), comingSoon: true },
+    { id: 'sdc-operations', label: 'SDC Control Centre', icon: '🎯', shortcut: 'Alt+S', action: () => navigate('/dashboards/sdc') },
     { id: 'emergency-protocol', label: 'Emergency Protocol', icon: '⚠️', shortcut: 'Ctrl+E', action: () => alert('Emergency Protocol Activated') },
-    { id: 'team-status', label: 'Team Status', icon: '👥', shortcut: 'Alt+T', action: () => navigate('/dashboards/engineering/teams'), comingSoon: true },
     { id: 'reports', label: 'Generate Report', icon: '📑', shortcut: 'Alt+G', action: () => navigate('/dashboards/management/reports'), comingSoon: true },
   ];
 
@@ -179,33 +184,38 @@ const ModernAppHeader = ({
       ]
     },
     {
-      path: '/fleet-intelligence',
-      label: 'Fleet',
-      fullLabel: 'Fleet Intelligence',
-      icon: '⚙️',
+      path: '/dashboards/engineering',
+      label: 'Engineering',
+      fullLabel: 'Engineering Dashboard',
+      icon: '🔧',
       color: '#f59e0b',
-      description: 'Fleet analytics & insights',
+      description: 'Engineering dispatch & yard displays',
       priority: 4,
-      stats: { label: 'Health', value: `${liveStats.fleetHealth}%` },
+      stats: { label: 'Jobs', value: liveStats.active || 0 },
       quickLinks: [
-        { path: '/fleet-intelligence', label: 'Command Center' },
-        { path: '/dashboards/engineering', label: 'Engineering' },
-        { path: '/dashboards/fleet-defects', label: 'Defects' }
+        { path: '/dashboards/engineering', label: 'Dispatch Dashboard' },
+        { type: 'divider', label: 'Yard Displays' },
+        { path: '/dashboards/engineering/display?depot=Washington', label: '🖥️ Washington', external: true },
+        { path: '/dashboards/engineering/display?depot=Riverside', label: '🖥️ Riverside', external: true },
+        { path: '/dashboards/engineering/display?depot=Consett', label: '🖥️ Consett', external: true },
+        { path: '/dashboards/engineering/display?depot=Deptford', label: '🖥️ Deptford', external: true },
+        { path: '/dashboards/engineering/display?depot=Percy%20Main', label: '🖥️ Percy Main', external: true },
+        { path: '/dashboards/engineering/display?depot=Hexham', label: '🖥️ Hexham', external: true }
       ]
     },
     {
-      path: '/dashboards/fleet-defects',
-      label: 'Defects',
-      fullLabel: 'Fleet Defect Intelligence',
-      icon: '🔍',
-      color: '#dc2626',
-      description: 'Defect tracking & predictive maintenance',
+      path: '/fleet-intelligence',
+      label: 'Fleet',
+      fullLabel: 'Fleet Intelligence',
+      icon: '📊',
+      color: '#8b5cf6',
+      description: 'Fleet analytics & insights',
       priority: 5,
-      stats: { label: 'Patterns', value: '—' },
+      stats: { label: 'Health', value: `${liveStats.fleetHealth}%` },
       quickLinks: [
-        { path: '/dashboards/fleet-defects', label: 'Intelligence' },
-        { path: '/dashboards/fleet-defects#trends', label: 'Trends' },
-        { path: '/dashboards/fleet-defects#predictive', label: 'Predictive' }
+        { path: '/fleet-intelligence', label: 'Command Center' },
+        { path: '/dashboards/fleet-defects', label: 'Defects' },
+        { path: '/dashboards/management', label: 'Reports' }
       ]
     },
     {
@@ -384,12 +394,15 @@ const ModernAppHeader = ({
           case '1': e.preventDefault(); navigate('/breakdown-guide'); break;
           case '2': e.preventDefault(); navigate('/dashboards/sdc'); break;
           case '3': e.preventDefault(); navigate('/dashboards/control-room'); break;
+          case '4': e.preventDefault(); navigate('/dashboards/engineering'); break;
+          case '5': e.preventDefault(); navigate('/fleet-intelligence'); break;
+          case '6': e.preventDefault(); navigate('/dashboards/management'); break;
+          case 'y':
+          case 'Y': e.preventDefault(); window.open('/dashboards/engineering/display', '_blank'); break;
           case 'q':
           case 'Q': e.preventDefault(); setShowShortcuts(prev => !prev); break;
           case 'h':
           case 'H': e.preventDefault(); navigate('/'); break;
-          case '4': e.preventDefault(); navigate('/fleet-intelligence'); break;
-          case '5': e.preventDefault(); navigate('/dashboards/management'); break;
         }
       }
     };
@@ -513,7 +526,7 @@ const ModernAppHeader = ({
 
             {/* Main Navigation - Priority Items Only */}
             <nav className="nav-center compact">
-              {navigationItems.slice(0, 4).map((item) => (
+              {navigationItems.slice(0, 5).map((item) => (
                 <div key={item.path} className="nav-item-modern">
                   <Link
                     to={item.comingSoon ? '#' : item.path}
@@ -543,14 +556,31 @@ const ModernAppHeader = ({
                         </div>
                       )}
                       <div className="dropdown-links">
-                        {item.quickLinks.map(link => (
-                          <Link
-                            key={link.path}
-                            to={link.path}
-                            className="dropdown-link"
-                          >
-                            {link.label}
-                          </Link>
+                        {item.quickLinks.map((link, index) => (
+                          link.type === 'divider' ? (
+                            <div key={`divider-${index}`} className="dropdown-divider">
+                              <span className="divider-label">{link.label}</span>
+                            </div>
+                          ) : link.external ? (
+                            <a
+                              key={link.path}
+                              href={link.path}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="dropdown-link external"
+                            >
+                              {link.label}
+                              <span className="external-icon">↗</span>
+                            </a>
+                          ) : (
+                            <Link
+                              key={link.path}
+                              to={link.path}
+                              className="dropdown-link"
+                            >
+                              {link.label}
+                            </Link>
+                          )
                         ))}
                       </div>
                     </div>

@@ -146,7 +146,7 @@ const SuspensionWizard = ({ currentStep, responses, updateResponse, onNext, onPr
                                             <h4 className="font-semibold text-green-200 mb-2">Required Actions:</h4>
                                             <ul className="list-disc list-inside space-y-1 text-green-300/90 text-sm">
                                                 <li>Continue in service normally</li>
-                                                <li>Record the incident in Go-Check system when stationary and safe</li>
+                                                <li>Record the incident in defect reporting system when stationary and safe</li>
                                                 <li>Monitor suspension performance during continued operation</li>
                                                 <li>Arrange engineering assessment at depot if issue recurs</li>
                                                 <li>If any suspension problems return, follow this assessment again</li>
@@ -163,7 +163,7 @@ const SuspensionWizard = ({ currentStep, responses, updateResponse, onNext, onPr
                                 <div>
                                     <h4 className="font-semibold text-blue-200">Important Reminders</h4>
                                     <ul className="text-sm text-blue-300/90 mt-1 space-y-1">
-                                        <li>• Record this reset and outcome in Go-Check system</li>
+                                        <li>• Record this reset and outcome in defect reporting system</li>
                                         <li>• Continue monitoring suspension performance</li>
                                         <li>• If symptoms return, stop and seek engineering assistance</li>
                                         <li>• Ensure passenger comfort and safety at all times</li>
@@ -669,7 +669,7 @@ const SuspensionWizard = ({ currentStep, responses, updateResponse, onNext, onPr
                                                 <li>Switch off ignition</li>
                                                 <li>Contact engineering immediately</li>
                                                 <li>Do NOT attempt to continue driving</li>
-                                                <li>Record details in Go-Check system</li>
+                                                <li>Record details in defect reporting system</li>
                                                 <li>Report to depot management team immediately</li>
                                             </ul>
                                         </div>
@@ -693,7 +693,7 @@ const SuspensionWizard = ({ currentStep, responses, updateResponse, onNext, onPr
                                             <ul className="list-disc list-inside space-y-1 text-orange-300/90 text-sm">
                                                 <li>Stop vehicle and await engineering assistance</li>
                                                 <li>Contact engineering for guidance</li>
-                                                <li>Record issue in Go-Check system</li>
+                                                <li>Record issue in defect reporting system</li>
                                                 <li>Ensure passenger safety during delay</li>
                                                 <li>Do not attempt to continue until cleared by engineering</li>
                                             </ul>
@@ -718,7 +718,7 @@ const SuspensionWizard = ({ currentStep, responses, updateResponse, onNext, onPr
                                             <ul className="list-disc list-inside space-y-1 text-yellow-300/90 text-sm">
                                                 <li>Continue to next convenient changeover point</li>
                                                 <li>Monitor suspension performance closely</li>
-                                                <li>Record issue in Go-Check system</li>
+                                                <li>Record issue in defect reporting system</li>
                                                 <li>Arrange changeover at earliest opportunity</li>
                                                 <li>If condition worsens, stop immediately</li>
                                             </ul>
@@ -742,7 +742,7 @@ const SuspensionWizard = ({ currentStep, responses, updateResponse, onNext, onPr
                                             <h4 className="font-semibold text-blue-200 mb-2">Actions Required:</h4>
                                             <ul className="list-disc list-inside space-y-1 text-blue-300/90 text-sm">
                                                 <li>Continue in service to depot</li>
-                                                <li>Record reset attempt and symptoms in Go-Check</li>
+                                                <li>Record reset attempt and symptoms on their handheld device</li>
                                                 <li>Arrange engineering assessment at depot</li>
                                                 <li>Monitor for any changes in suspension performance</li>
                                                 <li>Report any worsening symptoms immediately</li>
@@ -761,7 +761,7 @@ const SuspensionWizard = ({ currentStep, responses, updateResponse, onNext, onPr
                                 <h4 className="font-semibold text-blue-200">Important Reminders</h4>
                                 <ul className="text-sm text-blue-300/90 mt-1 space-y-1">
                                     <li>• Safety is the priority - if driver has any concerns, escalate to engineering</li>
-                                    <li>• Record all defects in Go-Check when stationary and in safe location</li>
+                                    <li>• Record all defects on their handheld device when stationary and in safe location</li>
                                     <li>• Monitor situation and provide updates as needed</li>
                                     <li>• Ensure all actions are communicated clearly to driver</li>
                                 </ul>

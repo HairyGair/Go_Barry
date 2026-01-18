@@ -146,7 +146,7 @@ class LocationCapture {
                             <div class="method-title">Current GPS Location</div>
                         </div>
                         <div class="method-description">
-                            Use your device's GPS to automatically detect current position
+                            Use the device GPS to automatically detect current position
                         </div>
                         <button class="method-action" onclick="window.locationCapture.attemptGPSLocation(true)">
                             Get My Location

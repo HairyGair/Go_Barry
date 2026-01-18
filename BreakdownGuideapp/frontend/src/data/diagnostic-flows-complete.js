@@ -120,7 +120,7 @@ Vehicle brake systems use hydraulic pressure to apply brake pads to rotors. Any 
                     'Consider passenger evacuation if necessary'
                 ],
                 actions: [
-                    'Record as CRITICAL BRAKE SYSTEM FAILURE in Go-Check',
+                    'Record as CRITICAL BRAKE SYSTEM FAILURE on their handheld device',
                     'EP Morris: URG - Urgent Please Read - Complete Brake System Failure',
                     'Vehicle must NOT move under any circumstances',
                     'Complete incident report within 24 hours',
@@ -139,7 +139,7 @@ Vehicle brake systems use hydraulic pressure to apply brake pads to rotors. Any 
                     'Notify depot control of service disruption'
                 ],
                 actions: [
-                    'Record as BRAKE DEFECT in Go-Check with specific symptoms',
+                    'Record as BRAKE DEFECT on their handheld device with specific symptoms',
                     'EP Morris: BDBR - Brake Defect requiring immediate attention',
                     'Document exact symptoms and driver observations',
                     'Engineering inspection required before return to service',
@@ -157,7 +157,7 @@ Vehicle brake systems use hydraulic pressure to apply brake pads to rotors. Any 
                     'Schedule engineering inspection at depot'
                 ],
                 actions: [
-                    'Record as MINOR BRAKE ISSUE in Go-Check',
+                    'Record as MINOR BRAKE ISSUE on their handheld device',
                     'EP Morris: BDBR - Minor Brake Issue requiring inspection',
                     'Driver must monitor brake performance continuously',
                     'Stop immediately if ANY change in brake performance occurs',

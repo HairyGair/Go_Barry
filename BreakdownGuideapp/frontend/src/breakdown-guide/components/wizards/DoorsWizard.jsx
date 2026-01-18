@@ -130,9 +130,9 @@ function DoorsWizard({ currentStep, responses, updateResponse, onNext, onPreviou
                 <div className="flex items-start space-x-3">
                   <Info className="w-5 h-5 text-blue-400" />
                   <div>
-                    <h4 className="font-semibold text-blue-200">Go-Check Reminder</h4>
+                    <h4 className="font-semibold text-blue-200">Recording Reminder</h4>
                     <p className="text-sm text-gray-300 mt-1">
-                      Log this incident in Go-Check system when stationary and in a safe location
+                      Log this incident in defect reporting system when stationary and in a safe location
                     </p>
                   </div>
                 </div>
@@ -286,9 +286,9 @@ function DoorsWizard({ currentStep, responses, updateResponse, onNext, onPreviou
                 <div className="flex items-start space-x-3">
                   <Info className="w-5 h-5 text-blue-400" />
                   <div>
-                    <h4 className="font-semibold text-blue-200">Go-Check Reminder</h4>
+                    <h4 className="font-semibold text-blue-200">Recording Reminder</h4>
                     <p className="text-sm text-gray-300 mt-1">
-                      Log this incident in Go-Check system when stationary and in a safe location
+                      Log this incident in defect reporting system when stationary and in a safe location
                     </p>
                   </div>
                 </div>
@@ -445,9 +445,9 @@ function DoorsWizard({ currentStep, responses, updateResponse, onNext, onPreviou
               <div className="flex items-start space-x-3">
                 <Info className="w-5 h-5 text-blue-400" />
                 <div>
-                  <h4 className="font-semibold text-blue-200">Go-Check Reminder</h4>
+                  <h4 className="font-semibold text-blue-200">Recording Reminder</h4>
                   <p className="text-sm text-gray-300 mt-1">
-                    Log this incident in Go-Check system when stationary and in a safe location
+                    Log this incident in defect reporting system when stationary and in a safe location
                   </p>
                 </div>
               </div>

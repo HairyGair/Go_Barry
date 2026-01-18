@@ -430,7 +430,7 @@ const InteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, 
                                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mt-4">
                                             <h4 className="font-semibold text-green-200 mb-2">Actions Required:</h4>
                                             <ul className="list-disc list-inside space-y-1 text-green-300/90 text-sm">
-                                                <li>Record lighting defects in Go-Check system</li>
+                                                <li>Record lighting defects in defect reporting system</li>
                                                 <li>Monitor lighting during operations</li>
                                                 {operatingInDarkness && <li className="font-semibold">⚠️ Operating in darkness - arrange changeover at earliest opportunity</li>}
                                                 <li>Report for workshop attention</li>
@@ -458,7 +458,7 @@ const InteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, 
                                             <ul className="list-disc list-inside space-y-1 text-red-300/90 text-sm">
                                                 <li className="font-semibold">Arrange changeover immediately</li>
                                                 {operatingInDarkness && <li className="font-semibold text-red-200">⚠️ ESPECIALLY URGENT - Operating in darkness</li>}
-                                                <li>Record defect in Go-Check system</li>
+                                                <li>Record defect on their handheld device</li>
                                                 <li>Do not continue beyond necessary changeover point</li>
                                             </ul>
                                         </div>

@@ -551,7 +551,7 @@ const LooseWheelNutsWizard = ({ currentStep, responses, updateResponse, onNext, 
                             <div className="bg-white/10 backdrop-blur-sm rounded p-4">
                                 <h4 className="font-semibold text-green-200 mb-2">Required Documentation:</h4>
                                 <ul className="list-disc list-inside space-y-1 text-green-300/90 text-sm">
-                                    <li>Log incident in Tranzaura as CRITICAL SAFETY INCIDENT</li>
+                                    <li>Log incident on their handheld device as CRITICAL SAFETY INCIDENT</li>
                                     <li>Record exact time of discovery</li>
                                     <li>Document discovery method and circumstances</li>
                                     <li>Note wheel location and severity assessment</li>
@@ -618,7 +618,7 @@ const LooseWheelNutsWizard = ({ currentStep, responses, updateResponse, onNext, 
                                 </div>
                                 <div className="space-y-2">
                                     <p className="text-green-300/90">✅ Management fully notified</p>
-                                    <p className="text-green-300/90">✅ Incident documented in Tranzaura</p>
+                                    <p className="text-green-300/90">✅ Incident documented on their handheld device</p>
                                     <p className="text-green-300/90">✅ Zero tolerance policy enforced</p>
                                 </div>
                             </div>
@@ -678,14 +678,14 @@ const LooseWheelNutsWizard = ({ currentStep, responses, updateResponse, onNext, 
                         </div>
                     </div>
 
-                    {/* Go-Check Documentation */}
+                    {/* Defect Documentation */}
                     <div className="bg-blue-500/20 backdrop-blur-sm rounded-lg p-6 border border-blue-400/30">
                         <div className="flex items-start space-x-4">
                             <FileText className="w-6 h-6 text-blue-400 mt-1" />
                             <div>
-                                <h4 className="font-semibold text-blue-200 mb-2">📱 Tranzaura Critical Incident Documentation</h4>
+                                <h4 className="font-semibold text-blue-200 mb-2">📱 the defect reporting system Critical Incident Documentation</h4>
                                 <p className="text-blue-300/80 text-sm mb-2">
-                                    This incident has been classified as a CRITICAL SAFETY EMERGENCY and must be recorded in Tranzaura with full details, 
+                                    This incident has been classified as a CRITICAL SAFETY EMERGENCY and must be recorded on their handheld device with full details, 
                                     photographs, and all actions taken. This will form part of the safety audit trail.
                                 </p>
                                 <p className="text-blue-300/80 text-sm font-semibold">

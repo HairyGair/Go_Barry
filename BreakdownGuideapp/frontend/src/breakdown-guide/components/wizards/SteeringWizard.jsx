@@ -274,7 +274,7 @@ const SteeringWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                             <ul className="list-disc list-inside space-y-1 text-red-300/90 text-sm">
                                 <li>ANY steering defect identified = immediate vehicle shutdown</li>
                                 <li>NO exceptions for "continuing to next changeover"</li>
-                                <li>Record all defects in Tranzaura System when stationary</li>
+                                <li>Record all defects on their handheld device when stationary</li>
                                 <li>Next step: physical inspection using comprehensive checklist</li>
                             </ul>
                         </div>
@@ -375,7 +375,7 @@ const SteeringWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                                         <li>DO NOT attempt to move vehicle</li>
                                         <li>Await engineering attendance</li>
                                         <li>Log as SAFETY-CRITICAL STOP decision</li>
-                                        <li>Record defect in Tranzaura System when stationary</li>
+                                        <li>Record defect on their handheld device when stationary</li>
                                     </ol>
                                 </div>
                                 
@@ -514,7 +514,7 @@ const SteeringWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                                         <li>Engine OFF - no exceptions</li>
                                         <li>NO movement until repaired</li>
                                         <li>Engineering attendance required</li>
-                                        <li>Document specific defect found in Tranzaura</li>
+                                        <li>Document specific defect found on their handheld device</li>
                                         <li>Report to depot management</li>
                                         <li>Note: Persistent false reports should be escalated</li>
                                     </ol>

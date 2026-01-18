@@ -157,7 +157,7 @@ export const SDC_GUIDE_REFERENCE = {
         'Vehicle damage assessment'
       ],
       reporting: 'Tracerit report within 24 hours',
-      documentation: 'Go-Check system immediately'
+      documentation: 'defect reporting system immediately'
     },
     'Puncture': {
       icon: '🔧',
@@ -197,7 +197,7 @@ export const SDC_GUIDE_REFERENCE = {
       actions: [
         'Continue to safe changeover point',
         'Monitor condition',
-        'Log in Go-Check'
+        'Log on their handheld device'
       ]
     },
     CONTINUE: {
@@ -228,7 +228,7 @@ export const SDC_GUIDE_REFERENCE = {
     }
   },
 
-  // Go-Check Integration
+  // the defect reporting system Integration
   GO_CHECK_CODES: {
     'Steering': 'STR',
     'Brakes': 'BRK',
@@ -304,7 +304,7 @@ export const getSLAForIssue = (issueType, isPriorityRoute = false) => {
   return SDC_GUIDE_REFERENCE.SLA_TARGETS.standard;
 };
 
-export const getGoCheckCode = (issueType) => {
+export const getDefectCode = (issueType) => {
   // Try to find exact match
   if (SDC_GUIDE_REFERENCE.GO_CHECK_CODES[issueType]) {
     return SDC_GUIDE_REFERENCE.GO_CHECK_CODES[issueType];

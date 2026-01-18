@@ -19,7 +19,7 @@
   --glass-bg: rgba(255, 255, 255, 0.05);
   --glass-border: rgba(255, 255, 255, 0.1);
   --hover-bg: rgba(255, 255, 255, 0.08);
-  --dropdown-bg: rgba(10, 10, 10, 0.95);
+  --dropdown-bg: rgba(10, 10, 10, 0.98);
 }
 
 /* Light Theme */
@@ -202,6 +202,8 @@
   position: relative;
   /* Allow overflow for notification badges */
   overflow: visible;
+  /* Higher z-index so dropdowns appear above duty-status-bar */
+  z-index: 100;
 }
 
 .header-main.compact {
@@ -307,6 +309,11 @@
 
 .nav-item-modern {
   position: relative;
+  z-index: 1;
+}
+
+.nav-item-modern:hover {
+  z-index: 10002; /* Ensure dropdown appears above duty-status-bar */
 }
 
 .nav-link-modern {
@@ -445,18 +452,18 @@
   left: 50%;
   transform: translateX(-50%);
   margin-top: var(--spacing-sm);
-  background: var(--glass-bg);
+  background: var(--dropdown-bg);
   backdrop-filter: blur(var(--blur-amount));
   -webkit-backdrop-filter: blur(var(--blur-amount));
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-xl);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
   padding: var(--spacing-md);
   min-width: 240px;
   opacity: 0;
   visibility: hidden;
   transition: all var(--transition-base);
-  z-index: var(--z-dropdown);
+  z-index: 10001; /* Must be above duty-status-bar */
 }
 
 .nav-dropdown-modern.compact {
@@ -543,6 +550,41 @@
 
 .dropdown-link:hover::before {
   height: 70%;
+}
+
+/* External links in dropdowns */
+.dropdown-link.external {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dropdown-link .external-icon {
+  font-size: 11px;
+  opacity: 0.5;
+  margin-left: 8px;
+  transition: opacity 0.2s ease;
+}
+
+.dropdown-link.external:hover .external-icon {
+  opacity: 1;
+  color: var(--barry-blue);
+}
+
+/* Dropdown dividers */
+.dropdown-divider {
+  padding: 8px 12px 4px 12px;
+  margin-top: 8px;
+  border-top: 1px solid var(--glass-border);
+}
+
+.dropdown-divider .divider-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  opacity: 0.7;
 }
 
 /* Header Actions */
@@ -2355,6 +2397,8 @@
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   padding: 10px 20px;
+  position: relative;
+  z-index: 1; /* Below nav dropdowns */
   cursor: pointer;
   transition: all 0.3s ease;
 }

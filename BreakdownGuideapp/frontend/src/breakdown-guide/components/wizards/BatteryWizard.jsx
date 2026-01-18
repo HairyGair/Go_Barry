@@ -297,7 +297,7 @@ function BatteryWizard({ currentStep, responses, updateResponse, onNext, onPrevi
                           <li>Wait for engineering assistance</li>
                           <li>If no other warning lights (e.g., temperature), vehicle may be moved a short distance if needed for safety</li>
                           <li>Do NOT attempt to drive in normal service</li>
-                          <li>Record defect in Tranzaura System immediately</li>
+                          <li>Record defect on their handheld device immediately</li>
                         </ul>
                       </div>
                     </div>
@@ -309,9 +309,9 @@ function BatteryWizard({ currentStep, responses, updateResponse, onNext, onPrevi
                 <div className="flex items-start space-x-3">
                   <Info className="w-5 h-5 text-blue-400" />
                   <div>
-                    <h4 className="font-semibold text-blue-200">Tranzaura Recording Required</h4>
+                    <h4 className="font-semibold text-blue-200">the defect reporting system Recording Required</h4>
                     <p className="text-sm text-blue-300/90 mt-1">
-                      Record this belt failure in the Tranzaura System when stationary and safe. 
+                      Record this belt failure in the the defect reporting system System when stationary and safe. 
                       EP Morris code likely "BDBA" (Battery/Alternator) - mark as URGENT.
                     </p>
                   </div>
@@ -361,7 +361,7 @@ function BatteryWizard({ currentStep, responses, updateResponse, onNext, onPrevi
                           <li>Arrange changeover at earliest opportunity</li>
                           <li>Do not continue beyond next convenient changeover point</li>
                           <li>Monitor battery light and vehicle performance</li>
-                          <li>Record issue in Tranzaura System</li>
+                          <li>Record issue on their handheld device</li>
                         </ul>
                       </div>
                     </div>
@@ -502,7 +502,7 @@ function BatteryWizard({ currentStep, responses, updateResponse, onNext, onPrevi
                           <li>Restart the vehicle</li>
                           <li>Verify battery light has extinguished</li>
                           <li>Continue in service if light goes out</li>
-                          <li>Record incident in Tranzaura System</li>
+                          <li>Record incident on their handheld device</li>
                         </ul>
                       </div>
                     </div>
@@ -565,7 +565,7 @@ function BatteryWizard({ currentStep, responses, updateResponse, onNext, onPrevi
                         <li>Risk of transmission drive loss</li>
                         <li>Risk of complete electrical component failure</li>
                         <li>Do NOT attempt to continue in service</li>
-                        <li>Record defect in Tranzaura System as URGENT</li>
+                        <li>Record defect on their handheld device as URGENT</li>
                       </ul>
                     </div>
                   </div>

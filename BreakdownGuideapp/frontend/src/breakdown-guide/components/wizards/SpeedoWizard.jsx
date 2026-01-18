@@ -244,7 +244,7 @@ const SpeedoWizard = ({ currentStep, responses, updateResponse, onNext, onPrevio
                                 </p>
                                 <div className="space-y-3 text-green-200">
                                     <p><strong>• Monitor:</strong> Driver should monitor speedometer accuracy</p>
-                                    <p><strong>• Report:</strong> Log any irregularities in Go-Check</p>
+                                    <p><strong>• Report:</strong> Log any irregularities on their handheld device</p>
                                     <p><strong>• Maintenance:</strong> Schedule inspection at next service</p>
                                 </div>
                             </div>
@@ -347,7 +347,7 @@ const SpeedoWizard = ({ currentStep, responses, updateResponse, onNext, onPrevio
                                 <h4 className="font-semibold text-blue-400">Required Actions</h4>
                             </div>
                             <div className="space-y-2 text-blue-200 text-sm">
-                                <p>• Record this defect immediately in the Go-Check system</p>
+                                <p>• Record this defect immediately on their handheld device</p>
                                 <p>• Communicate decision clearly to the driver</p>
                                 <p>• Monitor situation and provide updates as needed</p>
                                 {decision === 'CHANGEOVER_REQUIRED' && (

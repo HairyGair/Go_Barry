@@ -122,7 +122,7 @@ const LowWaterWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                                 <li>Instruct driver to stop in a safe location immediately</li>
                                 <li>Do NOT continue driving</li>
                                 <li>Await engineering assistance</li>
-                                <li>Record defect in Go-Check system</li>
+                                <li>Record defect on their handheld device</li>
                             </ul>
                         </div>
                     )}
@@ -698,7 +698,7 @@ const LowWaterWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                                                 <li>Instruct driver to stop in safe location immediately</li>
                                                 <li>Vehicle MUST NOT continue</li>
                                                 <li>Await engineering assistance</li>
-                                                <li>Record defect in Go-Check system</li>
+                                                <li>Record defect on their handheld device</li>
                                                 <li>Ensure passenger safety</li>
                                             </ul>
                                         </div>
@@ -721,7 +721,7 @@ const LowWaterWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                                             <h4 className="font-semibold text-green-200 mb-2">Actions Required:</h4>
                                             <ul className="list-disc list-inside space-y-1 text-green-300/90 text-sm">
                                                 <li>Continue to next convenient changeover point</li>
-                                                <li>Record defect in Go-Check system</li>
+                                                <li>Record defect on their handheld device</li>
                                                 <li>Monitor water levels during service</li>
                                                 <li>Arrange changeover at earliest opportunity</li>
                                             </ul>
@@ -760,7 +760,7 @@ const LowWaterWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                                                         <li>In case of second top-up, changeover at earliest opportunity</li>
                                                     </>
                                                 )}
-                                                <li>Record defect in Go-Check system</li>
+                                                <li>Record defect on their handheld device</li>
                                             </ul>
                                         </div>
                                     </div>
@@ -783,7 +783,7 @@ const LowWaterWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                                             <ul className="list-disc list-inside space-y-1 text-red-300/90 text-sm">
                                                 <li>Contact engineering immediately for advice</li>
                                                 <li>Do not continue until engineering assessment</li>
-                                                <li>Record defect in Go-Check system</li>
+                                                <li>Record defect on their handheld device</li>
                                                 <li>Ensure passenger safety during delay</li>
                                                 <li>Provide updates to driver as needed</li>
                                             </ul>
@@ -801,7 +801,7 @@ const LowWaterWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                                 <h4 className="font-semibold text-blue-200">Important Reminders</h4>
                                 <ul className="text-sm text-blue-300/90 mt-1 space-y-1">
                                     <li>• Safety is the priority - if driver has concerns, escalate to engineering</li>
-                                    <li>• Record defect in Go-Check when stationary and in safe location</li>
+                                    <li>• Record defect on their handheld device when stationary and in safe location</li>
                                     <li>• Monitor situation and provide updates as needed</li>
                                     <li>• Ensure all actions are communicated clearly to driver</li>
                                 </ul>

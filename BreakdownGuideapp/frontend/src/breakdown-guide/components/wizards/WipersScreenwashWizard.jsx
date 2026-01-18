@@ -52,7 +52,7 @@ const WipersScreenwashWizard = ({ currentStep, responses, updateResponse, onNext
                 notes += `Washers ${responses.washers_working}. `;
             }
             
-            notes += 'Monitor conditions closely - stop immediately if vision becomes impaired. Record defect in Tranzaura.';
+            notes += 'Monitor conditions closely - stop immediately if vision becomes impaired. Record defect on their handheld device.';
         }
         
         onComplete(finalDecision, notes);
@@ -630,7 +630,7 @@ const WipersScreenwashWizard = ({ currentStep, responses, updateResponse, onNext
                                             <span className="text-blue-400 text-xs font-bold">1</span>
                                         </div>
                                         <div>
-                                            <p className="text-blue-200 font-medium">Record Defect in Tranzaura System</p>
+                                            <p className="text-blue-200 font-medium">Record Defect on their handheld device</p>
                                             <p className="text-blue-300/80 text-sm mt-1">
                                                 Log this wiper/screenwash defect when the bus is stationary and in a safe location
                                             </p>

@@ -314,7 +314,7 @@ const MobileGeneralAssessmentWizard = ({ currentStep, responses, updateResponse,
                                     <div className="bg-white/10 rounded-lg p-3">
                                         <p className="font-semibold mb-2">Next Steps:</p>
                                         <ul className="space-y-1 text-sm">
-                                            <li>• Log defect in Go-Check</li>
+                                            <li>• Log defect on their handheld device</li>
                                             <li>• Continue normal service</li>
                                             <li>• Repair at next maintenance</li>
                                         </ul>
@@ -346,7 +346,7 @@ const MobileGeneralAssessmentWizard = ({ currentStep, responses, updateResponse,
                                 icon={<span className="text-xl">📋</span>}
                             >
                                 <div>
-                                    <div className="font-semibold">Logged in Go-Check system</div>
+                                    <div className="font-semibold">Logged in defect reporting system</div>
                                     <div className="text-sm opacity-80 mt-1">Defect properly documented</div>
                                 </div>
                             </MobileTouchButton>

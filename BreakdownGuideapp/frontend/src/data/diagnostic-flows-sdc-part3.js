@@ -100,7 +100,7 @@ const additionalFlows = {
                     'Report the situation to the relevant depot management for further investigation.',
                     'Seek depot assistance for a replacement driver.',
                     'If the vehicle has been vandalized beyond the windows and brakes, steering, or control systems are affected (including wheels/tyres), the bus must remain stationary.',
-                    'Record any defects immediately on the Go-Check System when the bus is stationary and in a safe location.'
+                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.'
                 ]
             },
             {
@@ -116,7 +116,7 @@ const additionalFlows = {
                     'Report the situation to the relevant depot management for further investigation.',
                     'Seek depot assistance for a replacement driver.',
                     'If the vehicle has been vandalized beyond the windows and brakes, steering, or control systems are affected (including wheels/tyres), the bus must remain stationary.',
-                    'Record any defects immediately on the Go-Check System when the bus is stationary and in a safe location.'
+                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.'
                 ]
             }
         ]
@@ -200,7 +200,7 @@ const additionalFlows = {
                     'If the vehicle can safely continue, ensure a changeover is arranged at the earliest opportunity.',
                     'Ensure that all actions, including top-ups and changeovers, are communicated to the driver promptly.',
                     'Monitor the situation and provide updates to the driver as needed.',
-                    'Record any defects immediately on the Go-Check System when the bus is stationary and in a safe location.'
+                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.'
                 ]
             },
             {
@@ -215,7 +215,7 @@ const additionalFlows = {
                     'If the vehicle can safely continue, ensure a changeover is arranged at the earliest opportunity.',
                     'Ensure that all actions, including top-ups and changeovers, are communicated to the driver promptly.',
                     'Monitor the situation and provide updates to the driver as needed.',
-                    'Record any defects immediately on the Go-Check System when the bus is stationary and in a safe location.'
+                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.'
                 ]
             }
         ]
@@ -299,7 +299,7 @@ const additionalFlows = {
                     'If fuel is pooling, drivers should use spill kits (if available) or sand to prevent spreading.',
                     'If the leak is severe, fire services may be required to assist with spill containment.',
                     'If a bus stop or roadway is affected, SDC should notify local authorities to arrange clean-up.',
-                    'Record any defects immediately on the Go-Check System when the bus is stationary and in a safe location.',
+                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.',
                     'Safety is the priority. If the driver has any concerns about continuing, escalate the issue to engineering immediately.'
                 ]
             },
@@ -310,7 +310,7 @@ const additionalFlows = {
                 result: 'Continue to convenient changeover point.',
                 severity: 'warning',
                 actions: [
-                    'Record any defects immediately on the Go-Check System when the bus is stationary and in a safe location.',
+                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.',
                     'Safety is the priority. If the driver has any concerns about continuing, escalate the issue to engineering immediately.',
                     'If the vehicle can safely continue, ensure a changeover is arranged at the earliest opportunity.',
                     'Ensure that all actions, including top-ups and changeovers, are communicated to the driver promptly.',
@@ -325,7 +325,7 @@ const additionalFlows = {
                 severity: 'stop',
                 stopReason: 'Persistent cutting out indicates serious mechanical failure requiring immediate attention.',
                 actions: [
-                    'Record any defects immediately on the Go-Check System when the bus is stationary and in a safe location.',
+                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.',
                     'Safety is the priority. If the driver has any concerns about continuing, escalate the issue to engineering immediately.',
                     'If the vehicle can safely continue, ensure a changeover is arranged at the earliest opportunity.',
                     'Ensure that all actions, including top-ups and changeovers, are communicated to the driver promptly.',
@@ -380,7 +380,7 @@ const additionalFlows = {
                 stopReason: 'Critical smoke conditions present immediate danger to passengers and other road users.',
                 actions: [
                     'Ensure a planned changeover is arranged promptly for vehicles permitted to continue.',
-                    'Record any defects immediately on the Go-Check System when the bus is stationary and in a safe location.',
+                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.',
                     'Escalate persistent, unwarranted smoke-related reports to the depot management team. This ensures patterns of unnecessary service disruption are addressed appropriately.'
                 ]
             },
@@ -392,7 +392,7 @@ const additionalFlows = {
                 severity: 'warning',
                 actions: [
                     'Ensure a planned changeover is arranged promptly for vehicles permitted to continue.',
-                    'Record any defects immediately on the Go-Check System when the bus is stationary and in a safe location.',
+                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.',
                     'Escalate persistent, unwarranted smoke-related reports to the depot management team. This ensures patterns of unnecessary service disruption are addressed appropriately.'
                 ]
             }
@@ -518,7 +518,7 @@ const additionalFlows = {
                     'If the vehicle can safely continue, ensure a changeover is arranged at the earliest opportunity.',
                     'Ensure that all actions, including top-ups and changeovers, are communicated to the driver promptly.',
                     'Monitor the situation and provide updates to the driver as needed.',
-                    'Record any defects immediately on the Go-Check System when the bus is stationary and in a safe location.'
+                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.'
                 ]
             },
             {
@@ -532,7 +532,7 @@ const additionalFlows = {
                     'If the vehicle can safely continue, ensure a changeover is arranged at the earliest opportunity.',
                     'Ensure that all actions, including top-ups and changeovers, are communicated to the driver promptly.',
                     'Monitor the situation and provide updates to the driver as needed.',
-                    'Record any defects immediately on the Go-Check System when the bus is stationary and in a safe location.'
+                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.'
                 ]
             },
             {
@@ -546,7 +546,7 @@ const additionalFlows = {
                     'If the vehicle can safely continue, ensure a changeover is arranged at the earliest opportunity.',
                     'Ensure that all actions, including top-ups and changeovers, are communicated to the driver promptly.',
                     'Monitor the situation and provide updates to the driver as needed.',
-                    'Record any defects immediately on the Go-Check System when the bus is stationary and in a safe location.'
+                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.'
                 ]
             },
             {
@@ -561,7 +561,7 @@ const additionalFlows = {
                     'If the vehicle can safely continue, ensure a changeover is arranged at the earliest opportunity.',
                     'Ensure that all actions, including top-ups and changeovers, are communicated to the driver promptly.',
                     'Monitor the situation and provide updates to the driver as needed.',
-                    'Record any defects immediately on the Go-Check System when the bus is stationary and in a safe location.'
+                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.'
                 ]
             }
         ]

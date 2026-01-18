@@ -38,6 +38,11 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
     // Not in service (Light Running / Dead Run) state
     const [notInService, setNotInService] = useState(false);
 
+    // Depot change confirmation state
+    const [showDepotConfirm, setShowDepotConfirm] = useState(false);
+    const [pendingDepotChange, setPendingDepotChange] = useState(null);
+    const [depotUpdateLoading, setDepotUpdateLoading] = useState(false);
+
     // Storage hooks
     const { topRoutes, updateRoute } = useFrequentRoutes();
     const { recentFleetNumbers, saveFleetNumber } = useRecentFleetNumbers();
@@ -86,8 +91,9 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
         const loadFleetDatabase = async () => {
             try {
                 // First try to load from API (live data)
+                // Use limit=5000 to get all vehicles (default is only 100)
                 const apiUrl = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
-                const response = await fetch(`${apiUrl}/api/fleet`, {
+                const response = await fetch(`${apiUrl}/api/fleet?limit=5000`, {
                     credentials: 'include', // Include auth cookies
                     headers: {
                         'Content-Type': 'application/json'
@@ -95,14 +101,22 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                 });
 
                 if (response.ok) {
-                    const fleetList = await response.json();
+                    const responseData = await response.json();
+                    // API returns { data: [...], pagination: {...} } - extract data array
+                    const fleetList = responseData.data || responseData;
+
+                    if (!Array.isArray(fleetList)) {
+                        throw new Error('Invalid fleet data format');
+                    }
+
                     // Transform API data to match expected format
+                    // Note: DB column is 'type' not 'vehicle_type'
                     const transformedData = {
                         fleet: fleetList.map(vehicle => ({
-                            fleetNumber: vehicle.fleet_no.toString(),
+                            fleetNumber: (vehicle.fleet_no || '').toString(),
                             regNo: vehicle.registration || 'N/A',
                             depot: vehicle.depot || 'Unknown',
-                            vehicleType: vehicle.vehicle_type || 'Unknown'
+                            vehicleType: vehicle.type || vehicle.vehicle_type || 'Unknown'
                         }))
                     };
                     setFleetData(transformedData);
@@ -296,6 +310,71 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
         if (routeData && routeData.length > 0) {
             handleRouteSelect(routeData[0]);
         }
+    };
+
+    // Handle depot change - show confirmation first
+    const handleDepotChangeRequest = (newDepot) => {
+        if (newDepot === selectedVehicle.depot || !newDepot) return;
+        setPendingDepotChange(newDepot);
+        setShowDepotConfirm(true);
+    };
+
+    // Confirm and update depot in database
+    const confirmDepotChange = async () => {
+        if (!pendingDepotChange || !selectedVehicle) return;
+
+        setDepotUpdateLoading(true);
+        try {
+            const apiUrl = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
+            const response = await fetch(`${apiUrl}/api/fleet/${selectedVehicle.fleetNumber}`, {
+                method: 'PUT',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ depot: pendingDepotChange })
+            });
+
+            if (response.ok) {
+                // Update local state
+                setSelectedVehicle({
+                    ...selectedVehicle,
+                    depot: pendingDepotChange
+                });
+
+                // Also update in fleetData so it persists if they go back
+                if (fleetData && fleetData.fleet) {
+                    const updatedFleet = fleetData.fleet.map(v =>
+                        v.fleetNumber === selectedVehicle.fleetNumber
+                            ? { ...v, depot: pendingDepotChange }
+                            : v
+                    );
+                    setFleetData({ ...fleetData, fleet: updatedFleet });
+                }
+
+                console.log(`✅ Updated depot for ${selectedVehicle.fleetNumber} to ${pendingDepotChange}`);
+            } else {
+                throw new Error('Failed to update depot');
+            }
+        } catch (err) {
+            console.error('Error updating depot:', err);
+            setError('Failed to update depot in database. The change will apply to this breakdown only.');
+            // Still update local state even if API fails
+            setSelectedVehicle({
+                ...selectedVehicle,
+                depot: pendingDepotChange
+            });
+        } finally {
+            setDepotUpdateLoading(false);
+            setShowDepotConfirm(false);
+            setPendingDepotChange(null);
+        }
+    };
+
+    // Cancel depot change
+    const cancelDepotChange = () => {
+        setShowDepotConfirm(false);
+        setPendingDepotChange(null);
     };
 
     // Proceed to location step
@@ -589,16 +668,11 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                                     {/* Depot Override Option */}
                                     <div className="mt-3 pt-3 border-t border-gray-700">
                                         <label className="block text-sm font-medium text-gray-300 mb-2">
-                                            ⚠️ Incorrect depot? Override here:
+                                            ⚠️ Incorrect depot? Reallocate here:
                                         </label>
                                         <select
                                             value={selectedVehicle.depot}
-                                            onChange={(e) => {
-                                                setSelectedVehicle({
-                                                    ...selectedVehicle,
-                                                    depot: e.target.value
-                                                });
-                                            }}
+                                            onChange={(e) => handleDepotChangeRequest(e.target.value)}
                                             className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                         >
                                             <option value="">Select Depot</option>
@@ -609,7 +683,7 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                                             ))}
                                         </select>
                                         <p className="text-xs text-gray-500 mt-1">
-                                            This will update the depot for this breakdown only. Contact fleet management to update the master database.
+                                            This will permanently update the vehicle's depot allocation in the fleet database.
                                         </p>
                                     </div>
                                 </div>
@@ -1026,6 +1100,76 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                                 className="flex-1 px-4 py-3 bg-green-600 hover:bg-green-500 text-white rounded-lg transition-colors font-semibold"
                             >
                                 Use Location
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Depot Change Confirmation Modal */}
+            {showDepotConfirm && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+                    <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-6 border border-orange-500/30">
+                        <div className="text-center mb-6">
+                            <div className="w-16 h-16 bg-orange-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <span className="text-3xl">🔄</span>
+                            </div>
+                            <h3 className="text-xl font-bold text-white mb-2">Confirm Depot Reallocation</h3>
+                            <p className="text-gray-400">
+                                Are you sure you want to permanently reallocate this vehicle?
+                            </p>
+                        </div>
+
+                        <div className="bg-gray-800 rounded-lg p-4 mb-6 border border-gray-600">
+                            <div className="text-center">
+                                <div className="text-lg font-semibold text-white mb-3">
+                                    {selectedVehicle?.fleetNumber}
+                                </div>
+                                <div className="flex items-center justify-center gap-3">
+                                    <div className="text-center">
+                                        <div className="text-sm text-gray-400">From</div>
+                                        <div className="font-semibold text-red-400">
+                                            {depotLocations[selectedVehicle?.depot]?.icon} {selectedVehicle?.depot}
+                                        </div>
+                                    </div>
+                                    <div className="text-2xl text-gray-500">→</div>
+                                    <div className="text-center">
+                                        <div className="text-sm text-gray-400">To</div>
+                                        <div className="font-semibold text-green-400">
+                                            {depotLocations[pendingDepotChange]?.icon} {pendingDepotChange}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3 mb-6">
+                            <p className="text-orange-400 text-sm text-center">
+                                ⚠️ This will update the fleet master database. All future breakdowns for this vehicle will show the new depot.
+                            </p>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={cancelDepotChange}
+                                disabled={depotUpdateLoading}
+                                className="flex-1 px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={confirmDepotChange}
+                                disabled={depotUpdateLoading}
+                                className="flex-1 px-4 py-3 bg-orange-600 hover:bg-orange-500 text-white rounded-lg transition-colors font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                {depotUpdateLoading ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                        Updating...
+                                    </>
+                                ) : (
+                                    'Yes, Reallocate'
+                                )}
                             </button>
                         </div>
                     </div>

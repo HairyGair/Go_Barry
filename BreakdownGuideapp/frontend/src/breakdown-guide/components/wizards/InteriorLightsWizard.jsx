@@ -584,7 +584,7 @@ const InteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, 
                                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mt-4">
                                             <h4 className="font-semibold text-green-200 mb-2">Actions Required:</h4>
                                             <ul className="list-disc list-inside space-y-1 text-green-300/90 text-sm">
-                                                <li>Record defect details in Go-Check system</li>
+                                                <li>Record defect details in defect reporting system</li>
                                                 <li>Monitor lighting functionality throughout shift</li>
                                                 <li>Report for workshop attention at next opportunity</li>
                                                 <li>Maintain awareness of lighting status</li>
@@ -612,7 +612,7 @@ const InteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, 
                                             <h4 className="font-semibold text-red-200 mb-2 mt-4">Actions Required:</h4>
                                             <ul className="list-disc list-inside space-y-1 text-red-300/90 text-sm">
                                                 <li>Arrange immediate changeover</li>
-                                                <li>Record defect in Go-Check system</li>
+                                                <li>Record defect on their handheld device</li>
                                                 <li>Do not continue in service</li>
                                                 <li>Ensure passenger safety during changeover</li>
                                             </ul>
@@ -627,9 +627,9 @@ const InteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, 
                         <div className="flex items-start space-x-3">
                             <AlertTriangle className="w-6 h-6 text-blue-400 mt-1" />
                             <div>
-                                <h4 className="font-semibold text-blue-200">Go-Check Reminder</h4>
+                                <h4 className="font-semibold text-blue-200">Recording Reminder</h4>
                                 <p className="text-sm text-blue-300/90 mt-1">
-                                    Log this incident in Go-Check system when stationary and in a safe location
+                                    Log this incident in defect reporting system when stationary and in a safe location
                                 </p>
                             </div>
                         </div>

@@ -550,7 +550,7 @@ const OilWarningLightWizard = ({ currentStep, responses, updateResponse, onNext,
                                         <li>Switch off engine immediately and do NOT restart</li>
                                         <li>Do NOT attempt to move vehicle under any circumstances</li>
                                         <li>Await assistance from engineering</li>
-                                        <li>Record defect immediately in Tranzaura system</li>
+                                        <li>Record defect immediately in defect reporting system</li>
                                         <li>If oil poses fire/hazard risk - escalate as potential PG9 issue</li>
                                         <li>Coordinate replacement vehicle to minimise service disruption</li>
                                     </ol>
@@ -589,7 +589,7 @@ const OilWarningLightWizard = ({ currentStep, responses, updateResponse, onNext,
                                         <li>Do NOT continue if light appears while moving</li>
                                         <li>If light becomes constant/intermittent while moving - STOP immediately</li>
                                         <li>Arrange engineering inspection at earliest opportunity</li>
-                                        <li>Record in Tranzaura system for tracking</li>
+                                        <li>Record in defect reporting system for tracking</li>
                                         <li>Monitor for any change that triggers Step 3 criteria</li>
                                     </ol>
                                 </div>
@@ -602,9 +602,9 @@ const OilWarningLightWizard = ({ currentStep, responses, updateResponse, onNext,
                         <div className="flex items-start space-x-4">
                             <FileText className="w-6 h-6 text-blue-400 mt-1" />
                             <div>
-                                <h4 className="font-semibold text-blue-200 mb-2">📱 Tranzaura Documentation Required</h4>
+                                <h4 className="font-semibold text-blue-200 mb-2">📱 Defect Documentation Required</h4>
                                 <ul className="list-disc ml-6 space-y-1 text-blue-300/80 text-sm">
-                                    <li>Record defect immediately in Tranzaura when stationary and safe</li>
+                                    <li>Record defect immediately on their handheld device when stationary and safe</li>
                                     <li>Mark as {mustStop ? 'CRITICAL - Vehicle stopped' : 'Engineering required'}</li>
                                     <li>Include all operational step outcomes</li>
                                     <li>Note if fire/hazard risk escalation required</li>

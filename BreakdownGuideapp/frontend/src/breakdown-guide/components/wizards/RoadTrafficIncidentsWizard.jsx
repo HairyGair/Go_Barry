@@ -6,7 +6,7 @@ import { supervisorBreakdownLogger } from '../../supervisorBreakdownLogger.js';
 // Road Traffic Incidents Wizard Component - Critical Incident Management
 // Uses icons and constants from common components
 // Follows operational safety procedures v1.3 - Road Traffic Incidents Section (Pages 4-5)
-// Integrated with Tranzaura defect tracking system
+// Integrated with the defect reporting system defect tracking system
 
 const RoadTrafficIncidentsWizard = ({ currentStep, responses, updateResponse, onNext, onPrevious, onComplete, onWizardSelect }) => {
     // Get icons from global scope
@@ -1127,7 +1127,7 @@ const RoadTrafficIncidentsWizard = ({ currentStep, responses, updateResponse, on
                         </p>
                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
                             <h4 className="font-semibold text-red-200 mb-2">If damage is reported:</h4>
-                            <p className="text-red-300/90 text-sm mb-2">Advise the driver to input it into Tranzaura and consult a qualified engineering colleague.</p>
+                            <p className="text-red-300/90 text-sm mb-2">Advise the driver to input it into the defect reporting system and consult a qualified engineering colleague.</p>
                             <p className="text-red-300/90 text-sm">They'll decide whether the bus can:
                             • Continue in service
                             • Return to the depot out of service
@@ -1310,8 +1310,8 @@ const RoadTrafficIncidentsWizard = ({ currentStep, responses, updateResponse, on
                     </div>
                         
                     <div className="bg-purple-500/20 backdrop-blur-sm rounded-lg p-6 border border-purple-400/30">
-                        <h3 className="font-semibold text-purple-200 mb-3">Tranzaura System Status</h3>
-                        <p className="text-purple-300/80 text-sm mb-4">Has the incident and any defects been recorded in the Tranzaura system?</p>
+                        <h3 className="font-semibold text-purple-200 mb-3">the defect reporting system System Status</h3>
+                        <p className="text-purple-300/80 text-sm mb-4">Has the incident and any defects been recorded in the defect reporting system?</p>
                         <div className="space-y-3">
                             <button
                                 onClick={() => updateResponse('tranzaura_recorded', 'already_recorded')}
@@ -1328,7 +1328,7 @@ const RoadTrafficIncidentsWizard = ({ currentStep, responses, updateResponse, on
                                         {responses.tranzaura_recorded === 'already_recorded' && <div className="w-1.5 h-1.5 bg-white rounded-full"></div>}
                                     </div>
                                     <div>
-                                        <span className="font-medium">✅ Already recorded in Tranzaura</span>
+                                        <span className="font-medium">✅ Already recorded on their handheld device</span>
                                         <p className="text-sm text-gray-300 mt-1">All defects and incidents properly documented</p>
                                     </div>
                                 </div>
@@ -1348,7 +1348,7 @@ const RoadTrafficIncidentsWizard = ({ currentStep, responses, updateResponse, on
                                         {responses.tranzaura_recorded === 'needs_recording' && <div className="w-1.5 h-1.5 bg-white rounded-full"></div>}
                                     </div>
                                     <div>
-                                        <span className="font-medium">⚠️ Needs recording in Tranzaura</span>
+                                        <span className="font-medium">⚠️ Needs recording on their handheld device</span>
                                         <p className="text-sm text-gray-300 mt-1">Reminder to driver to record all defects</p>
                                     </div>
                                 </div>
@@ -1663,7 +1663,7 @@ const RoadTrafficIncidentsWizard = ({ currentStep, responses, updateResponse, on
                             <h4 className="font-semibold text-red-200 mb-2">Remind the driver to:</h4>
                             <ul className="list-disc list-inside space-y-1 text-red-300/90 text-sm">
                                 <li>Complete all necessary reports including a TracerIt report within 24 hours</li>
-                                <li>Record any defects immediately on the Tranzaura System</li>
+                                <li>Record any defects immediately on the the defect reporting system System</li>
                                 <li>Provide reassurance and support</li>
                                 <li>Escalate to senior managers if required</li>
                                 <li>Report all personal injuries</li>

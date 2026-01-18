@@ -390,9 +390,9 @@ const WarningLightsWizard = ({ currentStep, responses, updateResponse, onNext, o
             <AdditionalContext responses={responses} updateResponse={updateResponse} />
 
             <div className="bg-blue-500/20 border border-blue-500 rounded-lg p-4">
-              <p className="text-blue-300 font-semibold mb-2">Tranzaura Recording</p>
+              <p className="text-blue-300 font-semibold mb-2">the defect reporting system Recording</p>
               <p className="text-sm text-gray-300">
-                Instruct driver: "Please take a clear photo of your dashboard showing all warning lights and upload it to Tranzaura. This helps our engineers prepare for any repairs needed."
+                Instruct driver: "Please take a clear photo of your dashboard showing all warning lights and upload it to the defect reporting system. This helps our engineers prepare for any repairs needed."
               </p>
             </div>
           </div>
@@ -425,7 +425,7 @@ const WarningLightsWizard = ({ currentStep, responses, updateResponse, onNext, o
                         <li>Switch off the engine</li>
                         <li>Do NOT attempt to continue driving</li>
                         <li>Await assistance from engineering</li>
-                        <li>Record defect in Tranzaura with photo of warning light</li>
+                        <li>Record defect on their handheld device with photo of warning light</li>
                       </ol>
                     </div>
                   </div>
@@ -437,7 +437,7 @@ const WarningLightsWizard = ({ currentStep, responses, updateResponse, onNext, o
                     "Driver confirms they are in or approaching a safe location",
                     "Driver has been told NOT to restart the engine",
                     "Driver acknowledges engineering will attend",
-                    "Driver understands they must record in Tranzaura"
+                    "Driver understands they must record on their handheld device"
                   ]}
                   verificationState={verificationChecks}
                   onVerify={(key, value) => setVerificationChecks({...verificationChecks, [key]: value})}
@@ -473,7 +473,7 @@ const WarningLightsWizard = ({ currentStep, responses, updateResponse, onNext, o
                             <li>Stop and await engineering assistance</li>
                           </ul>
                         </li>
-                        <li>Record in Tranzaura with photo</li>
+                        <li>Record on their handheld device with photo</li>
                       </ol>
                     </div>
                   </div>
@@ -485,7 +485,7 @@ const WarningLightsWizard = ({ currentStep, responses, updateResponse, onNext, o
                     "Driver will monitor for light returning",
                     "Driver knows to stop immediately if light reappears",
                     "Changeover has been arranged at next safe point",
-                    "Driver will record in Tranzaura"
+                    "Driver will record on their handheld device"
                   ]}
                   verificationState={verificationChecks}
                   onVerify={(key, value) => setVerificationChecks({...verificationChecks, [key]: value})}
@@ -511,7 +511,7 @@ const WarningLightsWizard = ({ currentStep, responses, updateResponse, onNext, o
                         <li>Monitor the situation closely</li>
                         <li>If ABS light, follow specific ABS guidance (Section 3)</li>
                         <li>Arrange changeover at earliest opportunity</li>
-                        <li>Record in Tranzaura with photo of warning light</li>
+                        <li>Record on their handheld device with photo of warning light</li>
                       </ol>
                     </div>
                   </div>
@@ -523,7 +523,7 @@ const WarningLightsWizard = ({ currentStep, responses, updateResponse, onNext, o
                     "Driver will monitor for any changes",
                     "Driver understands changeover is required",
                     "Driver knows to report any new symptoms immediately",
-                    "Driver will record in Tranzaura"
+                    "Driver will record on their handheld device"
                   ]}
                   verificationState={verificationChecks}
                   onVerify={(key, value) => setVerificationChecks({...verificationChecks, [key]: value})}
@@ -550,7 +550,7 @@ const WarningLightsWizard = ({ currentStep, responses, updateResponse, onNext, o
               <p className="text-blue-300 font-semibold mb-2">Engineering Escalation</p>
               <p className="text-sm text-gray-300">
                 If uncertain about any warning light's meaning or severity, always err on the side of caution. 
-                Stop and seek immediate engineering advice. Document all decisions in Tranzaura.
+                Stop and seek immediate engineering advice. Document all decisions on their handheld device.
               </p>
             </div>
           </div>
@@ -604,7 +604,7 @@ const WarningLightsWizard = ({ currentStep, responses, updateResponse, onNext, o
                     </>
                   )}
                   <li>✓ Safety verification completed</li>
-                  <li>✓ Defect to be recorded in Tranzaura with photo</li>
+                  <li>✓ Defect to be recorded on their handheld device with photo</li>
                   <li>✓ Communication script provided to supervisor</li>
                 </ul>
               </div>
@@ -626,9 +626,9 @@ const WarningLightsWizard = ({ currentStep, responses, updateResponse, onNext, o
             )}
 
             <div className="bg-blue-500/20 border border-blue-500 rounded-lg p-4">
-              <h4 className="font-medium text-blue-300 mb-2">Final Tranzaura Reminder</h4>
+              <h4 className="font-medium text-blue-300 mb-2">Final Recording Reminder</h4>
               <p className="text-sm text-gray-300 mb-2">
-                Ensure the driver has completed the following in Tranzaura:
+                Ensure the driver has completed the following on their handheld device:
               </p>
               <ul className="list-disc list-inside text-sm text-gray-300 space-y-1">
                 <li>Recorded the warning light defect</li>

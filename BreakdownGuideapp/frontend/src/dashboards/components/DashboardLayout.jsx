@@ -10,14 +10,16 @@ const DashboardLayout = ({ children, title, icon, breakdownCount, criticalCount,
     <div style={{ backgroundColor: theme.colors.bgPrimary, minHeight: '100vh' }}>
 
       {/* Main Content - Dark Theme */}
-      <div 
+      <div
         className="dashboard-content"
         style={{
           backgroundColor: theme.colors.bgPrimary,
           color: theme.colors.textPrimary,
           minHeight: '100vh',
+          paddingTop: '90px', // Space for fixed header
           paddingBottom: '80px', // Space for mobile nav
-          padding: '20px',
+          paddingLeft: '20px',
+          paddingRight: '20px',
         }}
       >
         {children}

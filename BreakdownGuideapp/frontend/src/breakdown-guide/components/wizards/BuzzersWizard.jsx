@@ -395,7 +395,7 @@ function BuzzersWizard({ currentStep, responses, updateResponse, onNext, onPrevi
                       <ul className="list-disc list-inside space-y-1">
                         <li>Stop immediately and seek assistance from engineering</li>
                         <li>Do not attempt to continue without engineering clearance</li>
-                        <li>Record defect in Go-Check system</li>
+                        <li>Record defect on their handheld device</li>
                         <li>Follow safety protocols for stopped vehicle</li>
                       </ul>
                     </div>
@@ -412,7 +412,7 @@ function BuzzersWizard({ currentStep, responses, updateResponse, onNext, onPrevi
                   <li>Some vehicles will not drive with a buzzer sounding</li>
                   <li>If issue cannot be resolved, stop and await assistance from engineering</li>
                   <li>When in doubt about safety, always choose the more cautious option</li>
-                  <li>Record all defects in Go-Check system immediately</li>
+                  <li>Record all defects on their handheld device immediately</li>
                 </ul>
               </div>
             </div>

@@ -40,7 +40,7 @@ const ExcessiveSmokeWizard = ({ currentStep, responses, updateResponse, onNext, 
             finalDecision = 'AMBER';
             notes += 'Continue to next changeover point with caution. ';
             notes += `Smoke type: ${smokeType}. Monitor situation closely and arrange replacement vehicle. `;
-            notes += 'Record defect in Tranzaura and report to engineering for depot assessment.';
+            notes += 'Record defect on their handheld device and report to engineering for depot assessment.';
         }
         
         // Add duration information
@@ -255,7 +255,7 @@ const ExcessiveSmokeWizard = ({ currentStep, responses, updateResponse, onNext, 
                                         <ul className="list-disc list-inside space-y-1 ml-4">
                                             <li>Arrange for a vehicle changeover at the earliest opportunity</li>
                                             <li>Monitor the situation closely - if it worsens, stop immediately</li>
-                                            <li>Record the defect in Tranzaura when safe to do so</li>
+                                            <li>Record the defect on their handheld device when safe to do so</li>
                                             <li>Report to engineering for assessment at depot</li>
                                         </ul>
                                     </div>
@@ -365,7 +365,7 @@ const ExcessiveSmokeWizard = ({ currentStep, responses, updateResponse, onNext, 
                                 Required Actions
                             </h4>
                             <ul className="text-blue-200 text-sm space-y-1">
-                                <li>• Record this assessment in Tranzaura when stationary and safe</li>
+                                <li>• Record this assessment on their handheld device when stationary and safe</li>
                                 <li>• Include photos of any visible smoke if safely possible</li>
                                 <li>• Contact engineering for further guidance</li>
                                 <li>• Arrange changeover at earliest opportunity</li>

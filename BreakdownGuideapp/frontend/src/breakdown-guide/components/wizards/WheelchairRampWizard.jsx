@@ -546,7 +546,7 @@ const WheelchairRampWizard = ({ currentStep, responses, updateResponse, onNext, 
                                                     <li>Do NOT attempt unauthorised manual intervention</li>
                                                     <li>Remain stationary and await engineering</li>
                                                     <li>If wheelchair user waiting, arrange alternative accessible vehicle</li>
-                                                    <li>Record defect in Go-Check immediately</li>
+                                                    <li>Record defect on their handheld device immediately</li>
                                                     <li>Inform control of vehicle status</li>
                                                 </ul>
                                             </div>
@@ -575,7 +575,7 @@ const WheelchairRampWizard = ({ currentStep, responses, updateResponse, onNext, 
                                                 <h4 className="font-semibold text-green-800 mb-2 mt-4">Follow-up Actions:</h4>
                                                 <ul className="list-disc list-inside space-y-1 text-green-700">
                                                     <li>Continue normal service</li>
-                                                    <li>Record incident in Go-Check for tracking</li>
+                                                    <li>Record incident on their handheld device for tracking</li>
                                                     <li>Monitor ramp for any recurrence</li>
                                                     <li>Report to engineering for preventive maintenance</li>
                                                 </ul>
@@ -604,7 +604,7 @@ const WheelchairRampWizard = ({ currentStep, responses, updateResponse, onNext, 
                                                     <li>Continue to next convenient changeover point</li>
                                                     <li>Avoid picking up wheelchair users if possible</li>
                                                     <li>If wheelchair user boards, test ramp first</li>
-                                                    <li>Record defect in Go-Check</li>
+                                                    <li>Record defect on their handheld device</li>
                                                     <li>Arrange changeover at earliest opportunity</li>
                                                 </ul>
                                             </div>
@@ -614,13 +614,13 @@ const WheelchairRampWizard = ({ currentStep, responses, updateResponse, onNext, 
                             </div>
                         )}
 
-                        {/* Go-Check Reminder */}
+                        {/* Recording Reminder */}
                         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                             <div className="flex items-start">
                                 <FileText className="w-6 h-6 text-blue-600 mt-1 mr-3" />
                                 <div>
-                                    <h3 className="text-lg font-semibold text-blue-800 mb-2">📝 Record in Go-Check</h3>
-                                    <p className="text-blue-700">All wheelchair ramp defects must be recorded in the Go-Check system immediately, including:</p>
+                                    <h3 className="text-lg font-semibold text-blue-800 mb-2">📝 Record on their handheld device</h3>
+                                    <p className="text-blue-700">All wheelchair ramp defects must be recorded in the defect reporting system immediately, including:</p>
                                     <ul className="list-disc list-inside mt-2 text-blue-700">
                                         <li>Nature of the defect</li>
                                         <li>Actions taken (reset attempts, manual intervention)</li>

@@ -405,7 +405,7 @@ const MySQLLoginPage = () => {
                     {/* GairWare Attribution */}
                     <div className="gairware-attribution fade-in-badge" style={{ animationDelay: '0.8s' }}>
                         <div className="attribution-content">
-                            <GairWareLogo size={24} variant="terminal" color="#646CFF" />
+                            <GairWareLogo height={24} variant="icon" />
                             <div className="attribution-text">
                                 <span className="powered-by">Powered by</span>
                                 <span className="gairware-brand">

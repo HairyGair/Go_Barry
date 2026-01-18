@@ -219,7 +219,7 @@ const MobileBrakesWizard = ({ currentStep, responses, updateResponse, onNext, on
                                         <ul className="space-y-1 text-sm">
                                             <li>• Continue to next convenient changeover</li>
                                             <li>• Monitor brake performance</li>
-                                            <li>• Log any changes in Go-Check</li>
+                                            <li>• Log any changes on their handheld device</li>
                                         </ul>
                                     </div>
                                 </div>
@@ -263,7 +263,7 @@ const MobileBrakesWizard = ({ currentStep, responses, updateResponse, onNext, on
                                 icon={<span className="text-xl">📋</span>}
                             >
                                 <div>
-                                    <div className="font-semibold">Defects logged in Go-Check</div>
+                                    <div className="font-semibold">Defects logged on their handheld device</div>
                                     <div className="text-sm opacity-80 mt-1">All issues documented properly</div>
                                 </div>
                             </MobileTouchButton>

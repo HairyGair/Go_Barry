@@ -493,7 +493,7 @@ const WingMirrorsWizard = ({ currentStep, responses, updateResponse, onNext, onP
                                     <li>Driver must exercise additional caution</li>
                                     <li>Avoid high-risk maneuvers where possible</li>
                                     <li>Arrange changeover as soon as feasible</li>
-                                    <li>Record defects in Go-Check when stationary and safe</li>
+                                    <li>Record defects on their handheld device when stationary and safe</li>
                                 </ul>
                             </div>
                         </div>
@@ -569,7 +569,7 @@ const WingMirrorsWizard = ({ currentStep, responses, updateResponse, onNext, onP
                         <div className="flex items-start space-x-4">
                             <FileText className="w-6 h-6 text-blue-400 mt-1" />
                             <div>
-                                <h4 className="font-semibold text-blue-200 mb-2">📱 Go-Check Documentation Requirements</h4>
+                                <h4 className="font-semibold text-blue-200 mb-2">📱 Defect Documentation Requirements</h4>
                                 <ul className="list-disc list-inside space-y-1 text-blue-300/80 text-sm">
                                     <li>Record defects immediately when bus is stationary and in safe location</li>
                                     <li>Document extent of mirror damage (glass vs full assembly)</li>

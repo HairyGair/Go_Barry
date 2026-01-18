@@ -208,21 +208,21 @@ const RepeatDefectsWizard = ({ currentStep, responses, updateResponse, onNext, o
                     </div>
 
                     <div className="bg-yellow-500/20 backdrop-blur-sm rounded-lg p-6 border border-yellow-400/30">
-                        <h3 className="text-lg font-semibold text-yellow-200 mb-4">Go-Check Documentation</h3>
+                        <h3 className="text-lg font-semibold text-yellow-200 mb-4">Defect Documentation</h3>
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-yellow-200 mb-2">
-                                    Go-Check Reference Numbers
+                                    the defect reporting system Reference Numbers
                                 </label>
                                 <input
                                     type="text"
                                     className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-gray-400 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20 transition-all"
                                     value={responses.goCheckRefs || ''}
                                     onChange={(e) => updateResponse('goCheckRefs', e.target.value)}
-                                    placeholder="Enter Go-Check reference numbers (comma separated)"
+                                    placeholder="Enter the defect reporting system reference numbers (comma separated)"
                                 />
                                 <p className="text-yellow-300/80 text-sm mt-2">
-                                    Include all relevant Go-Check references for tracking and audit trail
+                                    Include all relevant the defect reporting system references for tracking and audit trail
                                 </p>
                             </div>
                         </div>
@@ -290,7 +290,7 @@ const RepeatDefectsWizard = ({ currentStep, responses, updateResponse, onNext, o
                                         <p><strong className="text-blue-200">Days Persisted:</strong> <span className="text-white">{responses.daysPersisted}</span></p>
                                     )}
                                     {responses.goCheckRefs && (
-                                        <p><strong className="text-blue-200">Go-Check Refs:</strong> <span className="text-white">{responses.goCheckRefs}</span></p>
+                                        <p><strong className="text-blue-200">the defect reporting system Refs:</strong> <span className="text-white">{responses.goCheckRefs}</span></p>
                                     )}
                                 </div>
                             </div>
@@ -330,12 +330,12 @@ const RepeatDefectsWizard = ({ currentStep, responses, updateResponse, onNext, o
                             <label className="flex items-start space-x-3 cursor-pointer">
                                 <input
                                     type="checkbox"
-                                    checked={responses.documentedGoCheck || false}
-                                    onChange={(e) => updateResponse('documentedGoCheck', e.target.checked)}
+                                    checked={responses.documentedOnDevice || false}
+                                    onChange={(e) => updateResponse('documentedOnDevice', e.target.checked)}
                                     className="mt-1 h-4 w-4 text-green-600 bg-white/10 border-white/30 rounded focus:ring-green-500 focus:ring-2"
                                 />
                                 <div>
-                                    <span className="font-medium text-green-200">Documented in Go-Check with photos if applicable</span>
+                                    <span className="font-medium text-green-200">Documented on their handheld device with photos if applicable</span>
                                     <p className="text-green-300/80 text-sm mt-1">Complete audit trail for investigation and accountability</p>
                                 </div>
                             </label>
@@ -351,7 +351,7 @@ const RepeatDefectsWizard = ({ currentStep, responses, updateResponse, onNext, o
                         </button>
                         <button
                             onClick={onNext}
-                            disabled={!responses.reportedToDirector || !responses.copiedManagers || !responses.documentedGoCheck}
+                            disabled={!responses.reportedToDirector || !responses.copiedManagers || !responses.documentedOnDevice}
                             className="flex items-center px-6 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                             Complete Escalation <ArrowRight className="w-4 h-4 ml-2" />
@@ -387,7 +387,7 @@ const RepeatDefectsWizard = ({ currentStep, responses, updateResponse, onNext, o
                                 </div>
                                 <div className="space-y-2">
                                     <p className="text-green-300/90">✅ Complete defect documentation</p>
-                                    <p className="text-green-300/90">✅ Tranzaura audit trail established</p>
+                                    <p className="text-green-300/90">✅ the defect reporting system audit trail established</p>
                                     <p className="text-green-300/90">✅ Management accountability activated</p>
                                 </div>
                             </div>
@@ -426,9 +426,9 @@ const RepeatDefectsWizard = ({ currentStep, responses, updateResponse, onNext, o
                         <div className="flex items-start space-x-4">
                             <FileText className="w-6 h-6 text-purple-400 mt-1" />
                             <div>
-                                <h4 className="font-semibold text-purple-200 mb-2">📱 Tranzaura Documentation Complete</h4>
+                                <h4 className="font-semibold text-purple-200 mb-2">📱 Defect Documentation Complete</h4>
                                 <p className="text-purple-300/80 text-sm">
-                                    This escalation has created a complete audit trail in Tranzaura for management review, 
+                                    This escalation has created a complete audit trail on their handheld device for management review, 
                                     engineering accountability, and process improvement initiatives.
                                 </p>
                             </div>

@@ -29,7 +29,7 @@ const DemistersHeatersWizard = ({ currentStep, responses, updateResponse, onNext
             notes += 'Minor demister issue identified. Vehicle may continue with monitoring.';
         }
         
-        notes += ' Record defect in Tranzaura when stationary and safe.';
+        notes += ' Record defect on their handheld device when stationary and safe.';
         
         onComplete(finalDecision, notes);
     };
@@ -395,7 +395,7 @@ const DemistersHeatersWizard = ({ currentStep, responses, updateResponse, onNext
                                                 <li>Continue in service until replacement available</li>
                                                 <li>Changeover is not urgent</li>
                                                 <li>Monitor passenger comfort throughout journey</li>
-                                                <li>Record defect in Tranzaura system</li>
+                                                <li>Record defect on their handheld device</li>
                                             </ul>
                                         </div>
                                     </div>
@@ -408,9 +408,9 @@ const DemistersHeatersWizard = ({ currentStep, responses, updateResponse, onNext
                         <div className="flex items-start space-x-3">
                             <AlertTriangle className="w-6 h-6 text-blue-400 mt-1" />
                             <div>
-                                <h4 className="font-semibold text-blue-200">Tranzaura Reminder</h4>
+                                <h4 className="font-semibold text-blue-200">Recording Reminder</h4>
                                 <p className="text-sm text-blue-300/90 mt-1">
-                                    Log this incident in Tranzaura system when stationary and in a safe location
+                                    Log this incident in defect reporting system when stationary and in a safe location
                                 </p>
                             </div>
                         </div>

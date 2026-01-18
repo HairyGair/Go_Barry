@@ -266,7 +266,7 @@ const additionalFlows4 = {
             {
                 type: 'final',
                 title: 'Registration Plate Issues',
-                content: 'Registration Plate Missing/Incomplete/Insecure/Faded/Obscured: Record the issue on Go-Check, the vehicle can continue in service. However, the plate should be replaced and repaired when possible, and a changeover should be arranged as soon as feasible.',
+                content: 'Registration Plate Missing/Incomplete/Insecure/Faded/Obscured: Record the issue on the defect reporting system, the vehicle can continue in service. However, the plate should be replaced and repaired when possible, and a changeover should be arranged as soon as feasible.',
                 result: 'Continue in service, arrange changeover when feasible.',
                 severity: 'continue'
             },
@@ -411,7 +411,7 @@ const additionalFlows4 = {
                 actions: [
                     'Action: Report the issue immediately to the Engineering Delivery Director.',
                     'Notification: Ensure copies of the report are sent to the General Manager and Engineering Manager.',
-                    'Report Accurately: Report in Go-Check immediately, include pictures if appropriate.',
+                    'Report Accurately: Report on their handheld device immediately, include pictures if appropriate.',
                     'Escalation: Ensure timely communication with engineering and management to prevent service reliability issues and ensure vehicles are roadworthy.',
                     'Documentation: Maintain accurate records of all reported defects are documented',
                     'Safety First: Prioritise addressing defects that could compromise the safety of passengers, drivers, or other road users.'
@@ -426,7 +426,7 @@ const additionalFlows4 = {
                 actions: [
                     'Action: Report the issue immediately to the Engineering Delivery Director.',
                     'Notification: Ensure copies of the report are sent to the General Manager and Engineering Manager.',
-                    'Report Accurately: Report in Go-Check immediately, include pictures if appropriate.',
+                    'Report Accurately: Report on their handheld device immediately, include pictures if appropriate.',
                     'Escalation: Ensure timely communication with engineering and management to prevent service reliability issues and ensure vehicles are roadworthy.',
                     'Documentation: Maintain accurate records of all reported defects are documented',
                     'Safety First: Prioritise addressing defects that could compromise the safety of passengers, drivers, or other road users.'
@@ -486,7 +486,7 @@ const additionalFlows4 = {
                     'If the vehicle can safely continue, ensure a changeover is arranged at the earliest opportunity.',
                     'Ensure that all actions, including top-ups and changeovers, are communicated to the driver promptly.',
                     'Monitor the situation and provide updates to the driver as needed.',
-                    'Record any defects immediately on the Go-Check System when the bus is stationary and in a safe location.'
+                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.'
                 ]
             }
         ]

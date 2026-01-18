@@ -30,7 +30,7 @@ const diagnosticFlows = {
                 severity: 'stop',
                 stopReason: 'Brake system failure presents extreme danger to passengers, driver, and public.',
                 actions: [
-                    'Record any defects immediately on the Go-Check System when the bus is stationary and in a safe location.',
+                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.',
                     'Vehicles permitted to continue must have a planned changeover organised at the earliest opportunity.',
                     'Report to the depot management team if you feel a particular individual is persistently reporting steering problems that, when investigated by engineering, reveal no fault. This ensures any unnecessary service disruption can be appropriately addressed.'
                 ]
@@ -64,7 +64,7 @@ const diagnosticFlows = {
                 severity: 'stop',
                 stopReason: 'Steering faults can cause immediate loss of vehicle control.',
                 actions: [
-                    'Record any defects immediately on the Go-Check System when the bus is stationary and in a safe location.',
+                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.',
                     'Vehicles permitted to continue must have a planned changeover organised at the earliest opportunity.',
                     'Report to the depot management team if you feel a particular individual is persistently reporting steering problems that, when investigated by engineering, reveal no fault. This ensures any unnecessary service disruption can be appropriately addressed.'
                 ]
@@ -135,7 +135,7 @@ const diagnosticFlows = {
                 severity: 'stop',
                 stopReason: 'Internal engine failure likely. Running engine would cause catastrophic damage.',
                 actions: [
-                    'Safety First: Ensure the driver stops immediately if there is any doubt about the severity of the issue. Record the defect immediately on Go-Check.',
+                    'Safety First: Ensure the driver stops immediately if there is any doubt about the severity of the issue. Record the defect immediately on the defect reporting system.',
                     'Fire or Hazard Risk: If the oil leak or spillage poses a potential fire risk or hazard to other road users, escalate the issue immediately as a PG9 (Prohibition Notice) may be issued.',
                     'Service Continuity: Coordinate with engineering to arrange for a replacement vehicle promptly to minimise service disruption.'
                 ]
@@ -168,7 +168,7 @@ const diagnosticFlows = {
                     'If the vehicle can safely continue, ensure a changeover is arranged at the earliest opportunity.',
                     'Ensure that all actions, including top-ups and changeovers, are communicated to the driver promptly.',
                     'Monitor the situation and provide updates to the driver as needed.',
-                    'Record any defects immediately on the Go-Check System when the bus is stationary and in a safe location.'
+                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.'
                 ]
             }
         ]
@@ -233,7 +233,7 @@ const diagnosticFlows = {
                 type: 'final',
                 title: 'AMBER ABS - Light Cleared',
                 content: 'Amber ABS light is no longer illuminated (once the vehicle achieves 10mph)',
-                result: 'The vehicle may remain in service, but the defect should be logged on GoCheck. If the light reappears seek further advice.',
+                result: 'The vehicle may remain in service, but the defect should be logged on their handheld device. If the light reappears seek further advice.',
                 severity: 'continue'
             },
             {
@@ -281,7 +281,7 @@ const diagnosticFlows = {
                 severity: 'stop',
                 stopReason: 'Persistent red ABS light indicates critical brake system failure.',
                 actions: [
-                    'Record any defects immediately on the Go-Check System.',
+                    'Record any defects immediately on the the defect reporting system System.',
                     'Safety is the priority. Any light regarding an ABS fault must be checked over by an engineer.',
                     'If the vehicle can safely continue, ensure a changeover is arranged at the earliest opportunity.',
                     'Ensure that all actions, including top-ups and changeovers, are communicated to the driver promptly.',
@@ -416,7 +416,7 @@ const diagnosticFlows = {
                 type: 'final',
                 title: 'Heat Dispersion Result',
                 content: 'Additional Guidance:',
-                result: 'Vehicles permitted to continue must have a planned changeover organised at the earliest opportunity, record the defect immediately on Go-Check.',
+                result: 'Vehicles permitted to continue must have a planned changeover organised at the earliest opportunity, record the defect immediately on the defect reporting system.',
                 severity: 'warning',
                 actions: [
                     'Never advise drivers to remove the radiator cap.',

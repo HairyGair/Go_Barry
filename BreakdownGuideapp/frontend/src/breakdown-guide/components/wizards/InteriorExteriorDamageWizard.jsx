@@ -488,7 +488,7 @@ const InteriorExteriorDamageWizard = ({ currentStep, responses, updateResponse, 
                 decision = "CONTINUE IN SERVICE";
                 decisionClass = "text-blue-500";
                 urgency = "Non-Critical";
-                instructions = "Registration plate issues can be recorded on Go-Check. The vehicle can continue in service, but arrange replacement/repair when possible.";
+                instructions = "Registration plate issues can be recorded on the defect reporting system. The vehicle can continue in service, but arrange replacement/repair when possible.";
             } else if (affectsControl) {
                 decision = "STOP AND AWAIT ENGINEERING";
                 decisionClass = "text-red-500";
@@ -566,7 +566,7 @@ const InteriorExteriorDamageWizard = ({ currentStep, responses, updateResponse, 
                                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mt-4">
                                             <h4 className="font-semibold text-blue-200 mb-2">Required Actions:</h4>
                                             <ul className="list-disc list-inside space-y-1 text-blue-300/90 text-sm">
-                                                <li>Record issue in Go-Check system</li>
+                                                <li>Record issue in defect reporting system</li>
                                                 <li>Arrange repair when feasible</li>
                                                 <li>Monitor throughout service</li>
                                             </ul>
@@ -592,7 +592,7 @@ const InteriorExteriorDamageWizard = ({ currentStep, responses, updateResponse, 
                                                 <li>Contact engineering for assistance</li>
                                                 <li>Do not attempt to move vehicle</li>
                                                 <li>Ensure passenger safety</li>
-                                                <li>Record in Go-Check with photos if possible</li>
+                                                <li>Record on their handheld device with photos if possible</li>
                                             </ul>
                                         </div>
                                     </div>
@@ -616,7 +616,7 @@ const InteriorExteriorDamageWizard = ({ currentStep, responses, updateResponse, 
                                                 <li>Arrange vehicle change</li>
                                                 <li>Monitor damage during journey</li>
                                                 <li>Stop if situation worsens</li>
-                                                <li>Record in Go-Check system</li>
+                                                <li>Record in defect reporting system</li>
                                             </ul>
                                         </div>
                                     </div>
@@ -679,9 +679,9 @@ const InteriorExteriorDamageWizard = ({ currentStep, responses, updateResponse, 
                         <div className="flex items-start space-x-3">
                             <FileText className="w-6 h-6 text-blue-400 mt-1" />
                             <div>
-                                <h4 className="font-semibold text-blue-200 mb-2">Go-Check Documentation Required</h4>
+                                <h4 className="font-semibold text-blue-200 mb-2">Defect Documentation Required</h4>
                                 <ul className="text-sm text-blue-300/90 space-y-1">
-                                    <li>• Record all damage details in Go-Check system</li>
+                                    <li>• Record all damage details in defect reporting system</li>
                                     <li>• Include photographs if possible and safe to take</li>
                                     <li>• Note any temporary securing measures taken</li>
                                     <li>• Document safety decision and reasoning</li>

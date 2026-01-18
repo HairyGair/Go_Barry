@@ -51,7 +51,7 @@ const MaintenancePage = () => {
       <div className="maintenance-content">
         {/* Logo */}
         <div className="maintenance-logo">
-          <GairWareLogo size={120} />
+          <GairWareLogo height={120} variant="icon" />
         </div>
 
         {/* Status icon */}

@@ -222,7 +222,7 @@ window.BreakdownAnalytics = {
         source: 'GO_BARRY',
         barry_wizard_used: wizardType,
         
-        // Tranzaura reference if created
+        // the defect reporting system reference if created
         tranzaura_ref: responses.tranzauraRef
       };
       

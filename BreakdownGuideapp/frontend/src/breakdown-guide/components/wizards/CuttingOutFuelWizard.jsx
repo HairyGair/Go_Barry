@@ -655,7 +655,7 @@ const CuttingOutFuelWizard = ({ currentStep, responses, updateResponse, onNext, 
                                                 <li>Document all cutting out incidents for engineers</li>
                                             </>
                                         )}
-                                        <li>Log as CRITICAL priority in Go-Check system</li>
+                                        <li>Log as CRITICAL priority in defect reporting system</li>
                                     </ol>
                                 </div>
                             </div>
@@ -680,7 +680,7 @@ const CuttingOutFuelWizard = ({ currentStep, responses, updateResponse, onNext, 
                                         <li>Arrange replacement vehicle at earliest opportunity</li>
                                         <li>Monitor engine performance continuously</li>
                                         <li>If any further cutting out occurs, stop immediately</li>
-                                        <li>Log defect in Go-Check with priority status</li>
+                                        <li>Log defect on their handheld device with priority status</li>
                                         <li>Inform engineering of persistent fuel system issues</li>
                                         <li>Driver should not accept this vehicle again until repaired</li>
                                     </ol>
@@ -706,7 +706,7 @@ const CuttingOutFuelWizard = ({ currentStep, responses, updateResponse, onNext, 
                                         <li>Continue to convenient changeover point</li>
                                         <li>Monitor engine performance closely</li>
                                         <li>If vehicle cuts out again, arrange immediate changeover</li>
-                                        <li>Log the initial incident in Go-Check system</li>
+                                        <li>Log the initial incident in defect reporting system</li>
                                         <li>Report for routine maintenance attention</li>
                                         <li>Driver should report any recurrence immediately</li>
                                     </ol>
@@ -727,14 +727,14 @@ const CuttingOutFuelWizard = ({ currentStep, responses, updateResponse, onNext, 
                         </ul>
                     </div>
 
-                    {/* Go-Check Reminder */}
+                    {/* Recording Reminder */}
                     <div className="bg-purple-500/20 backdrop-blur-sm rounded-lg p-6 border border-purple-400/30">
                         <div className="flex items-start space-x-4">
                             <FileText className="w-6 h-6 text-purple-400 mt-1" />
                             <div>
-                                <h4 className="font-semibold text-purple-200 mb-2">📱 Go-Check Documentation Required</h4>
+                                <h4 className="font-semibold text-purple-200 mb-2">📱 Defect Documentation Required</h4>
                                 <p className="text-purple-300/80 text-sm">
-                                    Record this fuel system assessment in the Go-Check system immediately when vehicle is stationary and in a safe location. 
+                                    Record this fuel system assessment in the defect reporting system immediately when vehicle is stationary and in a safe location. 
                                     Include details of any fuel leaks, cutting out frequency, and all safety actions taken.
                                 </p>
                             </div>

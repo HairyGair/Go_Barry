@@ -438,7 +438,7 @@ const PunctureWizardStep4 = ({ responses, updateResponse, onPrevious, onComplete
                                 <li>Position identified: <strong>{getPositionDescription()}</strong></li>
                                 <li>Engineering must be contacted with position information</li>
                                 <li>Vehicle cannot continue without engineering approval</li>
-                                <li>Document in Tranzaura when safe to do so</li>
+                                <li>Document on their handheld device when safe to do so</li>
                             </ol>
                         </div>
                     </div>

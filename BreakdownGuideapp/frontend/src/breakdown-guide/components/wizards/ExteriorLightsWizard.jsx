@@ -470,7 +470,7 @@ const ExteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, 
                                                 <li>Do NOT continue in service under any circumstances</li>
                                                 <li>Contact engineering team for immediate attendance</li>
                                                 <li>High risk of DVSA prohibition if found operating</li>
-                                                <li>Record defects in Go-Check with CRITICAL priority</li>
+                                                <li>Record defects on their handheld device with CRITICAL priority</li>
                                             </ul>
                                         </div>
                                     </div>
@@ -494,7 +494,7 @@ const ExteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, 
                                                 <li>Arrange changeover before darkness falls</li>
                                                 <li>Monitor time and plan route accordingly</li>
                                                 <li>If darkness approaches before changeover, stop and await assistance</li>
-                                                <li>Record defect in Go-Check system</li>
+                                                <li>Record defect on their handheld device</li>
                                             </ul>
                                         </div>
                                     </div>
@@ -518,7 +518,7 @@ const ExteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, 
                                                 <li>Arrange changeover at earliest opportunity</li>
                                                 <li>Monitor remaining brake lights closely</li>
                                                 <li>If any additional lights fail, stop immediately</li>
-                                                <li>Record defect in Go-Check system</li>
+                                                <li>Record defect on their handheld device</li>
                                             </ul>
                                         </div>
                                     </div>
@@ -561,14 +561,14 @@ const ExteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, 
                         </ul>
                     </div>
 
-                    {/* Go-Check Reminder */}
+                    {/* Recording Reminder */}
                     <div className="bg-purple-500/20 backdrop-blur-sm rounded-lg p-6 border border-purple-400/30">
                         <div className="flex items-start space-x-4">
                             <FileText className="w-6 h-6 text-purple-400 mt-1" />
                             <div>
-                                <h4 className="font-semibold text-purple-200 mb-2">📱 Go-Check Documentation Required</h4>
+                                <h4 className="font-semibold text-purple-200 mb-2">📱 Defect Documentation Required</h4>
                                 <p className="text-purple-300/80 text-sm">
-                                    Record this lighting assessment in the Go-Check system immediately when vehicle is stationary and in a safe location. 
+                                    Record this lighting assessment in the defect reporting system immediately when vehicle is stationary and in a safe location. 
                                     Include details of all lighting systems checked and any defects found.
                                 </p>
                             </div>

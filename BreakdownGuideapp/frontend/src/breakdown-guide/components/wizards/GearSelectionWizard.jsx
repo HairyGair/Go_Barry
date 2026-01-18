@@ -32,7 +32,7 @@ function GearSelectionWizard({ currentStep, responses, updateResponse, onNext, o
       notes += 'Gear selection assessment in progress. Follow recommended troubleshooting steps.';
     }
     
-    notes += ' Record incident in Tranzaura when stationary and in safe location.';
+    notes += ' Record incident on their handheld device when stationary and in safe location.';
     
     onComplete(finalDecision, notes);
   };
@@ -132,9 +132,9 @@ function GearSelectionWizard({ currentStep, responses, updateResponse, onNext, o
                 <div className="flex items-start space-x-3">
                   <Info className="w-5 h-5 text-blue-400" />
                   <div>
-                    <h4 className="font-semibold text-blue-200">Tranzaura Reminder</h4>
+                    <h4 className="font-semibold text-blue-200">Recording Reminder</h4>
                     <p className="text-sm text-gray-300 mt-1">
-                      Log this incident in Tranzaura system when stationary and in a safe location
+                      Log this incident in defect reporting system when stationary and in a safe location
                     </p>
                   </div>
                 </div>
@@ -259,9 +259,9 @@ function GearSelectionWizard({ currentStep, responses, updateResponse, onNext, o
                 <div className="flex items-start space-x-3">
                   <Info className="w-5 h-5 text-blue-400" />
                   <div>
-                    <h4 className="font-semibold text-blue-200">Tranzaura Reminder</h4>
+                    <h4 className="font-semibold text-blue-200">Recording Reminder</h4>
                     <p className="text-sm text-gray-300 mt-1">
-                      Log this incident in Tranzaura system when stationary and in a safe location
+                      Log this incident in defect reporting system when stationary and in a safe location
                     </p>
                   </div>
                 </div>
@@ -396,9 +396,9 @@ function GearSelectionWizard({ currentStep, responses, updateResponse, onNext, o
                 <div className="flex items-start space-x-3">
                   <Info className="w-5 h-5 text-blue-400" />
                   <div>
-                    <h4 className="font-semibold text-blue-200">Tranzaura Reminder</h4>
+                    <h4 className="font-semibold text-blue-200">Recording Reminder</h4>
                     <p className="text-sm text-gray-300 mt-1">
-                      Log this incident in Tranzaura system when stationary and in a safe location
+                      Log this incident in defect reporting system when stationary and in a safe location
                     </p>
                   </div>
                 </div>
@@ -569,9 +569,9 @@ function GearSelectionWizard({ currentStep, responses, updateResponse, onNext, o
               <div className="flex items-start space-x-3">
                 <Info className="w-5 h-5 text-blue-400" />
                 <div>
-                  <h4 className="font-semibold text-blue-200">Tranzaura Reminder</h4>
+                  <h4 className="font-semibold text-blue-200">Recording Reminder</h4>
                   <p className="text-sm text-gray-300 mt-1">
-                    Log this incident in Tranzaura system when stationary and in a safe location
+                    Log this incident in defect reporting system when stationary and in a safe location
                   </p>
                 </div>
               </div>
