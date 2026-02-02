@@ -20,7 +20,78 @@
 import { query, select, insert, update, remove, transaction, pool } from '../config/mysql.js';
 
 /**
+ * SECURITY: Whitelist of allowed table names to prevent SQL injection
+ * Add new tables here as needed
+ */
+const ALLOWED_TABLES = new Set([
+  'breakdowns',
+  'supervisors',
+  'activities',
+  'fleet',
+  'engineers',
+  'gtfs_routes',
+  'gtfs_stops',
+  'gtfs_trips',
+  'gtfs_stop_times',
+  'gtfs_import_log',
+  'preferences',
+  'sessions',
+  'audit_log'
+]);
+
+/**
+ * SECURITY: Validate identifier (table/column name) to prevent SQL injection
+ * Only allows alphanumeric characters and underscores, must start with letter or underscore
+ * @param {string} identifier - The identifier to validate
+ * @returns {boolean} True if valid
+ */
+function isValidIdentifier(identifier) {
+  if (typeof identifier !== 'string' || identifier.length === 0 || identifier.length > 64) {
+    return false;
+  }
+  // Must match pattern: starts with letter/underscore, followed by letters/numbers/underscores
+  return /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(identifier);
+}
+
+/**
+ * SECURITY: Sanitize and validate a column name
+ * @param {string} column - Column name to validate
+ * @throws {Error} If column name is invalid
+ * @returns {string} The validated column name (backtick-escaped)
+ */
+function sanitizeColumn(column) {
+  // Handle column aliases (e.g., "table.column" or "column AS alias")
+  const parts = column.split('.');
+  for (const part of parts) {
+    // Remove any AS alias for validation
+    const cleanPart = part.split(/\s+AS\s+/i)[0].trim();
+    if (cleanPart !== '*' && !isValidIdentifier(cleanPart)) {
+      throw new Error(`Invalid column name: ${column}`);
+    }
+  }
+  return column;
+}
+
+/**
+ * SECURITY: Validate table name against whitelist
+ * @param {string} table - Table name to validate
+ * @throws {Error} If table name is not in whitelist
+ * @returns {string} The validated table name
+ */
+function validateTable(table) {
+  if (!isValidIdentifier(table)) {
+    throw new Error(`Invalid table name format: ${table}`);
+  }
+  if (!ALLOWED_TABLES.has(table)) {
+    throw new Error(`Table not in whitelist: ${table}. Add it to ALLOWED_TABLES if needed.`);
+  }
+  return table;
+}
+
+/**
  * Query Builder - Provides Supabase-like query interface
+ *
+ * SECURITY: All table and column names are validated to prevent SQL injection
  *
  * Usage:
  * const { data, error } = await queryBuilder('breakdowns')
@@ -32,7 +103,7 @@ import { query, select, insert, update, remove, transaction, pool } from '../con
  */
 export class QueryBuilder {
   constructor(table) {
-    this.table = table;
+    this.table = validateTable(table);
     this.selectColumns = '*';
     this.whereConditions = [];
     this.whereParams = [];
@@ -47,6 +118,11 @@ export class QueryBuilder {
    * @returns {QueryBuilder} this
    */
   select(columns = '*') {
+    // SECURITY: Validate each column in the select list
+    if (columns !== '*') {
+      const columnList = columns.split(',').map(c => c.trim());
+      columnList.forEach(col => sanitizeColumn(col));
+    }
     this.selectColumns = columns;
     return this;
   }
@@ -58,6 +134,7 @@ export class QueryBuilder {
    * @returns {QueryBuilder} this
    */
   eq(column, value) {
+    sanitizeColumn(column);
     this.whereConditions.push(`${column} = ?`);
     this.whereParams.push(value);
     return this;
@@ -70,6 +147,7 @@ export class QueryBuilder {
    * @returns {QueryBuilder} this
    */
   neq(column, value) {
+    sanitizeColumn(column);
     this.whereConditions.push(`${column} != ?`);
     this.whereParams.push(value);
     return this;
@@ -82,6 +160,7 @@ export class QueryBuilder {
    * @returns {QueryBuilder} this
    */
   gt(column, value) {
+    sanitizeColumn(column);
     this.whereConditions.push(`${column} > ?`);
     this.whereParams.push(value);
     return this;
@@ -94,6 +173,7 @@ export class QueryBuilder {
    * @returns {QueryBuilder} this
    */
   gte(column, value) {
+    sanitizeColumn(column);
     this.whereConditions.push(`${column} >= ?`);
     this.whereParams.push(value);
     return this;
@@ -106,6 +186,7 @@ export class QueryBuilder {
    * @returns {QueryBuilder} this
    */
   lt(column, value) {
+    sanitizeColumn(column);
     this.whereConditions.push(`${column} < ?`);
     this.whereParams.push(value);
     return this;
@@ -118,6 +199,7 @@ export class QueryBuilder {
    * @returns {QueryBuilder} this
    */
   lte(column, value) {
+    sanitizeColumn(column);
     this.whereConditions.push(`${column} <= ?`);
     this.whereParams.push(value);
     return this;
@@ -130,6 +212,7 @@ export class QueryBuilder {
    * @returns {QueryBuilder} this
    */
   like(column, pattern) {
+    sanitizeColumn(column);
     this.whereConditions.push(`${column} LIKE ?`);
     this.whereParams.push(pattern);
     return this;
@@ -142,6 +225,7 @@ export class QueryBuilder {
    * @returns {QueryBuilder} this
    */
   ilike(column, pattern) {
+    sanitizeColumn(column);
     this.whereConditions.push(`LOWER(${column}) LIKE LOWER(?)`);
     this.whereParams.push(pattern);
     return this;
@@ -154,6 +238,7 @@ export class QueryBuilder {
    * @returns {QueryBuilder} this
    */
   in(column, values) {
+    sanitizeColumn(column);
     if (!Array.isArray(values) || values.length === 0) {
       return this;
     }
@@ -169,6 +254,7 @@ export class QueryBuilder {
    * @returns {QueryBuilder} this
    */
   isNull(column) {
+    sanitizeColumn(column);
     this.whereConditions.push(`${column} IS NULL`);
     return this;
   }
@@ -179,6 +265,7 @@ export class QueryBuilder {
    * @returns {QueryBuilder} this
    */
   notNull(column) {
+    sanitizeColumn(column);
     this.whereConditions.push(`${column} IS NOT NULL`);
     return this;
   }
@@ -190,7 +277,14 @@ export class QueryBuilder {
    * @returns {QueryBuilder} this
    */
   order(column, direction = 'ASC') {
-    this.orderByClause = `${column} ${direction.toUpperCase()}`;
+    sanitizeColumn(column);
+    // SECURITY: Validate direction to prevent injection
+    const validDirections = ['ASC', 'DESC'];
+    const normalizedDirection = direction.toUpperCase();
+    if (!validDirections.includes(normalizedDirection)) {
+      throw new Error(`Invalid ORDER BY direction: ${direction}`);
+    }
+    this.orderByClause = `${column} ${normalizedDirection}`;
     return this;
   }
 
@@ -329,6 +423,9 @@ export function buildSearchCondition(columns, searchTerm) {
     return { sql: '1=1', params: [] };
   }
 
+  // SECURITY: Validate all column names
+  columns.forEach(col => sanitizeColumn(col));
+
   const conditions = columns.map(col => `${col} LIKE ?`);
   const params = columns.map(() => `%${searchTerm}%`);
 
@@ -346,6 +443,9 @@ export function buildSearchCondition(columns, searchTerm) {
  * @returns {Object} { sql, params }
  */
 export function buildDateRangeCondition(column, start, end) {
+  // SECURITY: Validate column name
+  sanitizeColumn(column);
+
   const conditions = [];
   const params = [];
 
@@ -378,11 +478,17 @@ export function buildDateRangeCondition(column, start, end) {
  * ]);
  */
 export async function bulkInsert(table, records) {
+  // SECURITY: Validate table name
+  validateTable(table);
+
   if (!Array.isArray(records) || records.length === 0) {
     throw new Error('Records must be a non-empty array');
   }
 
   const keys = Object.keys(records[0]);
+  // SECURITY: Validate all column names
+  keys.forEach(key => sanitizeColumn(key));
+
   const placeholders = records.map(() => `(${keys.map(() => '?').join(', ')})`).join(', ');
   const sql = `INSERT INTO ${table} (${keys.join(', ')}) VALUES ${placeholders}`;
 
@@ -415,11 +521,20 @@ export async function bulkInsert(table, records) {
  * }, ['name', 'status']);
  */
 export async function upsert(table, data, updateKeys = null) {
+  // SECURITY: Validate table name
+  validateTable(table);
+
   const keys = Object.keys(data);
+  // SECURITY: Validate all column names
+  keys.forEach(key => sanitizeColumn(key));
+
   const insertSql = `INSERT INTO ${table} (${keys.join(', ')}) VALUES (${keys.map(() => '?').join(', ')})`;
 
   // If no update keys specified, update all except first key (assumed to be primary key)
   const keysToUpdate = updateKeys || keys.slice(1);
+  // SECURITY: Validate update keys
+  keysToUpdate.forEach(key => sanitizeColumn(key));
+
   const updateClause = keysToUpdate.map(k => `${k} = VALUES(${k})`).join(', ');
 
   const sql = `${insertSql} ON DUPLICATE KEY UPDATE ${updateClause}`;
@@ -447,6 +562,9 @@ export async function upsert(table, data, updateKeys = null) {
  * @returns {Promise<number>} Number of deleted rows
  */
 export async function safeDelete(table, where, expectedCount) {
+  // SECURITY: Validate table name
+  validateTable(table);
+
   if (expectedCount === undefined) {
     throw new Error('safeDelete requires expectedCount parameter for safety');
   }
@@ -455,6 +573,9 @@ export async function safeDelete(table, where, expectedCount) {
   if (whereKeys.length === 0) {
     throw new Error('DELETE requires WHERE conditions');
   }
+
+  // SECURITY: Validate all column names in WHERE clause
+  whereKeys.forEach(key => sanitizeColumn(key));
 
   // First, count the rows that would be deleted
   const countSql = `SELECT COUNT(*) as count FROM ${table} WHERE ${whereKeys.map(k => `${k} = ?`).join(' AND ')}`;
@@ -515,6 +636,9 @@ export async function withRetry(queryFn, maxRetries = 3) {
  * @returns {Object} { sql, params }
  */
 export function buildInClause(column, values, chunkSize = 1000) {
+  // SECURITY: Validate column name
+  sanitizeColumn(column);
+
   if (!Array.isArray(values) || values.length === 0) {
     return { sql: '1=0', params: [] }; // Return false condition
   }
@@ -556,6 +680,11 @@ export default {
   safeDelete,
   withRetry,
   buildInClause,
+  // SECURITY: Export validation functions for use in other modules
+  isValidIdentifier,
+  sanitizeColumn,
+  validateTable,
+  ALLOWED_TABLES,
   // Re-export database functions for convenience
   query,
   select,
@@ -567,3 +696,6 @@ export default {
 
 // Also export as named exports for convenience
 export { query, select, insert, update, remove, transaction };
+
+// SECURITY: Export validation utilities for other modules
+export { isValidIdentifier, sanitizeColumn, validateTable, ALLOWED_TABLES };

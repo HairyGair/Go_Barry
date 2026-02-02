@@ -1,10 +1,9 @@
 /**
  * Authentication Context
  * Secure authentication with HTTP-only cookies (XSS protected)
- * Password required: "GoNorthEast2025!"
- * Accepts any valid email with correct password
  *
  * SECURITY: User data stored ONLY in React state, session restored from backend
+ * Tokens are stored in HTTP-only cookies to prevent XSS attacks
  */
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
@@ -203,11 +202,31 @@ export const AuthProvider = ({ children }) => {
         try {
             // Call backend logout endpoint to clear HTTP-only cookie
             const apiUrl = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
+
+            // SECURITY FIX: Get CSRF token before logout (required for POST requests)
+            let csrfToken = null;
+            try {
+                const csrfResponse = await fetch(`${apiUrl}/api/auth/csrf-token`, {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                if (csrfResponse.ok) {
+                    const csrfData = await csrfResponse.json();
+                    csrfToken = csrfData.csrfToken;
+                }
+            } catch (csrfError) {
+                console.warn('⚠️ Failed to get CSRF token for logout:', csrfError);
+            }
+
             await fetch(`${apiUrl}/api/auth/logout`, {
                 method: 'POST',
                 credentials: 'include', // Important: Send cookie with request
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'CSRF-Token': csrfToken || '' // Include CSRF token
                 }
             });
             console.log('✅ Backend logout successful (HTTP-only cookie cleared)');
