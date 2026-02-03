@@ -50,13 +50,13 @@ const MinimalUserMenu = ({ currentDuty, onDutyClick }) => {
       description: 'Engineering dispatch',
       hasSubmenu: true,
       submenu: [
-        { path: '/dashboards/engineering/display', label: 'All Depots', icon: '🏭' },
-        { path: '/dashboards/engineering/display?depot=Washington', label: 'Washington', icon: '🔧' },
-        { path: '/dashboards/engineering/display?depot=Riverside', label: 'Riverside', icon: '🔧' },
-        { path: '/dashboards/engineering/display?depot=Consett', label: 'Consett', icon: '🔧' },
-        { path: '/dashboards/engineering/display?depot=Deptford', label: 'Deptford', icon: '🔧' },
-        { path: '/dashboards/engineering/display?depot=Percy%20Main', label: 'Percy Main', icon: '🔧' },
-        { path: '/dashboards/engineering/display?depot=Hexham', label: 'Hexham', icon: '🔧' }
+        { path: '/dashboards/engineering/display', label: 'All Depots', icon: '🏭', external: true },
+        { path: '/dashboards/engineering/display?depot=Washington', label: 'Washington', icon: '🔧', external: true },
+        { path: '/dashboards/engineering/display?depot=Riverside', label: 'Riverside', icon: '🔧', external: true },
+        { path: '/dashboards/engineering/display?depot=Consett', label: 'Consett', icon: '🔧', external: true },
+        { path: '/dashboards/engineering/display?depot=Deptford', label: 'Deptford', icon: '🔧', external: true },
+        { path: '/dashboards/engineering/display?depot=Percy%20Main', label: 'Percy Main', icon: '🔧', external: true },
+        { path: '/dashboards/engineering/display?depot=Hexham', label: 'Hexham', icon: '🔧', external: true }
       ]
     },
     {
@@ -247,15 +247,30 @@ const MinimalUserMenu = ({ currentDuty, onDutyClick }) => {
                       </div>
                       <div className="nav-submenu">
                         {item.submenu.map(subItem => (
-                          <Link
-                            key={subItem.path}
-                            to={subItem.path}
-                            className="submenu-item"
-                            onClick={() => setIsMenuOpen(false)}
-                          >
-                            <span className="submenu-icon">{subItem.icon}</span>
-                            <span className="submenu-label">{subItem.label}</span>
-                          </Link>
+                          subItem.external ? (
+                            <a
+                              key={subItem.path}
+                              href={subItem.path}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="submenu-item"
+                              onClick={() => setIsMenuOpen(false)}
+                            >
+                              <span className="submenu-icon">{subItem.icon}</span>
+                              <span className="submenu-label">{subItem.label}</span>
+                              <span className="external-icon">↗</span>
+                            </a>
+                          ) : (
+                            <Link
+                              key={subItem.path}
+                              to={subItem.path}
+                              className="submenu-item"
+                              onClick={() => setIsMenuOpen(false)}
+                            >
+                              <span className="submenu-icon">{subItem.icon}</span>
+                              <span className="submenu-label">{subItem.label}</span>
+                            </Link>
+                          )
                         ))}
                       </div>
                     </div>

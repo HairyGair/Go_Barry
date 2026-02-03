@@ -421,6 +421,18 @@
 
 .submenu-label {
   font-family: 'Outfit', sans-serif;
+  flex: 1;
+}
+
+.external-icon {
+  font-size: 10px;
+  color: rgba(248, 250, 252, 0.4);
+  margin-left: auto;
+  transition: color 0.2s ease;
+}
+
+.submenu-item:hover .external-icon {
+  color: #0097A7;
 }
 
 /* Submenu positioning fix for edge cases */
