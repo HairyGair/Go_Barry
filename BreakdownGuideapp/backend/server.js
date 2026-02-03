@@ -6,7 +6,7 @@
  * This software is proprietary and confidential. Unauthorized copying,
  * distribution, modification, or use is strictly prohibited.
  *
- * Licensed exclusively to Go North East for internal breakdown management.
+ * Licensed exclusively to the operator for internal breakdown management.
  * See LICENSE.md for full terms and conditions.
  *
  * @author Anthony Gair
@@ -137,11 +137,15 @@ app.use(cookieParser());
 // SECURITY FIX: Configure CSRF protection
 // Generates CSRF tokens and validates them on POST/PUT/DELETE requests
 // Token stored in HTTP-only cookie (secure, not vulnerable to XSS)
+// IMPORTANT: Cookie settings must match auth cookie for cross-subdomain support
+const isProduction = process.env.NODE_ENV === 'production';
 const csrfProtection = csrf({
   cookie: {
     httpOnly: true,      // Prevent XSS from accessing token
-    secure: process.env.NODE_ENV === 'production',  // HTTPS only in production
-    sameSite: 'strict'   // Prevent CSRF from cross-site requests
+    secure: isProduction,        // HTTPS only in production, HTTP allowed in dev
+    sameSite: isProduction ? 'none' : 'lax',    // 'none' for cross-origin in prod, 'lax' for dev
+    ...(isProduction && { domain: '.gobarry.co.uk' }), // Only set domain in production
+    path: '/'
   }
 });
 
@@ -233,7 +237,7 @@ app.get('/', (req, res) => {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Go North East - Breakdown Guide API</title>
+  <title>the operator - Breakdown Guide API</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #333; line-height: 1.6; }
@@ -261,7 +265,7 @@ app.get('/', (req, res) => {
 <body>
   <div class="container">
     <div class="header">
-      <h1>🚍 Go North East - Breakdown Guide API</h1>
+      <h1>🚍 the operator - Breakdown Guide API</h1>
       <p>Real-time breakdown management and fleet monitoring system</p>
       <span class="status">✅ API Online</span>
     </div>
@@ -530,7 +534,7 @@ app.get('/', (req, res) => {
     </div>
 
     <div class="footer">
-      <p><strong>Go North East</strong> • Breakdown Management System</p>
+      <p><strong>the operator</strong> • Breakdown Management System</p>
       <p style="margin-top: 10px; opacity: 0.8;">Production API • Powered by MySQL</p>
     </div>
   </div>
