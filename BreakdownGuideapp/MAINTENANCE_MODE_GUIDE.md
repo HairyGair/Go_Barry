@@ -162,8 +162,8 @@ Edit `maintenance.html` lines 318-322:
 
 For issues or questions:
 - **Contact:** Anthony Gair (AG003)
-- **Email:** anthony.gair@gonortheast.co.uk
+- **Email:** anthony.gair@example.com
 
 ---
 
-**© 2025 Go North East | Powered by GairWare**
+**© 2025 the operator | Powered by GairWare**

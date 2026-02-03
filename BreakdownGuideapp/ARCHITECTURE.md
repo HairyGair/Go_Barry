@@ -8,7 +8,7 @@
 
 ## Overview
 
-The Go BARRY Breakdown Management System is a **three-tier web application** providing real-time breakdown tracking and diagnostic capabilities for Go North East bus operations.
+The Go BARRY Breakdown Management System is a **three-tier web application** providing real-time breakdown tracking and diagnostic capabilities for the operator bus operations.
 
 ### System Stack
 
@@ -377,4 +377,4 @@ GET    /api/analytics/trends        # Trends
 - DEVELOPMENT.md - Development guidelines
 - CLAUDE.md - AI assistant guide
 
-Contact: anthony.gair@gonortheast.co.uk
+Contact: anthony.gair@example.com

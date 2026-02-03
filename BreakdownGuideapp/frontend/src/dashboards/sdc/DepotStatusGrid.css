@@ -1,0 +1,401 @@
+/**
+ * Depot Status Grid Styles
+ * Industrial Command Centre aesthetic
+ *
+ * Copyright © 2025 Anthony Gair. All Rights Reserved.
+ */
+
+.depot-status-grid {
+  background: rgba(15, 23, 42, 0.7);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+/* Header */
+.depot-grid-header {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  -webkit-box-pack: justify;
+  -ms-flex-pack: justify;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.depot-grid-header h3 {
+  margin: 0;
+  font-family: 'Outfit', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: #F8FAFC;
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-icon {
+  font-size: 18px;
+}
+
+.header-stats {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  gap: 12px;
+}
+
+.total-count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: #94A3B8;
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+}
+
+.critical-count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: #F87171;
+  padding: 4px 10px;
+  background: rgba(220, 38, 38, 0.15);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  border-radius: 6px;
+  -webkit-animation: pulse-critical 2s ease-in-out infinite;
+  animation: pulse-critical 2s ease-in-out infinite;
+}
+
+@-webkit-keyframes pulse-critical {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes pulse-critical {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* Grid Body */
+.depot-grid-body {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  padding: 16px;
+}
+
+/* Individual Depot Cards */
+.depot-card {
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 14px;
+  cursor: pointer;
+  -webkit-transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  -o-transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.depot-card:hover {
+  background: rgba(30, 41, 59, 0.8);
+  border-color: rgba(255, 255, 255, 0.12);
+  -webkit-transform: translateY(-2px);
+  -ms-transform: translateY(-2px);
+  transform: translateY(-2px);
+}
+
+.depot-card:focus {
+  outline: none;
+  border-color: #0097A7;
+  -webkit-box-shadow: 0 0 0 3px rgba(0, 151, 167, 0.2);
+  box-shadow: 0 0 0 3px rgba(0, 151, 167, 0.2);
+}
+
+/* Status-based styling */
+.depot-card.clear {
+  border-left: 3px solid #10B981;
+}
+
+.depot-card.active {
+  border-left: 3px solid #0097A7;
+  background: rgba(0, 151, 167, 0.08);
+}
+
+.depot-card.warning {
+  border-left: 3px solid #F59E0B;
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.depot-card.critical {
+  border-left: 3px solid #DC2626;
+  background: rgba(220, 38, 38, 0.1);
+  -webkit-animation: glow-critical 3s ease-in-out infinite;
+  animation: glow-critical 3s ease-in-out infinite;
+}
+
+@-webkit-keyframes glow-critical {
+  0%, 100% { -webkit-box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+  50% { -webkit-box-shadow: 0 0 20px rgba(220, 38, 38, 0.3); box-shadow: 0 0 20px rgba(220, 38, 38, 0.3); }
+}
+
+@keyframes glow-critical {
+  0%, 100% { -webkit-box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+  50% { -webkit-box-shadow: 0 0 20px rgba(220, 38, 38, 0.3); box-shadow: 0 0 20px rgba(220, 38, 38, 0.3); }
+}
+
+/* Card Header */
+.depot-card-header {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.depot-status-icon {
+  font-size: 14px;
+}
+
+.depot-name {
+  font-family: 'Outfit', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #F8FAFC;
+}
+
+/* Card Stats */
+.depot-card-stats {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-align: baseline;
+  -ms-flex-align: baseline;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.stat-main {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-align: baseline;
+  -ms-flex-align: baseline;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.stat-value {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 24px;
+  font-weight: 700;
+  color: #F8FAFC;
+  line-height: 1;
+}
+
+.depot-card.clear .stat-value {
+  color: #10B981;
+}
+
+.depot-card.critical .stat-value {
+  color: #F87171;
+}
+
+.stat-label {
+  font-size: 11px;
+  color: #64748B;
+  font-weight: 500;
+}
+
+.stat-critical {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #F87171;
+}
+
+.critical-dot {
+  width: 6px;
+  height: 6px;
+  background: #DC2626;
+  border-radius: 50%;
+  -webkit-animation: blink 1s ease-in-out infinite;
+  animation: blink 1s ease-in-out infinite;
+}
+
+@-webkit-keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.stat-pending {
+  font-size: 11px;
+  color: #F59E0B;
+  font-weight: 500;
+}
+
+/* Preview Items */
+.depot-card-preview {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.preview-item {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  -webkit-box-pack: justify;
+  -ms-flex-pack: justify;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
+.preview-fleet {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: #94A3B8;
+}
+
+.preview-severity {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.preview-severity.severity-stop {
+  background: rgba(220, 38, 38, 0.2);
+  color: #F87171;
+}
+
+.preview-severity.severity-amber {
+  background: rgba(245, 158, 11, 0.2);
+  color: #F59E0B;
+}
+
+.preview-severity.severity-continue,
+.preview-severity.severity-pending {
+  background: rgba(0, 151, 167, 0.2);
+  color: #00BCD4;
+}
+
+.preview-more {
+  font-size: 11px;
+  color: #64748B;
+  text-align: center;
+  padding-top: 4px;
+}
+
+/* Footer Legend */
+.depot-grid-footer {
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.15);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.legend {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-pack: center;
+  -ms-flex-pack: center;
+  justify-content: center;
+  gap: 16px;
+  -ms-flex-wrap: wrap;
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #64748B;
+}
+
+.legend-item .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.legend-item .dot.clear {
+  background: #10B981;
+}
+
+.legend-item .dot.active {
+  background: #0097A7;
+}
+
+.legend-item .dot.warning {
+  background: #F59E0B;
+}
+
+.legend-item .dot.critical {
+  background: #DC2626;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .depot-grid-body {
+    grid-template-columns: 1fr;
+  }
+
+  .depot-card-stats {
+    -webkit-box-orient: vertical;
+    -webkit-box-direction: normal;
+    -ms-flex-direction: column;
+    flex-direction: column;
+    -webkit-box-align: start;
+    -ms-flex-align: start;
+    align-items: flex-start;
+    gap: 4px;
+  }
+}
+
+/* Last depot spans full width if odd number */
+.depot-grid-body > .depot-card:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}

@@ -16,7 +16,7 @@ dotenv.config();
 // Supervisors to set up with their passwords
 const SUPERVISORS_TO_SETUP = [
     {
-        email: 'anthony.gair@gonortheast.co.uk',
+        email: 'anthony.gair@example.com',
         name: 'Anthony Gair',
         badge_number: 'AG003',
         password: 'Stafford45!',
@@ -174,7 +174,7 @@ async function setupSupervisors() {
     if (successCount > 0) {
         console.log('\n✅ Setup completed successfully!');
         console.log('\nYou can now log in with:');
-        console.log('  Email: anthony.gair@gonortheast.co.uk');
+        console.log('  Email: anthony.gair@example.com');
         console.log('  Password: Stafford45!');
         console.log('\nOR:');
         console.log('  Email: jamie.rao@goahead.com');

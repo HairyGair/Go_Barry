@@ -67,7 +67,7 @@ WHERE event_object_table IN ('user_preferences', 'notification_preferences');
 
 -- 8. Test inserting a preference record (uses your supervisor account)
 -- Replace with actual supervisor_id from supervisors table
--- SELECT id FROM supervisors WHERE email = 'anthony.gair@gonortheast.co.uk';
+-- SELECT id FROM supervisors WHERE email = 'anthony.gair@example.com';
 
 -- 9. Count existing supervisors (to know how many preference records we'll eventually need)
 SELECT COUNT(*) as total_supervisors FROM supervisors;

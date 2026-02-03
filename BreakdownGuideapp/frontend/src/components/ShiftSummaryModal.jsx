@@ -95,7 +95,7 @@ const ShiftSummaryModal = ({
 
   // Calculate shift duration
   const shiftDuration = useMemo(() => {
-    if (!currentDuty) return { hours: 0, minutes: 0 };
+    if (!currentDuty || currentDuty.viewOnly || !currentDuty.startTime) return { hours: 0, minutes: 0 };
 
     const now = new Date();
     const [startHour, startMin] = currentDuty.startTime.split(':').map(Number);

@@ -49,7 +49,7 @@ const ProfileSettings = ({ user }) => {
       <div className="setting-item">
         <div className="setting-label">
           <h3>Email Address</h3>
-          <p>Your Go North East email (used for login)</p>
+          <p>Your the operator email (used for login)</p>
         </div>
         <div className="setting-control">
           <input

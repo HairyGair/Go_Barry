@@ -38,7 +38,7 @@ const DEPOT_MAPPINGS = {
   }
 };
 
-// Priority routes for Go North East
+// Priority routes for the operator
 const PRIORITY_ROUTES = {
   'X10': { priority: 'high', description: 'Newcastle - Middlesbrough Express' },
   'X21': { priority: 'high', description: 'Newcastle - Durham Express' },

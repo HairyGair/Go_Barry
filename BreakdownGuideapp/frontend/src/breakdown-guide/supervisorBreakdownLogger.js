@@ -1,5 +1,5 @@
 /**
- * Go North East - Enhanced Breakdown Logger
+ * the operator - Enhanced Breakdown Logger
  * Supervisor Tracking and Assessment Logging System
  * 
  * Copyright (c) 2025 Anthony Gair. All rights reserved.

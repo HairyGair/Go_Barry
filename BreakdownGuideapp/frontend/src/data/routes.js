@@ -1,4 +1,4 @@
-// Go North East GTFS Routes Data
+// the operator GTFS Routes Data
 // Processed from GTFS routes.txt file for enhanced route information and lookups
 // Last updated: 2025-09-25
 
@@ -242,8 +242,8 @@ GNE:GOAX085:X85,GNE,X85,,,3,,FFFFFF,000000`;
 
       // Add enhanced data
       route.displayName = route.routeShortName;
-      route.agency = route.agencyId === 'GNE' ? 'Go North East' : 'Arriva Northumbria';
-      route.isGNE = route.agencyId === 'GNE';
+      route.agency = route.agencyId === 'Go BARRY' ? 'the operator' : 'Arriva Northumbria';
+      route.isGNE = route.agencyId === 'Go BARRY';
       route.isArriva = route.agencyId === 'ANUM';
 
       // Categorize routes

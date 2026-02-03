@@ -139,7 +139,7 @@ export const commonSchemas = {
   // Status - breakdown workflow states
   status: Joi.string().valid('pending', 'in_progress', 'dispatched', 'completed', 'cancelled'),
 
-  // Depot - Go North East depots
+  // Depot - the operator depots
   depot: Joi.string().valid('Washington', 'Riverside', 'Consett', 'Deptford', 'Percy Main', 'Hexham'),
 
   // Severity - breakdown severity levels

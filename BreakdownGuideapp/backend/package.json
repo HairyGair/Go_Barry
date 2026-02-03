@@ -1,7 +1,7 @@
 {
   "name": "breakdown-guide-backend",
   "version": "1.0.0",
-  "description": "Go North East Breakdown Guide API",
+  "description": "Go BARRY Breakdown Guide API",
   "main": "server.js",
   "type": "module",
   "scripts": {
@@ -20,7 +20,7 @@
     "fleet",
     "management"
   ],
-  "author": "Go North East",
+  "author": "GairWare",
   "license": "ISC",
   "dependencies": {
     "bcrypt": "^6.0.0",

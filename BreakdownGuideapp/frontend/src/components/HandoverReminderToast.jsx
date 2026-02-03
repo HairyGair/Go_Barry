@@ -29,7 +29,7 @@ const HandoverReminderToast = ({
 
   // Calculate time remaining
   useEffect(() => {
-    if (!currentDuty) return;
+    if (!currentDuty || currentDuty.viewOnly || !currentDuty.endTime) return;
 
     const updateTime = () => {
       const now = new Date();

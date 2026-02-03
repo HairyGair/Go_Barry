@@ -654,7 +654,7 @@ const ModernAppHeader = ({
                       </div>
                       <div className="profile-details">
                         <h4>{currentUser?.name || supervisorData?.name || 'User'}</h4>
-                        <p>{currentUser?.email || supervisorData?.email || 'user@gonortheast.co.uk'}</p>
+                        <p>{currentUser?.email || supervisorData?.email || 'user@example.com'}</p>
                         <span className="profile-badge">{currentUser?.depot || supervisorData?.depot || 'SDC'}</span>
                       </div>
                     </div>
@@ -767,7 +767,7 @@ const ModernAppHeader = ({
         {/* Mobile Navigation */}
         <div className={`mobile-nav-modern ${isMenuOpen ? 'open' : ''}`}>
           {/* Mobile Duty Indicator */}
-          {currentDuty && (
+          {currentDuty && !currentDuty.viewOnly && (
             <div className="mobile-duty-indicator" onClick={onDutyClick}>
               <span className="mobile-duty-icon">
                 {currentDuty.code === '100' ? '🌅' :
@@ -806,7 +806,7 @@ const ModernAppHeader = ({
         </div>
 
         {/* Duty Status Bar - Appears below main header when duty is active */}
-        {currentDuty && (
+        {currentDuty && !currentDuty.viewOnly && (
           <div className="duty-status-bar" data-duty={currentDuty.code} onClick={onDutyClick}>
             <div className="duty-status-container">
               <div className="duty-status-left">

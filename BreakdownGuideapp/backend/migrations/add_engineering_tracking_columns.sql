@@ -81,11 +81,11 @@ CREATE TRIGGER update_engineers_updated_at
 
 -- Insert sample engineers for testing (optional - comment out in production)
 INSERT INTO engineers (badge_number, name, email, depot, skills, status) VALUES
-  ('ENG001', 'John Smith', 'john.smith@gonortheast.co.uk', 'Washington', '["electrical", "mechanical"]', 'available'),
-  ('ENG002', 'Sarah Johnson', 'sarah.johnson@gonortheast.co.uk', 'Riverside', '["hvac", "mechanical"]', 'available'),
-  ('ENG003', 'Mike Williams', 'mike.williams@gonortheast.co.uk', 'Consett', '["electrical", "diagnostics"]', 'available'),
-  ('ENG004', 'Emma Brown', 'emma.brown@gonortheast.co.uk', 'Washington', '["mechanical", "hydraulics"]', 'available'),
-  ('ENG005', 'David Wilson', 'david.wilson@gonortheast.co.uk', 'Deptford', '["electrical", "mechanical", "hvac"]', 'available')
+  ('ENG001', 'John Smith', 'john.smith@example.com', 'Washington', '["electrical", "mechanical"]', 'available'),
+  ('ENG002', 'Sarah Johnson', 'sarah.johnson@example.com', 'Riverside', '["hvac", "mechanical"]', 'available'),
+  ('ENG003', 'Mike Williams', 'mike.williams@example.com', 'Consett', '["electrical", "diagnostics"]', 'available'),
+  ('ENG004', 'Emma Brown', 'emma.brown@example.com', 'Washington', '["mechanical", "hydraulics"]', 'available'),
+  ('ENG005', 'David Wilson', 'david.wilson@example.com', 'Deptford', '["electrical", "mechanical", "hvac"]', 'available')
 ON CONFLICT (badge_number) DO NOTHING;
 
 -- Add RLS policies for engineers table (if using Row Level Security)

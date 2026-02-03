@@ -1,4 +1,4 @@
-/* Weather Widget - Rotating Depot Weather Display */
+/* Weather Widget - Rotating Location Weather Display */
 
 .weather-widget {
   background: linear-gradient(135deg,
@@ -61,7 +61,7 @@
   margin-bottom: 8px;
 }
 
-.weather-depot-name {
+.weather-location-name {
   font-size: 18px;
   font-weight: 700;
   color: white;
@@ -70,22 +70,17 @@
 
 .weather-rotation-indicator {
   display: flex;
-  gap: 6px;
+  align-items: center;
 }
 
-.rotation-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
-  transition: all 0.3s ease;
-}
-
-.rotation-dot.active {
-  background: var(--weather-color, #10B981);
-  box-shadow: 0 0 8px var(--weather-color, #10B981);
-  width: 20px;
-  border-radius: 4px;
+.rotation-counter {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.1);
+  padding: 4px 10px;
+  border-radius: 12px;
+  letter-spacing: 0.02em;
 }
 
 /* Main Weather Display */
@@ -193,7 +188,7 @@
     min-height: 200px;
   }
 
-  .weather-depot-name {
+  .weather-location-name {
     font-size: 16px;
   }
 
@@ -217,7 +212,7 @@
     min-height: 180px;
   }
 
-  .weather-depot-name {
+  .weather-location-name {
     font-size: 14px;
   }
 
@@ -241,13 +236,9 @@
     font-size: 12px;
   }
 
-  .rotation-dot {
-    width: 6px;
-    height: 6px;
-  }
-
-  .rotation-dot.active {
-    width: 16px;
+  .rotation-counter {
+    font-size: 10px;
+    padding: 3px 8px;
   }
 }
 

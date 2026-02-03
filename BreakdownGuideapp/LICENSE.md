@@ -10,7 +10,7 @@ This software and associated documentation files (the "Software") are the propri
 
 ### Authorized Use
 
-Go North East and its authorized employees may use this Software solely for:
+the operator and its authorized employees may use this Software solely for:
 - Internal breakdown management operations
 - Service delivery coordination
 - Fleet management activities
@@ -75,7 +75,7 @@ This license is governed by the laws of England and Wales. Any disputes shall be
 For commercial licensing, partnership opportunities, or authorized use:
 
 **Contact:** Anthony Gair
-**Email:** [Contact via Go North East]
+**Email:** [Contact via the operator]
 **Location:** United Kingdom
 
 ---

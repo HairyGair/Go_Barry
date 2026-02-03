@@ -3,7 +3,7 @@
  *
  * Horizontal stats bar showing supervisor coverage status
  * Displays active supervisors with their breakdown counts and response times
- * Uses Go North East brand colors
+ * Uses the operator brand colors
  */
 
 import React, { useState, useEffect, useCallback } from 'react';

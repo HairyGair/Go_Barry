@@ -1,4 +1,4 @@
-// API Client for Go North East Breakdown Guide
+// API Client for the operator Breakdown Guide
 // Connects to MySQL backend API via cPanel
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';

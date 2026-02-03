@@ -1,7 +1,13 @@
 /* ============================================================================
    SDC OPERATIONS DASHBOARD - PROFESSIONAL DARK THEME
    Modern glassmorphism design with GoBarry branding
+
+   Version: 3.0.0 - Ocean Teal Modern Transport Theme
+   Primary Accent: Ocean Teal #0097A7
    ============================================================================ */
+
+/* ========== GOOGLE FONTS ========== */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 /* ====================================
    CSS VARIABLES / DESIGN TOKENS
@@ -13,14 +19,20 @@
   --sdc-bg-card: rgba(30, 41, 59, 0.8);
   --sdc-bg-elevated: rgba(51, 65, 85, 0.6);
   --sdc-border: rgba(255, 255, 255, 0.1);
-  --sdc-border-accent: rgba(0, 102, 204, 0.3);
+  --sdc-border-accent: rgba(0, 151, 167, 0.3);
+
+  /* Ocean Teal Brand Colors */
+  --sdc-teal: #0097A7;
+  --sdc-teal-dark: #00838F;
+  --sdc-teal-light: #00ACC1;
+  --sdc-cyan: #00BCD4;
 
   /* Status colors */
   --sdc-critical: #ef4444;
   --sdc-warning: #f59e0b;
   --sdc-success: #10b981;
-  --sdc-info: #3b82f6;
-  --sdc-pending: #8b5cf6;
+  --sdc-info: #0097A7;
+  --sdc-pending: #00BCD4;
 
   /* Text colors */
   --sdc-text-primary: #f8fafc;
@@ -33,12 +45,12 @@
    ==================================== */
 .sdc-dashboard-container {
   min-height: 100vh;
-  background: linear-gradient(180deg,
-    var(--sdc-bg-primary) 0%,
-    #1a1f2e 50%,
-    var(--sdc-bg-primary) 100%
-  );
+  background:
+    radial-gradient(ellipse at top left, rgba(0, 151, 167, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom right, rgba(0, 96, 100, 0.1) 0%, transparent 50%),
+    linear-gradient(180deg, #0F172A 0%, #1E293B 50%, #1F2937 100%);
   padding-bottom: 80px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 /* ====================================
@@ -50,15 +62,16 @@
   gap: 24px;
   padding: 20px 24px;
   background: linear-gradient(135deg,
-    rgba(0, 102, 204, 0.15) 0%,
-    rgba(0, 59, 92, 0.15) 100%
+    rgba(0, 151, 167, 0.15) 0%,
+    rgba(0, 96, 100, 0.15) 100%
   );
   backdrop-filter: blur(20px);
-  border: 1px solid var(--sdc-border);
+  border: 2px solid rgba(0, 151, 167, 0.3);
   border-radius: 16px;
   margin: -16px 20px 24px 20px;
   position: relative;
   z-index: 10;
+  box-shadow: 0 4px 20px rgba(0, 151, 167, 0.1);
 }
 
 .sdc-header-stat {
@@ -151,14 +164,14 @@
 }
 
 .sdc-quick-btn.primary {
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  background: linear-gradient(135deg, #0097A7, #00838F);
   color: white;
-  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 4px 16px rgba(0, 151, 167, 0.3);
 }
 
 .sdc-quick-btn.primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 8px 24px rgba(0, 151, 167, 0.4);
 }
 
 .sdc-quick-btn.secondary {
@@ -233,8 +246,8 @@
 
 .sdc-section-header {
   background: linear-gradient(135deg,
-    rgba(0, 102, 204, 0.1) 0%,
-    rgba(0, 59, 92, 0.1) 100%
+    rgba(0, 151, 167, 0.1) 0%,
+    rgba(0, 96, 100, 0.1) 100%
   );
   padding: 16px 20px;
   border-bottom: 1px solid var(--sdc-border);
@@ -247,6 +260,7 @@
   font-size: 18px;
   font-weight: 700;
   color: var(--sdc-text-primary);
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -256,7 +270,7 @@
   content: '';
   width: 4px;
   height: 24px;
-  background: linear-gradient(180deg, #0066CC, #0088DD);
+  background: linear-gradient(180deg, #0097A7, #00BCD4);
   border-radius: 2px;
 }
 
@@ -286,10 +300,10 @@
 }
 
 .sdc-inline-filter .filter-btn.active {
-  background: linear-gradient(135deg, #0066CC, #0088DD);
+  background: linear-gradient(135deg, #0097A7, #00BCD4);
   border-color: transparent;
   color: white;
-  box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 151, 167, 0.3);
 }
 
 /* ====================================
@@ -316,12 +330,12 @@
 }
 
 .sdc-breakdown-list::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #0066CC, #0088DD);
+  background: linear-gradient(180deg, #0097A7, #00BCD4);
   border-radius: 4px;
 }
 
 .sdc-breakdown-list::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #0088DD, #0066CC);
+  background: linear-gradient(180deg, #00BCD4, #0097A7);
 }
 
 /* ====================================
@@ -349,10 +363,11 @@
   font-size: 16px;
   font-weight: 700;
   color: var(--sdc-text-primary);
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
   padding: 16px 20px;
   background: linear-gradient(135deg,
-    rgba(0, 102, 204, 0.1) 0%,
-    rgba(0, 59, 92, 0.1) 100%
+    rgba(0, 151, 167, 0.1) 0%,
+    rgba(0, 96, 100, 0.1) 100%
   );
   border-bottom: 1px solid var(--sdc-border);
   margin: 0;
@@ -365,7 +380,7 @@
   content: '';
   width: 4px;
   height: 20px;
-  background: linear-gradient(180deg, var(--sdc-info), #2563eb);
+  background: linear-gradient(180deg, #0097A7, #00BCD4);
   border-radius: 2px;
 }
 
@@ -439,8 +454,8 @@
 .sdc-loading .spinner-border {
   width: 48px;
   height: 48px;
-  border: 3px solid rgba(0, 102, 204, 0.2);
-  border-top-color: #0066CC;
+  border: 3px solid rgba(0, 151, 167, 0.2);
+  border-top-color: #0097A7;
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 16px;
@@ -499,11 +514,11 @@
    ==================================== */
 .supervisor-stats {
   background: linear-gradient(135deg,
-    rgba(59, 130, 246, 0.1) 0%,
-    rgba(37, 99, 235, 0.05) 100%
+    rgba(0, 151, 167, 0.1) 0%,
+    rgba(0, 131, 143, 0.05) 100%
   );
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(59, 130, 246, 0.2);
+  border: 1px solid rgba(0, 151, 167, 0.2);
   border-radius: 12px;
   padding: 14px 20px;
   margin: 0 20px 20px 20px;
@@ -513,7 +528,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  color: var(--sdc-info);
+  color: var(--sdc-teal);
   font-weight: 600;
   font-size: 14px;
 }
@@ -673,7 +688,7 @@
 
 .scroll-hint {
   font-size: 13px;
-  color: var(--sdc-info);
+  color: var(--sdc-teal);
   font-weight: 500;
 }
 
@@ -901,12 +916,12 @@
   align-items: center;
   gap: 4px;
   padding: 2px 8px;
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(139, 92, 246, 0.2));
-  border: 1px solid rgba(59, 130, 246, 0.3);
+  background: linear-gradient(135deg, rgba(0, 151, 167, 0.2), rgba(0, 188, 212, 0.2));
+  border: 1px solid rgba(0, 151, 167, 0.3);
   border-radius: 4px;
   font-size: 0.8125rem;
   font-weight: 500;
-  color: #60A5FA;
+  color: #00BCD4;
 }
 
 .timeline-item .duty-tag {

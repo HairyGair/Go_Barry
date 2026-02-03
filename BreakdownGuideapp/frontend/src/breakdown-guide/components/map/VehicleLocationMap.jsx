@@ -19,7 +19,7 @@ const VehicleLocationMap = ({
   const [userLocation, setUserLocation] = useState(null);
   const [geocodedLocation, setGeocodedLocation] = useState(null);
 
-  // Go North East depot locations - VERIFIED from OpenStreetMap (December 2025)
+  // the operator depot locations - VERIFIED from OpenStreetMap (December 2025)
   const depots = {
     'Washington': { lat: 54.9068, lng: -1.5140 },
     'Riverside': { lat: 54.9586, lng: -1.6579 },
@@ -132,7 +132,7 @@ const VehicleLocationMap = ({
           title: `${name} Depot` 
         }).addTo(mapRef.current);
 
-        marker.bindPopup(`<strong>${name} Depot</strong><br>Go North East`);
+        marker.bindPopup(`<strong>${name} Depot</strong><br>the operator`);
       });
 
       // Geocode location if provided

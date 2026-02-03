@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 80" width="64" height="80">
+  <!-- Monochrome dark version - for light backgrounds -->
+
+  <!-- Location pin shape -->
+  <path d="M32 2C17.088 2 5 14.088 5 29c0 20.25 24.5 47 26 48.5.5.5 1.5.5 2 0C34.5 76 59 49.25 59 29 59 14.088 46.912 2 32 2z"
+        fill="#1A1A2E"/>
+
+  <!-- Bus icon - front view -->
+  <rect x="18" y="16" width="28" height="24" rx="4" ry="4" fill="#FFFFFF"/>
+
+  <!-- Bus windscreen -->
+  <rect x="21" y="19" width="22" height="10" rx="2" ry="2" fill="#1A1A2E"/>
+
+  <!-- Bus front grille/indicator strip -->
+  <rect x="21" y="32" width="22" height="3" rx="1" fill="#1A1A2E"/>
+
+  <!-- Bus headlights -->
+  <circle cx="24" cy="38" r="2" fill="#1A1A2E"/>
+  <circle cx="40" cy="38" r="2" fill="#1A1A2E"/>
+
+  <!-- Heartbeat/pulse line -->
+  <polyline points="12,52 20,52 24,46 28,58 32,48 36,56 40,52 52,52"
+            fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

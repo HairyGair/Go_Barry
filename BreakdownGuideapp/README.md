@@ -1,6 +1,6 @@
 # Go BARRY Breakdown Management System
 
-> Real-time breakdown tracking and diagnostic platform for Go North East bus operations
+> Real-time breakdown tracking and diagnostic platform for the operator bus operations
 
 [![Production](https://img.shields.io/badge/status-production-brightgreen)](https://breakdowns.gobarry.co.uk)
 [![Version](https://img.shields.io/badge/version-3.5.0-blue)]()
@@ -46,7 +46,7 @@ The Go BARRY Breakdown Management System is a production-ready web application s
 ### Built For
 
 - **9 Active Supervisors** across Washington, Riverside, Consett, Deptford, Percy Main, Hexham
-- **1,000+ Vehicles** in the Go North East fleet
+- **1,000+ Vehicles** in the the operator fleet
 - **24/7 Operations** with duty shift tracking
 - **Real-Time Coordination** between supervisors, engineers, and SDC operators
 
@@ -745,15 +745,15 @@ pm2 logs | grep -i websocket
 
 This software is proprietary and confidential. Unauthorized copying, distribution, modification, or use is strictly prohibited without explicit written permission from the author.
 
-Licensed exclusively to Go North East for internal breakdown management operations.
+Licensed exclusively to the operator for internal breakdown management operations.
 
 ---
 
 ## Support
 
 **Developer:** Anthony Gair
-**Email:** anthony.gair@gonortheast.co.uk
-**Organization:** Go North East
+**Email:** anthony.gair@example.com
+**Organization:** the operator
 
 **For Issues:**
 - Check troubleshooting section above

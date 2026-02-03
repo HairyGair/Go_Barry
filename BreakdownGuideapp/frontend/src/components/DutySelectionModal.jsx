@@ -9,7 +9,7 @@ import React, { useState, useEffect } from 'react';
 import './DutySelectionModal.css';
 import { DutyBadge } from './icons/DutyBadgeIcons';
 
-// Duty shift definitions - Go North East Standard Shifts
+// Duty shift definitions - the operator Standard Shifts
 const DUTY_SHIFTS = [
     {
         code: '100',

@@ -8,7 +8,7 @@
 
 ## 🎯 Project Mission
 
-**To provide Go North East supervisors with a fast, reliable, and intuitive breakdown management system that minimizes vehicle downtime, improves operational efficiency, and ensures passenger safety across the entire fleet.**
+**To provide the operator supervisors with a fast, reliable, and intuitive breakdown management system that minimizes vehicle downtime, improves operational efficiency, and ensures passenger safety across the entire fleet.**
 
 ---
 
@@ -397,7 +397,7 @@
 
 ### External Stakeholders
 
-**Go North East Leadership:**
+**the operator Leadership:**
 - Quarterly progress updates
 - Annual budget review
 - Strategic planning sessions
@@ -494,7 +494,7 @@
 
 **By December 2026, the Go BARRY Breakdown Management System will be:**
 
-1. **The Single Source of Truth** for all breakdown operations at Go North East
+1. **The Single Source of Truth** for all breakdown operations at the operator
 2. **Trusted by 50+ Users** including supervisors, engineers, and managers
 3. **Handling 500+ Breakdowns Per Day** with real-time coordination
 4. **Saving 40+ Hours Per Week** through automated workflows
@@ -511,8 +511,8 @@ When supervisors say: *"I can't imagine doing my job without Go BARRY"*
 ## 🆘 Support & Feedback
 
 **Project Owner:** Anthony Gair
-**Email:** anthony.gair@gonortheast.co.uk
-**Organization:** Go North East
+**Email:** anthony.gair@example.com
+**Organization:** the operator
 
 **For Feature Requests:**
 - Email project owner with detailed description

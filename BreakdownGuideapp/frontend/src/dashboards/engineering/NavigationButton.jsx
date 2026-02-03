@@ -50,7 +50,7 @@ const NavigationButton = ({ breakdown, variant = 'button' }) => {
     if (depot) {
       return {
         type: 'address',
-        address: `${depot} Depot, Go North East`
+        address: `${depot} Depot, the operator`
       };
     }
 

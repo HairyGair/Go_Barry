@@ -20,7 +20,7 @@ const DutyAutoLogoutWarning = ({ currentDuty, onExtensionRequest }) => {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    if (!currentDuty) return;
+    if (!currentDuty || currentDuty.viewOnly || !currentDuty.endTime) return;
 
     const checkWarning = () => {
       const now = new Date();

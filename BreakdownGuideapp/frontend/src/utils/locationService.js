@@ -1,6 +1,6 @@
 /**
  * Location Service - Converts coordinates to readable location names
- * Provides reverse geocoding and landmark detection for Go North East operations
+ * Provides reverse geocoding and landmark detection for the operator operations
  *
  * Features:
  * - Landmark proximity detection
@@ -37,7 +37,7 @@ const calculateDistance = (lat1, lng1, lat2, lng2) => {
 };
 
 /**
- * Comprehensive landmark database for Go North East operational area
+ * Comprehensive landmark database for the operator operational area
  * Covers Newcastle, Gateshead, Sunderland, Durham, and surrounding areas
  */
 const landmarks = [
@@ -89,7 +89,7 @@ const landmarks = [
   { name: 'A19 Testo\'s Roundabout', lat: 54.9800, lng: -1.5300, radius: 0.002, type: 'junction' },
   { name: 'A1(M) Junction 65 (Birtley)', lat: 54.9000, lng: -1.5800, radius: 0.002, type: 'junction' },
 
-  // Go North East Depots (Operational Locations) - VERIFIED from OpenStreetMap (December 2025)
+  // the operator Depots (Operational Locations) - VERIFIED from OpenStreetMap (December 2025)
   { name: 'Washington Depot', lat: 54.9068, lng: -1.5140, radius: 0.003, type: 'depot' },
   { name: 'Riverside Depot', lat: 54.9586, lng: -1.6579, radius: 0.002, type: 'depot' },
   { name: 'Consett Depot', lat: 54.8403, lng: -1.8380, radius: 0.003, type: 'depot' },
@@ -129,7 +129,7 @@ const getLocationName = async (lat, lng) => {
       return `${lat || 'Unknown'}, ${lng || 'Unknown'}`;
     }
 
-    // Check if coordinates are within Go North East operational area
+    // Check if coordinates are within the operator operational area
     const isInOperationalArea = (lat >= 54.5 && lat <= 55.2) && (lng >= -2.2 && lng <= -1.2);
     if (!isInOperationalArea) {
       return `${lat.toFixed(4)}, ${lng.toFixed(4)} (Outside operational area)`;

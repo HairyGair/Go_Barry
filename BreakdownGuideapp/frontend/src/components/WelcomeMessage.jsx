@@ -51,7 +51,7 @@ const WelcomeMessage = ({ currentUser, currentDuty, onClose }) => {
 
     // Update time info every minute
     useEffect(() => {
-        if (!currentDuty) return;
+        if (!currentDuty || currentDuty.viewOnly || !currentDuty.startTime || !currentDuty.endTime) return;
 
         const updateTimeInfo = () => {
             const now = new Date();
@@ -164,7 +164,8 @@ const WelcomeMessage = ({ currentUser, currentDuty, onClose }) => {
         }
     };
 
-    if (isDismissed || !currentDuty || !currentUser) return null;
+    // Don't show for view-only mode or if missing required data
+    if (isDismissed || !currentDuty || !currentUser || currentDuty.viewOnly) return null;
 
     // Get duty theme color for celebration
     const dutyColors = {

@@ -54,7 +54,7 @@ const FloatingDutyBadge = ({ currentDuty, onClick, scrollThreshold = 100 }) => {
 
   // Calculate time remaining
   const calculateTimeRemaining = useCallback(() => {
-    if (!currentDuty) return;
+    if (!currentDuty || currentDuty.viewOnly || !currentDuty.endTime) return;
 
     const now = new Date();
     const [endHour, endMin] = currentDuty.endTime.split(':').map(Number);
@@ -99,7 +99,7 @@ const FloatingDutyBadge = ({ currentDuty, onClick, scrollThreshold = 100 }) => {
   }, [currentDuty]);
 
   useEffect(() => {
-    if (!currentDuty) return;
+    if (!currentDuty || currentDuty.viewOnly || !currentDuty.endTime) return;
 
     calculateTimeRemaining();
     const timer = setInterval(calculateTimeRemaining, 1000);
@@ -107,8 +107,8 @@ const FloatingDutyBadge = ({ currentDuty, onClick, scrollThreshold = 100 }) => {
     return () => clearInterval(timer);
   }, [currentDuty, calculateTimeRemaining]);
 
-  // Don't render if no duty or not visible
-  if (!currentDuty || !isVisible) {
+  // Don't render if no duty, view-only mode, or not visible
+  if (!currentDuty || currentDuty.viewOnly || !isVisible) {
     return null;
   }
 

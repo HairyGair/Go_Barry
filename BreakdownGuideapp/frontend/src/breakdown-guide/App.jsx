@@ -1,5 +1,5 @@
 /**
- * Go North East - Breakdown Assessment Guide
+ * the operator - Breakdown Assessment Guide
  * Main Application Component
  * 
  * Copyright (c) 2025 Anthony Gair. All rights reserved.
@@ -152,6 +152,9 @@ const App = () => {
     // Route information state
     const [selectedRoute, setSelectedRoute] = useState('');
     const [routeName, setRouteName] = useState('');
+
+    // Category selection for two-column layout
+    const [selectedCategory, setSelectedCategory] = useState('critical');
 
     // Initialize supervisor logger with real user session
     useEffect(() => {
@@ -664,97 +667,183 @@ const App = () => {
         );
     };
     
-    // Main dashboard view
-    const Dashboard = () => (
-        <div className="breakdown-guide-container">
-            <main className="main-content">
-                <div className="assessment-grid-container">
-                    <h2 className="section-title">Select Assessment Type</h2>
-                    <div className="wizard-grid-enhanced">
-                    {Object.entries(wizards).map(([key, wizard]) => {
-                        // Map wizard types to available PNG icons
-                        const iconMapping = {
-                            'brakes': 'brakes.png',
-                            'steering': 'steering.png',
-                            'oil-warning': 'oil_warning.png',
-                            'loose-wheel-nuts': 'loose_wheel_nuts.png',
-                            'puncture': 'puncture.png',
-                            'road-traffic-incidents': 'collision.png',
-                            'battery': 'battery_issues.png',
-                            'battery-light': 'battery_issues.png',
-                            'non-starter': 'non_starter.png',
-                            'doors': 'door_issues.png',
-                            'broken-windows': 'smashed_window.png',
-                            'gear-selection': 'gear_selector_issues.png',
-                            'gearbox': 'gearbox_issues.png',
-                            'gearbox-temperature': 'gearbox_issues.png',
-                            'cutting-out-fuel': 'low_fuel_cutting_out.png',
-                            'ramp': 'wheelchair_ramp.png',
-                            'wheelchair-ramp': 'wheelchair_ramp.png',
-                            'exterior-lights': 'exterior_lights.png',
-                            'wing-mirrors': 'broken_mirror.png',
-                            'interior-lights': 'interior_lights.png',
-                            'destination-display': 'destination_display.png',
-                            'demisters-heaters': 'cold_bus_demisters.png',
-                            'repeat-defects': 'repeat_defects.png',
-                            'abs-light': 'ABS_light.png',
-                            'cooling-system': 'Overheating.png',
-                            'overheating': 'Overheating.png',
-                            // Missing icons - using emoji fallbacks for now
-                            'low-water': null,
-                            'excessive-smoke': null,
-                            'wipers-screenwash': null,
-                            'suspension': null,
-                            'warning-lights': null,
-                            'speedo': null,
-                            'interior-exterior-damage': null,
-                            'buzzers': null
-                        };
-                        
-                        // Emoji fallbacks for missing icons
-                        const emojiFallbacks = {
-                            'cooling-system': '🌡️',
-                            'overheating': '🌡️',
-                            'low-water': '💧',
-                            'excessive-smoke': '💨',
-                            'wipers-screenwash': '🌧️',
-                            'suspension': '🚙',
-                            'warning-lights': '⚠️',
-                            'speedo': '🏁',
-                            'interior-exterior-damage': '⚠️',
-                            'buzzers': '🔔'
-                        };
-                        
-                        const iconFile = iconMapping[key];
-                        const hasIcon = iconFile !== null && iconFile !== undefined;
-                        
-                        return (
-                            <button
-                                key={key}
-                                className="wizard-card-enhanced"
-                                onClick={() => startAssessment(key)}
-                            >
-                                {hasIcon ? (
-                                    <div className="wizard-icon-img">
-                                        <img 
-                                            src={`/icons/${iconFile}`} 
-                                            alt={wizard.title}
-                                            className="wizard-icon-png"
-                                        />
-                                    </div>
-                                ) : (
-                                    <div className="wizard-icon">{emojiFallbacks[key] || '🔧'}</div>
-                                )}
-                                <h3>{wizard.title}</h3>
-                                <p>{wizard.description}</p>
-                            </button>
-                        );
-                    })}
-                    </div>
+    // Category definitions for two-column layout
+    const categories = [
+        {
+            id: 'critical',
+            name: 'Critical Safety',
+            icon: '🚨',
+            color: '#DC2626',
+            wizardKeys: ['brakes', 'steering', 'loose-wheel-nuts', 'road-traffic-incidents']
+        },
+        {
+            id: 'engine',
+            name: 'Engine & Drivetrain',
+            icon: '⚙️',
+            color: '#F59E0B',
+            wizardKeys: ['non-starter', 'overheating', 'cooling-system', 'oil-warning', 'gearbox', 'gearbox-temperature', 'gear-selection', 'cutting-out-fuel', 'excessive-smoke']
+        },
+        {
+            id: 'electrical',
+            name: 'Electrical Systems',
+            icon: '⚡',
+            color: '#3B82F6',
+            wizardKeys: ['battery', 'battery-light', 'abs-light', 'exterior-lights', 'interior-lights', 'warning-lights', 'destination-display']
+        },
+        {
+            id: 'bodywork',
+            name: 'Bodywork & Access',
+            icon: '🚪',
+            color: '#0097A7',
+            wizardKeys: ['doors', 'broken-windows', 'wing-mirrors', 'ramp', 'wheelchair-ramp', 'interior-exterior-damage']
+        },
+        {
+            id: 'climate',
+            name: 'Climate & Visibility',
+            icon: '🌡️',
+            color: '#8B5CF6',
+            wizardKeys: ['demisters-heaters', 'wipers-screenwash', 'low-water']
+        },
+        {
+            id: 'other',
+            name: 'Other Issues',
+            icon: '🔧',
+            color: '#6B7280',
+            wizardKeys: ['puncture', 'suspension', 'speedo', 'buzzers', 'repeat-defects']
+        }
+    ];
+
+    // Icon mapping for wizards
+    const iconMapping = {
+        'brakes': 'brakes.png',
+        'steering': 'steering.png',
+        'oil-warning': 'oil_warning.png',
+        'loose-wheel-nuts': 'loose_wheel_nuts.png',
+        'puncture': 'puncture.png',
+        'road-traffic-incidents': 'collision.png',
+        'battery': 'battery_issues.png',
+        'battery-light': 'battery_issues.png',
+        'non-starter': 'non_starter.png',
+        'doors': 'door_issues.png',
+        'broken-windows': 'smashed_window.png',
+        'gear-selection': 'gear_selector_issues.png',
+        'gearbox': 'gearbox_issues.png',
+        'gearbox-temperature': 'gearbox_issues.png',
+        'cutting-out-fuel': 'low_fuel_cutting_out.png',
+        'ramp': 'wheelchair_ramp.png',
+        'wheelchair-ramp': 'wheelchair_ramp.png',
+        'exterior-lights': 'exterior_lights.png',
+        'wing-mirrors': 'broken_mirror.png',
+        'interior-lights': 'interior_lights.png',
+        'destination-display': 'destination_display.png',
+        'demisters-heaters': 'cold_bus_demisters.png',
+        'repeat-defects': 'repeat_defects.png',
+        'abs-light': 'ABS_light.png',
+        'cooling-system': 'Overheating.png',
+        'overheating': 'Overheating.png',
+        'low-water': null,
+        'excessive-smoke': null,
+        'wipers-screenwash': null,
+        'suspension': null,
+        'warning-lights': null,
+        'speedo': null,
+        'interior-exterior-damage': null,
+        'buzzers': null
+    };
+
+    // Emoji fallbacks
+    const emojiFallbacks = {
+        'cooling-system': '🌡️',
+        'overheating': '🌡️',
+        'low-water': '💧',
+        'excessive-smoke': '💨',
+        'wipers-screenwash': '🌧️',
+        'suspension': '🚙',
+        'warning-lights': '⚠️',
+        'speedo': '🏁',
+        'interior-exterior-damage': '⚠️',
+        'buzzers': '🔔'
+    };
+
+    // Main dashboard view - Two Column Layout
+    const Dashboard = () => {
+        const activeCategory = categories.find(c => c.id === selectedCategory);
+        const filteredWizardKeys = activeCategory?.wizardKeys.filter(key => wizards[key]) || [];
+
+        return (
+            <div className="breakdown-guide-container">
+                <div className="two-column-layout">
+                    {/* Left Sidebar - Categories */}
+                    <aside className="category-sidebar">
+                        <div className="sidebar-header">
+                            <h2>Categories</h2>
+                        </div>
+                        <nav className="category-nav">
+                            {categories.map(category => (
+                                <button
+                                    key={category.id}
+                                    className={`category-btn ${selectedCategory === category.id ? 'active' : ''}`}
+                                    onClick={() => setSelectedCategory(category.id)}
+                                    style={{ '--category-color': category.color }}
+                                >
+                                    <span className="category-icon">{category.icon}</span>
+                                    <span className="category-name">{category.name}</span>
+                                    <span className="category-count">{category.wizardKeys.filter(k => wizards[k]).length}</span>
+                                </button>
+                            ))}
+                        </nav>
+                    </aside>
+
+                    {/* Right Content - Wizards Grid */}
+                    <main className="wizard-content">
+                        <div className="content-header">
+                            <h1 style={{ '--header-color': activeCategory?.color }}>
+                                <span className="header-icon">{activeCategory?.icon}</span>
+                                {activeCategory?.name}
+                            </h1>
+                            <p className="header-subtitle">Select an assessment type to begin</p>
+                        </div>
+
+                        <div className="wizard-grid-two-col">
+                            {filteredWizardKeys.map(key => {
+                                const wizard = wizards[key];
+                                if (!wizard) return null;
+
+                                const iconFile = iconMapping[key];
+                                const hasIcon = iconFile !== null && iconFile !== undefined;
+
+                                return (
+                                    <button
+                                        key={key}
+                                        className="wizard-card-two-col"
+                                        onClick={() => startAssessment(key)}
+                                        style={{ '--card-accent': activeCategory?.color }}
+                                    >
+                                        <div className="card-icon-wrapper">
+                                            {hasIcon ? (
+                                                <img
+                                                    src={`/icons/${iconFile}`}
+                                                    alt={wizard.title}
+                                                    className="card-icon-img"
+                                                />
+                                            ) : (
+                                                <span className="card-icon-emoji">{emojiFallbacks[key] || '🔧'}</span>
+                                            )}
+                                        </div>
+                                        <div className="card-content">
+                                            <h3>{wizard.title}</h3>
+                                            <p>{wizard.description}</p>
+                                        </div>
+                                        <div className="card-arrow">→</div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </main>
                 </div>
-            </main>
-        </div>
-    );
+            </div>
+        );
+    };
 
     // Authentication removed - direct access
     return (

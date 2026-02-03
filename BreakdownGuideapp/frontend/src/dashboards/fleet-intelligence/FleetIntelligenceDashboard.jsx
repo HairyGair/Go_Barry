@@ -1,7 +1,7 @@
 /**
  * Fleet Intelligence Command Center
  *
- * A comprehensive analytics dashboard for Go North East supervisors
+ * A comprehensive analytics dashboard for the operator supervisors
  * showing real-time fleet health, mileage tracking, and predictive insights.
  *
  * Created: December 2025

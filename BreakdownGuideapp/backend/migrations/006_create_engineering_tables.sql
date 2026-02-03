@@ -80,15 +80,15 @@ CREATE TABLE IF NOT EXISTS engineers (
 
 -- Insert sample engineers for testing
 INSERT INTO engineers (badge_number, name, email, depot, skills, status) VALUES
-  ('ENG001', 'John Smith', 'john.smith@gonortheast.co.uk', 'WAS',
+  ('ENG001', 'John Smith', 'john.smith@example.com', 'WAS',
    JSON_ARRAY('electrical', 'mechanical'), 'available'),
-  ('ENG002', 'Sarah Johnson', 'sarah.johnson@gonortheast.co.uk', 'NCL',
+  ('ENG002', 'Sarah Johnson', 'sarah.johnson@example.com', 'NCL',
    JSON_ARRAY('hvac', 'mechanical'), 'available'),
-  ('ENG003', 'Mike Williams', 'mike.williams@gonortheast.co.uk', 'CON',
+  ('ENG003', 'Mike Williams', 'mike.williams@example.com', 'CON',
    JSON_ARRAY('electrical', 'diagnostics'), 'available'),
-  ('ENG004', 'Emma Brown', 'emma.brown@gonortheast.co.uk', 'WAS',
+  ('ENG004', 'Emma Brown', 'emma.brown@example.com', 'WAS',
    JSON_ARRAY('mechanical', 'hydraulics'), 'available'),
-  ('ENG005', 'David Wilson', 'david.wilson@gonortheast.co.uk', 'GTS',
+  ('ENG005', 'David Wilson', 'david.wilson@example.com', 'GTS',
    JSON_ARRAY('electrical', 'mechanical', 'hvac'), 'available')
 ON DUPLICATE KEY UPDATE
   name = VALUES(name),

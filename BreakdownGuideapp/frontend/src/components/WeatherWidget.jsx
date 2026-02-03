@@ -13,16 +13,41 @@
 import React, { useEffect, useState } from 'react';
 import './WeatherWidget.css';
 
-const DEPOT_LOCATIONS = [
-  { name: 'Washington', city: 'Washington,uk', display: 'Washington Depot' },
-  { name: 'Riverside', city: 'Gateshead,uk', display: 'Gateshead Riverside' },
-  { name: 'Consett', city: 'Consett,uk', display: 'Consett Depot' },
-  { name: 'Deptford', city: 'Sunderland,uk', display: 'Sunderland Deptford' },
-  { name: 'Percy Main', city: 'North Shields,uk', display: 'North Shields Percy Main' },
-  { name: 'Hexham', city: 'Hexham,uk', display: 'Hexham Depot' }
+// Northeast England towns and villages
+const LOCATIONS = [
+  { name: 'Newcastle', city: 'Newcastle upon Tyne,uk', display: 'Newcastle upon Tyne' },
+  { name: 'Gateshead', city: 'Gateshead,uk', display: 'Gateshead' },
+  { name: 'Sunderland', city: 'Sunderland,uk', display: 'Sunderland' },
+  { name: 'Durham', city: 'Durham,uk', display: 'Durham' },
+  { name: 'Middlesbrough', city: 'Middlesbrough,uk', display: 'Middlesbrough' },
+  { name: 'Darlington', city: 'Darlington,uk', display: 'Darlington' },
+  { name: 'Hartlepool', city: 'Hartlepool,uk', display: 'Hartlepool' },
+  { name: 'Stockton', city: 'Stockton-on-Tees,uk', display: 'Stockton-on-Tees' },
+  { name: 'Hexham', city: 'Hexham,uk', display: 'Hexham' },
+  { name: 'Alnwick', city: 'Alnwick,uk', display: 'Alnwick' },
+  { name: 'Berwick', city: 'Berwick-upon-Tweed,uk', display: 'Berwick-upon-Tweed' },
+  { name: 'Morpeth', city: 'Morpeth,uk', display: 'Morpeth' },
+  { name: 'Blyth', city: 'Blyth,uk', display: 'Blyth' },
+  { name: 'Cramlington', city: 'Cramlington,uk', display: 'Cramlington' },
+  { name: 'Whitley Bay', city: 'Whitley Bay,uk', display: 'Whitley Bay' },
+  { name: 'Tynemouth', city: 'Tynemouth,uk', display: 'Tynemouth' },
+  { name: 'South Shields', city: 'South Shields,uk', display: 'South Shields' },
+  { name: 'Washington', city: 'Washington,uk', display: 'Washington' },
+  { name: 'Chester-le-Street', city: 'Chester-le-Street,uk', display: 'Chester-le-Street' },
+  { name: 'Consett', city: 'Consett,uk', display: 'Consett' },
+  { name: 'Bishop Auckland', city: 'Bishop Auckland,uk', display: 'Bishop Auckland' },
+  { name: 'Newton Aycliffe', city: 'Newton Aycliffe,uk', display: 'Newton Aycliffe' },
+  { name: 'Seaham', city: 'Seaham,uk', display: 'Seaham' },
+  { name: 'Peterlee', city: 'Peterlee,uk', display: 'Peterlee' },
+  { name: 'Redcar', city: 'Redcar,uk', display: 'Redcar' },
+  { name: 'Guisborough', city: 'Guisborough,uk', display: 'Guisborough' },
+  { name: 'Billingham', city: 'Billingham,uk', display: 'Billingham' },
+  { name: 'Sedgefield', city: 'Sedgefield,uk', display: 'Sedgefield' },
+  { name: 'Barnard Castle', city: 'Barnard Castle,uk', display: 'Barnard Castle' },
+  { name: 'Corbridge', city: 'Corbridge,uk', display: 'Corbridge' }
 ];
 
-const ROTATION_INTERVAL = 15000; // 15 seconds
+const ROTATION_INTERVAL = 5000; // 5 seconds
 const CACHE_DURATION = 600000; // 10 minutes
 
 const WeatherWidget = () => {
@@ -32,7 +57,7 @@ const WeatherWidget = () => {
   const [error, setError] = useState(null);
   const [fadeIn, setFadeIn] = useState(true);
 
-  const currentDepot = DEPOT_LOCATIONS[currentIndex];
+  const currentLocation = LOCATIONS[currentIndex];
 
   // Get weather emoji based on condition
   const getWeatherEmoji = (condition) => {
@@ -57,8 +82,8 @@ const WeatherWidget = () => {
     return '#10B981';
   };
 
-  // Fetch weather data for a specific depot
-  const fetchWeatherForDepot = async (depot) => {
+  // Fetch weather data for a specific location
+  const fetchWeatherForLocation = async (location) => {
     const apiKey = import.meta.env.VITE_WEATHER_API_KEY;
 
     if (!apiKey) {
@@ -67,7 +92,7 @@ const WeatherWidget = () => {
     }
 
     // Check cache first
-    const cacheKey = `weather_${depot.name}`;
+    const cacheKey = `weather_${location.name}`;
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
       const { data, timestamp } = JSON.parse(cached);
@@ -78,7 +103,7 @@ const WeatherWidget = () => {
 
     try {
       const response = await fetch(
-        `https://api.openweathermap.org/data/2.5/weather?q=${depot.city}&appid=${apiKey}&units=metric`
+        `https://api.openweathermap.org/data/2.5/weather?q=${location.city}&appid=${apiKey}&units=metric`
       );
 
       if (!response.ok) {
@@ -102,21 +127,21 @@ const WeatherWidget = () => {
 
       return weatherInfo;
     } catch (err) {
-      console.error(`Error fetching weather for ${depot.name}:`, err);
+      console.error(`Error fetching weather for ${location.name}:`, err);
       return null;
     }
   };
 
-  // Load initial weather data for all depots
+  // Load initial weather data for all locations
   useEffect(() => {
     const loadAllWeather = async () => {
       setLoading(true);
       const weatherCache = {};
 
-      for (const depot of DEPOT_LOCATIONS) {
-        const data = await fetchWeatherForDepot(depot);
+      for (const location of LOCATIONS) {
+        const data = await fetchWeatherForLocation(location);
         if (data) {
-          weatherCache[depot.name] = data;
+          weatherCache[location.name] = data;
         }
       }
 
@@ -142,7 +167,7 @@ const WeatherWidget = () => {
       setFadeIn(false);
 
       setTimeout(() => {
-        setCurrentIndex((prevIndex) => (prevIndex + 1) % DEPOT_LOCATIONS.length);
+        setCurrentIndex((prevIndex) => (prevIndex + 1) % LOCATIONS.length);
         setFadeIn(true);
       }, 300); // Half of CSS transition time
     }, ROTATION_INTERVAL);
@@ -168,7 +193,7 @@ const WeatherWidget = () => {
     );
   }
 
-  const weather = weatherData[currentDepot.name];
+  const weather = weatherData[currentLocation.name];
   if (!weather) {
     return (
       <div className="weather-widget error">
@@ -186,14 +211,9 @@ const WeatherWidget = () => {
       style={{ '--weather-color': weatherColor }}
     >
       <div className="weather-header">
-        <div className="weather-depot-name">{currentDepot.display}</div>
+        <div className="weather-location-name">{currentLocation.display}</div>
         <div className="weather-rotation-indicator">
-          {DEPOT_LOCATIONS.map((_, index) => (
-            <span
-              key={index}
-              className={`rotation-dot ${index === currentIndex ? 'active' : ''}`}
-            />
-          ))}
+          <span className="rotation-counter">{currentIndex + 1} / {LOCATIONS.length}</span>
         </div>
       </div>
 

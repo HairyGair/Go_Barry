@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { theme } from '@styles/theme';
 
-// Example: LiveIndicator component updated to use Go North East theme system
+// Example: LiveIndicator component updated to use the operator theme system
 
 const LiveIndicator = ({ 
   status = 'online',

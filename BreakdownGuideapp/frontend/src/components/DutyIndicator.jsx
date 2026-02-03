@@ -16,7 +16,7 @@ const DutyIndicator = ({ currentDuty, onClick, isAdmin }) => {
 
     // Update countdown every 30 seconds
     useEffect(() => {
-        if (!currentDuty) return;
+        if (!currentDuty || currentDuty.viewOnly || !currentDuty.endTime) return;
 
         const updateCountdown = () => {
             const now = new Date();
@@ -96,7 +96,8 @@ const DutyIndicator = ({ currentDuty, onClick, isAdmin }) => {
         }
     };
 
-    if (!currentDuty) return null;
+    // Don't render for view-only mode or missing duty
+    if (!currentDuty || currentDuty.viewOnly) return null;
 
     // Phase 6.3: Generate ARIA label for screen readers
     const getAriaLabel = () => {

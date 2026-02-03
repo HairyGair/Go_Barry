@@ -14,17 +14,19 @@
 
   /* Borders */
   --border-color: var(--color-dark-border, #475569);
-  --border-hover: var(--color-primary, #0066CC);
+  --border-hover: #0097A7;
 
   /* Text */
   --text-primary: var(--color-dark-text-primary, #F1F5F9);
   --text-secondary: var(--color-dark-text-secondary, #94A3B8);
   --text-muted: var(--color-dark-text-tertiary, #64748B);
 
-  /* Brand colors - GoBarry blue theme */
+  /* Brand colors - GoBarry Ocean Teal theme */
   --navy: var(--color-navy-primary, #003366);
-  --primary: var(--color-primary, #0066CC);
-  --accent: var(--color-accent, #00B4D8);
+  --primary: #0097A7;
+  --primary-light: #00ACC1;
+  --primary-dark: #00838F;
+  --accent: #00BCD4;
   --amber: var(--color-warning, #F59E0B);
   --green: var(--color-success, #10B981);
   --red: var(--color-critical, #DC2626); /* Keep red for critical/stop states only */
@@ -52,22 +54,37 @@ body {
 
 /* Header Navigation removed - using shared AppHeader component */
 
-/* Breakdown Guide Container */
+/* Breakdown Guide Container - Ocean Teal Theme */
 .breakdown-guide-container {
-  background-color: var(--bg-primary);
+  background: linear-gradient(180deg, #0F172A 0%, #1E293B 50%, #0F172A 100%);
   min-height: 100vh;
+  position: relative;
+}
+
+/* Subtle grid pattern overlay */
+.breakdown-guide-container::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0, 151, 167, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 151, 167, 0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+  pointer-events: none;
+  z-index: 0;
 }
 
 /* Main Content Container */
 .main-content {
   max-width: 1600px;
   margin: 0 auto;
-  padding: 20px;
-  padding-bottom: 100px; /* Extra padding at bottom for long wizards */
+  padding: 80px 24px 100px 24px; /* Top padding for floating header */
   display: flex;
   flex-direction: column;
   gap: 30px;
-  min-height: auto; /* Allow natural height */
+  min-height: auto;
+  position: relative;
+  z-index: 1;
 }
 
 /* Header styles removed - using shared AppHeader component */
@@ -145,74 +162,79 @@ body[data-theme="dark"] {
   color: var(--text-primary);
 }
 
-/* Section Title */
+/* Section Title - Ocean Teal Theme */
 .section-title {
-  font-size: 22px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0 0 20px 0;
-  padding: 0 0 12px 0;
-  border-bottom: 2px solid var(--border-color);
+  font-size: 24px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0 0 24px 0;
+  padding: 0 0 16px 0;
+  border-bottom: 3px solid #0097A7;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 /* Assessment Grid Container */
 .assessment-grid-container {
   padding: 0;
-  margin-top: 24px;
+  margin-top: 8px;
 }
 
-/* Enhanced Wizard Grid */
+/* Enhanced Wizard Grid - 3 Column Layout */
 .wizard-grid-enhanced {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
   margin: 0;
   padding: 0;
 }
 
 @media (max-width: 1200px) {
   .wizard-grid-enhanced {
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
   }
 }
 
 @media (max-width: 768px) {
   .wizard-grid-enhanced {
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 600px) {
   .wizard-grid-enhanced {
     grid-template-columns: 1fr;
-    gap: 12px;
+    gap: 14px;
   }
 }
 
-/* Enhanced Wizard Cards - Improved layout Nov 2025 */
+/* Enhanced Wizard Cards - Ocean Teal Theme Redesign */
 .wizard-card-enhanced {
-  background: var(--bg-card);
-  border: 2px solid var(--border-color);
-  border-radius: var(--radius-lg, 12px);
-  padding: var(--wizard-card-padding, 24px);
+  background: linear-gradient(145deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95));
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 24px;
   cursor: pointer;
-  transition: all var(--transition-base, 200ms ease-out);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   text-align: center;
   position: relative;
-  overflow: visible;
-  /* Removed fixed height - allow content to flow naturally */
+  overflow: hidden;
   min-height: 180px;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
   align-items: center;
-  gap: var(--spacing-sm, 8px);
-  /* Ensure minimum touch target on mobile */
-  min-width: var(--wizard-touch-target, 48px);
+  gap: 12px;
+  min-width: 48px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
+/* Top accent bar - Ocean Teal */
 .wizard-card-enhanced::before {
   content: '';
   position: absolute;
@@ -220,77 +242,102 @@ body[data-theme="dark"] {
   left: 0;
   right: 0;
   height: 4px;
-  background: var(--primary);
+  background: linear-gradient(90deg, #0097A7, #00BCD4);
   transform: scaleX(0);
-  transition: transform 0.3s ease;
+  transform-origin: left;
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Subtle glow effect on hover */
+.wizard-card-enhanced::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, rgba(0, 151, 167, 0.1) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
 }
 
 .wizard-card-enhanced:hover {
-  border-color: var(--border-hover);
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 102, 204, 0.3);
-  background: var(--bg-tertiary);
+  border-color: rgba(0, 151, 167, 0.5);
+  transform: translateY(-6px);
+  box-shadow:
+    0 12px 32px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(0, 151, 167, 0.2),
+    0 0 40px rgba(0, 151, 167, 0.15);
+  background: linear-gradient(145deg, rgba(40, 51, 69, 0.98), rgba(20, 30, 48, 0.98));
 }
 
 .wizard-card-enhanced:hover::before {
   transform: scaleX(1);
 }
 
+.wizard-card-enhanced:hover::after {
+  opacity: 1;
+}
+
 .wizard-icon {
-  font-size: 40px;
-  margin-bottom: 0;
-  opacity: 0.9;
+  font-size: 44px;
+  margin-bottom: 4px;
   flex-shrink: 0;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+  transition: transform 0.3s ease;
+}
+
+.wizard-card-enhanced:hover .wizard-icon {
+  transform: scale(1.1);
 }
 
 /* PNG Icon Styles */
 .wizard-icon-img {
-  height: 52px;
+  height: 56px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 0;
+  margin-bottom: 4px;
   flex-shrink: 0;
 }
 
 .wizard-icon-png {
   width: auto;
   height: 100%;
-  max-width: 52px;
+  max-width: 56px;
   object-fit: contain;
-  filter: brightness(0.9);
-  transition: filter 0.3s ease;
+  filter: brightness(1);
+  transition: all 0.3s ease;
 }
 
 .wizard-card-enhanced:hover .wizard-icon-png {
-  filter: brightness(1.1) drop-shadow(0 2px 8px rgba(0, 102, 204, 0.3));
+  filter: brightness(1.2) drop-shadow(0 4px 12px rgba(0, 151, 167, 0.4));
+  transform: scale(1.1);
 }
 
+/* Card Title - High Contrast White */
 .wizard-card-enhanced h3 {
   margin: 0;
-  color: var(--text-primary);
-  font-size: 16px;
+  color: #ffffff;
+  font-size: 17px;
   font-weight: 600;
   line-height: 1.3;
   flex-shrink: 0;
+  font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
+/* Card Description - Improved Contrast */
 .wizard-card-enhanced p {
   margin: 0;
-  color: var(--text-secondary);
-  font-size: var(--text-xs, 12px);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
   line-height: 1.5;
-  /* Allow text to flow naturally with clamping */
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-align: center;
-  /* Grow to fill available space */
   flex: 1;
-  align-items: flex-start;
-  justify-content: flex-start;
-  padding-top: var(--spacing-xs, 4px);
+  padding-top: 4px;
 }
 
 /* Wizard Grid */
@@ -413,15 +460,17 @@ body[data-theme="dark"] {
 
 .btn-next,
 .btn-complete {
-  background: var(--primary);
+  background: linear-gradient(135deg, #0097A7, #00838F);
   color: white;
+  font-family: 'Outfit', system-ui, -apple-system, sans-serif;
+  font-weight: 600;
 }
 
 .btn-next:hover,
 .btn-complete:hover {
-  background: #0052a3;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 10px rgba(0, 102, 204, 0.3);
+  background: linear-gradient(135deg, #00ACC1, #0097A7);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 151, 167, 0.4);
 }
 
 /* Decision displays */
@@ -465,8 +514,8 @@ input, select, textarea {
 
 input:focus, select:focus, textarea:focus {
   outline: none;
-  border-color: var(--border-hover);
-  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.15);
+  border-color: #0097A7;
+  box-shadow: 0 0 0 3px rgba(0, 151, 167, 0.2);
 }
 
 /* Alert boxes */
@@ -533,23 +582,23 @@ input:focus, select:focus, textarea:focus {
   transform: translateX(5px);
 }
 
-/* Scrollbar styling */
+/* Scrollbar styling - Ocean Teal */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--bg-tertiary);
+  background: rgba(15, 23, 42, 0.5);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--border-color);
+  background: rgba(0, 151, 167, 0.4);
   border-radius: 5px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: rgba(0, 151, 167, 0.6);
 }
 
 /* Loading states */
@@ -566,8 +615,8 @@ input:focus, select:focus, textarea:focus {
   width: 40px;
   height: 40px;
   margin-left: 20px;
-  border: 4px solid var(--border-color);
-  border-top-color: var(--primary);
+  border: 4px solid rgba(0, 151, 167, 0.2);
+  border-top-color: #0097A7;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -1081,4 +1130,327 @@ input:focus, select:focus, textarea:focus {
   color: var(--text-secondary);
   font-size: 16px;
   margin: 0;
+}
+
+/* ============================================================================
+   TWO-COLUMN LAYOUT - Full Page Wizard Selection
+   Desktop-optimized layout with category sidebar and wizard grid
+   ============================================================================ */
+
+.two-column-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  min-height: 100vh;
+  background: linear-gradient(180deg, #0F172A 0%, #1E293B 100%);
+}
+
+/* Category Sidebar */
+.category-sidebar {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(10, 15, 30, 0.98));
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 80px 0 24px 0; /* Top padding for floating header */
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.sidebar-header {
+  padding: 0 24px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 16px;
+}
+
+.sidebar-header h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-family: 'Outfit', system-ui, sans-serif;
+}
+
+.category-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 12px;
+}
+
+.category-btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 16px;
+  background: transparent;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  position: relative;
+}
+
+.category-btn::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 0;
+  background: var(--category-color, #0097A7);
+  border-radius: 0 4px 4px 0;
+  transition: height 0.2s ease;
+}
+
+.category-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.category-btn:hover::before {
+  height: 50%;
+}
+
+.category-btn.active {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.category-btn.active::before {
+  height: 60%;
+}
+
+.category-icon {
+  font-size: 24px;
+  width: 32px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.category-name {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 500;
+  color: #ffffff;
+  font-family: 'Outfit', system-ui, sans-serif;
+}
+
+.category-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.1);
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.category-btn.active .category-count {
+  background: var(--category-color, #0097A7);
+  color: white;
+}
+
+/* Wizard Content Area */
+.wizard-content {
+  padding: 80px 48px 48px; /* Top padding for floating header */
+  overflow-y: auto;
+}
+
+.content-header {
+  margin-bottom: 40px;
+}
+
+.content-header h1 {
+  margin: 0 0 8px 0;
+  font-size: 32px;
+  font-weight: 700;
+  color: #ffffff;
+  font-family: 'Outfit', system-ui, sans-serif;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.content-header h1::after {
+  content: '';
+  flex: 1;
+  height: 3px;
+  background: linear-gradient(90deg, var(--header-color, #0097A7), transparent);
+  border-radius: 3px;
+}
+
+.header-icon {
+  font-size: 36px;
+}
+
+.header-subtitle {
+  margin: 0;
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.6);
+  padding-left: 52px;
+}
+
+/* Wizard Grid - Horizontal Cards */
+.wizard-grid-two-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Wizard Card - Horizontal Layout */
+.wizard-card-two-col {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.8));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: left;
+  position: relative;
+  overflow: hidden;
+}
+
+.wizard-card-two-col::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--card-accent, #0097A7);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.wizard-card-two-col:hover {
+  background: linear-gradient(135deg, rgba(40, 51, 69, 0.9), rgba(20, 30, 48, 0.9));
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateX(8px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.wizard-card-two-col:hover::before {
+  opacity: 1;
+}
+
+.card-icon-wrapper {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+
+.card-icon-img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  transition: transform 0.3s ease;
+}
+
+.wizard-card-two-col:hover .card-icon-img {
+  transform: scale(1.1);
+}
+
+.card-icon-emoji {
+  font-size: 36px;
+}
+
+.card-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.card-content h3 {
+  margin: 0 0 6px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #ffffff;
+  font-family: 'Outfit', system-ui, sans-serif;
+}
+
+.card-content p {
+  margin: 0;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.4;
+}
+
+.card-arrow {
+  font-size: 24px;
+  color: rgba(255, 255, 255, 0.3);
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.wizard-card-two-col:hover .card-arrow {
+  color: var(--card-accent, #0097A7);
+  transform: translateX(4px);
+}
+
+/* Tablet view - Collapse sidebar */
+@media (max-width: 1024px) {
+  .two-column-layout {
+    grid-template-columns: 240px 1fr;
+  }
+
+  .wizard-content {
+    padding: 80px 32px 32px;
+  }
+
+  .category-name {
+    font-size: 14px;
+  }
+}
+
+/* Smaller screens - Stack layout */
+@media (max-width: 768px) {
+  .two-column-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .category-sidebar {
+    position: relative;
+    height: auto;
+    padding: 80px 16px 16px;
+  }
+
+  .category-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .category-btn {
+    padding: 10px 14px;
+    flex: 0 0 auto;
+  }
+
+  .category-name {
+    display: none;
+  }
+
+  .category-count {
+    display: none;
+  }
+
+  .wizard-content {
+    padding: 24px 16px;
+  }
+
+  .content-header h1 {
+    font-size: 24px;
+  }
+
+  .header-subtitle {
+    padding-left: 0;
+  }
 }

@@ -10,7 +10,7 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(135deg, rgba(0, 20, 40, 0.97) 0%, rgba(0, 59, 92, 0.97) 50%, rgba(0, 102, 161, 0.95) 100%);
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.97) 0%, rgba(31, 41, 55, 0.97) 50%, rgba(0, 131, 143, 0.95) 100%);
     backdrop-filter: blur(30px);
     -webkit-backdrop-filter: blur(30px);
     display: flex;
@@ -101,13 +101,13 @@
     transform: scale(0.95) rotate(90deg);
 }
 
-/* Header - Premium Go North East Styling */
+/* Header - Premium Go BARRY Styling */
 .duty-modal-header {
     text-align: center;
     padding: 56px 32px 48px;
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, transparent 100%),
-        linear-gradient(135deg, #001F30 0%, #003B5C 40%, #0066A1 80%, #0080C8 100%);
+        linear-gradient(135deg, #0F172A 0%, #1F2937 40%, #0097A7 80%, #00BCD4 100%);
     color: white;
     border-radius: 28px 28px 0 0;
     position: relative;
@@ -123,11 +123,11 @@
     right: 0;
     height: 4px;
     background: linear-gradient(90deg,
-        #0066CC 0%,
-        #00B4D8 25%,
+        #0097A7 0%,
+        #00BCD4 25%,
         #10B981 50%,
-        #F59E0B 75%,
-        #8B5CF6 100%
+        #F57C00 75%,
+        #D32F2F 100%
     );
     background-size: 200% 100%;
     animation: gradientShift 3s ease-in-out infinite;
@@ -510,9 +510,9 @@
     align-items: flex-start;
     gap: 16px;
     padding: 20px;
-    background: linear-gradient(135deg, rgba(0, 102, 161, 0.05) 0%, rgba(0, 59, 92, 0.05) 100%);
+    background: linear-gradient(135deg, rgba(0, 151, 167, 0.05) 0%, rgba(0, 96, 100, 0.05) 100%);
     border-radius: 16px;
-    border-left: 4px solid #0066A1;
+    border-left: 4px solid #0097A7;
 }
 
 .detail-icon {
@@ -767,12 +767,12 @@
 }
 
 .duty-modal-container::-webkit-scrollbar-thumb {
-    background: rgba(0, 102, 161, 0.3);
+    background: rgba(0, 151, 167, 0.3);
     border-radius: 4px;
 }
 
 .duty-modal-container::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 102, 161, 0.5);
+    background: rgba(0, 151, 167, 0.5);
 }
 
 /* View Only / Skip Duty Section */

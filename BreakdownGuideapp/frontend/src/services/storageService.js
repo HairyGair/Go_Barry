@@ -1,5 +1,5 @@
 /**
- * Storage Service for Go North East Breakdown Management System
+ * Storage Service for the operator Breakdown Management System
  * Handles local storage for offline capability, caching, and user preferences
  */
 
@@ -26,7 +26,7 @@ class StorageService {
    */
   initializeStorage() {
     if (!this.getFrequentRoutes().length) {
-      // Default frequent routes for Go North East
+      // Default frequent routes for the operator
       const defaultRoutes = [
         { id: 'X10', name: 'X10 - Newcastle to Middlesbrough', count: 0 },
         { id: '21', name: '21 - Newcastle to Durham', count: 0 },

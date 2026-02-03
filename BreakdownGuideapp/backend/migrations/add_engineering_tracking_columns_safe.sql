@@ -105,11 +105,11 @@ CREATE TRIGGER update_engineers_updated_at
 
 -- Insert sample engineers for testing
 INSERT INTO engineers (badge_number, name, email, depot, skills, status) VALUES
-  ('ENG001', 'John Smith', 'john.smith@gonortheast.co.uk', 'Washington', '["electrical", "mechanical"]'::jsonb, 'available'),
-  ('ENG002', 'Sarah Johnson', 'sarah.johnson@gonortheast.co.uk', 'Riverside', '["hvac", "mechanical"]'::jsonb, 'available'),
-  ('ENG003', 'Mike Williams', 'mike.williams@gonortheast.co.uk', 'Consett', '["electrical", "diagnostics"]'::jsonb, 'available'),
-  ('ENG004', 'Emma Brown', 'emma.brown@gonortheast.co.uk', 'Washington', '["mechanical", "hydraulics"]'::jsonb, 'available'),
-  ('ENG005', 'David Wilson', 'david.wilson@gonortheast.co.uk', 'Deptford', '["electrical", "mechanical", "hvac"]'::jsonb, 'available')
+  ('ENG001', 'John Smith', 'john.smith@example.com', 'Washington', '["electrical", "mechanical"]'::jsonb, 'available'),
+  ('ENG002', 'Sarah Johnson', 'sarah.johnson@example.com', 'Riverside', '["hvac", "mechanical"]'::jsonb, 'available'),
+  ('ENG003', 'Mike Williams', 'mike.williams@example.com', 'Consett', '["electrical", "diagnostics"]'::jsonb, 'available'),
+  ('ENG004', 'Emma Brown', 'emma.brown@example.com', 'Washington', '["mechanical", "hydraulics"]'::jsonb, 'available'),
+  ('ENG005', 'David Wilson', 'david.wilson@example.com', 'Deptford', '["electrical", "mechanical", "hvac"]'::jsonb, 'available')
 ON CONFLICT (badge_number) DO NOTHING;
 
 -- Grant permissions (adjust as needed for your setup)

@@ -11,7 +11,7 @@ import bcrypt from 'bcrypt';
 
 const SUPERVISORS = [
     {
-        email: 'anthony.gair@gonortheast.co.uk',
+        email: 'anthony.gair@example.com',
         name: 'Anthony Gair',
         badge_number: 'AG003',
         password: 'Stafford45!',
@@ -69,7 +69,7 @@ async function generateSQL() {
     console.log('-- Test Login');
     console.log('-- =========================================');
     console.log('-- URL: https://breakdowns.gobarry.co.uk');
-    console.log('-- Email: anthony.gair@gonortheast.co.uk');
+    console.log('-- Email: anthony.gair@example.com');
     console.log('-- Password: Stafford45!');
     console.log('-- =========================================\n');
 }

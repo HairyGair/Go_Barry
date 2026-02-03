@@ -711,7 +711,7 @@ Escalated At: ${new Date().toISOString()}
 
 Please review and take appropriate action.
 
-Go North East - Breakdown Management System
+the operator - Breakdown Management System
       `.trim()
     };
 

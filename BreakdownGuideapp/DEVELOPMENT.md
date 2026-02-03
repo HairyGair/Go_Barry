@@ -176,7 +176,7 @@ The application uses a comprehensive professional design system implemented with
 ### Color Tokens
 
 **Brand Colors:**
-- `var(--color-red-primary)` - Go North East red (#E30613)
+- `var(--color-red-primary)` - the operator red (#E30613)
 - `var(--color-navy-primary)` - Navy blue (#003B5C)
 
 **Status Colors:**
@@ -1559,7 +1559,7 @@ const activities = await executeQuery('SELECT * FROM activities WHERE breakdown_
 - Check this guide first
 - Review related documentation in `/docs/`
 - Check git history for similar implementations
-- Contact project owner: anthony.gair@gonortheast.co.uk
+- Contact project owner: anthony.gair@example.com
 
 **For Production Issues:**
 - Check PM2 logs: `pm2 logs breakdown-backend`

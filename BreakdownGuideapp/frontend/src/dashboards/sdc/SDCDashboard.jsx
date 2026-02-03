@@ -21,10 +21,12 @@ import PriorityAlerts from './PriorityAlerts';
 import StatusWidget from './StatusWidget';
 import RecentDecisions from './RecentDecisions';
 import BreakdownMap from './BreakdownMap';
+import DepotStatusGrid from './DepotStatusGrid';
 import AssessmentProgressTracker from './AssessmentProgressTracker';
 import AssessmentProgressCard from './AssessmentProgressCard';
 import EngineeringTimerAlert from './EngineeringTimerAlert';
 import BreakdownResolutionDialog from './components/BreakdownResolutionDialog';
+import DepotContactModal from '../../components/DepotContactModal';
 import { apiClient } from '../../services/api-client';
 import { fetchAllActivities } from '../../api/activityAggregator';
 import { enhanceBreakdownDataInline } from './dataEnhancementPatch';
@@ -37,6 +39,7 @@ import CoverageAlertWidget from '../../components/CoverageAlertWidget';
 import SupervisorCoverageBar from '../../components/SupervisorCoverageBar';
 import { useAuth } from '../../contexts/AuthContext';
 import { alertSoundService } from '../../services/alertSoundService';
+import './SDCDashboard.css';
 
 const SDCDashboard = () => {
   const location = useLocation();
@@ -63,6 +66,12 @@ const SDCDashboard = () => {
 
   // Resolution dialog state
   const [resolutionDialog, setResolutionDialog] = useState({
+    isOpen: false,
+    breakdown: null
+  });
+
+  // Contact modal state
+  const [contactModal, setContactModal] = useState({
     isOpen: false,
     breakdown: null
   });
@@ -1246,6 +1255,15 @@ const SDCDashboard = () => {
     }
   };
 
+  // Handle contact button - show depot contacts modal
+  const handleContact = useCallback((breakdown) => {
+    console.log('📞 Opening contact modal for breakdown:', breakdown?.breakdown_id);
+    setContactModal({
+      isOpen: true,
+      breakdown: breakdown
+    });
+  }, []);
+
   const handleAcknowledge = async (breakdownId) => {
     try {
       // Optimistic update
@@ -1706,6 +1724,7 @@ const SDCDashboard = () => {
                       onResolve={() => handleResolveBreakdown(breakdown)}
                       onViewGuide={handleViewGuide}
                       onAddNote={handleAddNote}
+                      onContact={handleContact}
                     />
                   </div>
                 );
@@ -1714,47 +1733,15 @@ const SDCDashboard = () => {
           </div>
         </div>
 
-        {/* Right sidebar - Breakdown Map */}
+        {/* Right sidebar - Depot Status Grid */}
         <div className="right-sidebar">
-          <div className="breakdown-map-widget">
-            <div className="map-header-row">
-              <h3 className="map-header">📍 Live Breakdown Locations</h3>
-              <button
-                className="fullscreen-map-btn"
-                onClick={() => setFullScreenMap(true)}
-                title="Open full-screen map"
-              >
-                🗺️ Full Screen
-              </button>
-            </div>
-            <BreakdownMap
-              breakdowns={(() => {
-                console.log('🗺️ SDC Dashboard passing to map:', filteredBreakdowns?.length, 'breakdowns');
-                if (filteredBreakdowns && filteredBreakdowns.length > 0) {
-                  console.log('📍 First breakdown data:', {
-                    id: filteredBreakdowns[0].breakdown_id,
-                    fleet: filteredBreakdowns[0].fleet_no,
-                    location_lat: filteredBreakdowns[0].location_lat,
-                    location_lng: filteredBreakdowns[0].location_lng,
-                    hasCoords: !!(filteredBreakdowns[0].location_lat && filteredBreakdowns[0].location_lng)
-                  });
-                }
-                return filteredBreakdowns;
-              })()}
-              highlightedId={highlightedBreakdown}
-              onMarkerClick={(breakdownId) => {
-                // Highlight the breakdown
-                setHighlightedBreakdown(breakdownId);
-                // Scroll to the card
-                const cardElement = breakdownRefs.current.get(breakdownId);
-                if (cardElement) {
-                  cardElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-                // Clear highlight after 5 seconds
-                setTimeout(() => setHighlightedBreakdown(null), 5000);
-              }}
-            />
-          </div>
+          <DepotStatusGrid
+            breakdowns={filteredBreakdowns}
+            onDepotClick={(depotId) => {
+              // Navigate to Engineering display filtered by depot
+              window.open(`/dashboards/engineering?depot=${encodeURIComponent(depotId)}`, '_blank');
+            }}
+          />
         </div>
       </div>
 
@@ -1901,6 +1888,13 @@ const SDCDashboard = () => {
         onClose={() => setResolutionDialog({ isOpen: false, breakdown: null })}
         onConfirm={handleConfirmResolution}
         currentSupervisor={currentSupervisor}
+      />
+
+      {/* Depot Contact Modal */}
+      <DepotContactModal
+        isOpen={contactModal.isOpen}
+        onClose={() => setContactModal({ isOpen: false, breakdown: null })}
+        breakdown={contactModal.breakdown}
       />
 
       <style>{`

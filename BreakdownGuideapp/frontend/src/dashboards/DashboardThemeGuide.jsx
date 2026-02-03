@@ -1,5 +1,5 @@
 // Theme Style Guide for Dashboards
-// This file demonstrates how to apply the Go North East theme to dashboard components
+// This file demonstrates how to apply the the operator theme to dashboard components
 
 // Option 1: CSS Variables in style jsx
 export const themeStylesCSS = `

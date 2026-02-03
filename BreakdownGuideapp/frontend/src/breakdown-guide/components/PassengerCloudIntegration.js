@@ -344,7 +344,7 @@ class PassengerCloudIntegration {
                 routes: disruption.affectedServices.map(s => s.routeId),
                 timeWindow: 60 // Next 60 minutes
             },
-            message: `Go North East: ${disruption.affectedServices[0]?.routeId} service disrupted due to breakdown. Alternative options: ${disruption.alternatives[0]?.description}. More info: gne.co.uk`,
+            message: `the operator: ${disruption.affectedServices[0]?.routeId} service disrupted due to breakdown. Alternative options: ${disruption.alternatives[0]?.description}. More info: gne.co.uk`,
             priority: 'high'
         };
     }

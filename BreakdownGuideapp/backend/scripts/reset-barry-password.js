@@ -34,7 +34,7 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   }
 });
 
-const BARRY_EMAIL = 'barry.perryman@gonortheast.co.uk';
+const BARRY_EMAIL = 'barry.perryman@example.com';
 const BARRY_AUTH_ID = 'ee515465-f14a-4fea-b2d7-aacb6c9d8578';
 
 async function resetPassword(newPassword) {
@@ -126,7 +126,7 @@ async function main() {
     console.log('');
     console.log('Options:');
     console.log('1. Set a temporary password (you choose)');
-    console.log('2. Send password reset email to barry.perryman@gonortheast.co.uk');
+    console.log('2. Send password reset email to barry.perryman@example.com');
     console.log('');
 
     rl.question('Select option (1 or 2): ', async (option) => {

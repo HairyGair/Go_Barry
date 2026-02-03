@@ -46,7 +46,7 @@ const DutyBadge = ({ currentDuty, onClick }) => {
   const [showTooltip, setShowTooltip] = useState(false);
 
   useEffect(() => {
-    if (!currentDuty) return;
+    if (!currentDuty || currentDuty.viewOnly || !currentDuty.endTime) return;
 
     const updateCountdown = () => {
       const now = new Date();
@@ -83,7 +83,8 @@ const DutyBadge = ({ currentDuty, onClick }) => {
     return () => clearInterval(timer);
   }, [currentDuty]);
 
-  if (!currentDuty) return null;
+  // Don't render for view-only mode or missing duty
+  if (!currentDuty || currentDuty.viewOnly) return null;
 
   const dutyConfig = DUTY_CONFIG[currentDuty.code] || DUTY_CONFIG['200'];
 

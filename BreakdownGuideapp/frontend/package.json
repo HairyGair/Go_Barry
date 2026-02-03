@@ -1,17 +1,16 @@
 {
-  "name": "gne-breakdown-management-system",
+  "name": "gobarry-breakdown-management-system",
   "version": "1.5.4",
   "type": "module",
-  "description": "Go North East Breakdown Management System - A comprehensive web application for managing vehicle breakdowns, supervisor response, and fleet intelligence",
+  "description": "Go BARRY Breakdown Management System - A comprehensive web application for managing vehicle breakdowns, supervisor response, and fleet intelligence",
   "private": true,
   "author": {
-    "name": "Go North East Digital Team",
-    "email": "digital@gonortheast.co.uk"
+    "name": "GairWare",
+    "email": "support@gobarry.co.uk"
   },
   "contributors": [
     {
       "name": "Anthony Gair",
-      "email": "anthony.gair@gonortheast.co.uk",
       "role": "Lead Developer"
     },
     {
@@ -19,14 +18,14 @@
       "role": "Operations Manager"
     }
   ],
-  "homepage": "https://breakdown.gonortheast.co.uk",
+  "homepage": "https://breakdowns.gobarry.co.uk",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/gonortheast/breakdown-guide-app.git"
+    "url": "git+https://github.com/gairware/gobarry-breakdown-guide.git"
   },
   "bugs": {
-    "url": "https://github.com/gonortheast/breakdown-guide-app/issues",
-    "email": "support@gonortheast.co.uk"
+    "url": "https://github.com/gairware/gobarry-breakdown-guide/issues",
+    "email": "support@gobarry.co.uk"
   },
   "license": "PROPRIETARY",
   "engines": {

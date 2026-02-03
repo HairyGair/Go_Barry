@@ -2,29 +2,69 @@
  * Engineering Display Styles
  * Large screen display optimized for yardman's office
  * Dark theme with large, readable fonts
+ *
+ * Version: 3.0.0 - Ocean Teal Modern Transport Theme
+ * Primary Accent: Ocean Teal #0097A7
  */
+
+/* ========== GOOGLE FONTS ========== */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+/* ========== CSS VARIABLES - Ocean Teal Theme ========== */
+.engineering-display {
+  /* Primary - Ocean Teal */
+  --brand-teal: #0097A7;
+  --brand-teal-dark: #00838F;
+  --brand-teal-light: #00ACC1;
+  --brand-cyan: #00BCD4;
+  --brand-teal-glow: rgba(0, 151, 167, 0.4);
+
+  /* Backgrounds - Scandinavian Industrial */
+  --bg-primary: #0B1120;
+  --bg-secondary: #141D2B;
+  --bg-tertiary: #1E293B;
+  --bg-surface: #0F1624;
+
+  /* Status Colors */
+  --status-critical: #DC2626;
+  --status-warning: #F59E0B;
+  --status-success: #10B981;
+  --status-info: #3B82F6;
+}
 
 /* Container */
 .engineering-display {
   min-height: 100vh;
-  background: linear-gradient(135deg, var(--color-dark-bg-primary) 0%, var(--color-dark-bg-secondary) 100%);
+  background:
+    radial-gradient(ellipse at top left, rgba(0, 151, 167, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom right, rgba(0, 96, 100, 0.1) 0%, transparent 50%),
+    linear-gradient(180deg, #0B1120 0%, #141D2B 50%, #1E293B 100%);
   color: #ffffff;
   padding: var(--spacing-xl);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   overflow-x: hidden;
 }
 
 /* Header - COMPACT for more screen space */
 .engineering-header {
+  display: -webkit-box;
+  display: -ms-flexbox;
   display: flex;
+  -webkit-box-pack: justify;
+  -ms-flex-pack: justify;
   justify-content: space-between;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
   align-items: center;
-  margin-bottom: 16px; /* REDUCED from var(--spacing-2xl) */
-  padding: 12px 20px; /* REDUCED from var(--spacing-lg) var(--spacing-xl) */
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: var(--radius-xl);
+  margin-bottom: 16px;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #141D2B 0%, #0F1624 100%);
+  border-radius: 12px;
+  -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid #1E293B;
+  -webkit-box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
 .header-left {
@@ -37,10 +77,11 @@
   margin: 0 0 4px 0; /* REDUCED margin */
   color: #ffffff;
   letter-spacing: -0.5px;
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .depot-filter {
-  color: #60a5fa;
+  color: var(--brand-teal-light);
   font-size: 28px; /* REDUCED from 36px */
 }
 
@@ -59,8 +100,10 @@
   font-size: 48px;
   font-weight: 700;
   color: #ffffff;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
   letter-spacing: 2px;
+  text-shadow: 0 0 30px rgba(0, 151, 167, 0.3);
 }
 
 .current-date {
@@ -156,18 +199,29 @@
 
 /* Breakdown Card - ULTRA COMPACT to fit screen */
 .breakdown-card {
-  background: rgba(15, 23, 42, 0.95); /* DARK background so white text is visible */
-  border-radius: var(--radius-2xl);
-  padding: 12px; /* REDUCED from 16px */
-  border: 4px solid transparent;
-  transition: all var(--transition-slow);
+  background: linear-gradient(135deg, #141D2B 0%, #0F1624 100%);
+  border-radius: 12px;
+  padding: 12px;
+  border: 2px solid #1E293B;
+  -webkit-transition: all 0.3s ease;
+  -o-transition: all 0.3s ease;
+  transition: all 0.3s ease;
+  -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
+  -webkit-animation: fadeIn 0.4s ease;
   animation: fadeIn 0.4s ease;
+  display: -webkit-box;
+  display: -ms-flexbox;
   display: flex;
+  -webkit-box-orient: vertical;
+  -webkit-box-direction: normal;
+  -ms-flex-direction: column;
   flex-direction: column;
-  gap: 8px; /* REDUCED from 12px */
-  max-height: calc(100vh - 140px); /* More space with smaller header */
-  overflow: hidden; /* NO SCROLLING */
+  gap: 8px;
+  max-height: calc(100vh - 140px);
+  overflow: hidden;
+  -webkit-box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
 @keyframes fadeIn {
@@ -259,9 +313,10 @@
   font-size: 36px; /* Smaller to fit everything on screen */
   font-weight: 900;
   color: #ffffff;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
   line-height: 1;
   letter-spacing: -1px;
-  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.8), 0 0 40px rgba(255, 255, 255, 0.2);
+  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.8), 0 0 40px rgba(0, 151, 167, 0.3);
   flex-shrink: 0;
 }
 
@@ -346,20 +401,21 @@
 
 .time-value {
   font-size: 18px; /* REDUCED from 22px */
-  color: #60a5fa;
+  color: var(--brand-cyan);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
 .engineer-row {
-  background: rgba(96, 165, 250, 0.1);
+  background: rgba(0, 151, 167, 0.15);
   padding: 6px; /* REDUCED from 8px */
   border-radius: var(--radius-md);
   margin-top: 1px;
+  border: 1px solid rgba(0, 151, 167, 0.3);
 }
 
 .engineer-value {
-  color: #60a5fa;
+  color: var(--brand-cyan);
   font-size: 18px; /* REDUCED from 20px */
 }
 
@@ -400,18 +456,33 @@
 /* No Breakdowns State */
 .no-breakdowns {
   grid-column: 1 / -1;
+  display: -webkit-box;
+  display: -ms-flexbox;
   display: flex;
+  -webkit-box-orient: vertical;
+  -webkit-box-direction: normal;
+  -ms-flex-direction: column;
   flex-direction: column;
+  -webkit-box-align: center;
+  -ms-flex-align: center;
   align-items: center;
+  -webkit-box-pack: center;
+  -ms-flex-pack: center;
   justify-content: center;
   padding: 120px 40px;
   text-align: center;
+  background: linear-gradient(135deg, #141D2B 0%, #0F1624 100%);
+  border-radius: 16px;
+  border: 1px solid #1E293B;
+  -webkit-box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
 }
 
 .no-breakdowns-icon {
   font-size: 120px;
   margin-bottom: 32px;
   opacity: 0.8;
+  filter: drop-shadow(0 10px 40px rgba(16, 185, 129, 0.4));
 }
 
 .no-breakdowns-title {
@@ -419,6 +490,8 @@
   font-weight: 700;
   color: #ffffff;
   margin-bottom: 16px;
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  text-shadow: 0 0 40px rgba(16, 185, 129, 0.3);
 }
 
 .no-breakdowns-subtitle {
@@ -426,16 +499,18 @@
   color: #94a3b8;
 }
 
-/* Footer - HIDDEN to save screen space */
+/* Footer */
 .engineering-footer {
-  display: none; /* Hidden - can add GairWare logo to header instead */
+  padding: 0.5rem 1.5rem;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.9) 0%, rgba(15, 23, 42, 0.95) 100%);
+  border-top: 2px solid rgba(0, 151, 167, 0.3);
 }
 
 .footer-info {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 16px;
+  font-size: 12px;
   color: #64748b;
 }
 
@@ -460,6 +535,23 @@
 
 .watermark-text {
   letter-spacing: -0.025em;
+}
+
+.footer-hosting {
+  font-size: 11px;
+  color: rgba(148, 163, 184, 0.8);
+}
+
+.footer-hosting a {
+  color: #00BCD4;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+
+.footer-hosting a:hover {
+  color: #4DD0E1;
+  text-decoration: underline;
 }
 
 /* Animations for new cards */
@@ -494,9 +586,9 @@
 .card-map {
   border-radius: var(--radius-lg);
   overflow: hidden;
-  border: 3px solid rgba(255, 255, 255, 0.3);
+  border: 3px solid rgba(0, 151, 167, 0.4);
   background: rgba(0, 0, 0, 0.8);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6), 0 0 30px rgba(0, 151, 167, 0.1);
   width: 100%;
   height: 100%;
   display: flex;

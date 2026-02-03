@@ -1,5 +1,5 @@
 /**
- * Authentication Service for Go North East Breakdown Guide
+ * Authentication Service for the operator Breakdown Guide
  * Handles production authentication with fallback methods
  *
  * NOTE: Supabase removed - now uses backend MySQL API
@@ -12,7 +12,7 @@ const DEFAULT_SUPERVISORS = [
     {
         id: 'supervisor-001',
         name: 'Anthony Gair',
-        email: 'anthony.gair@gonortheast.co.uk',
+        email: 'anthony.gair@example.com',
         depot: 'Washington',
         role: 'admin',
         password: 'GoNorthEast2025!' // Will be replaced with proper auth
@@ -20,7 +20,7 @@ const DEFAULT_SUPERVISORS = [
     {
         id: 'supervisor-002',
         name: 'Barry Perryman',
-        email: 'barry.perryman@gonortheast.co.uk',
+        email: 'barry.perryman@example.com',
         depot: 'Percy Main',
         role: 'admin',
         password: 'GoNorthEast2025!'
@@ -28,7 +28,7 @@ const DEFAULT_SUPERVISORS = [
     {
         id: 'supervisor-003',
         name: 'Control Room',
-        email: 'control@gonortheast.co.uk',
+        email: 'control@example.com',
         depot: 'All Depots',
         role: 'supervisor',
         password: 'Control2025!'

@@ -209,7 +209,7 @@ const geocodeLocation = async (locationDescription) => {
   return null;
 };
 
-// Known location coordinates - constant data for Go North East area
+// Known location coordinates - constant data for the operator area
 const LOCATION_COORDINATES = {
   // Newcastle
   'Newcastle City Centre': [54.9783, -1.6178],
@@ -710,7 +710,7 @@ const BreakdownMap = ({
           }}
         />
 
-        {/* Depot markers - 6 Go North East depots */}
+        {/* Depot markers - 6 the operator depots */}
         {DEPOT_LOCATIONS.map((depot, index) => {
           console.log(`🏢 Rendering depot ${index + 1}/${DEPOT_LOCATIONS.length}: ${depot.name} (${depot.code}) at [${depot.coords[0]}, ${depot.coords[1]}]`);
           return (

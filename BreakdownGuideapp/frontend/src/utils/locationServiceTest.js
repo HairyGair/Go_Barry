@@ -1,6 +1,6 @@
 /**
  * Location Service Test - Quick validation of location conversion functionality
- * Test known landmarks and coordinates within Go North East operational area
+ * Test known landmarks and coordinates within the operator operational area
  *
  * @author Anthony Gair
  * @version 1.0.0

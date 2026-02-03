@@ -882,6 +882,12 @@ const ControlRoomDisplay = () => {
           <GairWareLogo height={16} variant="mono" style={{ opacity: 0.15 }} />
           <span className="watermark-text">GairWare</span>
         </div>
+        <div className="footer-hosting">
+          Hosted by{' '}
+          <a href="https://pixelish.co.uk" target="_blank" rel="noopener noreferrer">
+            Pixelish
+          </a>
+        </div>
       </div>
     </div>
   );

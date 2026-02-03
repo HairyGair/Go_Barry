@@ -57,7 +57,7 @@ const RoadTrafficIncidentsWizard = ({ currentStep, responses, updateResponse, on
         
         // Pre-populate smart defaults
         if (!responses.brand) {
-            updateResponse('brand', 'Go North East');
+            updateResponse('brand', 'the operator');
         }
         
         if (!responses.garage_depot && supervisorData.depot) {
@@ -182,7 +182,7 @@ const RoadTrafficIncidentsWizard = ({ currentStep, responses, updateResponse, on
         const summary = `ROAD TRAFFIC INCIDENT REPORT
 ` +
             `Incident Number: ${responses.incident_number || 'New Incident'}\n` +
-            `Brand: ${responses.brand || 'Go North East'}\n` +
+            `Brand: ${responses.brand || 'the operator'}\n` +
             `Garage/Depot: ${responses.garage_depot || ''}\n` +
             `Incident Type: ${responses.incident_type || ''}\n` +
             `Category: ${responses.incident_category || ''}\n` +
@@ -216,7 +216,7 @@ const RoadTrafficIncidentsWizard = ({ currentStep, responses, updateResponse, on
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-sm text-blue-300/80 mb-1">Brand</p>
-                                    <p className="text-xl font-bold text-blue-200">{responses.brand || 'Go North East'}</p>
+                                    <p className="text-xl font-bold text-blue-200">{responses.brand || 'the operator'}</p>
                                 </div>
                                 <div className="text-green-400">
                                     <CheckCircle className="w-6 h-6" />

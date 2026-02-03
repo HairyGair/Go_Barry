@@ -16,7 +16,7 @@
 }
 
 .sdc-card-enhanced.highlighted {
-  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 8px 24px rgba(0, 151, 167, 0.3);
   border-left-color: var(--color-info);
   animation: highlightPulse 2s ease-in-out;
 }
@@ -87,8 +87,8 @@
 
 .route-badge-compact {
   display: inline-block;
-  background: #dbeafe;
-  color: #1e40af;
+  background: #E0F7FA;
+  color: #00838F;
   padding: 4px 12px;
   border-radius: var(--radius-sm);
   font-size: 13px;
@@ -196,7 +196,7 @@
 }
 
 .nav-btn {
-  background: linear-gradient(135deg, var(--color-info), #2563eb);
+  background: linear-gradient(135deg, #0097A7, #00838F);
   color: white;
   border: none;
   width: 40px;
@@ -209,12 +209,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 151, 167, 0.2);
 }
 
 .nav-btn:hover {
   transform: scale(1.1);
-  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 4px 16px rgba(0, 151, 167, 0.3);
 }
 
 .nav-btn:active {
@@ -247,8 +247,8 @@
 }
 
 .dot.active {
-  background: linear-gradient(135deg, var(--color-info), #2563eb);
-  border-color: var(--color-info);
+  background: linear-gradient(135deg, #0097A7, #00838F);
+  border-color: #0097A7;
   box-shadow: var(--shadow-hover);
 }
 
@@ -334,8 +334,8 @@
 }
 
 .overview-item.fleet-display {
-  background: linear-gradient(135deg, #dbeafe, #eff6ff);
-  border-color: var(--color-info);
+  background: linear-gradient(135deg, #E0F7FA, #f0fdff);
+  border-color: #0097A7;
 }
 
 .overview-label {
@@ -449,7 +449,7 @@
   display: block;
   text-align: center;
   padding: 12px;
-  background: linear-gradient(135deg, var(--color-info), #2563eb);
+  background: linear-gradient(135deg, #0097A7, #00838F);
   color: white;
   text-decoration: none;
   font-size: 14px;
@@ -458,8 +458,8 @@
 }
 
 .map-link:hover {
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  background: linear-gradient(135deg, #00838F, #006064);
+  box-shadow: 0 4px 12px rgba(0, 151, 167, 0.3);
 }
 
 /* Assessment Card */
@@ -469,9 +469,9 @@
   gap: 16px;
   margin-bottom: 24px;
   padding: var(--spacing-md);
-  background: linear-gradient(135deg, #f0f9ff, #ffffff);
+  background: linear-gradient(135deg, #E0F7FA, #ffffff);
   border-radius: var(--radius-lg);
-  border: 2px solid #dbeafe;
+  border: 2px solid #B2EBF2;
 }
 
 .issue-icon-large {
@@ -594,9 +594,9 @@
 }
 
 .action-item:hover {
-  border-color: var(--color-info);
+  border-color: #0097A7;
   transform: translateX(4px);
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 151, 167, 0.1);
 }
 
 .action-number {
@@ -605,7 +605,7 @@
   justify-content: center;
   width: 28px;
   height: 28px;
-  background: linear-gradient(135deg, var(--color-info), #2563eb);
+  background: linear-gradient(135deg, #0097A7, #00838F);
   color: white;
   border-radius: 50%;
   font-size: 12px;
@@ -751,9 +751,9 @@
 }
 
 .timeline-step-vertical.current .step-content {
-  border-color: var(--color-info);
-  background: linear-gradient(135deg, #eff6ff, #ffffff);
-  box-shadow: 0 4px 16px rgba(59, 130, 246, 0.2);
+  border-color: #0097A7;
+  background: linear-gradient(135deg, #E0F7FA, #ffffff);
+  box-shadow: 0 4px 16px rgba(0, 151, 167, 0.2);
 }
 
 .step-content:hover {
@@ -782,15 +782,15 @@
 }
 
 .timeline-step-vertical.current .step-dot-large {
-  background: linear-gradient(135deg, var(--color-info), #2563eb);
-  border-color: var(--color-info);
+  background: linear-gradient(135deg, #0097A7, #00838F);
+  border-color: #0097A7;
   color: white;
   animation: pulse 2s infinite;
 }
 
 @keyframes pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
-  50% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 151, 167, 0.7); }
+  50% { box-shadow: 0 0 0 10px rgba(0, 151, 167, 0); }
 }
 
 .step-info {
@@ -866,7 +866,7 @@
 }
 
 .btn-acknowledge {
-  background: linear-gradient(135deg, var(--color-info), #2563eb);
+  background: linear-gradient(135deg, #0097A7, #00838F);
   color: white;
 }
 
@@ -917,8 +917,8 @@
 
 .notes-input:focus {
   outline: none;
-  border-color: var(--color-info);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: #0097A7;
+  box-shadow: 0 0 0 3px rgba(0, 151, 167, 0.1);
 }
 
 .btn-save-note {
@@ -1013,13 +1013,13 @@
    CONTACT BUTTON
    ==================================== */
 .btn-contact {
-  background: linear-gradient(135deg, #0ea5e9, #0284c7);
+  background: linear-gradient(135deg, #0097A7, #00838F);
   color: white;
 }
 
 .btn-contact:hover {
-  background: linear-gradient(135deg, #38bdf8, #0ea5e9);
-  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+  background: linear-gradient(135deg, #00ACC1, #0097A7);
+  box-shadow: 0 4px 12px rgba(0, 151, 167, 0.3);
 }
 
 /* ====================================
@@ -1028,9 +1028,9 @@
 .quick-decision-section-enhanced {
   margin-bottom: 12px;
   padding: 12px;
-  background: rgba(59, 130, 246, 0.05);
+  background: rgba(0, 151, 167, 0.08);
   border-radius: var(--radius-lg);
-  border: 1px solid rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(0, 151, 167, 0.15);
 }
 
 .quick-decision-section-enhanced .quick-decision-container {

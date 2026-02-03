@@ -6,7 +6,6 @@
  * This software is proprietary and confidential. Unauthorized copying,
  * distribution, modification, or use is strictly prohibited.
  *
- * Licensed exclusively to Go North East for internal breakdown management.
  * See LICENSE.md for full terms and conditions.
  *
  * @author Anthony Gair
@@ -32,6 +31,9 @@ import WelcomeMessage from './components/WelcomeMessage.jsx'
 
 // Import Modern Header Component
 import ModernAppHeader from './components/ModernAppHeader.jsx'
+
+// Import Minimal User Menu (floating dropdown in top-right)
+import MinimalUserMenu from './components/MinimalUserMenu.jsx'
 
 // Import Go BARRY Logo
 import { GoBarryBanner } from './components/GoBarryLogo.jsx'
@@ -591,12 +593,9 @@ const AppContent = () => {
   return (
     <div className={`app ${!isOnline ? 'offline' : ''}`}>
       {useModernHeader ? (
-        // Modern Header - Show when not on breakdown-guide page
+        // Minimal User Menu - Floating dropdown in top-right
         !hideNav && (
-          <ModernAppHeader
-            variant="full"
-            isAuthenticated={true}
-            activeBreakdowns={activeBreakdowns}
+          <MinimalUserMenu
             currentDuty={currentDuty}
             onDutyClick={handleDutyClick}
           />
@@ -634,7 +633,7 @@ const AppContent = () => {
         />
       )}
 
-      <main className={`main-container ${hideNav ? 'no-nav' : ''} ${useModernHeader && !hideNav ? 'with-modern-header' : ''}`}>
+      <main className={`main-container ${hideNav ? 'no-nav' : ''}`}>
         <Routes>
           <Route path="/" element={<HomePage onStatsChange={handleStatsChange} />} />
           <Route path="/breakdown-guide/*" element={<BreakdownGuide />} />

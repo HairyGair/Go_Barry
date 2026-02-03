@@ -1,4 +1,4 @@
-// Comprehensive Security Service for Go North East Breakdown Management System
+// Comprehensive Security Service for the operator Breakdown Management System
 // Handles password validation, session security, and suspicious activity detection
 // Supabase removed - now uses backend MySQL API
 

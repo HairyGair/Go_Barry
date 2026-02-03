@@ -1,5 +1,5 @@
 /**
- * Go North East - Breakdown Assessment Guide
+ * the operator - Breakdown Assessment Guide
  * Step 5: Issue Details Component
  *
  * Copyright (c) 2025 Anthony Gair. All rights reserved.

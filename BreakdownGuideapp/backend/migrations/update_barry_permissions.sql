@@ -6,7 +6,7 @@ SET
   role = 'manager',  -- Grant manager privileges (access to most dashboards, engineering excluded)
   updated_at = NOW()
 WHERE
-  email = 'barry.perryman@gonortheast.co.uk'
+  email = 'barry.perryman@example.com'
   OR badge_number = 'BP001';
 
 -- Verify the update
@@ -20,7 +20,7 @@ SELECT
   is_active,
   updated_at
 FROM supervisors
-WHERE email = 'barry.perryman@gonortheast.co.uk';
+WHERE email = 'barry.perryman@example.com';
 
 -- Expected result:
 -- Barry Perryman should now have role = 'manager'

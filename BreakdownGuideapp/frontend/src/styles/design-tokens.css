@@ -1,95 +1,123 @@
 /* ============================================================================
-   DESIGN TOKENS - Professional Design System
+   DESIGN TOKENS - Go BARRY Professional Design System
    ============================================================================
    Master file for all design tokens used throughout the Go BARRY application
    Includes: Colors, Typography, Spacing, Shadows, Transitions, Z-Index
 
    Last Updated: January 2026
-   Version: 2.0.0 - Go BARRY Brand Refresh (Blue-based identity)
+   Version: 3.0.0 - Ocean Teal Modern Transport Theme
    ============================================================================ */
+
+/* Google Fonts Import */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
   /* =========================================================================
-     COLOR SYSTEM - Primary Palette
+     COLOR SYSTEM - Ocean Teal Primary Palette
      ========================================================================= */
 
-  /* Primary Brand Colors - Go BARRY Blue */
-  --color-primary: #0066CC;               /* Go BARRY Blue - Primary action */
-  --color-primary-dark: #004C99;          /* Go BARRY Blue - Hover/Active */
-  --color-primary-darker: #003366;        /* Go BARRY Blue - Pressed */
-  --color-primary-light: #E6F0FA;         /* Go BARRY Blue - Background */
-  --color-primary-50: #EBF5FF;            /* Go BARRY Blue - Subtle */
-  --color-primary-100: #CCE4FF;           /* Go BARRY Blue - Light */
-  --color-primary-600: #0052A3;           /* Go BARRY Blue - Strong */
-  --color-primary-700: #004080;           /* Go BARRY Blue - Stronger */
-  --color-primary-800: #003366;           /* Go BARRY Blue - Dark */
+  /* Primary Brand Colors - Ocean Teal */
+  --color-primary: #0097A7;               /* Main brand color */
+  --color-primary-hover: #00ACC1;         /* Lighter on hover */
+  --color-primary-active: #00838F;        /* Darker on press */
+  --color-primary-dark: #00838F;          /* Darker variant */
+  --color-primary-darker: #006064;        /* Deep teal */
+  --color-primary-light: #E0F7FA;         /* Light backgrounds */
+  --color-primary-50: #E0F7FA;            /* Cyan-50 */
+  --color-primary-100: #B2EBF2;           /* Cyan-100 */
+  --color-primary-200: #80DEEA;           /* Cyan-200 */
+  --color-primary-300: #4DD0E1;           /* Cyan-300 */
+  --color-primary-400: #26C6DA;           /* Cyan-400 */
+  --color-primary-500: #00BCD4;           /* Cyan-500 */
+  --color-primary-600: #00ACC1;           /* Cyan-600 */
+  --color-primary-700: #0097A7;           /* Cyan-700 - Main */
+  --color-primary-800: #00838F;           /* Cyan-800 */
+  --color-primary-900: #006064;           /* Cyan-900 */
 
-  /* Legacy Red Colors (kept for status/critical indicators only) */
-  --color-red-primary: #DC2626;           /* Critical/Error Red */
-  --color-red-dark: #B91C1C;              /* Critical - Hover */
-  --color-red-darker: #991B1B;            /* Critical - Pressed */
-  --color-red-light: #FEE2E2;             /* Critical - Background */
+  /* Secondary Brand Colors - Warm Charcoal */
+  --color-secondary: #1F2937;             /* Dark text, headers */
+  --color-secondary-light: #374151;       /* Lighter variant */
+  --color-secondary-dark: #111827;        /* Darker variant */
+  --color-secondary-50: #F9FAFB;
+  --color-secondary-100: #F3F4F6;
+  --color-secondary-200: #E5E7EB;
+  --color-secondary-300: #D1D5DB;
+  --color-secondary-400: #9CA3AF;
+  --color-secondary-500: #6B7280;
+  --color-secondary-600: #4B5563;
+  --color-secondary-700: #374151;
+  --color-secondary-800: #1F2937;
+  --color-secondary-900: #111827;
 
-  /* Secondary Brand Colors - Slate/Navy */
-  --color-navy-primary: #1E3A5F;          /* Slate Navy - Secondary actions */
-  --color-navy-dark: #152A46;             /* Slate Navy - Text/Headlines */
-  --color-navy-darker: #0D1B2E;           /* Slate Navy - Deep backgrounds */
-  --color-navy-light: #2D4A6F;            /* Slate Navy - Hover/Focus */
+  /* Legacy Navy Colors (for compatibility) */
+  --color-navy-primary: #1F2937;          /* Maps to secondary */
+  --color-navy-dark: #111827;             /* Maps to secondary dark */
+  --color-navy-darker: #0D1117;           /* Deep dark */
+  --color-navy-light: #374151;            /* Maps to secondary light */
 
-  /* Go BARRY Accent Colors */
-  --color-accent: #00B4D8;                /* Cyan Accent - Highlights */
-  --color-accent-dark: #0096B4;           /* Cyan Accent - Hover */
-  --color-accent-light: #E0F7FA;          /* Cyan Accent - Background */
+  /* Accent Color - Cyan highlight */
+  --color-accent: #00BCD4;                /* Bright cyan accent */
+  --color-accent-dark: #0097A7;           /* Darker accent */
+  --color-accent-light: #E0F7FA;          /* Light accent background */
 
-  /* Status Colors - Success */
-  --color-success: #10B981;               /* Emerald Green - Success/OK */
-  --color-success-dark: #059669;          /* Emerald Green - Hover */
-  --color-success-light: #D1FAE5;         /* Emerald Green - Background */
+  /* Status Colors - Critical/Error (Signal Red) */
+  --color-critical: #D32F2F;              /* Signal Red - Emergency/Critical */
+  --color-critical-hover: #E53935;        /* Lighter on hover */
+  --color-critical-dark: #C62828;         /* Darker variant */
+  --color-critical-darker: #B71C1C;       /* Deep red */
+  --color-critical-light: #FFEBEE;        /* Light red background */
+
+  /* Legacy Red Colors (maps to critical) */
+  --color-red-primary: #D32F2F;           /* Maps to critical */
+  --color-red-dark: #C62828;              /* Maps to critical-dark */
+  --color-red-darker: #B71C1C;            /* Maps to critical-darker */
+  --color-red-light: #FFEBEE;             /* Maps to critical-light */
 
   /* Status Colors - Warning/Amber */
-  --color-warning: #F59E0B;               /* Amber - Caution/Attention */
-  --color-warning-dark: #D97706;          /* Amber - Hover */
-  --color-warning-light: #FEF3C7;         /* Amber - Background */
+  --color-warning: #F57C00;               /* Warning/Caution amber */
+  --color-warning-dark: #E65100;          /* Darker amber */
+  --color-warning-light: #FFF3E0;         /* Light amber background */
 
-  /* Status Colors - Critical/Error */
-  --color-critical: #DC2626;              /* Red - Critical/Errors */
-  --color-critical-dark: #991B1B;         /* Red - Hover */
-  --color-critical-light: #FEE2E2;        /* Red - Background */
+  /* Status Colors - Success */
+  --color-success: #2E7D32;               /* Success green */
+  --color-success-dark: #1B5E20;          /* Darker green */
+  --color-success-light: #E8F5E9;         /* Light green background */
+
+  /* Status Colors - Info */
+  --color-info: #1976D2;                  /* Information blue */
+  --color-info-dark: #1565C0;             /* Darker blue */
+  --color-info-light: #E3F2FD;            /* Light blue background */
+  --color-info-lightest: #F0F7FF;         /* Very light blue */
 
   /* Status Colors - Emergency (Bright) */
-  --color-emergency: #EF4444;             /* Bright Red - Emergency alerts */
-  --color-emergency-dark: #DC2626;        /* Bright Red - Hover */
-  --color-emergency-light: #FCA5A5;       /* Bright Red - Accent */
+  --color-emergency: #EF5350;             /* Bright red - Emergency alerts */
+  --color-emergency-dark: #D32F2F;        /* Darker emergency */
+  --color-emergency-light: #FFCDD2;       /* Light emergency accent */
 
-  /* Info/Action Color */
-  --color-info: #3B82F6;                  /* Blue - Information */
-  --color-info-dark: #1D4ED8;             /* Blue - Hover */
-  --color-info-light: #DBEAFE;            /* Blue - Background */
-  --color-info-lightest: #F0F7FF;         /* Blue - Very light background */
-
-  /* Neutral Greys - Professional */
+  /* Neutral Greys - Updated palette */
   --color-white: #FFFFFF;                 /* Pure white */
-  --color-off-white: #F9FAFB;             /* Off white - Light backgrounds */
-  --color-grey-50: #F9FAFB;               /* Very light grey */
-  --color-grey-100: #F3F4F6;              /* Light grey */
-  --color-grey-200: #E5E7EB;              /* Light-medium grey */
-  --color-grey-300: #D1D5DB;              /* Medium grey */
-  --color-grey-400: #9CA3AF;              /* Medium-dark grey */
-  --color-grey-500: #6B7280;              /* Dark grey */
-  --color-grey-600: #4B5563;              /* Darker grey */
-  --color-grey-700: #374151;              /* Very dark grey */
-  --color-grey-800: #1F2937;              /* Almost black */
-  --color-grey-900: #111827;              /* Pure black text */
+  --color-off-white: #FAFAFA;             /* Off white - Light backgrounds */
+  --color-grey-50: #F8FAFC;               /* Very light grey */
+  --color-grey-100: #F1F5F9;              /* Light grey */
+  --color-grey-200: #E2E8F0;              /* Light-medium grey */
+  --color-grey-300: #CBD5E1;              /* Medium grey */
+  --color-grey-400: #94A3B8;              /* Medium-dark grey */
+  --color-grey-500: #64748B;              /* Dark grey */
+  --color-grey-600: #475569;              /* Darker grey */
+  --color-grey-700: #334155;              /* Very dark grey */
+  --color-grey-800: #1E293B;              /* Almost black */
+  --color-grey-900: #0F172A;              /* Deep slate */
 
   /* Text Colors */
-  --color-text-primary: #111827;          /* Primary text - black */
-  --color-text-secondary: #6B7280;        /* Secondary text - grey */
-  --color-text-tertiary: #9CA3AF;         /* Tertiary text - lighter grey */
-  --color-text-disabled: #D1D5DB;         /* Disabled text - medium grey */
+  --color-text-primary: #0F172A;          /* Primary text - deep slate */
+  --color-text-secondary: #475569;        /* Secondary text - grey */
+  --color-text-tertiary: #94A3B8;         /* Tertiary text - lighter grey */
+  --color-text-muted: #64748B;            /* Muted text */
+  --color-text-disabled: #CBD5E1;         /* Disabled text */
   --color-text-inverse: #FFFFFF;          /* Text on dark backgrounds */
 
   /* =========================================================================
-     DARK MODE COLORS - Alternative Palette
+     DARK MODE COLORS - Control Room / Dashboard Palette
      ========================================================================= */
 
   --color-dark-bg-primary: #0F172A;       /* Dark mode background */
@@ -99,6 +127,58 @@
   --color-dark-text-primary: #F1F5F9;     /* Dark mode primary text */
   --color-dark-text-secondary: #94A3B8;   /* Dark mode secondary text */
   --color-dark-text-tertiary: #64748B;    /* Dark mode tertiary text */
+
+  /* Dashboard-specific colors */
+  --dashboard-bg: #0F172A;                /* Dashboard background */
+  --dashboard-surface: #1E293B;           /* Dashboard card surface */
+  --dashboard-accent: #0097A7;            /* Dashboard accent (teal) */
+  --dashboard-text: #F1F5F9;              /* Dashboard text */
+
+  /* =========================================================================
+     TYPOGRAPHY SYSTEM - Modern Transport
+     ========================================================================= */
+
+  /* Font Family - Custom Google Fonts */
+  --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Monaco', 'Menlo', monospace;
+
+  /* Legacy font-family for compatibility */
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+
+  /* Font Weights */
+  --font-light: 300;
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+  --font-extrabold: 800;
+  --font-black: 900;
+
+  /* Font Sizes */
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-lg: 18px;
+  --text-xl: 20px;
+  --text-2xl: 24px;
+  --text-3xl: 32px;
+  --text-4xl: 40px;
+  --text-5xl: 48px;
+
+  /* Line Heights */
+  --line-height-xs: 1.33;                 /* 12px font */
+  --line-height-sm: 1.43;                 /* 14px font */
+  --line-height-base: 1.5;                /* 16px font */
+  --line-height-lg: 1.5;                  /* 18px+ font */
+  --line-height-relaxed: 1.75;            /* Extra readable */
+  --line-height-loose: 2;                 /* Very readable */
+
+  /* Letter Spacing */
+  --letter-spacing-tight: -0.3px;         /* Tight letter spacing */
+  --letter-spacing-normal: 0;             /* Normal letter spacing */
+  --letter-spacing-wide: 0.5px;           /* Wide letter spacing */
+  --letter-spacing-wider: 1px;            /* Wider letter spacing */
 
   /* =========================================================================
      SPACING SYSTEM - 8px Base Unit
@@ -121,49 +201,8 @@
   --radius-lg: 12px;                      /* Cards and modals */
   --radius-xl: 16px;                      /* Large containers */
   --radius-2xl: 20px;                     /* Extra large containers */
+  --radius-3xl: 24px;                     /* Very large containers */
   --radius-full: 9999px;                  /* Fully rounded (pills, circles) */
-
-  /* =========================================================================
-     TYPOGRAPHY SYSTEM
-     ========================================================================= */
-
-  /* Font Family - Professional System Fonts */
-  --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto',
-                 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans',
-                 'Helvetica Neue', sans-serif;
-  --font-mono: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-
-  /* Font Weights */
-  --font-light: 300;
-  --font-normal: 400;
-  --font-medium: 500;
-  --font-semibold: 600;
-  --font-bold: 700;
-  --font-extrabold: 800;
-  --font-black: 900;
-
-  /* Font Sizes */
-  --text-xs: 12px;
-  --text-sm: 14px;
-  --text-base: 16px;
-  --text-lg: 18px;
-  --text-xl: 20px;
-  --text-2xl: 24px;
-  --text-3xl: 32px;
-  --text-4xl: 40px;
-
-  /* Line Heights */
-  --line-height-xs: 1.33;                 /* 12px font */
-  --line-height-sm: 1.43;                 /* 14px font */
-  --line-height-base: 1.5;                /* 16px font */
-  --line-height-lg: 1.5;                  /* 18px+ font */
-  --line-height-relaxed: 1.75;            /* Extra readable */
-  --line-height-loose: 2;                 /* Very readable */
-
-  /* Letter Spacing */
-  --letter-spacing-tight: -0.3px;         /* Tight letter spacing */
-  --letter-spacing-normal: 0.5px;         /* Normal letter spacing */
-  --letter-spacing-wide: 1px;             /* Wide letter spacing */
 
   /* =========================================================================
      SHADOW SYSTEM - Depth & Elevation
@@ -171,16 +210,21 @@
 
   /* Subtle Shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
   --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.15);
   --shadow-2xl: 0 25px 50px rgba(0, 0, 0, 0.25);
 
   /* Lift Effects - For interactive elements */
   --shadow-lift: 0 4px 12px rgba(0, 0, 0, 0.08);
-  --shadow-hover: 0 8px 16px rgba(0, 0, 0, 0.12);
-  --shadow-focus: 0 0 0 3px rgba(0, 102, 204, 0.2);
-  --shadow-focus-primary: 0 0 0 3px rgba(0, 102, 204, 0.25);
+  --shadow-hover: 0 8px 24px rgba(0, 151, 167, 0.15);
+  --shadow-focus: 0 0 0 3px rgba(0, 151, 167, 0.2);
+  --shadow-focus-primary: 0 0 0 3px rgba(0, 151, 167, 0.25);
+
+  /* Teal glow effects */
+  --shadow-teal-sm: 0 4px 12px rgba(0, 151, 167, 0.1);
+  --shadow-teal-md: 0 8px 24px rgba(0, 151, 167, 0.15);
+  --shadow-teal-lg: 0 12px 36px rgba(0, 151, 167, 0.2);
 
   /* Glassmorphism Effect - Semi-transparent */
   --glass-bg: rgba(255, 255, 255, 0.7);
@@ -194,6 +238,7 @@
 
   --transition-fast: 150ms ease-out;      /* Quick, snappy feedback */
   --transition-base: 200ms ease-out;      /* Standard animation timing */
+  --transition-smooth: 200ms ease;        /* Smooth animation */
   --transition-slow: 300ms ease-out;      /* Smooth, deliberate motion */
   --transition-slowest: 500ms ease-out;   /* Gradual, elegant transitions */
 
@@ -214,6 +259,7 @@
      Z-INDEX SCALE - Stacking Context
      ========================================================================= */
 
+  --z-content: 1;
   --z-dropdown: 100;
   --z-sticky: 200;
   --z-fixed: 300;
@@ -260,43 +306,51 @@
   /* --bp-2xl: 1400px;    (extra large) */
 
   /* =========================================================================
-     GRADIENTS - Professional Gradients
+     GRADIENTS - Ocean Teal Theme
      ========================================================================= */
 
-  /* Primary Brand Gradients - Go BARRY Blue */
-  --gradient-primary: linear-gradient(135deg, #0066CC 0%, #004C99 100%);
-  --gradient-primary-light: linear-gradient(135deg, #3B8ED9 0%, #0066CC 100%);
-  --gradient-primary-to-navy: linear-gradient(135deg, #0066CC 0%, #1E3A5F 100%);
-  --gradient-primary-vibrant: linear-gradient(135deg, #00B4D8 0%, #0066CC 100%);
+  /* Primary Brand Gradients - Ocean Teal */
+  --gradient-primary: linear-gradient(135deg, #0097A7 0%, #00838F 100%);
+  --gradient-primary-light: linear-gradient(135deg, #00BCD4 0%, #0097A7 100%);
+  --gradient-primary-hover: linear-gradient(135deg, #00ACC1 0%, #0097A7 100%);
+  --gradient-primary-vibrant: linear-gradient(135deg, #26C6DA 0%, #00ACC1 50%, #0097A7 100%);
+  --gradient-primary-to-navy: linear-gradient(135deg, #0097A7 0%, #1F2937 100%);
 
-  /* Legacy Red Gradients (for critical/error states only) */
-  --gradient-red: linear-gradient(135deg, #DC2626 0%, #991B1B 100%);
-  --gradient-red-light: linear-gradient(135deg, #FEE2E2 0%, #DC2626 100%);
+  /* Welcome Section Gradient */
+  --gradient-welcome: linear-gradient(135deg, #0097A7 0%, #00838F 50%, #006064 100%);
 
-  /* Navy Gradients - Secondary */
-  --gradient-navy: linear-gradient(135deg, #1E3A5F 0%, #152A46 100%);
-  --gradient-navy-light: linear-gradient(135deg, #2D4A6F 0%, #1E3A5F 100%);
+  /* Secondary Gradients - Warm Charcoal */
+  --gradient-secondary: linear-gradient(180deg, #1F2937 0%, #111827 100%);
+  --gradient-secondary-light: linear-gradient(180deg, #374151 0%, #1F2937 100%);
+
+  /* Legacy Navy Gradients (for compatibility) */
+  --gradient-navy: linear-gradient(135deg, #1F2937 0%, #111827 100%);
+  --gradient-navy-light: linear-gradient(135deg, #374151 0%, #1F2937 100%);
 
   /* Status Gradients */
-  --gradient-success: linear-gradient(135deg, #10B981 0%, #059669 100%);
-  --gradient-warning: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
-  --gradient-critical: linear-gradient(135deg, #DC2626 0%, #991B1B 100%);
-  --gradient-info: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
+  --gradient-success: linear-gradient(135deg, #2E7D32 0%, #1B5E20 100%);
+  --gradient-warning: linear-gradient(135deg, #F57C00 0%, #E65100 100%);
+  --gradient-critical: linear-gradient(135deg, #D32F2F 0%, #C62828 100%);
+  --gradient-info: linear-gradient(135deg, #1976D2 0%, #1565C0 100%);
 
-  /* Go BARRY Signature Gradient - Professional Blue Aurora */
+  /* Legacy red gradient (for critical states) */
+  --gradient-red: linear-gradient(135deg, #D32F2F 0%, #C62828 100%);
+  --gradient-red-light: linear-gradient(135deg, #FFEBEE 0%, #FFCDD2 100%);
+
+  /* Go BARRY Signature Gradient - Ocean Teal Aurora */
   --gradient-barry: linear-gradient(
     135deg,
-    rgba(0, 102, 204, 0.15) 0%,
-    rgba(0, 180, 216, 0.1) 50%,
-    rgba(30, 58, 95, 0.15) 100%
+    rgba(0, 151, 167, 0.15) 0%,
+    rgba(0, 188, 212, 0.1) 50%,
+    rgba(0, 131, 143, 0.15) 100%
   );
 
-  /* Glassmorphism Gradient - Blue Aurora */
+  /* Glassmorphism Gradient - Teal Aurora */
   --gradient-aurora: linear-gradient(
     135deg,
-    rgba(0, 102, 204, 0.1) 0%,
-    rgba(0, 180, 216, 0.08) 50%,
-    rgba(30, 58, 95, 0.1) 100%
+    rgba(0, 151, 167, 0.1) 0%,
+    rgba(0, 188, 212, 0.08) 50%,
+    rgba(0, 96, 100, 0.1) 100%
   );
 
   /* =========================================================================
@@ -357,53 +411,60 @@
 /* No additional light mode needed - :root is light mode */
 
 /* ============================================================================
-   DARK MODE - Future feature with high contrast
+   DARK MODE - For system preference
    ============================================================================ */
 
 @media (prefers-color-scheme: dark) {
   :root {
     /* Override colors for dark mode while maintaining excellent contrast */
 
-    /* Brand colors stay the same (good contrast in dark) */
-    --color-red-primary: #FF6B63;         /* Lighter red for dark mode */
-    --color-red-dark: #E30613;            /* Original red as hover */
-    --color-red-light: #2D1514;           /* Dark red background */
+    /* Primary stays the same (good contrast in dark) */
+    --color-primary: #00ACC1;             /* Slightly lighter teal for dark mode */
+    --color-primary-hover: #26C6DA;       /* Lighter on hover */
+    --color-primary-dark: #0097A7;        /* Original as hover */
+    --color-primary-light: #1A3A3D;       /* Dark teal background */
 
-    /* Navy becomes lighter for dark mode */
-    --color-navy-primary: #60A5FA;        /* Light blue */
-    --color-navy-dark: #93C5FD;           /* Even lighter blue */
-    --color-navy-darker: #1E3A4F;         /* Keep dark option */
-    --color-navy-light: #BFDBFE;          /* Very light blue */
+    /* Critical/Red adapts for dark mode */
+    --color-critical: #EF5350;            /* Lighter red for dark mode */
+    --color-critical-dark: #D32F2F;       /* Original red as hover */
+    --color-critical-light: #3D1A1A;      /* Dark red background */
+
+    /* Legacy red maps */
+    --color-red-primary: #EF5350;
+    --color-red-dark: #D32F2F;
+    --color-red-light: #3D1A1A;
 
     /* Status colors adapted for dark mode */
-    --color-success: #4ADE80;
-    --color-success-dark: #86EFAC;
-    --color-success-light: #164E3B;
+    --color-success: #4CAF50;
+    --color-success-dark: #2E7D32;
+    --color-success-light: #1A3D1A;
 
-    --color-warning: #FACC15;
-    --color-warning-dark: #FCD34D;
-    --color-warning-light: #422006;
+    --color-warning: #FFB74D;
+    --color-warning-dark: #F57C00;
+    --color-warning-light: #3D2A1A;
 
-    --color-critical: #FF6B6B;
-    --color-critical-dark: #FF8787;
-    --color-critical-light: #5A1B1B;
+    --color-info: #64B5F6;
+    --color-info-dark: #1976D2;
+    --color-info-light: #1A2A3D;
 
-    --color-info: #60A5FA;
-    --color-info-dark: #93C5FD;
-    --color-info-light: #1E3A8A;
+    /* Navy becomes lighter for dark mode */
+    --color-navy-primary: #64B5F6;
+    --color-navy-dark: #90CAF9;
+    --color-navy-darker: #1E293B;
+    --color-navy-light: #BBDEFB;
 
     /* Neutral greys adapt to dark mode */
-    --color-white: #111827;              /* Swap white/black */
-    --color-off-white: #1F2937;
-    --color-grey-50: #1F2937;
-    --color-grey-100: #374151;
-    --color-grey-200: #4B5563;
-    --color-grey-300: #6B7280;
-    --color-grey-400: #9CA3AF;
-    --color-grey-500: #D1D5DB;
-    --color-grey-600: #E5E7EB;
-    --color-grey-700: #F3F4F6;
-    --color-grey-800: #F9FAFB;
+    --color-white: #0F172A;              /* Swap white/black */
+    --color-off-white: #1E293B;
+    --color-grey-50: #1E293B;
+    --color-grey-100: #334155;
+    --color-grey-200: #475569;
+    --color-grey-300: #64748B;
+    --color-grey-400: #94A3B8;
+    --color-grey-500: #CBD5E1;
+    --color-grey-600: #E2E8F0;
+    --color-grey-700: #F1F5F9;
+    --color-grey-800: #F8FAFC;
     --color-grey-900: #FFFFFF;            /* Text is white in dark mode */
 
     /* Text colors for dark mode */
@@ -411,14 +472,14 @@
     --color-text-secondary: #94A3B8;
     --color-text-tertiary: #64748B;
     --color-text-disabled: #475569;
-    --color-text-inverse: #111827;
+    --color-text-inverse: #0F172A;
 
     /* Shadows for dark mode (more subtle) */
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
     --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
     --shadow-lift: 0 4px 12px rgba(0, 0, 0, 0.4);
-    --shadow-hover: 0 8px 16px rgba(0, 0, 0, 0.5);
+    --shadow-hover: 0 8px 24px rgba(0, 151, 167, 0.2);
   }
 }
 

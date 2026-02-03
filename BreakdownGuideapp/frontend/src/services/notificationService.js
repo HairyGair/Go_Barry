@@ -1,4 +1,4 @@
-// Notification Service for Go North East Breakdown Management System
+// Notification Service for the operator Breakdown Management System
 // Phase 7.5: Duty-Aware Notifications - Only notify during active duty
 import { apiConfig } from '../breakdown-guide/components/common/constants';
 

@@ -1490,6 +1490,8 @@
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
   gap: 0;
+  padding: 0;
+  margin: 0;
 }
 
 .live-activity-feed.embedded .live-activity-content {
@@ -1497,6 +1499,27 @@
   overflow-y: visible;
   max-height: none;
   gap: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.live-activity-feed.embedded .activity-list {
+  padding: 0;
+  margin: 0;
+  gap: 8px;
+}
+
+.live-activity-feed.embedded .activity-time-group:first-child {
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.live-activity-feed.embedded .activity-time-group:first-child .time-group-header {
+  margin-top: 0;
+}
+
+.live-activity-feed.embedded .live-activity-footer {
+  display: none;
 }
 
 /* ===== MOBILE RESPONSIVE ===== */

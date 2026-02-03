@@ -31,7 +31,7 @@ const EndOfShiftModal = ({
 
   // Calculate time remaining
   useEffect(() => {
-    if (!currentDuty || !isVisible) return;
+    if (!currentDuty || currentDuty.viewOnly || !currentDuty.endTime || !isVisible) return;
 
     const updateCountdown = () => {
       const now = new Date();

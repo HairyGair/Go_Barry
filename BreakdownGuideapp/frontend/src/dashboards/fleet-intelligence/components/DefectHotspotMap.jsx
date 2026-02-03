@@ -17,7 +17,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
-// Depot coordinates for Go North East
+// Depot coordinates for the operator
 const DEPOT_COORDS = {
   'Washington': { lat: 54.8963, lng: -1.5238, color: '#E30613' },
   'Riverside': { lat: 54.9619, lng: -1.6036, color: '#003B5C' },
@@ -27,7 +27,7 @@ const DEPOT_COORDS = {
   'Chester-le-Street': { lat: 54.8566, lng: -1.5707, color: '#EC4899' },
 };
 
-// Map bounds for Go North East region
+// Map bounds for the operator region
 const MAP_CONFIG = {
   center: [54.9783, -1.6178], // Newcastle
   zoom: 10,

@@ -273,7 +273,7 @@ const MySQLLoginPage = () => {
                                             setEmailWasPrefilled(false);
                                         }
                                     }}
-                                    placeholder="supervisor@gonortheast.co.uk"
+                                    placeholder="supervisor@example.com"
                                     disabled={isLoading}
                                     autoComplete="email"
                                     required

@@ -588,7 +588,7 @@ const EngineeringDisplay = () => {
                     return (
                       <div className="card-row">
                         <div className="card-label">Distance from Depot:</div>
-                        <div className="card-value" style={{ color: '#60a5fa' }}>
+                        <div className="card-value" style={{ color: '#00BCD4' }}>
                           {distance.toFixed(1)} miles • {travelTime} min drive
                         </div>
                       </div>
@@ -642,7 +642,7 @@ const EngineeringDisplay = () => {
 
                   // Add depot marker if we have depot coordinates
                   const depotCoords = depotFilter ? DEPOT_COORDINATES[depotFilter] : null;
-                  const depotMarker = depotCoords ? `&markers=color:blue%7Clabel:D%7C${depotCoords.lat},${depotCoords.lng}` : '';
+                  const depotMarker = depotCoords ? `&markers=color:0x0097A7%7Clabel:D%7C${depotCoords.lat},${depotCoords.lng}` : '';
 
                   // Google Maps Static API URL - Compact to fit everything on screen
                   const mapUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=14&size=700x300&markers=size:mid%7Ccolor:red%7Clabel:B%7C${lat},${lng}${depotMarker}&key=${GOOGLE_API_KEY}&style=feature:all%7Celement:geometry%7Ccolor:0x1a2332&style=feature:all%7Celement:labels.text.fill%7Ccolor:0xffffff&style=feature:all%7Celement:labels.text.stroke%7Ccolor:0x0a0f1b&style=feature:road%7Celement:geometry%7Ccolor:0x2d3748&style=feature:water%7Celement:geometry%7Ccolor:0x0f172a`;
@@ -683,6 +683,12 @@ const EngineeringDisplay = () => {
           <div className="footer-watermark">
             <GairWareLogo height={16} variant="mono" style={{ opacity: 0.15 }} />
             <span className="watermark-text">GairWare</span>
+          </div>
+          <div className="footer-hosting">
+            Hosted by{' '}
+            <a href="https://pixelish.co.uk" target="_blank" rel="noopener noreferrer">
+              Pixelish
+            </a>
           </div>
         </div>
       </div>

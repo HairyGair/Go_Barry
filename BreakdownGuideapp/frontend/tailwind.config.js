@@ -7,10 +7,10 @@ export default {
   theme: {
     extend: {
       colors: {
-        'gne-red': '#e30613',
-        'gne-navy': '#003b5c',
-        'gne-light-gray': '#f5f5f5',
-        'gne-dark-gray': '#333333',
+        'brand-red': '#e30613',
+        'brand-navy': '#003b5c',
+        'brand-light-gray': '#f5f5f5',
+        'brand-dark-gray': '#333333',
       }
     },
   },

@@ -138,7 +138,7 @@ const DutyCard = ({ currentDuty, onChangeDuty, onStartHandover, onExtendShift, s
   };
 
   useEffect(() => {
-    if (!currentDuty) return;
+    if (!currentDuty || currentDuty.viewOnly || !currentDuty.startTime || !currentDuty.endTime) return;
 
     const updateProgress = () => {
       const now = new Date();
@@ -222,14 +222,14 @@ const DutyCard = ({ currentDuty, onChangeDuty, onStartHandover, onExtendShift, s
     return () => clearInterval(timer);
   }, [currentDuty]);
 
-  if (!currentDuty) {
+  if (!currentDuty || currentDuty.viewOnly) {
     return (
       <div className="duty-card duty-card--empty">
         <div className="duty-card__empty-content">
           <span className="duty-card__empty-icon">📋</span>
-          <h3>No Active Duty</h3>
-          <p>Select a duty shift to get started</p>
-          {onChangeDuty && (
+          <h3>{currentDuty?.viewOnly ? 'View Only Mode' : 'No Active Duty'}</h3>
+          <p>{currentDuty?.viewOnly ? 'You are browsing in view-only mode' : 'Select a duty shift to get started'}</p>
+          {onChangeDuty && !currentDuty?.viewOnly && (
             <button className="duty-card__select-btn" onClick={onChangeDuty}>
               Select Duty
             </button>

@@ -7,8 +7,8 @@ export const DEPOT_CONTACTS = {
   WASHINGTON: {
     name: 'Washington',
     contacts: [
-      { role: 'Yardman', number: '6123', fullNumber: 'tel:6123' },
-      { role: 'Engineering Manager', number: '6327', fullNumber: 'tel:6327' }
+      { role: 'Engineering Manager', number: '6327', fullNumber: 'tel:6327' },
+      { role: 'Yardman', number: '6123', fullNumber: 'tel:6123' }
     ]
   },
   RIVERSIDE: {
@@ -71,7 +71,7 @@ export const getDepotName = (depotId) => {
 
 /**
  * Find depot by fleet number (basic depot detection)
- * Go North East fleet allocation:
+ * the operator fleet allocation:
  * - Washington: 5xxx, 6xxx
  * - Riverside: 3xxx, 8xxx
  * - Percy Main: 4xxx

@@ -118,7 +118,13 @@ const MaintenancePage = () => {
         <div className="maintenance-footer">
           <p>Thank you for your patience</p>
           <p className="footer-copyright">
-            © 2025 Go North East | Powered by GairWare
+            © {new Date().getFullYear()} the operator | Powered by GairWare
+          </p>
+          <p className="footer-hosting">
+            Hosted by{' '}
+            <a href="https://pixelish.co.uk" target="_blank" rel="noopener noreferrer">
+              Pixelish
+            </a>
           </p>
         </div>
       </div>
