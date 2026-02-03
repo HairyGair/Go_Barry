@@ -8,8 +8,6 @@ import ManagementDashboard from './management/ManagementDashboard';
 import SDCDashboard from './sdc/SDCDashboard';
 import LiveRouteStatusDashboard from './gtfs/LiveRouteStatusDashboard';
 import FleetDefectIntelligence from './FleetDefectIntelligence';
-import DashboardDebug from './DashboardDebug';
-import TestDashboard from './TestDashboard';
 
 const DashboardRouter = () => {
   return (
@@ -25,10 +23,6 @@ const DashboardRouter = () => {
       <Route path="/sdc" element={<SDCDashboard />} />
       <Route path="/gtfs/routes" element={<LiveRouteStatusDashboard />} />
       <Route path="/fleet-defects" element={<FleetDefectIntelligence />} />
-
-      {/* Debug routes */}
-      <Route path="/debug" element={<DashboardDebug />} />
-      <Route path="/test" element={<TestDashboard />} />
     </Routes>
   );
 };
