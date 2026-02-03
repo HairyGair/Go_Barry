@@ -25,18 +25,37 @@ import { query, select, insert, update, remove, transaction, pool } from '../con
  */
 const ALLOWED_TABLES = new Set([
   'breakdowns',
+  'breakdown_events',
+  'breakdown_dashboard_cards',
   'supervisors',
+  'supervisor_sessions',
+  'supervisor_shift_history',
+  'supervisor_session_audit',
   'activities',
-  'fleet',
+  'fleet_vehicles',
   'engineers',
+  'depots',
+  'user_preferences',
+  'wizard_progress',
   'gtfs_routes',
   'gtfs_stops',
   'gtfs_trips',
   'gtfs_stop_times',
   'gtfs_import_log',
-  'preferences',
-  'sessions',
-  'audit_log'
+  'login_analytics',
+  'system_settings',
+  'bug_reports',
+  'bug_report_comments',
+  'notification_preferences',
+  'duty_breaks',
+  'duty_extensions',
+  'duty_schedules',
+  'shift_templates',
+  'duty_handovers',
+  'handover_breakdowns',
+  'duty_audit_log',
+  'duty_notes',
+  'route_coverage_analysis'
 ]);
 
 /**

@@ -146,17 +146,21 @@ const lookupFleetData = async (fleetNumber) => {
       });
 
       if (response.ok) {
-        const fleetList = await response.json();
+        const responseData = await response.json();
+        // API returns { data: [...], pagination: {...} } format
+        const fleetList = Array.isArray(responseData) ? responseData : (responseData.data || []);
         // Create keyed map for faster lookup
         fleetDataCache = {};
         fleetList.forEach(vehicle => {
-          fleetDataCache[vehicle.fleet_no.toString()] = {
-            fleetNumber: vehicle.fleet_no.toString(),
-            regNo: vehicle.registration || 'N/A',
-            depot: vehicle.depot || 'Unknown',
-            vehicleType: vehicle.vehicle_type || 'Unknown',
-            isActive: vehicle.is_active !== 0
-          };
+          if (vehicle.fleet_no) {
+            fleetDataCache[vehicle.fleet_no.toString()] = {
+              fleetNumber: vehicle.fleet_no.toString(),
+              regNo: vehicle.registration || 'N/A',
+              depot: vehicle.depot || 'Unknown',
+              vehicleType: vehicle.type || vehicle.vehicle_type || 'Unknown',
+              isActive: vehicle.is_active !== 0
+            };
+          }
         });
         console.log(`📚 Fleet database loaded from API: ${fleetList.length} vehicles`);
       } else {

@@ -228,11 +228,27 @@ const DutySelectionModal = ({ onDutySelected, currentUser, onClose }) => {
         // Call backend to set duty and log to activity feed
         try {
             const apiUrl = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
+
+            // Get CSRF token first (required for POST requests)
+            let csrfToken = null;
+            try {
+                const csrfResponse = await fetch(`${apiUrl}/api/auth/csrf-token`, {
+                    credentials: 'include'
+                });
+                if (csrfResponse.ok) {
+                    const csrfData = await csrfResponse.json();
+                    csrfToken = csrfData.csrfToken;
+                }
+            } catch (csrfError) {
+                console.warn('⚠️ Failed to get CSRF token for set-duty:', csrfError);
+            }
+
             const response = await fetch(`${apiUrl}/api/auth/set-duty`, {
                 method: 'POST',
                 credentials: 'include',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'CSRF-Token': csrfToken || ''
                 },
                 body: JSON.stringify({ duty: selectedDuty.code })
             });
