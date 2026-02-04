@@ -6,8 +6,8 @@ import ShiftEndingBadge from '../../components/ShiftEndingBadge';
 import QuickDecisionButtons from './QuickDecisionButtons';
 import './SDCBreakdownCard-Carousel.css';
 
-// Google Maps API key for geocoding
-const GOOGLE_MAPS_API_KEY = 'AIzaSyBhBN_kVOnIRTKXYhzrDwpr8kvb0Uy0IY8';
+// Google Maps API key for geocoding - loaded from environment
+const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY || '';
 
 // standard procedure category mappings with icons
 const SDC_GUIDE_CATEGORIES = {

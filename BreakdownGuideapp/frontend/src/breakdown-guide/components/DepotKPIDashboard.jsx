@@ -8,7 +8,7 @@ class DepotKPIDashboard {
   constructor() {
     this.data = null;
     this.refreshInterval = null;
-    this.apiBase = window.CONFIG?.API_BASE || 'https://go-barry.onrender.com';
+    this.apiBase = window.CONFIG?.API_BASE || 'https://api.breakdowns.gobarry.co.uk';
   }
 
   // Initialize the dashboard

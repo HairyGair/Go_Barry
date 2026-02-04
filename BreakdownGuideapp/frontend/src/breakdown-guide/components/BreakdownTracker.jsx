@@ -11,7 +11,7 @@ class BreakdownTracker {
     this.supervisorBadge = localStorage.getItem('supervisorBadge') || '';
     this.supervisorName = localStorage.getItem('supervisorName') || '';
     this.updateInterval = null;
-    this.apiBase = window.CONFIG?.API_BASE || 'https://go-barry.onrender.com';
+    this.apiBase = window.CONFIG?.API_BASE || 'https://api.breakdowns.gobarry.co.uk';
   }
 
   // Initialize the tracker

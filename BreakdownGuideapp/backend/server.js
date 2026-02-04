@@ -100,21 +100,14 @@ const getAllowedOrigins = () => {
     'http://localhost:8081',
     'http://localhost:19006',
     'http://localhost:5173',
-    'http://192.168.1.132:3000',  // Network IP for local development
-    'https://dashboard.render.com',
-    'https://breakdown-guide.onrender.com',
-    'https://go-barry.onrender.com',
-    'https://gobarry.co.uk',
-    'https://www.gobarry.co.uk',
     'https://breakdowns.gobarry.co.uk',
-    'https://www.breakdowns.gobarry.co.uk'
+    'https://www.breakdowns.gobarry.co.uk',
+    'https://api.breakdowns.gobarry.co.uk'
   ];
 
   const regexOrigins = [
-    /\.onrender\.com$/,
-    /\.render\.com$/,
-    /\.gobarry\.co\.uk$/,
-    /localhost:\d+$/
+    /^https:\/\/.*\.breakdowns\.gobarry\.co\.uk$/,
+    /^http:\/\/localhost:\d+$/
   ];
 
   return [...new Set([...defaultOrigins, ...envOrigins]), ...regexOrigins];

@@ -6,7 +6,7 @@
 
 class WizardTrackerIntegration {
   constructor() {
-    this.apiBase = window.CONFIG?.API_BASE || 'https://go-barry.onrender.com';
+    this.apiBase = window.CONFIG?.API_BASE || 'https://api.breakdowns.gobarry.co.uk';
   }
 
   // Get current duty context from sessionStorage

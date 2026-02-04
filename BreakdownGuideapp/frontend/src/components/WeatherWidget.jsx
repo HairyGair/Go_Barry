@@ -177,9 +177,20 @@ const WeatherWidget = () => {
 
   if (loading) {
     return (
-      <div className="weather-widget loading">
-        <div className="weather-loading-spinner"></div>
-        <p>Loading weather...</p>
+      <div className="weather-widget weather-skeleton">
+        <div className="skeleton-header">
+          <div className="skeleton-line skeleton-location"></div>
+          <div className="skeleton-line skeleton-counter"></div>
+        </div>
+        <div className="skeleton-main">
+          <div className="skeleton-icon"></div>
+          <div className="skeleton-line skeleton-temp"></div>
+        </div>
+        <div className="skeleton-line skeleton-condition"></div>
+        <div className="skeleton-details">
+          <div className="skeleton-line skeleton-detail"></div>
+          <div className="skeleton-line skeleton-detail"></div>
+        </div>
       </div>
     );
   }

@@ -60,7 +60,7 @@ class RealTimeManager {
         }
         
         // Production WebSocket URL
-        return `${protocol}//go-barry.onrender.com/ws/breakdown-guide`;
+        return `${protocol}//api.breakdowns.gobarry.co.uk/ws/breakdown-guide`;
     }
     
     getSupervisorId() {

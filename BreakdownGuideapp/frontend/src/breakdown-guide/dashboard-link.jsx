@@ -70,7 +70,7 @@ async function checkActiveBreakdowns() {
         // Use the same backend URL as configured in the main app
         const apiBase = window.BACKEND_URL || (window.location.hostname === 'localhost' 
             ? 'http://localhost:3001'  // Fixed port number
-            : 'https://go-barry.onrender.com');
+            : 'https://api.breakdowns.gobarry.co.uk');
             
         const response = await fetch(`${apiBase}/api/breakdowns/live`); // Fixed endpoint
         
