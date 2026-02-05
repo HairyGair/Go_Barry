@@ -284,20 +284,7 @@ const HomePage = ({ onStatsChange }) => {
             </div>
 
             <nav className="hp-actions">
-              <button className="hp-action hp-action--primary" onClick={() => navigate('/dashboards/breakdown')}>
-                <div className="hp-action-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="3" y="3" width="7" height="7" rx="1"/>
-                    <rect x="14" y="3" width="7" height="7" rx="1"/>
-                    <rect x="3" y="14" width="7" height="7" rx="1"/>
-                    <rect x="14" y="14" width="7" height="7" rx="1"/>
-                  </svg>
-                </div>
-                <span className="hp-action-title">Dashboard</span>
-                <span className="hp-action-desc">Live monitoring</span>
-              </button>
-
-              <button className="hp-action" onClick={() => navigate('/dashboards/sdc')}>
+              <button className="hp-action hp-action--primary" onClick={() => navigate('/dashboards/sdc')}>
                 <div className="hp-action-icon">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <circle cx="12" cy="12" r="9"/>
@@ -338,6 +325,41 @@ const HomePage = ({ onStatsChange }) => {
                 </div>
                 <span className="hp-action-title">Fleet Intel</span>
                 <span className="hp-action-desc">Analytics</span>
+              </button>
+
+              <button className="hp-action" onClick={() => navigate('/dashboards/gtfs/routes')}>
+                <div className="hp-action-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+                    <circle cx="12" cy="9" r="2.5"/>
+                  </svg>
+                </div>
+                <span className="hp-action-title">Route Status</span>
+                <span className="hp-action-desc">Live impact</span>
+              </button>
+
+              <button className="hp-action" onClick={() => navigate('/dashboards/fleet-defects')}>
+                <div className="hp-action-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                    <line x1="12" y1="9" x2="12" y2="13"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                  </svg>
+                </div>
+                <span className="hp-action-title">Fleet Defects</span>
+                <span className="hp-action-desc">Patterns</span>
+              </button>
+
+              <button className="hp-action" onClick={() => navigate('/dashboards/management')}>
+                <div className="hp-action-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M18 20V10"/>
+                    <path d="M12 20V4"/>
+                    <path d="M6 20v-6"/>
+                  </svg>
+                </div>
+                <span className="hp-action-title">Management</span>
+                <span className="hp-action-desc">KPIs & Trends</span>
               </button>
 
               <button className="hp-action hp-action--muted" onClick={() => navigate('/settings')}>

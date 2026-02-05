@@ -994,6 +994,49 @@ Vehicle brake systems use hydraulic pressure to apply brake pads to rotors. Any 
                 result: 'Check tachograph operation and arrange changeover.'
             }
         ]
+    },
+
+    // ELECTRIC VEHICLE
+    'ev-low-charge': {
+        title: 'EV Low Charge',
+        description: 'Electric vehicle low battery charge assessment and changeover planning',
+        priority: 2,
+        severity: 'medium',
+        icon: '⚡',
+        color: '#10B981',
+        steps: [
+            {
+                type: 'info',
+                title: 'EV Low Charge Assessment',
+                content: 'Assess electric vehicle charge level and plan changeover if below 30%.',
+                nextStep: 'charge-check'
+            },
+            {
+                type: 'decision',
+                id: 'charge-check',
+                title: 'Charge Level Check',
+                content: 'Determine current battery charge level and changeover options.',
+                question: 'What is the current charge level?',
+                choices: [
+                    { text: 'Above 30%', action: 'continue-service' },
+                    { text: '30% or below', action: 'arrange-changeover' }
+                ]
+            },
+            {
+                type: 'final',
+                id: 'continue-service',
+                title: 'CONTINUE IN SERVICE',
+                content: 'Charge level adequate.',
+                result: 'Continue in service and monitor charge level.'
+            },
+            {
+                type: 'final',
+                id: 'arrange-changeover',
+                title: 'CHANGEOVER REQUIRED',
+                content: 'Low charge level identified.',
+                result: 'Arrange changeover based on charge level and vehicle location.'
+            }
+        ]
     }
 };
 

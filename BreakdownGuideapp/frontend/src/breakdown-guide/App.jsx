@@ -74,6 +74,7 @@ import WheelchairRampWizard from './components/wizards/WheelchairRampWizard.jsx'
 import WingMirrorsWizard from './components/wizards/WingMirrorsWizard.jsx';
 import WipersScreenwashWizard from './components/wizards/WipersScreenwashWizard.jsx';
 import DestinationDisplayWizard from './components/wizards/DestinationDisplayWizard.jsx';
+import EVLowChargeWizard from './components/wizards/EVLowChargeWizard.jsx';
 import Step3InitialAssessment from './components/Step3InitialAssessment.jsx';
 import Step5IssueDetails from './components/Step5IssueDetails.jsx';
 import Step7Submit from './components/Step7Submit.jsx';
@@ -117,6 +118,7 @@ const wizardComponents = {
     'wing-mirrors': WingMirrorsWizard,
     'wipers-screenwash': WipersScreenwashWizard,
     'destination-display': DestinationDisplayWizard,
+    'ev-low-charge': EVLowChargeWizard,
     'initial-assessment': Step3InitialAssessment,
     'step3-initial-assessment': Step3InitialAssessment,
     'issue-details': Step5IssueDetails,
@@ -691,6 +693,13 @@ const App = () => {
             wizardKeys: ['battery', 'battery-light', 'abs-light', 'exterior-lights', 'interior-lights', 'warning-lights', 'destination-display']
         },
         {
+            id: 'ev',
+            name: 'Electric Vehicle',
+            icon: '⚡',
+            color: '#10B981',
+            wizardKeys: ['ev-low-charge']
+        },
+        {
             id: 'bodywork',
             name: 'Bodywork & Access',
             icon: '🚪',
@@ -748,7 +757,8 @@ const App = () => {
         'warning-lights': null,
         'speedo': null,
         'interior-exterior-damage': null,
-        'buzzers': null
+        'buzzers': null,
+        'ev-low-charge': null
     };
 
     // Emoji fallbacks
@@ -762,7 +772,8 @@ const App = () => {
         'warning-lights': '⚠️',
         'speedo': '🏁',
         'interior-exterior-damage': '⚠️',
-        'buzzers': '🔔'
+        'buzzers': '🔔',
+        'ev-low-charge': '⚡'
     };
 
     // Main dashboard view - Two Column Layout

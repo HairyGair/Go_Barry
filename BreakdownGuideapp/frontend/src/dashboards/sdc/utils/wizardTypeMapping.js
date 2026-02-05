@@ -588,6 +588,25 @@ export const WIZARD_TYPE_MAPPING = {
     continue_criteria: ['No significant impact on vehicle operation']
   },
 
+  // Electric Vehicle
+  'ev-low-charge': {
+    displayName: 'EV Low Charge',
+    category: 'Electric Vehicle',
+    icon: '⚡',
+    priority: 'high',
+    dvsa_reference: 'Electric vehicle operational guidance',
+    typical_steps: [
+      'Check current battery charge level',
+      'Assess distance to changeover point',
+      'Determine changeover urgency',
+      'Coordinate with engineering for recharging'
+    ],
+    estimated_duration: 4,
+    stop_criteria: ['Charge below 10% and cannot reach changeover point'],
+    amber_criteria: ['Charge below 30%', 'Changeover required'],
+    continue_criteria: ['Charge above 30% - monitor and plan charging']
+  },
+
   // Special Systems
   'tracer-it-helper': {
     displayName: 'TracerIT System Issues',
