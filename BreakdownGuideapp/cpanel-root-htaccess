@@ -1,0 +1,12 @@
+# Go BARRY - Root Domain Redirect
+# Place this in ~/public_html/.htaccess
+# Redirects all traffic from gobarry.co.uk / www.gobarry.co.uk
+# to breakdowns.gobarry.co.uk
+
+RewriteEngine On
+
+# Only apply to the root domain, not subdomains
+RewriteCond %{HTTP_HOST} ^(www\.)?gobarry\.co\.uk$ [NC]
+
+# Preserve the request path (e.g. /login -> breakdowns.gobarry.co.uk/login)
+RewriteRule ^(.*)$ https://breakdowns.gobarry.co.uk/$1 [R=301,L]
