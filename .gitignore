@@ -1,3 +1,6 @@
+# Archive (local-only, not tracked)
+_archive/
+
 # Dependencies
 node_modules/
 npm-debug.log*
