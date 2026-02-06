@@ -29,7 +29,7 @@ router.get('/', async (req, res) => {
             });
         }
 
-        const [settings] = await pool.query(`
+        const settings = await pool.query(`
             SELECT
                 setting_key,
                 setting_value,
@@ -67,7 +67,7 @@ router.get('/', async (req, res) => {
 // =====================================================
 router.get('/compliance/status', async (req, res) => {
     try {
-        const [settings] = await pool.query(`
+        const settings = await pool.query(`
             SELECT setting_key, setting_value, setting_type
             FROM system_settings
             WHERE setting_key IN (
@@ -116,7 +116,7 @@ router.get('/:key', async (req, res) => {
     try {
         const { key } = req.params;
 
-        const [settings] = await pool.query(`
+        const settings = await pool.query(`
             SELECT
                 setting_key,
                 setting_value,
@@ -180,7 +180,7 @@ router.put('/:key', async (req, res) => {
         }
 
         // Get current setting to validate type
-        const [existing] = await pool.query(`
+        const existing = await pool.query(`
             SELECT setting_key, setting_type, setting_value
             FROM system_settings
             WHERE setting_key = ?
@@ -307,7 +307,7 @@ router.put('/', async (req, res) => {
         for (const [key, value] of Object.entries(settings)) {
             try {
                 // Check if setting exists
-                const [existing] = await pool.query(`
+                const existing = await pool.query(`
                     SELECT setting_type FROM system_settings WHERE setting_key = ?
                 `, [key]);
 
