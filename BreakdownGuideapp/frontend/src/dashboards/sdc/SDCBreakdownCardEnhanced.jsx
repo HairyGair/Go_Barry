@@ -3,7 +3,9 @@ import { getWizardInfo } from './utils/wizardTypeMapping';
 import SimpleLocationMap from './SimpleLocationMap';
 import DepotContactBadge from '../../components/DepotContactBadge';
 import ShiftEndingBadge from '../../components/ShiftEndingBadge';
+import NextTripCountdownBadge from '../../components/NextTripCountdownBadge';
 import QuickDecisionButtons from './QuickDecisionButtons';
+import apiClient from '../../services/api-client';
 import './SDCBreakdownCard-Carousel.css';
 
 // Google Maps API key for geocoding - loaded from environment
@@ -137,6 +139,94 @@ const SDCBreakdownCardEnhanced = memo(({
   const [activeCardIndex, setActiveCardIndex] = useState(0); // Track which card is active
   const [isExpanded, setIsExpanded] = useState(false); // Track if details are expanded
   const [geocodedLocation, setGeocodedLocation] = useState(null); // Store geocoded street name
+
+  // Journey/Trip editor state
+  const [showTripPicker, setShowTripPicker] = useState(false);
+  const [availableTrips, setAvailableTrips] = useState([]);
+  const [loadingTrips, setLoadingTrips] = useState(false);
+  const [linkedTrip, setLinkedTrip] = useState(breakdown.trip_id ? {
+    tripId: breakdown.trip_id,
+    blockId: breakdown.block_id,
+  } : null);
+  const [savingTrip, setSavingTrip] = useState(false);
+
+  const fetchTripsForRoute = useCallback(async () => {
+    const routeId = breakdown.route_id || breakdown.wizard_assessment_data?.route;
+    if (!routeId) return;
+    setLoadingTrips(true);
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
+      const res = await fetch(`${apiUrl}/api/public/route-trips?route_id=${encodeURIComponent(routeId)}&limit=30`);
+      const data = await res.json();
+      if (data.success && data.trips) {
+        setAvailableTrips(data.trips);
+      }
+    } catch (err) {
+      console.error('Failed to fetch trips:', err);
+    } finally {
+      setLoadingTrips(false);
+    }
+  }, [breakdown.route_id, breakdown.wizard_assessment_data?.route]);
+
+  const handleTripSelect = useCallback(async (trip) => {
+    setSavingTrip(true);
+    try {
+      await apiClient.put(`/api/breakdowns/${breakdown.breakdown_id}`, {
+        trip_id: trip.tripId,
+        block_id: trip.blockId || null,
+      });
+      setLinkedTrip(trip);
+      setShowTripPicker(false);
+    } catch (err) {
+      console.error('Failed to save trip link:', err);
+    } finally {
+      setSavingTrip(false);
+    }
+  }, [breakdown.breakdown_id]);
+
+  const handleUnlinkTrip = useCallback(async () => {
+    setSavingTrip(true);
+    try {
+      await apiClient.put(`/api/breakdowns/${breakdown.breakdown_id}`, {
+        trip_id: null,
+        block_id: null,
+      });
+      setLinkedTrip(null);
+    } catch (err) {
+      console.error('Failed to unlink trip:', err);
+    } finally {
+      setSavingTrip(false);
+    }
+  }, [breakdown.breakdown_id]);
+
+  // Next Trip Countdown: mark trip as covered or cancelled
+  // Sends full trip details so the backend can persist them for pattern analysis
+  const handleNextTripAction = useCallback(async (action) => {
+    try {
+      const nextTrip = breakdown.next_trip;
+      const body = {
+        next_trip_action: action,
+      };
+
+      // Include full trip details for lost-trip recording
+      if (nextTrip) {
+        body.lost_trip_details = {
+          trip_id: nextTrip.tripId || null,
+          route_id: breakdown.route_id || breakdown.wizard_assessment_data?.route || null,
+          direction_id: nextTrip.directionId ?? null,
+          departure_time: nextTrip.departureTime || null,
+          arrival_time: nextTrip.arrivalTime || null,
+          origin_stop: nextTrip.originStop || null,
+          dest_stop: nextTrip.destStop || null,
+          headsign: nextTrip.headsign || null,
+        };
+      }
+
+      await apiClient.put(`/api/breakdowns/${breakdown.breakdown_id}`, body);
+    } catch (err) {
+      console.error('Failed to save next trip action:', err);
+    }
+  }, [breakdown.breakdown_id, breakdown.next_trip, breakdown.route_id, breakdown.wizard_assessment_data?.route]);
 
   // Validate fleet number - should be 3-5 digits typically
   const isValidFleetNumber = (value) => {
@@ -406,12 +496,14 @@ const SDCBreakdownCardEnhanced = memo(({
   const stageProgress = ((currentStageIndex + 1) / stages.length) * 100;
 
   // Define card sections for carousel
+  const hasRoute = !!(breakdown.route_id || breakdown.wizard_assessment_data?.route);
   const cardSections = [
     { id: 'overview', title: 'Overview', icon: '📊' },
     { id: 'location', title: 'Location', icon: '📍' },
     { id: 'assessment', title: 'Assessment', icon: '🔍' },
     { id: 'details', title: 'Details', icon: '📋' },
-    { id: 'timeline', title: 'Timeline', icon: '⏱️' }
+    { id: 'timeline', title: 'Timeline', icon: '⏱️' },
+    ...(hasRoute ? [{ id: 'journey', title: 'Journey', icon: '🚌' }] : [])
   ];
 
   const handlePrevCard = () => {
@@ -453,6 +545,13 @@ const SDCBreakdownCardEnhanced = memo(({
         <div className="header-right">
           {/* Phase 7.4: Shift Ending Badge */}
           <ShiftEndingBadge compact />
+          {/* Next Trip Countdown Badge */}
+          <NextTripCountdownBadge
+            nextTrip={breakdown.next_trip}
+            nextTripAction={breakdown.next_trip_action}
+            compact
+            onAction={handleNextTripAction}
+          />
           {breakdown.isResolving && (
             <div className="resolving-badge">
               <span className="spinner">⏳</span>
@@ -729,6 +828,107 @@ const SDCBreakdownCardEnhanced = memo(({
                     />
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Card 6: Journey (only if route exists) */}
+            {hasRoute && activeCardIndex === cardSections.findIndex(s => s.id === 'journey') && (
+              <div className="info-card journey-card">
+                <h3 className="card-title">
+                  <span className="card-icon">🚌</span>
+                  Journey Link
+                </h3>
+
+                {/* Next Trip Countdown Alert (full mode) */}
+                {breakdown.next_trip && !breakdown.next_trip_action && (
+                  <NextTripCountdownBadge
+                    nextTrip={breakdown.next_trip}
+                    nextTripAction={breakdown.next_trip_action}
+                    onAction={handleNextTripAction}
+                  />
+                )}
+                {breakdown.next_trip_action && (
+                  <div className="ntb-dismissed">
+                    Next trip {breakdown.next_trip_action} &#10003;
+                  </div>
+                )}
+
+                {linkedTrip && !showTripPicker ? (
+                  <div className="journey-linked-display">
+                    <div className="journey-linked-info">
+                      {linkedTrip.departureTime ? (
+                        <div className="journey-route-detail">
+                          <span className="journey-time">{linkedTrip.departureTime?.substring(0, 5)}</span>
+                          <span className="journey-stop">{linkedTrip.originStop || ''}</span>
+                          <span className="journey-arrow">&rarr;</span>
+                          <span className="journey-time">{linkedTrip.arrivalTime?.substring(0, 5) || ''}</span>
+                          <span className="journey-stop">{linkedTrip.destStop || linkedTrip.headsign || ''}</span>
+                        </div>
+                      ) : (
+                        <div className="journey-trip-id">Trip: {linkedTrip.tripId}</div>
+                      )}
+                      {linkedTrip.blockId && (
+                        <div className="journey-block">Block: {linkedTrip.blockId}</div>
+                      )}
+                    </div>
+                    <div className="journey-linked-actions">
+                      <button
+                        onClick={() => { setShowTripPicker(true); fetchTripsForRoute(); }}
+                        className="btn-journey-action"
+                      >
+                        Change
+                      </button>
+                      <button
+                        onClick={handleUnlinkTrip}
+                        disabled={savingTrip}
+                        className="btn-journey-action btn-journey-remove"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ) : !showTripPicker ? (
+                  <div className="journey-empty">
+                    <p>No journey linked to this breakdown yet.</p>
+                    <button
+                      onClick={() => { setShowTripPicker(true); fetchTripsForRoute(); }}
+                      className="btn-journey-link"
+                    >
+                      + Link Journey
+                    </button>
+                  </div>
+                ) : null}
+
+                {showTripPicker && (
+                  <div className="journey-picker">
+                    <div className="journey-picker-header">
+                      <span>Select Journey for Route {breakdown.route_id || breakdown.wizard_assessment_data?.route}</span>
+                      <button onClick={() => setShowTripPicker(false)} className="journey-picker-close">&times;</button>
+                    </div>
+                    {loadingTrips && <div className="journey-picker-loading">Loading trips...</div>}
+                    {!loadingTrips && availableTrips.length === 0 && (
+                      <div className="journey-picker-empty">No scheduled trips found for this route</div>
+                    )}
+                    {!loadingTrips && availableTrips.length > 0 && (
+                      <div className="journey-picker-list">
+                        {availableTrips.map((trip) => (
+                          <button
+                            key={trip.tripId}
+                            className={`journey-picker-item ${linkedTrip?.tripId === trip.tripId ? 'selected' : ''}`}
+                            onClick={() => handleTripSelect(trip)}
+                            disabled={savingTrip}
+                          >
+                            <span className="trip-time">{trip.departureTime?.substring(0, 5)}</span>
+                            <span className="trip-route">
+                              {trip.originStop || ''} &rarr; {trip.arrivalTime?.substring(0, 5) || ''} {trip.destStop || trip.headsign || ''}
+                            </span>
+                            <span className="trip-direction">{trip.directionId === 0 ? 'Outbound' : 'Inbound'}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -229,6 +229,109 @@ router.get('/active', async (req, res) => {
   }
 });
 
+// Helper: Batch-fetch the next scheduled trip for breakdowns with a linked trip_id
+// Uses turnaround inference (same route, opposite direction, departing after current trip arrives)
+async function batchFetchNextTrips(breakdowns) {
+  const withTrip = breakdowns.filter(b => b.trip_id && !b.next_trip_action);
+  if (withTrip.length === 0) return {};
+
+  const results = {}; // keyed by breakdown_id
+
+  for (const b of withTrip) {
+    try {
+      // Query A: Get current trip info (route, direction, service, arrival time)
+      const currentTripRows = await query(
+        `SELECT t.route_id, t.direction_id, t.service_id,
+                MAX(st.departure_time) as arrival_time
+         FROM gtfs_trips t
+         JOIN gtfs_stop_times st ON st.trip_id = t.trip_id
+         WHERE t.trip_id = ?
+         GROUP BY t.route_id, t.direction_id, t.service_id`,
+        [b.trip_id]
+      );
+
+      if (!currentTripRows || currentTripRows.length === 0) continue;
+      const current = currentTripRows[0];
+
+      // Determine day code filter from service_id
+      const now = new Date();
+      const dayOfWeek = now.getDay(); // 0=Sun, 6=Sat
+      let dayFilter;
+      if (dayOfWeek === 0) dayFilter = '%SU%';
+      else if (dayOfWeek === 6) dayFilter = '%SA%';
+      else dayFilter = '%MF%';
+
+      // Calculate time window: arrival_time to arrival_time + 90 minutes
+      const arrParts = current.arrival_time.split(':').map(Number);
+      const arrMins = arrParts[0] * 60 + arrParts[1];
+      const windowEnd = arrMins + 90;
+      const arrTimeStr = current.arrival_time;
+      const endHrs = Math.floor(windowEnd / 60);
+      const endMinsRem = windowEnd % 60;
+      const endTimeStr = `${String(endHrs).padStart(2, '0')}:${String(endMinsRem).padStart(2, '0')}:00`;
+
+      // Query B: Find next trip (opposite direction, after arrival, within 90min window)
+      const nextTripRows = await query(
+        `SELECT t.trip_id, t.trip_headsign, t.direction_id,
+                MIN(st.departure_time) as departure_time,
+                MAX(st.departure_time) as next_arrival_time
+         FROM gtfs_trips t
+         JOIN gtfs_stop_times st ON st.trip_id = t.trip_id
+         WHERE t.route_id = ?
+           AND t.direction_id != ?
+           AND t.service_id LIKE ?
+         GROUP BY t.trip_id, t.trip_headsign, t.direction_id
+         HAVING departure_time >= ? AND departure_time <= ?
+         ORDER BY departure_time ASC
+         LIMIT 1`,
+        [current.route_id, current.direction_id, dayFilter, arrTimeStr, endTimeStr]
+      );
+
+      if (!nextTripRows || nextTripRows.length === 0) continue;
+      const next = nextTripRows[0];
+
+      // Query C: Get origin/dest stop names for the next trip
+      const endpointRows = await query(
+        `SELECT sub.endpoint, s.stop_name
+         FROM (
+           SELECT st.stop_id, 'origin' as endpoint
+           FROM gtfs_stop_times st
+           WHERE st.trip_id = ?
+             AND st.stop_sequence = (SELECT MIN(st2.stop_sequence) FROM gtfs_stop_times st2 WHERE st2.trip_id = st.trip_id)
+           UNION ALL
+           SELECT st.stop_id, 'dest' as endpoint
+           FROM gtfs_stop_times st
+           WHERE st.trip_id = ?
+             AND st.stop_sequence = (SELECT MAX(st2.stop_sequence) FROM gtfs_stop_times st2 WHERE st2.trip_id = st.trip_id)
+         ) sub
+         JOIN gtfs_stops s ON sub.stop_id = s.stop_id`,
+        [next.trip_id, next.trip_id]
+      );
+
+      let originStop = null, destStop = null;
+      for (const row of (endpointRows || [])) {
+        if (row.endpoint === 'origin') originStop = row.stop_name;
+        if (row.endpoint === 'dest') destStop = row.stop_name;
+      }
+
+      results[b.breakdown_id] = {
+        tripId: next.trip_id,
+        headsign: next.trip_headsign || 'Unknown',
+        departureTime: next.departure_time,
+        arrivalTime: next.next_arrival_time,
+        originStop,
+        destStop,
+        directionId: next.direction_id
+      };
+    } catch (err) {
+      console.error(`Next trip lookup failed for breakdown ${b.breakdown_id}:`, err.message);
+      // Continue to next breakdown - don't fail the batch
+    }
+  }
+
+  return results;
+}
+
 // GET /api/breakdowns/live - Get active breakdowns for dashboards
 router.get('/live', async (req, res) => {
   try {
@@ -243,6 +346,14 @@ router.get('/live', async (req, res) => {
     `);
 
     console.log(`✅ /live endpoint: Returning ${breakdowns?.length || 0} active breakdowns`);
+
+    // Batch-fetch next trip data for breakdowns with linked trips
+    let nextTripMap = {};
+    try {
+      nextTripMap = await batchFetchNextTrips(breakdowns);
+    } catch (ntErr) {
+      console.error('Non-fatal: batchFetchNextTrips failed:', ntErr.message);
+    }
 
     // Additional processing for dashboard compatibility
     const formattedBreakdowns = breakdowns.map(b => {
@@ -334,6 +445,14 @@ router.get('/live', async (req, res) => {
 
         // Operational flags
         secured_mileage: b.secured_mileage || false,
+
+        // GTFS trip link
+        trip_id: b.trip_id || null,
+        block_id: b.block_id || null,
+
+        // Next trip countdown alert
+        next_trip: nextTripMap[b.breakdown_id] || null,
+        next_trip_action: b.next_trip_action || null,
 
         // Wizard assessment data (for frontend to access additional context)
         wizard_assessment_data: b.wizard_assessment_data || null,
@@ -615,18 +734,49 @@ router.put('/:id', async (req, res) => {
       updated_at: toMySQLDatetime()
     };
 
-    await update('breakdowns', { id: req.params.id }, updateData);
+    // Support lookup by numeric id OR breakdown_id (BD-YYYY-NNNNN)
+    const isBreakdownId = req.params.id.startsWith('BD-');
+    const lookupField = isBreakdownId ? 'breakdown_id' : 'id';
+
+    await update('breakdowns', { [lookupField]: req.params.id }, updateData);
 
     // Fetch the updated breakdown
     const { data, error } = await from('breakdowns')
       .select('*')
-      .eq('id', req.params.id)
+      .eq(lookupField, req.params.id)
       .single();
 
     if (error) throw error;
 
     if (!data) {
       return res.status(404).json({ error: 'Breakdown not found' });
+    }
+
+    // If a next_trip_action was set and lost_trip_details provided, persist to breakdown_lost_trips
+    if (req.body.next_trip_action && req.body.lost_trip_details) {
+      try {
+        const ltd = req.body.lost_trip_details;
+        await insert('breakdown_lost_trips', {
+          breakdown_id: data.breakdown_id,
+          fleet_no: data.fleet_no || null,
+          trip_id: ltd.trip_id || null,
+          route_id: ltd.route_id || null,
+          direction_id: ltd.direction_id ?? null,
+          departure_time: ltd.departure_time || null,
+          arrival_time: ltd.arrival_time || null,
+          origin_stop: ltd.origin_stop || null,
+          dest_stop: ltd.dest_stop || null,
+          headsign: ltd.headsign || null,
+          action: req.body.next_trip_action,
+          supervisor_badge: data.supervisor_badge || null,
+          depot: data.depot || null,
+          created_at: toMySQLDatetime()
+        });
+        console.log(`📋 Lost trip recorded for ${data.breakdown_id}: action=${req.body.next_trip_action}`);
+      } catch (lostTripError) {
+        console.error('⚠️ Failed to record lost trip:', lostTripError.message);
+        // Non-fatal - don't fail the main request
+      }
     }
 
     // Transform breakdown for frontend compatibility
@@ -1255,7 +1405,11 @@ router.post('/from-wizard', async (req, res) => {
       engineering_required = false,
       replacement_vehicle_required = false,
       secured_mileage = false,
-      not_in_service = false
+      not_in_service = false,
+
+      // GTFS trip linking (Phase 2)
+      trip_id,
+      block_id
     } = req.body;
 
     // Check for duplicate submissions (same vehicle + supervisor within last 10 seconds)
@@ -1353,6 +1507,10 @@ router.post('/from-wizard', async (req, res) => {
       breakdown_source: 'wizard',
       created_at: toMySQLDatetime()
     };
+
+    // Add GTFS trip linking if provided
+    if (trip_id) breakdownData.trip_id = trip_id;
+    if (block_id) breakdownData.block_id = block_id;
 
     // Add coordinates if provided
     if (location_coords && location_coords.lat && location_coords.lng) {
@@ -1943,6 +2101,34 @@ router.post('/resolve', async (req, res) => {
     }
 
     console.log(`✅ Breakdown ${breakdown_id} marked as resolved`);
+
+    // Fix 3: Auto-recalculate mileage with actual downtime now that we have resolved_at
+    if (breakdown.route_id || breakdown.wizard_assessment_data?.route) {
+      try {
+        const routeId = breakdown.route_id || breakdown.wizard_assessment_data?.route;
+        const createdAt = new Date(breakdown.created_at);
+        const actualResolvedAt = new Date(resolvedAt);
+        const actualDowntimeMinutes = Math.ceil((actualResolvedAt - createdAt) / (1000 * 60));
+
+        const mileageResult = await calculateMileageLost({
+          routeId,
+          lat: breakdown.location_lat,
+          lng: breakdown.location_lng,
+          estimatedDowntimeMinutes: actualDowntimeMinutes,
+          breakdownStartTime: breakdown.created_at,
+        });
+
+        if (mileageResult.success) {
+          await update('breakdowns', {
+            estimated_mileage_lost: mileageResult.mileageLost.totalMiles,
+            mileage_calculation_data: JSON.stringify(mileageResult)
+          }, { breakdown_id });
+          console.log(`📏 Mileage recalculated on resolution for ${breakdown_id}: ${mileageResult.mileageLost.totalMiles} miles (${actualDowntimeMinutes}min actual downtime)`);
+        }
+      } catch (mileageError) {
+        console.error(`⚠️ Non-fatal: Mileage recalculation failed for ${breakdown_id}:`, mileageError.message);
+      }
+    }
 
     // Log activity
     await activityLogger.logActivity({

@@ -41,6 +41,8 @@ const ALLOWED_TABLES = new Set([
   'gtfs_stops',
   'gtfs_trips',
   'gtfs_stop_times',
+  'gtfs_shapes',
+  'gtfs_route_distances',
   'gtfs_import_log',
   'login_analytics',
   'system_settings',
@@ -55,7 +57,8 @@ const ALLOWED_TABLES = new Set([
   'handover_breakdowns',
   'duty_audit_log',
   'duty_notes',
-  'route_coverage_analysis'
+  'route_coverage_analysis',
+  'breakdown_lost_trips'
 ]);
 
 /**

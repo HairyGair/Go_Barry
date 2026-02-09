@@ -1762,4 +1762,94 @@ router.get('/coverage-alert', async (req, res) => {
   }
 });
 
+// GET /api/analytics/lost-trips - Lost trip pattern analysis
+// Returns total count, breakdown by route, by depot, and recent lost trips
+router.get('/lost-trips', async (req, res) => {
+  try {
+    const { period = 'today' } = req.query;
+
+    // Calculate date range
+    let startDate = new Date();
+    switch (period) {
+      case 'week':
+        startDate.setDate(startDate.getDate() - 7);
+        break;
+      case 'month':
+        startDate.setMonth(startDate.getMonth() - 1);
+        break;
+      default: // today
+        startDate.setHours(0, 0, 0, 0);
+    }
+
+    // Total count
+    const totalRows = await query(
+      'SELECT COUNT(*) as total FROM breakdown_lost_trips WHERE created_at >= ?',
+      [startDate]
+    );
+    const total = totalRows[0]?.total || 0;
+
+    // Breakdown by route (which routes lose the most trips)
+    const byRoute = await query(
+      `SELECT route_id, COUNT(*) as lost_count
+       FROM breakdown_lost_trips
+       WHERE created_at >= ? AND route_id IS NOT NULL
+       GROUP BY route_id
+       ORDER BY lost_count DESC
+       LIMIT 20`,
+      [startDate]
+    );
+
+    // Breakdown by depot
+    const byDepot = await query(
+      `SELECT depot, COUNT(*) as lost_count
+       FROM breakdown_lost_trips
+       WHERE created_at >= ? AND depot IS NOT NULL
+       GROUP BY depot
+       ORDER BY lost_count DESC`,
+      [startDate]
+    );
+
+    // Recent lost trips (last 20)
+    const recent = await query(
+      `SELECT * FROM breakdown_lost_trips
+       WHERE created_at >= ?
+       ORDER BY created_at DESC
+       LIMIT 20`,
+      [startDate]
+    );
+
+    res.json({
+      success: true,
+      period,
+      total,
+      byRoute,
+      byDepot,
+      recent,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error fetching lost trips analytics:', error);
+
+    // Graceful degradation if table doesn't exist yet
+    const errMsg = error.message || '';
+    if (errMsg.includes("doesn't exist") || error.code === 'ER_NO_SUCH_TABLE') {
+      return res.json({
+        success: true,
+        period: req.query.period || 'today',
+        total: 0,
+        byRoute: [],
+        byDepot: [],
+        recent: [],
+        message: 'Lost trips table not yet created - apply migration 029',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch lost trips analytics'
+    });
+  }
+});
+
 export default router;
