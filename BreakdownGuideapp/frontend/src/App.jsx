@@ -29,9 +29,6 @@ import DutySelectionModal from './components/DutySelectionModal.jsx'
 import DutyIndicator from './components/DutyIndicator.jsx'
 import WelcomeMessage from './components/WelcomeMessage.jsx'
 
-// Import Modern Header Component
-import ModernAppHeader from './components/ModernAppHeader.jsx'
-
 // Import Minimal User Menu (floating dropdown in top-right)
 import MinimalUserMenu from './components/MinimalUserMenu.jsx'
 
