@@ -27,7 +27,7 @@ const DEFAULT_SUPERVISORS = [
     },
     {
         id: 'supervisor-003',
-        name: 'Control Room',
+        name: 'Display',
         email: 'control@example.com',
         depot: 'All Depots',
         role: 'supervisor',

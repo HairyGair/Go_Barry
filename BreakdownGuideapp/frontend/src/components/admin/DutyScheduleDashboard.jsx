@@ -738,7 +738,7 @@ const DutyScheduleDashboard = () => {
             onChange={(e) => setSelectedDepot(e.target.value)}
           >
             <option value="">All Depots</option>
-            <option value="SDC">SDC</option>
+            <option value="SDC">Operations</option>
             <option value="Washington">Washington</option>
             <option value="Riverside">Riverside</option>
             <option value="Consett">Consett</option>

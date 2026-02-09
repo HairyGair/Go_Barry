@@ -68,8 +68,8 @@ const ModernAppHeader = ({
   // Keyboard shortcuts data
   const shortcuts = [
     { key: 'Alt+1', description: 'Go to Breakdown Guide' },
-    { key: 'Alt+2', description: 'Go to SDC Operations' },
-    { key: 'Alt+3', description: 'Go to Control Room' },
+    { key: 'Alt+2', description: 'Go to Operations' },
+    { key: 'Alt+3', description: 'Go to Display' },
     { key: 'Alt+4', description: 'Go to Engineering' },
     { key: 'Alt+5', description: 'Go to Fleet Intelligence' },
     { key: 'Alt+6', description: 'Go to Management' },
@@ -92,10 +92,10 @@ const ModernAppHeader = ({
       // Custom labels for known routes
       if (segment === 'breakdown-guide') label = 'Breakdown Guide';
       if (segment === 'dashboards') label = 'Dashboards';
-      if (segment === 'sdc') label = 'SDC Operations';
+      if (segment === 'sdc') label = 'Operations';
       if (segment === 'engineering') label = 'Engineering';
       if (segment === 'display') label = 'Yard Display';
-      if (segment === 'control-room') label = 'Control Room';
+      if (segment === 'control-room') label = 'Display';
       if (segment === 'management') label = 'Management';
       if (segment === 'fleet-defects') label = 'Fleet Defects';
       if (segment === 'fleet-intelligence') label = 'Fleet Intelligence';
@@ -126,12 +126,12 @@ const ModernAppHeader = ({
   // Quick actions for command palette
   const quickActions = [
     { id: 'new-breakdown', label: 'Report New Breakdown', icon: '🚨', shortcut: 'Ctrl+N', action: () => navigate('/breakdown-guide') },
-    { id: 'view-dashboard', label: 'Control Room Display', icon: '📺', shortcut: 'Alt+D', action: () => navigate('/dashboards/control-room') },
+    { id: 'view-dashboard', label: 'Display', icon: '📺', shortcut: 'Alt+D', action: () => navigate('/dashboards/control-room') },
     { id: 'engineering', label: 'Engineering Dashboard', icon: '🔧', shortcut: 'Alt+4', action: () => navigate('/dashboards/engineering') },
     { id: 'yard-display', label: 'Open Yard Display', icon: '🖥️', shortcut: 'Alt+Y', action: () => window.open('/dashboards/engineering/display', '_blank') },
     { id: 'fleet-status', label: 'Fleet Intelligence', icon: '📊', shortcut: 'Alt+F', action: () => navigate('/fleet-intelligence') },
     { id: 'recent-assessments', label: 'Recent Assessments', icon: '📋', shortcut: 'Alt+R', action: () => navigate('/breakdown-guide/history') },
-    { id: 'sdc-operations', label: 'SDC Control Centre', icon: '🎯', shortcut: 'Alt+S', action: () => navigate('/dashboards/sdc') },
+    { id: 'sdc-operations', label: 'Operations Centre', icon: '🎯', shortcut: 'Alt+S', action: () => navigate('/dashboards/sdc') },
     { id: 'emergency-protocol', label: 'Emergency Protocol', icon: '⚠️', shortcut: 'Ctrl+E', action: () => alert('Emergency Protocol Activated') },
     { id: 'reports', label: 'Generate Report', icon: '📑', shortcut: 'Alt+G', action: () => navigate('/dashboards/management/reports'), comingSoon: true },
   ];
@@ -155,30 +155,30 @@ const ModernAppHeader = ({
     },
     {
       path: '/dashboards/control-room',
-      label: 'Control Room',
-      fullLabel: 'Control Room Display',
+      label: 'Display',
+      fullLabel: 'Display',
       icon: '📺',
       color: '#22c55e',
       description: 'Large screen monitoring',
       priority: 2,
       stats: { label: 'Today', value: liveStats.today },
       quickLinks: [
-        { path: '/dashboards/control-room', label: 'Control Room' },
-        { path: '/dashboards/sdc', label: 'SDC Operations' },
+        { path: '/dashboards/control-room', label: 'Display' },
+        { path: '/dashboards/sdc', label: 'Operations' },
         { path: '/dashboards/engineering', label: 'Engineering' }
       ]
     },
     {
       path: '/dashboards/sdc',
-      label: 'SDC',
-      fullLabel: 'SDC Operations',
+      label: 'Ops',
+      fullLabel: 'Operations',
       icon: '🎯',
       color: '#3b82f6',
-      description: 'Control centre',
+      description: 'Operations dashboard',
       priority: 3,
       stats: { label: 'On Route', value: liveStats.onRoute },
       quickLinks: [
-        { path: '/dashboards/sdc', label: 'Control Centre' },
+        { path: '/dashboards/sdc', label: 'Operations' },
         { path: '/dashboards/sdc/dispatch', label: 'Dispatch' },
         { path: '/dashboards/sdc/alerts', label: 'Alerts' }
       ]
@@ -655,7 +655,7 @@ const ModernAppHeader = ({
                       <div className="profile-details">
                         <h4>{currentUser?.name || supervisorData?.name || 'User'}</h4>
                         <p>{currentUser?.email || supervisorData?.email || 'user@example.com'}</p>
-                        <span className="profile-badge">{currentUser?.depot || supervisorData?.depot || 'SDC'}</span>
+                        <span className="profile-badge">{currentUser?.depot || supervisorData?.depot || 'Operations'}</span>
                       </div>
                     </div>
                     

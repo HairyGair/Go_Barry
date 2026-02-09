@@ -95,7 +95,7 @@ const BreakdownGuideCompletion = ({
           supervisor_badge: supervisorBadge,
           decision: decision,
           wizard_type: wizardType,
-          message: `Redirecting to SDC Dashboard after ${decision} decision`,
+          message: `Redirecting to Operations Dashboard after ${decision} decision`,
           source: 'breakdown_guide_completion',
           timestamp: new Date().toISOString()
         })
@@ -157,7 +157,7 @@ const BreakdownGuideCompletion = ({
           </div>
 
           <div className="redirect-message">
-            <p>Redirecting to SDC Dashboard in <strong>{countdown}</strong> seconds...</p>
+            <p>Redirecting to Operations Dashboard in <strong>{countdown}</strong> seconds...</p>
             <p className="redirect-note">Your breakdown will be highlighted for easy identification</p>
           </div>
 

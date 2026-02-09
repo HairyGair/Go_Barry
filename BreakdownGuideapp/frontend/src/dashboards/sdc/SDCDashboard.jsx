@@ -1524,7 +1524,7 @@ const SDCDashboard = () => {
   };
 
   return (
-    <DashboardLayout title="SDC Operations Centre" icon="🎯">
+    <DashboardLayout title="Operations Centre" icon="🎯">
       <div className="sdc-dashboard">
       {/* Screen Flash Overlay for Critical Alerts */}
       {screenFlash && (

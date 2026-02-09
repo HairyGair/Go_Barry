@@ -573,7 +573,7 @@ const AdminDutyAudit = () => {
                   className="audit-select"
                 >
                   <option value="">All Depots</option>
-                  <option value="SDC">SDC</option>
+                  <option value="SDC">Operations</option>
                   <option value="Riverside">Riverside</option>
                   <option value="Consett">Consett</option>
                   <option value="Deptford">Deptford</option>

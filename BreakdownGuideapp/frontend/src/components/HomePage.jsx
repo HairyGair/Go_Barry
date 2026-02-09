@@ -291,7 +291,7 @@ const HomePage = ({ onStatsChange }) => {
                     <path d="M12 6v6l4 2"/>
                   </svg>
                 </div>
-                <span className="hp-action-title">SDC Operations</span>
+                <span className="hp-action-title">Operations</span>
                 <span className="hp-action-desc">Service Delivery</span>
               </button>
 
@@ -312,7 +312,7 @@ const HomePage = ({ onStatsChange }) => {
                     <path d="M8 21h8M12 17v4"/>
                   </svg>
                 </div>
-                <span className="hp-action-title">Control Room</span>
+                <span className="hp-action-title">Display</span>
                 <span className="hp-action-desc">Display</span>
               </button>
 

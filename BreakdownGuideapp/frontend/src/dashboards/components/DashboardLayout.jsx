@@ -88,7 +88,7 @@ const DashboardLayout = ({ children, title, icon, breakdownCount, criticalCount,
           onMouseLeave={(e) => e.currentTarget.style.color = theme.colors.textSecondary}
         >
           <span style={{ fontSize: '20px', marginBottom: '4px' }}>📡</span>
-          <span>SDC</span>
+          <span>Ops</span>
         </Link>
         
         <Link 
@@ -224,7 +224,7 @@ const DashboardLayout = ({ children, title, icon, breakdownCount, criticalCount,
               className="theme-btn theme-btn-primary"
               style={{ width: '100%' }}
             >
-              📞 Contact SDC
+              📞 Contact Ops
             </button>
             <button 
               className="theme-btn theme-btn-secondary"

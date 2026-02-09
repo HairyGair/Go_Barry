@@ -26,7 +26,7 @@ const DashboardSettings = ({ settings, updateSetting }) => {
             onChange={(e) => updateSetting('default_dashboard', e.target.value)}
           >
             <option value="breakdown-guide">🔧 Breakdown Guide</option>
-            <option value="sdc">📡 SDC Operations</option>
+            <option value="sdc">📡 Operations</option>
             <option value="engineering">⚙️ Engineering</option>
             <option value="management">📊 Management</option>
           </select>

@@ -33,13 +33,13 @@ const MinimalUserMenu = ({ currentDuty, onDutyClick }) => {
     },
     {
       path: '/dashboards/sdc',
-      label: 'SDC Operations',
+      label: 'Operations',
       icon: '🎯',
-      description: 'Control centre'
+      description: 'Operations dashboard'
     },
     {
       path: '/dashboards/control-room',
-      label: 'Control Room',
+      label: 'Display',
       icon: '📺',
       description: 'Large screen display'
     },

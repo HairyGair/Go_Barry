@@ -105,7 +105,7 @@ const MaintenancePage = () => {
           <div className="contact-details">
             <div className="contact-item">
               <span className="contact-icon">📞</span>
-              <span className="contact-value">SDC Operations</span>
+              <span className="contact-value">Operations</span>
             </div>
             <div className="contact-item">
               <span className="contact-icon">👤</span>

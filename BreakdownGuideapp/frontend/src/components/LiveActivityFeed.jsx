@@ -230,7 +230,7 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
         color: '#111827',
         bgColor: '#06b6d4',
         gradient: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
-        label: 'SDC',
+        label: 'OPS',
         category: 'sdc'
       };
     }

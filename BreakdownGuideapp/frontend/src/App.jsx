@@ -186,7 +186,7 @@ const Navigation = ({ hide = false, activeBreakdowns = 0, currentDuty, onDutyCli
                     onClick={() => setIsMenuOpen(false)}
                   >
                     <span className="nav-icon">📺</span>
-                    <span>Control Room</span>
+                    <span>Display</span>
                     {activeBreakdowns > 0 && (
                       <span className="nav-badge">{activeBreakdowns}</span>
                     )}
@@ -219,7 +219,7 @@ const Navigation = ({ hide = false, activeBreakdowns = 0, currentDuty, onDutyCli
                     onClick={() => setIsMenuOpen(false)}
                   >
                     <span className="nav-icon">📞</span>
-                    <span>SDC Operations</span>
+                    <span>Operations</span>
                   </Link>
                 </li>
               </ul>
