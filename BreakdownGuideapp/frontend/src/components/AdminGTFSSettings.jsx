@@ -25,6 +25,9 @@ const AdminGTFSSettings = () => {
   const [loadingStats, setLoadingStats] = useState(false);
   const fileInputRef = useRef(null);
 
+  const [computingDistances, setComputingDistances] = useState(false);
+  const [computeResults, setComputeResults] = useState(null);
+
   // GTFS file type configurations
   const gtfsTypes = {
     routes: {
@@ -34,7 +37,9 @@ const AdminGTFSSettings = () => {
       description: 'Bus route definitions (route_id, route_short_name, route_long_name)',
       requiredColumns: ['route_id', 'route_short_name'],
       optionalColumns: ['route_long_name', 'route_type', 'route_color', 'route_text_color'],
-      example: 'route_id,route_short_name,route_long_name,route_type\n1,X1,Newcastle to Middlesbrough,3'
+      example: 'route_id,route_short_name,route_long_name,route_type\n1,X1,Newcastle to Middlesbrough,3',
+      statsKey: 'routes',
+      statsUpdatedKey: 'routesLastUpdated'
     },
     stops: {
       label: 'Stops',
@@ -43,7 +48,9 @@ const AdminGTFSSettings = () => {
       description: 'Bus stop locations (stop_id, stop_name, stop_lat, stop_lon)',
       requiredColumns: ['stop_id', 'stop_name', 'stop_lat', 'stop_lon'],
       optionalColumns: ['stop_code', 'stop_desc', 'zone_id', 'stop_url'],
-      example: 'stop_id,stop_name,stop_lat,stop_lon\n3200YYA00541,Eldon Square,-1.614456,54.975455'
+      example: 'stop_id,stop_name,stop_lat,stop_lon\n3200YYA00541,Eldon Square,-1.614456,54.975455',
+      statsKey: 'stops',
+      statsUpdatedKey: 'stopsLastUpdated'
     },
     trips: {
       label: 'Trips',
@@ -52,7 +59,9 @@ const AdminGTFSSettings = () => {
       description: 'Trip schedules (trip_id, route_id, service_id, direction_id)',
       requiredColumns: ['trip_id', 'route_id', 'service_id'],
       optionalColumns: ['trip_headsign', 'direction_id', 'block_id', 'shape_id'],
-      example: 'trip_id,route_id,service_id,trip_headsign,direction_id\n123456,1,WD,Middlesbrough,0'
+      example: 'trip_id,route_id,service_id,trip_headsign,direction_id\n123456,1,WD,Middlesbrough,0',
+      statsKey: 'trips',
+      statsUpdatedKey: 'tripsLastUpdated'
     },
     'stop-times': {
       label: 'Stop Times',
@@ -61,7 +70,20 @@ const AdminGTFSSettings = () => {
       description: 'Stop timing data (trip_id, stop_id, arrival_time, departure_time)',
       requiredColumns: ['trip_id', 'stop_id', 'arrival_time', 'departure_time', 'stop_sequence'],
       optionalColumns: ['pickup_type', 'drop_off_type', 'timepoint'],
-      example: 'trip_id,stop_id,arrival_time,departure_time,stop_sequence\n123456,3200YYA00541,08:00:00,08:00:00,1'
+      example: 'trip_id,stop_id,arrival_time,departure_time,stop_sequence\n123456,3200YYA00541,08:00:00,08:00:00,1',
+      statsKey: 'stopTimes',
+      statsUpdatedKey: 'stopTimesLastUpdated'
+    },
+    shapes: {
+      label: 'Shapes',
+      icon: '📐',
+      endpoint: '/api/admin/gtfs/shapes',
+      description: 'Route shape points for accurate distance calculation (shape_id, shape_pt_lat, shape_pt_lon, shape_pt_sequence)',
+      requiredColumns: ['shape_id', 'shape_pt_lat', 'shape_pt_lon', 'shape_pt_sequence'],
+      optionalColumns: ['shape_dist_traveled'],
+      example: 'shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\nshape_21_outbound,54.9783,-1.6178,1,0.0',
+      statsKey: 'shapes',
+      statsUpdatedKey: 'shapesLastUpdated'
     }
   };
 
@@ -280,6 +302,32 @@ const AdminGTFSSettings = () => {
     }
   };
 
+  // Compute route distances from shapes
+  const handleComputeDistances = async () => {
+    setComputingDistances(true);
+    setComputeResults(null);
+    setError(null);
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
+      const response = await fetch(`${apiUrl}/api/admin/gtfs/compute-distances`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}'
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || data.message || 'Compute failed');
+      }
+      setComputeResults(data);
+      loadStatistics(activeTab);
+    } catch (err) {
+      setError(err.message || 'Failed to compute route distances');
+    } finally {
+      setComputingDistances(false);
+    }
+  };
+
   // Format file size
   const formatFileSize = (bytes) => {
     if (bytes < 1024) return `${bytes} B`;
@@ -325,20 +373,20 @@ const AdminGTFSSettings = () => {
       </div>
 
       {/* Current Statistics */}
-      {statistics && !loadingStats && (
+      {statistics?.stats && !loadingStats && (
         <div className="gtfs-statistics">
           <div className="stat-card">
             <div className="stat-label">Total Records</div>
-            <div className="stat-value">{statistics.totalRecords?.toLocaleString() || 0}</div>
+            <div className="stat-value">{(statistics.stats[currentType.statsKey] || 0).toLocaleString()}</div>
           </div>
           <div className="stat-card">
             <div className="stat-label">Last Updated</div>
-            <div className="stat-value">{formatDate(statistics.lastUpdated)}</div>
+            <div className="stat-value">{formatDate(statistics.stats[currentType.statsUpdatedKey])}</div>
           </div>
-          {statistics.fileSize && (
+          {activeTab === 'shapes' && statistics.stats.routeDistances != null && (
             <div className="stat-card">
-              <div className="stat-label">Database Size</div>
-              <div className="stat-value">{formatFileSize(statistics.fileSize)}</div>
+              <div className="stat-label">Route Distances Cached</div>
+              <div className="stat-value">{statistics.stats.routeDistances.toLocaleString()}</div>
             </div>
           )}
         </div>
@@ -575,9 +623,63 @@ const AdminGTFSSettings = () => {
           {results.success && results.failureCount === 0 && (
             <div className="success-message">
               <p>
-                🎉 All {results.successCount} {currentType.label.toLowerCase()} records were imported successfully!
+                🎉 All {results.successCount || results.processedCount || 0} {currentType.label.toLowerCase()} records were imported successfully!
                 {results.updatedCount > 0 && ` ${results.updatedCount} existing records were updated.`}
               </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Compute Distances - only shown on Shapes tab */}
+      {activeTab === 'shapes' && (
+        <div className="gtfs-info-card compute-distances-section">
+          <div className="info-header">
+            <span className="info-icon">📏</span>
+            <h3>Compute Route Distances</h3>
+          </div>
+          <p className="info-description">
+            After importing shapes, compute accurate road distances for all routes. This builds a cache used for BSOG mileage loss calculations. Requires shapes and trips (with shape_id) to be imported first.
+          </p>
+          <button
+            className="btn-upload"
+            onClick={handleComputeDistances}
+            disabled={computingDistances}
+            type="button"
+          >
+            {computingDistances ? 'Computing...' : '📏 Compute Route Distances'}
+          </button>
+
+          {computeResults && (
+            <div className="import-results" style={{ marginTop: '1rem' }}>
+              <div className={`results-header ${computeResults.success ? 'success' : 'error'}`}>
+                <h3>
+                  {computeResults.success ? '✅ Distances Computed' : '❌ Computation Failed'}
+                </h3>
+              </div>
+              {computeResults.success && (
+                <div className="results-stats">
+                  <div className="stat-card success">
+                    <div className="stat-value">{computeResults.routesProcessed || 0}</div>
+                    <div className="stat-label">Route-Directions Processed</div>
+                  </div>
+                  <div className="stat-card">
+                    <div className="stat-value">{computeResults.totalRouteDirections || 0}</div>
+                    <div className="stat-label">Total Route-Directions</div>
+                  </div>
+                  {computeResults.errors > 0 && (
+                    <div className="stat-card error">
+                      <div className="stat-value">{computeResults.errors}</div>
+                      <div className="stat-label">Errors</div>
+                    </div>
+                  )}
+                </div>
+              )}
+              {!computeResults.success && computeResults.error && (
+                <div className="alert alert-error" style={{ marginTop: '0.5rem' }}>
+                  {computeResults.error}
+                </div>
+              )}
             </div>
           )}
         </div>

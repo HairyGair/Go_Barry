@@ -1,0 +1,260 @@
+/* TripsAtRiskPanel - Trips at Risk + Service Gaps + Last Bus Alerts */
+
+.tar-panel {
+  margin-top: 12px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 151, 167, 0.2);
+  background: linear-gradient(135deg, rgba(0, 30, 40, 0.03) 0%, rgba(0, 151, 167, 0.04) 100%);
+}
+
+.tar-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, rgba(0, 151, 167, 0.08) 0%, rgba(0, 188, 212, 0.05) 100%);
+  cursor: pointer;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  transition: background 0.2s;
+}
+
+.tar-toggle:hover {
+  background: linear-gradient(135deg, rgba(0, 151, 167, 0.14) 0%, rgba(0, 188, 212, 0.1) 100%);
+}
+
+.tar-toggle-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #00838F;
+}
+
+.tar-toggle-count {
+  background: #00838F;
+  color: white;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 700;
+}
+
+.tar-toggle-arrow {
+  font-size: 12px;
+  color: #00838F;
+  transition: transform 0.2s;
+}
+
+.tar-toggle-arrow.open {
+  transform: rotate(180deg);
+}
+
+/* Last Bus Alert Banner */
+.tar-last-bus-alert {
+  padding: 10px 14px;
+  background: linear-gradient(135deg, rgba(211, 47, 47, 0.12) 0%, rgba(211, 47, 47, 0.06) 100%);
+  border-bottom: 1px solid rgba(211, 47, 47, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  animation: tar-pulse 2s ease-in-out infinite;
+}
+
+@keyframes tar-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.tar-last-bus-icon {
+  font-size: 16px;
+}
+
+.tar-last-bus-text {
+  font-size: 12px;
+  font-weight: 700;
+  color: #D32F2F;
+  line-height: 1.3;
+}
+
+.tar-last-bus-text span {
+  display: block;
+  font-weight: 500;
+  font-size: 11px;
+  color: #c62828;
+  margin-top: 2px;
+}
+
+/* Service Gap Warning */
+.tar-gap-warning {
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.tar-gap-warning.tar-gap-critical {
+  background: linear-gradient(135deg, rgba(211, 47, 47, 0.1) 0%, rgba(211, 47, 47, 0.04) 100%);
+  color: #D32F2F;
+}
+
+.tar-gap-warning.tar-gap-warning-level {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(245, 158, 11, 0.04) 100%);
+  color: #E65100;
+}
+
+.tar-gap-warning.tar-gap-caution {
+  background: linear-gradient(135deg, rgba(25, 118, 210, 0.08) 0%, rgba(25, 118, 210, 0.03) 100%);
+  color: #1565C0;
+}
+
+.tar-gap-details {
+  font-weight: 400;
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+/* Direction Filter */
+.tar-direction-filter {
+  display: flex;
+  gap: 4px;
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.tar-dir-btn {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 151, 167, 0.3);
+  background: transparent;
+  font-size: 11px;
+  color: #555;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.tar-dir-btn.active {
+  background: #00838F;
+  color: white;
+  border-color: #00838F;
+}
+
+/* Trips Table */
+.tar-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.tar-table th {
+  padding: 6px 10px;
+  text-align: left;
+  font-weight: 600;
+  color: #555;
+  background: rgba(0, 0, 0, 0.03);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tar-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  vertical-align: middle;
+}
+
+.tar-table tr:hover {
+  background: rgba(0, 151, 167, 0.04);
+}
+
+.tar-time-cell {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-weight: 600;
+}
+
+.tar-time-cell.tar-urgent {
+  color: #D32F2F;
+}
+
+.tar-time-cell.tar-soon {
+  color: #E65100;
+}
+
+.tar-mins-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  min-width: 42px;
+}
+
+.tar-mins-badge.tar-urgent {
+  background: rgba(211, 47, 47, 0.12);
+  color: #D32F2F;
+}
+
+.tar-mins-badge.tar-soon {
+  background: rgba(245, 158, 11, 0.12);
+  color: #E65100;
+}
+
+.tar-mins-badge.tar-normal {
+  background: rgba(0, 151, 167, 0.08);
+  color: #00838F;
+}
+
+.tar-headsign {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tar-nearest-stop {
+  padding: 6px 14px;
+  font-size: 11px;
+  color: #777;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.tar-loading {
+  padding: 16px;
+  text-align: center;
+  font-size: 12px;
+  color: #999;
+}
+
+.tar-empty {
+  padding: 16px;
+  text-align: center;
+  font-size: 12px;
+  color: #999;
+}
+
+/* SDC Breakdown Card Last Bus Badge */
+.sdc-last-bus-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #D32F2F;
+  color: white;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  animation: tar-pulse 2s ease-in-out infinite;
+  margin-left: 6px;
+}

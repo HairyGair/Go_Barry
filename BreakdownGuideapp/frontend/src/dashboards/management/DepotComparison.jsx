@@ -8,9 +8,9 @@ const DepotComparison = ({ depotData }) => {
 
   const getPerformanceClass = (performance) => {
     switch(performance) {
-      case 'good': return 'performance-good';
-      case 'warning': return 'performance-warning';
-      case 'critical': return 'performance-critical';
+      case 'good': return 'dc-performance-good';
+      case 'warning': return 'dc-performance-warning';
+      case 'critical': return 'dc-performance-critical';
       default: return '';
     }
   };
@@ -24,91 +24,91 @@ const DepotComparison = ({ depotData }) => {
       case 'engineerEfficiency':
         return value >= 80 ? '#10b981' : value >= 70 ? '#f59e0b' : '#ef4444';
       default:
-        return '#6b7280';
+        return '#94A3B8';
     }
   };
 
   return (
-    <div className="depot-comparison">
+    <div className="dc-depot-comparison">
       <h3>Depot Performance Comparison</h3>
-      
-      <div className="depot-table">
-        <div className="table-header">
-          <div className="header-cell depot-name">Depot</div>
-          <div className="header-cell">Breakdowns</div>
-          <div className="header-cell">Avg Response</div>
-          <div className="header-cell">SLA %</div>
-          <div className="header-cell">Efficiency</div>
+
+      <div className="dc-depot-table">
+        <div className="dc-table-header">
+          <div className="dc-header-cell dc-depot-name">Depot</div>
+          <div className="dc-header-cell">Breakdowns</div>
+          <div className="dc-header-cell">Avg Response</div>
+          <div className="dc-header-cell">SLA %</div>
+          <div className="dc-header-cell">Efficiency</div>
         </div>
 
         {sortedDepots.map((depot, index) => (
-          <div key={depot.depot} className={`depot-row ${getPerformanceClass(depot.performance)}`}>
-            <div className="cell depot-name">
-              <span className="rank">#{index + 1}</span>
-              <span className="name">{depot.depot}</span>
-              <span className="fleet-size">({depot.fleetSize} vehicles)</span>
+          <div key={depot.depot} className={`dc-depot-row ${getPerformanceClass(depot.performance)}`}>
+            <div className="dc-cell dc-depot-name">
+              <span className="dc-rank">#{index + 1}</span>
+              <span className="dc-name">{depot.depot}</span>
+              <span className="dc-fleet-size">({depot.fleetSize} vehicles)</span>
             </div>
-            
-            <div className="cell metric">
-              <span className="value">{depot.breakdowns}</span>
-              <div className="mini-bar">
-                <div 
-                  className="mini-bar-fill"
-                  style={{ 
+
+            <div className="dc-cell dc-metric">
+              <span className="dc-value">{depot.breakdowns}</span>
+              <div className="dc-mini-bar">
+                <div
+                  className="dc-mini-bar-fill"
+                  style={{
                     width: `${(depot.breakdowns / 25) * 100}%`,
-                    backgroundColor: depot.breakdowns > 15 ? '#ef4444' : '#3b82f6'
+                    backgroundColor: depot.breakdowns > 15 ? '#ef4444' : '#0097A7'
                   }}
                 ></div>
               </div>
             </div>
-            
-            <div className="cell metric">
-              <span 
-                className="value" 
+
+            <div className="dc-cell dc-metric">
+              <span
+                className="dc-value"
                 style={{ color: getMetricColor('avgResponse', depot.avgResponse) }}
               >
                 {depot.avgResponse}m
               </span>
-              <div className="mini-bar">
-                <div 
-                  className="mini-bar-fill"
-                  style={{ 
+              <div className="dc-mini-bar">
+                <div
+                  className="dc-mini-bar-fill"
+                  style={{
                     width: `${(depot.avgResponse / 45) * 100}%`,
                     backgroundColor: getMetricColor('avgResponse', depot.avgResponse)
                   }}
                 ></div>
               </div>
             </div>
-            
-            <div className="cell metric">
-              <span 
-                className="value"
+
+            <div className="dc-cell dc-metric">
+              <span
+                className="dc-value"
                 style={{ color: getMetricColor('slaCompliance', depot.slaCompliance) }}
               >
                 {depot.slaCompliance}%
               </span>
-              <div className="mini-bar">
-                <div 
-                  className="mini-bar-fill"
-                  style={{ 
+              <div className="dc-mini-bar">
+                <div
+                  className="dc-mini-bar-fill"
+                  style={{
                     width: `${depot.slaCompliance}%`,
                     backgroundColor: getMetricColor('slaCompliance', depot.slaCompliance)
                   }}
                 ></div>
               </div>
             </div>
-            
-            <div className="cell metric">
-              <span 
-                className="value"
+
+            <div className="dc-cell dc-metric">
+              <span
+                className="dc-value"
                 style={{ color: getMetricColor('engineerEfficiency', depot.engineerEfficiency) }}
               >
                 {depot.engineerEfficiency}%
               </span>
-              <div className="mini-bar">
-                <div 
-                  className="mini-bar-fill"
-                  style={{ 
+              <div className="dc-mini-bar">
+                <div
+                  className="dc-mini-bar-fill"
+                  style={{
                     width: `${depot.engineerEfficiency}%`,
                     backgroundColor: getMetricColor('engineerEfficiency', depot.engineerEfficiency)
                   }}
@@ -119,83 +119,85 @@ const DepotComparison = ({ depotData }) => {
         ))}
       </div>
 
-      <div className="depot-summary">
-        <div className="summary-item">
-          <span className="label">Best Performing:</span>
-          <span className="value">{sortedDepots[0].depot}</span>
+      <div className="dc-depot-summary">
+        <div className="dc-summary-item">
+          <span className="dc-label">Best Performing:</span>
+          <span className="dc-summary-value">{sortedDepots[0].depot}</span>
         </div>
-        <div className="summary-item">
-          <span className="label">Needs Attention:</span>
-          <span className="value">{sortedDepots[sortedDepots.length - 1].depot}</span>
+        <div className="dc-summary-item">
+          <span className="dc-label">Needs Attention:</span>
+          <span className="dc-summary-value">{sortedDepots[sortedDepots.length - 1].depot}</span>
         </div>
       </div>
 
       <style jsx>{`
-        .depot-comparison {
-          background: white;
+        .dc-depot-comparison {
+          background: #141D2B;
           border-radius: 12px;
           padding: 20px;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+          font-family: 'Inter', sans-serif;
         }
 
-        h3 {
-          color: #1e3a8a;
+        .dc-depot-comparison h3 {
+          color: #0097A7;
           font-size: 20px;
           margin-bottom: 20px;
           font-weight: 600;
+          font-family: 'Outfit', sans-serif;
         }
 
-        .depot-table {
+        .dc-depot-table {
           display: flex;
           flex-direction: column;
           gap: 2px;
-          background: #f9fafb;
+          background: #0F1624;
           border-radius: 8px;
           overflow: hidden;
         }
 
-        .table-header {
+        .dc-table-header {
           display: grid;
           grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
-          background: #1e3a8a;
+          background: linear-gradient(135deg, #0097A7 0%, #00838F 100%);
           color: white;
           font-weight: 600;
           font-size: 13px;
         }
 
-        .header-cell {
+        .dc-header-cell {
           padding: 12px 15px;
           text-align: center;
         }
 
-        .header-cell.depot-name {
+        .dc-header-cell.dc-depot-name {
           text-align: left;
         }
 
-        .depot-row {
+        .dc-depot-row {
           display: grid;
           grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
-          background: white;
+          background: #141D2B;
           transition: all 0.2s;
         }
 
-        .depot-row:hover {
-          background: #f9fafb;
+        .dc-depot-row:hover {
+          background: #1E293B;
         }
 
-        .depot-row.performance-warning {
+        .dc-depot-row.dc-performance-warning {
           border-left: 4px solid #f59e0b;
         }
 
-        .depot-row.performance-critical {
+        .dc-depot-row.dc-performance-critical {
           border-left: 4px solid #ef4444;
         }
 
-        .depot-row.performance-good {
+        .dc-depot-row.dc-performance-good {
           border-left: 4px solid #10b981;
         }
 
-        .cell {
+        .dc-cell {
           padding: 12px 15px;
           display: flex;
           flex-direction: column;
@@ -204,94 +206,96 @@ const DepotComparison = ({ depotData }) => {
           position: relative;
         }
 
-        .cell.depot-name {
+        .dc-cell.dc-depot-name {
           flex-direction: row;
           gap: 8px;
           align-items: center;
           justify-content: flex-start;
         }
 
-        .rank {
+        .dc-rank {
           font-weight: 600;
-          color: #6b7280;
+          color: #94A3B8;
           font-size: 14px;
+          font-family: 'JetBrains Mono', monospace;
         }
 
-        .name {
+        .dc-name {
           font-weight: 600;
-          color: #1e3a8a;
+          color: #0097A7;
         }
 
-        .fleet-size {
+        .dc-fleet-size {
           font-size: 12px;
-          color: #9ca3af;
+          color: #64748B;
         }
 
-        .metric {
+        .dc-metric {
           gap: 4px;
         }
 
-        .value {
+        .dc-value {
           font-weight: 600;
           font-size: 15px;
           z-index: 1;
+          font-family: 'JetBrains Mono', monospace;
         }
 
-        .mini-bar {
+        .dc-mini-bar {
           width: 100%;
           height: 3px;
-          background: #f3f4f6;
+          background: #1E293B;
           border-radius: 2px;
           overflow: hidden;
           margin-top: 4px;
         }
 
-        .mini-bar-fill {
+        .dc-mini-bar-fill {
           height: 100%;
           transition: width 0.5s ease;
         }
 
-        .depot-summary {
+        .dc-depot-summary {
           display: flex;
           justify-content: space-between;
           margin-top: 20px;
           padding-top: 20px;
-          border-top: 1px solid #e5e7eb;
+          border-top: 1px solid #1E293B;
         }
 
-        .summary-item {
+        .dc-summary-item {
           display: flex;
           flex-direction: column;
           gap: 4px;
         }
 
-        .summary-item .label {
+        .dc-summary-item .dc-label {
           font-size: 13px;
-          color: #6b7280;
+          color: #94A3B8;
         }
 
-        .summary-item .value {
+        .dc-summary-item .dc-summary-value {
           font-size: 16px;
           font-weight: 600;
-          color: #1e3a8a;
+          color: #0097A7;
         }
 
         @media (max-width: 768px) {
-          .table-header,
-          .depot-row {
+          .dc-table-header,
+          .dc-depot-row {
             grid-template-columns: 2fr 1fr 1fr;
           }
 
-          .header-cell:nth-child(4),
-          .header-cell:nth-child(5),
-          .cell:nth-child(4),
-          .cell:nth-child(5) {
+          .dc-header-cell:nth-child(4),
+          .dc-header-cell:nth-child(5),
+          .dc-cell:nth-child(4),
+          .dc-cell:nth-child(5) {
             display: none;
           }
         }
 
         @media (max-width: 480px) {
-          .fleet-size {
+          .dc-fleet-size {
             display: none;
           }
         }

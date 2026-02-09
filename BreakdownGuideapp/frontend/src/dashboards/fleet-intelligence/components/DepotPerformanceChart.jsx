@@ -1,56 +1,16 @@
 /**
  * DepotPerformanceChart Component
+ * Ocean Teal themed depot performance chart with pure CSS bars
  *
- * Horizontal bar chart showing defect rates per depot.
- * Features: Sorted by severity, color-coded bars, depot comparison.
+ * Features:
+ * - Pure CSS horizontal bar chart (no Recharts dependency)
+ * - Inline SVG icons (no emoji)
+ * - Color-coded severity bars (high=red, medium=amber, low=green)
+ * - Sorted by defect count descending
+ * - Default depot list with zero values if no data
  */
 
 import React, { useMemo } from 'react';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-} from 'recharts';
-
-// Depot colors
-const DEPOT_COLORS = {
-  'Washington': '#E30613',
-  'Riverside': '#003B5C',
-  'Percy Main': '#10B981',
-  'Deptford': '#F59E0B',
-  'Consett': '#8B5CF6',
-  'Chester-le-Street': '#EC4899',
-  'default': '#64748B',
-};
-
-// Custom tooltip
-const CustomTooltip = ({ active, payload }) => {
-  if (active && payload && payload.length) {
-    const data = payload[0].payload;
-    return (
-      <div className="chart-tooltip">
-        <p className="tooltip-title">{data.name || data.depot}</p>
-        <p className="tooltip-value">
-          <span className="tooltip-label">Defects:</span>
-          <span className="tooltip-number">{data.defect_count || data.value || 0}</span>
-        </p>
-        {data.trend !== undefined && (
-          <p className="tooltip-trend">
-            <span className={data.trend >= 0 ? 'trend-up' : 'trend-down'}>
-              {data.trend >= 0 ? '↑' : '↓'} {Math.abs(data.trend).toFixed(1)}% vs last week
-            </span>
-          </p>
-        )}
-      </div>
-    );
-  }
-  return null;
-};
 
 const DepotPerformanceChart = ({ depots = [], loading }) => {
   // Process and sort depot data
@@ -58,12 +18,12 @@ const DepotPerformanceChart = ({ depots = [], loading }) => {
     if (!depots || depots.length === 0) {
       // Default depots with zero values
       return [
-        { name: 'Washington', value: 0 },
-        { name: 'Riverside', value: 0 },
-        { name: 'Percy Main', value: 0 },
-        { name: 'Deptford', value: 0 },
-        { name: 'Consett', value: 0 },
-        { name: 'Chester-le-Street', value: 0 },
+        { name: 'Washington', value: 0, trend: 0 },
+        { name: 'Riverside', value: 0, trend: 0 },
+        { name: 'Percy Main', value: 0, trend: 0 },
+        { name: 'Deptford', value: 0, trend: 0 },
+        { name: 'Consett', value: 0, trend: 0 },
+        { name: 'Chester-le-Street', value: 0, trend: 0 },
       ];
     }
 
@@ -76,75 +36,93 @@ const DepotPerformanceChart = ({ depots = [], loading }) => {
       .sort((a, b) => b.value - a.value);
   }, [depots]);
 
-  // Calculate total
-  const totalDefects = chartData.reduce((sum, d) => sum + d.value, 0);
+  // Calculate max value for percentage width
+  const maxValue = useMemo(() => {
+    const max = Math.max(...chartData.map(d => d.value));
+    return max > 0 ? max : 1; // Avoid division by zero
+  }, [chartData]);
+
+  // Calculate total defects
+  const totalDefects = useMemo(() => {
+    return chartData.reduce((sum, d) => sum + d.value, 0);
+  }, [chartData]);
+
+  // Determine severity class based on value
+  const getSeverityClass = (value) => {
+    if (value >= 10) return 'fi__depot-bar-fill--high';
+    if (value >= 5) return 'fi__depot-bar-fill--medium';
+    return 'fi__depot-bar-fill--low';
+  };
 
   if (loading) {
     return (
-      <div className="fid-card depot-performance-chart">
-        <div className="panel-header">
-          <h3>🏭 Depot Performance</h3>
+      <div className="fi__card">
+        <div className="fi__card-header">
+          <h3 className="fi__card-title">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <polyline points="9 22 9 12 15 12 15 22" />
+            </svg>
+            Depot Performance
+          </h3>
         </div>
-        <div className="chart-loading">
-          <div className="loading-skeleton chart-skeleton"></div>
-        </div>
+        <div className="fi__skeleton fi__skeleton--chart"></div>
       </div>
     );
   }
 
   return (
-    <div className="fid-card depot-performance-chart">
-      <div className="panel-header">
-        <h3>🏭 Depot Performance</h3>
-        <span className="total-badge">{totalDefects} total</span>
+    <div className="fi__card">
+      <div className="fi__card-header">
+        <h3 className="fi__card-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9 22 9 12 15 12 15 22" />
+          </svg>
+          Depot Performance
+        </h3>
+        <span className="fi__card-badge fi__card-badge--count">
+          {totalDefects} total
+        </span>
       </div>
 
-      <div className="chart-container">
-        <ResponsiveContainer width="100%" height={180}>
-          <BarChart
-            data={chartData}
-            layout="vertical"
-            margin={{ top: 5, right: 20, left: 80, bottom: 5 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" horizontal={false} />
-            <XAxis
-              type="number"
-              stroke="#64748B"
-              tick={{ fill: '#94A3B8', fontSize: 10 }}
-              axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
-            />
-            <YAxis
-              type="category"
-              dataKey="name"
-              stroke="#64748B"
-              tick={{ fill: '#94A3B8', fontSize: 11 }}
-              axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
-              width={75}
-            />
-            <Tooltip content={<CustomTooltip />} />
-            <Bar dataKey="value" radius={[0, 4, 4, 0]} animationDuration={500}>
-              {chartData.map((entry, index) => (
-                <Cell
-                  key={`cell-${index}`}
-                  fill={DEPOT_COLORS[entry.name] || DEPOT_COLORS.default}
-                />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      <div className="depot-legend">
-        {chartData.slice(0, 3).map((depot, index) => (
-          <div key={index} className="depot-legend-item">
-            <span
-              className="depot-dot"
-              style={{ background: DEPOT_COLORS[depot.name] || DEPOT_COLORS.default }}
-            ></span>
-            <span className="depot-name">{depot.name}</span>
-            <span className="depot-count">{depot.value}</span>
+      <div className="fi__depot-chart">
+        {chartData.length === 0 || totalDefects === 0 ? (
+          <div className="fi__empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <p>No depot data available</p>
+            <p className="fi__empty-sub">Breakdown data will appear here when recorded</p>
           </div>
-        ))}
+        ) : (
+          <div className="fi__depot-bars">
+            {chartData.map((depot, index) => {
+              const widthPercent = maxValue > 0 ? (depot.value / maxValue) * 100 : 0;
+              const severityClass = getSeverityClass(depot.value);
+
+              return (
+                <div key={index} className="fi__depot-row">
+                  <div className="fi__depot-name" title={depot.name}>
+                    {depot.name}
+                  </div>
+                  <div className="fi__depot-bar-track">
+                    <div
+                      className={`fi__depot-bar-fill ${severityClass}`}
+                      style={{ width: `${widthPercent}%` }}
+                      title={`${depot.name}: ${depot.value} defects`}
+                    />
+                  </div>
+                  <div className="fi__depot-count">
+                    {depot.value}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

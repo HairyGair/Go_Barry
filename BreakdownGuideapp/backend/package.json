@@ -10,10 +10,7 @@
     "start:script": "./start-server.sh",
     "dev": "nodemon --no-experimental-fetch server.js",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "deploy": "./deploy-complete.sh",
-    "deploy:old": "./deploy-cpanel.sh",
-    "deploy:key": "./deploy-cpanel-key.sh",
-    "deploy:zip": "./create-deployment-zip.sh"
+    "build:deploy": "bash scripts/build-deploy.sh"
   },
   "keywords": [
     "breakdown",

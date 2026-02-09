@@ -1,0 +1,228 @@
+/* RouteTimetableViewer - Classic bus timetable grid */
+
+.rtv-container {
+  padding: 20px;
+}
+
+.rtv-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.rtv-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #e0f7fa;
+  margin: 0;
+}
+
+.rtv-subtitle {
+  font-size: 13px;
+  color: rgba(224, 247, 250, 0.6);
+  margin-top: 4px;
+}
+
+/* Route selector */
+.rtv-selector {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.rtv-search {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.08);
+  color: #e0f7fa;
+  font-size: 14px;
+  width: 260px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.rtv-search::placeholder {
+  color: rgba(224, 247, 250, 0.4);
+}
+
+.rtv-search:focus {
+  border-color: #00BCD4;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.rtv-route-list {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  max-height: 120px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.rtv-route-chip {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+  color: #e0f7fa;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.rtv-route-chip:hover {
+  background: rgba(0, 188, 212, 0.15);
+  border-color: rgba(0, 188, 212, 0.4);
+}
+
+.rtv-route-chip.active {
+  background: #00838F;
+  color: white;
+  border-color: #00838F;
+}
+
+/* Controls bar */
+.rtv-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.rtv-dir-tabs {
+  display: flex;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.rtv-dir-tab {
+  padding: 6px 16px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(224, 247, 250, 0.7);
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rtv-dir-tab.active {
+  background: #00838F;
+  color: white;
+}
+
+.rtv-dir-tab + .rtv-dir-tab {
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.rtv-service-select {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.08);
+  color: #e0f7fa;
+  font-size: 12px;
+}
+
+.rtv-route-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #00BCD4;
+}
+
+/* Timetable Grid */
+.rtv-table-wrapper {
+  overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.rtv-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.rtv-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 8px 6px;
+  background: rgba(0, 96, 100, 0.8);
+  color: #e0f7fa;
+  font-weight: 600;
+  font-size: 11px;
+  text-align: center;
+  border-bottom: 2px solid rgba(0, 188, 212, 0.3);
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rtv-table tbody td {
+  padding: 5px 6px;
+  text-align: center;
+  color: rgba(224, 247, 250, 0.85);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 11px;
+}
+
+.rtv-table tbody tr:hover {
+  background: rgba(0, 188, 212, 0.08);
+}
+
+.rtv-table tbody tr.rtv-current-row {
+  background: rgba(0, 188, 212, 0.15);
+  border-left: 3px solid #00BCD4;
+}
+
+.rtv-table tbody tr.rtv-past-row {
+  opacity: 0.4;
+}
+
+.rtv-cell-empty {
+  color: rgba(255, 255, 255, 0.15);
+}
+
+/* Loading / Empty states */
+.rtv-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  font-size: 14px;
+  color: rgba(224, 247, 250, 0.5);
+}
+
+.rtv-empty {
+  text-align: center;
+  padding: 60px 20px;
+  color: rgba(224, 247, 250, 0.5);
+  font-size: 14px;
+}
+
+.rtv-empty p {
+  margin: 8px 0;
+}
+
+.rtv-current-time {
+  font-size: 12px;
+  color: rgba(224, 247, 250, 0.5);
+  padding: 8px 0;
+}

@@ -6,9 +6,36 @@ const PerformanceTrends = ({ trendData, period }) => {
   if (!trendData) return null;
 
   const chartOptions = [
-    { key: 'breakdowns', label: 'Breakdowns', icon: '🔧' },
-    { key: 'responseTime', label: 'Response Time', icon: '⏱️' },
-    { key: 'slaCompliance', label: 'SLA Compliance', icon: '📊' }
+    {
+      key: 'breakdowns',
+      label: 'Breakdowns',
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+        </svg>
+      )
+    },
+    {
+      key: 'responseTime',
+      label: 'Response Time',
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+      )
+    },
+    {
+      key: 'slaCompliance',
+      label: 'SLA Compliance',
+      icon: (
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="12" y1="20" x2="12" y2="10"/>
+          <line x1="18" y1="20" x2="18" y2="4"/>
+          <line x1="6" y1="20" x2="6" y2="16"/>
+        </svg>
+      )
+    }
   ];
 
   const currentData = trendData[selectedChart];
@@ -26,7 +53,7 @@ const PerformanceTrends = ({ trendData, period }) => {
     const chartRange = chartMax - chartMin;
 
     return (
-      <div className="simple-chart">
+      <div className="pt-simple-chart">
         <svg viewBox={`0 0 500 ${height}`} preserveAspectRatio="xMidYMid meet">
           {/* Y-axis labels */}
           {[0, 1, 2, 3, 4].map(i => {
@@ -37,7 +64,7 @@ const PerformanceTrends = ({ trendData, period }) => {
                   x="40"
                   y={20 + (i * (height - 40) / 4)}
                   textAnchor="end"
-                  fill="#6b7280"
+                  fill="#94A3B8"
                   fontSize="11"
                 >
                   {Math.round(value)}
@@ -47,7 +74,7 @@ const PerformanceTrends = ({ trendData, period }) => {
                   y1={20 + (i * (height - 40) / 4)}
                   x2="480"
                   y2={20 + (i * (height - 40) / 4)}
-                  stroke="#f3f4f6"
+                  stroke="#1E293B"
                   strokeWidth="1"
                 />
               </g>
@@ -71,7 +98,7 @@ const PerformanceTrends = ({ trendData, period }) => {
                   stroke={dataset.color}
                   strokeWidth="2"
                 />
-                
+
                 {/* Data points */}
                 {dataset.data.map((value, index) => {
                   const x = 50 + (index * (430 / (dataset.data.length - 1)));
@@ -110,7 +137,7 @@ const PerformanceTrends = ({ trendData, period }) => {
               x={50 + (index * (430 / (data.labels.length - 1)))}
               y={height - 5}
               textAnchor="middle"
-              fill="#6b7280"
+              fill="#94A3B8"
               fontSize="10"
             >
               {label}
@@ -119,16 +146,16 @@ const PerformanceTrends = ({ trendData, period }) => {
         </svg>
 
         {/* Legend */}
-        <div className="chart-legend">
+        <div className="pt-chart-legend">
           {data.datasets.map((dataset, index) => (
-            <div key={index} className="legend-item">
-              <div 
-                className="legend-color" 
+            <div key={index} className="pt-legend-item">
+              <div
+                className="pt-legend-color"
                 style={{ backgroundColor: dataset.color }}
               ></div>
               <span>{dataset.label}</span>
               {dataset.target && (
-                <span className="target-indicator">Target: {dataset.target}</span>
+                <span className="pt-target-indicator">Target: {dataset.target}</span>
               )}
             </div>
           ))}
@@ -138,37 +165,37 @@ const PerformanceTrends = ({ trendData, period }) => {
   };
 
   return (
-    <div className="performance-trends">
-      <div className="trends-header">
+    <div className="pt-performance-trends">
+      <div className="pt-trends-header">
         <h2>Performance Trends</h2>
-        <div className="chart-selector">
+        <div className="pt-chart-selector">
           {chartOptions.map(option => (
             <button
               key={option.key}
-              className={`chart-btn ${selectedChart === option.key ? 'active' : ''}`}
+              className={`pt-chart-btn ${selectedChart === option.key ? 'active' : ''}`}
               onClick={() => setSelectedChart(option.key)}
             >
-              <span className="chart-icon">{option.icon}</span>
+              <span className="pt-chart-icon">{option.icon}</span>
               {option.label}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="chart-container">
+      <div className="pt-chart-container">
         <SimpleLineChart data={currentData} />
       </div>
 
       <style jsx>{`
-        .performance-trends {
-          background: white;
+        .pt-performance-trends {
+          background: #141D2B;
           border-radius: 12px;
           padding: 20px;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
           margin-bottom: 20px;
         }
 
-        .trends-header {
+        .pt-trends-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
@@ -178,20 +205,22 @@ const PerformanceTrends = ({ trendData, period }) => {
         }
 
         h2 {
-          color: #1e3a8a;
+          color: #0097A7;
           font-size: 24px;
           font-weight: 600;
+          font-family: 'Outfit', sans-serif;
         }
 
-        .chart-selector {
+        .pt-chart-selector {
           display: flex;
           gap: 10px;
         }
 
-        .chart-btn {
+        .pt-chart-btn {
           padding: 8px 16px;
-          border: 1px solid #d1d5db;
-          background: white;
+          border: 1px solid #1E293B;
+          background: #0F1624;
+          color: #94A3B8;
           border-radius: 6px;
           cursor: pointer;
           transition: all 0.2s;
@@ -200,37 +229,40 @@ const PerformanceTrends = ({ trendData, period }) => {
           display: flex;
           align-items: center;
           gap: 6px;
+          font-family: 'Inter', sans-serif;
         }
 
-        .chart-btn:hover {
-          background: #f9fafb;
+        .pt-chart-btn:hover {
+          background: #1E293B;
         }
 
-        .chart-btn.active {
-          background: #1e3a8a;
+        .pt-chart-btn.active {
+          background: linear-gradient(135deg, #0097A7, #00838F);
           color: white;
-          border-color: #1e3a8a;
+          border-color: #0097A7;
         }
 
-        .chart-icon {
+        .pt-chart-icon {
           font-size: 16px;
+          display: flex;
+          align-items: center;
         }
 
-        .chart-container {
+        .pt-chart-container {
           position: relative;
           width: 100%;
         }
 
-        .simple-chart {
+        .pt-simple-chart {
           width: 100%;
         }
 
-        .simple-chart svg {
+        .pt-simple-chart svg {
           width: 100%;
           height: auto;
         }
 
-        .chart-legend {
+        .pt-chart-legend {
           display: flex;
           justify-content: center;
           gap: 20px;
@@ -238,37 +270,38 @@ const PerformanceTrends = ({ trendData, period }) => {
           flex-wrap: wrap;
         }
 
-        .legend-item {
+        .pt-legend-item {
           display: flex;
           align-items: center;
           gap: 8px;
           font-size: 13px;
-          color: #4b5563;
+          color: #94A3B8;
+          font-family: 'Inter', sans-serif;
         }
 
-        .legend-color {
+        .pt-legend-color {
           width: 12px;
           height: 12px;
           border-radius: 3px;
         }
 
-        .target-indicator {
+        .pt-target-indicator {
           margin-left: 10px;
           color: #ef4444;
           font-size: 12px;
         }
 
         @media (max-width: 768px) {
-          .trends-header {
+          .pt-trends-header {
             flex-direction: column;
             align-items: flex-start;
           }
 
-          .chart-selector {
+          .pt-chart-selector {
             flex-wrap: wrap;
           }
 
-          .chart-btn {
+          .pt-chart-btn {
             font-size: 13px;
             padding: 6px 12px;
           }

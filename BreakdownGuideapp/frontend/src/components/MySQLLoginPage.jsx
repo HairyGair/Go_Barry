@@ -240,7 +240,7 @@ const MySQLLoginPage = () => {
 
                     {/* Logo */}
                     <div className="logo-section">
-                        <GoBarryLogo size="lg" variant="full" theme="dark" />
+                        <GoBarryLogo size="lg" variant="full" theme="light" />
                     </div>
 
                     {/* Title */}

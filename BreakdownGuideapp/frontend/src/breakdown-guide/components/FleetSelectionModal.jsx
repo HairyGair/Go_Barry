@@ -32,6 +32,11 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
     const [loadingSuggestions, setLoadingSuggestions] = useState(false);
     const [showSmartSuggestions, setShowSmartSuggestions] = useState(false);
 
+    // Trip picker state (GTFS Phase 2)
+    const [availableTrips, setAvailableTrips] = useState([]);
+    const [selectedTrip, setSelectedTrip] = useState(null);
+    const [loadingTrips, setLoadingTrips] = useState(false);
+
     // Secured mileage state
     const [securedMileage, setSecuredMileage] = useState(false);
 
@@ -302,6 +307,9 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
 
         // Track route usage
         storageService.trackRouteUsage(route.routeShortName, 'fleet_selection');
+
+        // Fetch available trips for trip picker (GTFS Phase 2)
+        fetchTripsForRoute(route.routeShortName);
     };
 
     // Handle quick route button click
@@ -309,6 +317,28 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
         const routeData = routeHelpers.findByShortName(routeShortName);
         if (routeData && routeData.length > 0) {
             handleRouteSelect(routeData[0]);
+        }
+    };
+
+    // Fetch available trips for the selected route (GTFS Phase 2 - Trip Picker)
+    const fetchTripsForRoute = async (routeId) => {
+        if (!routeId) return;
+        setLoadingTrips(true);
+        setSelectedTrip(null);
+        try {
+            const apiUrl = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
+            const res = await fetch(`${apiUrl}/api/public/route-trips?route_id=${encodeURIComponent(routeId)}`);
+            const data = await res.json();
+            if (data.success && data.trips) {
+                setAvailableTrips(data.trips);
+            } else {
+                setAvailableTrips([]);
+            }
+        } catch (err) {
+            console.error('Error fetching trips for route:', err);
+            setAvailableTrips([]);
+        } finally {
+            setLoadingTrips(false);
         }
     };
 
@@ -452,6 +482,10 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                 routeName: routeName,
                 securedMileage: securedMileage,
                 notInService: notInService,
+                tripId: selectedTrip?.tripId || null,
+                blockId: selectedTrip?.blockId || null,
+                tripHeadsign: selectedTrip?.headsign || null,
+                tripDepartureTime: selectedTrip?.departureTime || null,
                 location: {
                     type: 'ticketer',
                     lat,
@@ -494,6 +528,10 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
             routeName: routeName,
             securedMileage: securedMileage,
             notInService: notInService,
+            tripId: selectedTrip?.tripId || null,
+            blockId: selectedTrip?.blockId || null,
+            tripHeadsign: selectedTrip?.headsign || null,
+            tripDepartureTime: selectedTrip?.departureTime || null,
             location: {
                 type: 'depot',
                 name: depotName,
@@ -520,6 +558,10 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
             routeName: routeName,
             securedMileage: securedMileage,
             notInService: notInService,
+            tripId: selectedTrip?.tripId || null,
+            blockId: selectedTrip?.blockId || null,
+            tripHeadsign: selectedTrip?.headsign || null,
+            tripDepartureTime: selectedTrip?.departureTime || null,
             location: {
                 type: 'skip',
                 description: 'Location to be added later'
@@ -916,6 +958,124 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                                                 </div>
                                             </div>
                                         </div>
+                                    </div>
+                                )}
+
+                                {/* Trip Picker (GTFS Phase 2) */}
+                                {selectedRoute && !notInService && (
+                                    <div className="space-y-3">
+                                        <h4 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
+                                            <span>🕐</span> Which journey was the driver operating?
+                                            <span className="text-xs font-normal text-gray-500">(optional)</span>
+                                        </h4>
+
+                                        {loadingTrips && (
+                                            <div className="text-center py-3 text-gray-400 text-sm">Loading trips...</div>
+                                        )}
+
+                                        {!loadingTrips && availableTrips.length === 0 && (
+                                            <div className="text-center py-3 text-gray-500 text-sm">
+                                                No scheduled trips found for this route
+                                            </div>
+                                        )}
+
+                                        {!loadingTrips && availableTrips.length > 0 && (
+                                            <div className="max-h-48 overflow-y-auto space-y-1 bg-gray-800/50 rounded-lg p-2 border border-gray-700">
+                                                {availableTrips.map((trip) => {
+                                                    const isSelected = selectedTrip?.tripId === trip.tripId;
+                                                    return (
+                                                        <button
+                                                            key={trip.tripId}
+                                                            onClick={() => setSelectedTrip(isSelected ? null : trip)}
+                                                            style={isSelected ? {
+                                                                background: 'linear-gradient(135deg, #0097A7, #00838F)',
+                                                                border: '2px solid #00BCD4',
+                                                                color: '#fff',
+                                                                boxShadow: '0 0 12px rgba(0, 188, 212, 0.4)',
+                                                            } : {}}
+                                                            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-all text-sm ${
+                                                                isSelected
+                                                                    ? 'font-semibold'
+                                                                    : trip.isPast
+                                                                        ? 'bg-gray-800/60 border border-gray-700 text-gray-400 hover:bg-gray-700/60'
+                                                                        : 'bg-gray-800 border border-gray-600 text-gray-200 hover:bg-gray-700'
+                                                            }`}
+                                                        >
+                                                            {/* Selection indicator */}
+                                                            <span style={{
+                                                                width: '22px',
+                                                                height: '22px',
+                                                                borderRadius: '50%',
+                                                                border: isSelected ? '2px solid #fff' : '2px solid #4B5563',
+                                                                background: isSelected ? '#fff' : 'transparent',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center',
+                                                                flexShrink: 0,
+                                                                fontSize: '12px',
+                                                                color: '#00838F',
+                                                                fontWeight: 'bold',
+                                                            }}>
+                                                                {isSelected ? '\u2713' : ''}
+                                                            </span>
+                                                            <span className="flex-1" style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
+                                                                <span className="truncate" style={{ fontSize: '13px' }}>
+                                                                    <span className="font-mono font-bold" style={{ fontSize: '14px' }}>{trip.departureTime?.substring(0, 5)}</span>
+                                                                    {' '}{trip.originStop || ''}
+                                                                    {' → '}
+                                                                    <span className="font-mono font-bold" style={{ fontSize: '14px' }}>{trip.arrivalTime?.substring(0, 5) || ''}</span>
+                                                                    {' '}{trip.destStop || trip.headsign}
+                                                                </span>
+                                                            </span>
+                                                            <span className={`text-xs whitespace-nowrap ${
+                                                                isSelected ? 'text-white/70' : trip.isPast ? 'text-gray-500' : trip.minutesFromNow <= 5 ? 'text-red-400 font-bold' : 'text-gray-400'
+                                                            }`}>
+                                                                {trip.isPast
+                                                                    ? `${Math.abs(trip.minutesFromNow)} min ago`
+                                                                    : trip.minutesFromNow <= 0
+                                                                        ? 'now'
+                                                                        : `in ${trip.minutesFromNow} min`}
+                                                            </span>
+                                                            {trip.blockId && (
+                                                                <span className="text-xs px-1.5 py-0.5 bg-gray-700 rounded text-gray-400">
+                                                                    {trip.blockId}
+                                                                </span>
+                                                            )}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+
+                                        {selectedTrip && (
+                                            <div style={{
+                                                background: 'linear-gradient(135deg, rgba(0, 151, 167, 0.2), rgba(0, 188, 212, 0.15))',
+                                                border: '2px solid #00BCD4',
+                                                borderRadius: '8px',
+                                                padding: '12px 16px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '10px',
+                                            }}>
+                                                <span style={{
+                                                    width: '28px',
+                                                    height: '28px',
+                                                    borderRadius: '50%',
+                                                    background: '#00BCD4',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    color: '#fff',
+                                                    fontSize: '16px',
+                                                    fontWeight: 'bold',
+                                                    flexShrink: 0,
+                                                }}>{'\u2713'}</span>
+                                                <span style={{ color: '#E0F7FA', fontSize: '14px', fontWeight: '600' }}>
+                                                    {selectedTrip.departureTime?.substring(0, 5)} {selectedTrip.originStop || ''} → {selectedTrip.arrivalTime?.substring(0, 5) || ''} {selectedTrip.destStop || selectedTrip.headsign}
+                                                    {selectedTrip.blockId && <span style={{ color: '#80DEEA' }}> (Block {selectedTrip.blockId})</span>}
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 

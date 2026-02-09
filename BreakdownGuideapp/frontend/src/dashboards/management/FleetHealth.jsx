@@ -15,26 +15,25 @@ const FleetHealth = ({ fleetHealth }) => {
 
   const getTrendClass = (trend) => {
     switch(trend) {
-      case 'up': return 'trend-up';
-      case 'down': return 'trend-down';
-      default: return 'trend-stable';
+      case 'up': return 'fh-trend-up';
+      case 'down': return 'fh-trend-down';
+      default: return 'fh-trend-stable';
     }
   };
 
   return (
-    <div className="fleet-health">
+    <div className="fh-fleet-health">
       <h3>Fleet Health Status</h3>
-      
-      {/* Overall Status */}
-      <div className="overall-status">
-        <div className="status-circle">
+
+      <div className="fh-overall-status">
+        <div className="fh-status-circle">
           <svg viewBox="0 0 100 100">
             <circle
               cx="50"
               cy="50"
               r="45"
               fill="none"
-              stroke="#f3f4f6"
+              stroke="#1E293B"
               strokeWidth="6"
             />
             <circle
@@ -55,60 +54,58 @@ const FleetHealth = ({ fleetHealth }) => {
               dominantBaseline="middle"
               fontSize="20"
               fontWeight="bold"
-              fill="#1e3a8a"
+              fill="#FFFFFF"
             >
               {operationalPercentage}%
             </text>
           </svg>
         </div>
-        <div className="status-details">
-          <div className="status-item operational">
-            <span className="label">Operational</span>
-            <span className="value">{fleetHealth.operational}</span>
+        <div className="fh-status-details">
+          <div className="fh-status-item fh-operational">
+            <span className="fh-label">Operational</span>
+            <span className="fh-value">{fleetHealth.operational}</span>
           </div>
-          <div className="status-item maintenance">
-            <span className="label">Maintenance</span>
-            <span className="value">{fleetHealth.inMaintenance}</span>
+          <div className="fh-status-item fh-maintenance">
+            <span className="fh-label">Maintenance</span>
+            <span className="fh-value">{fleetHealth.inMaintenance}</span>
           </div>
-          <div className="status-item breakdown">
-            <span className="label">Breakdown</span>
-            <span className="value">{fleetHealth.breakdown}</span>
+          <div className="fh-status-item fh-breakdown">
+            <span className="fh-label">Breakdown</span>
+            <span className="fh-value">{fleetHealth.breakdown}</span>
           </div>
         </div>
       </div>
 
-      {/* Fleet Categories */}
-      <div className="fleet-categories">
+      <div className="fh-fleet-categories">
         <h4>By Category</h4>
         {fleetHealth.categories.map((category, index) => (
-          <div key={index} className="category-item">
-            <div className="category-info">
-              <span className="category-type">{category.type}</span>
-              <span className="category-stats">
+          <div key={index} className="fh-category-item">
+            <div className="fh-category-info">
+              <span className="fh-category-type">{category.type}</span>
+              <span className="fh-category-stats">
                 {category.operational} / {category.total}
               </span>
             </div>
-            <div className="category-bar">
-              <div 
-                className="category-bar-fill"
+            <div className="fh-category-bar">
+              <div
+                className="fh-category-bar-fill"
                 style={{ width: `${category.percentage}%` }}
               ></div>
             </div>
-            <span className="category-percentage">{category.percentage}%</span>
+            <span className="fh-category-percentage">{category.percentage}%</span>
           </div>
         ))}
       </div>
 
-      {/* Top Issues */}
-      <div className="top-issues">
+      <div className="fh-top-issues">
         <h4>Top Breakdown Causes</h4>
-        <div className="issues-list">
+        <div className="fh-issues-list">
           {fleetHealth.topIssues.map((issue, index) => (
-            <div key={index} className="issue-item">
-              <span className="issue-rank">{index + 1}</span>
-              <span className="issue-name">{issue.issue}</span>
-              <span className="issue-count">{issue.count}</span>
-              <span className={`issue-trend ${getTrendClass(issue.trend)}`}>
+            <div key={index} className="fh-issue-item">
+              <span className="fh-issue-rank">{index + 1}</span>
+              <span className="fh-issue-name">{issue.issue}</span>
+              <span className="fh-issue-count">{issue.count}</span>
+              <span className={`fh-issue-trend ${getTrendClass(issue.trend)}`}>
                 {getTrendIcon(issue.trend)}
               </span>
             </div>
@@ -117,47 +114,48 @@ const FleetHealth = ({ fleetHealth }) => {
       </div>
 
       <style jsx>{`
-        .fleet-health {
-          background: white;
+        .fh-fleet-health {
+          background: #141D2B;
           border-radius: 12px;
           padding: 20px;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
         }
 
         h3 {
-          color: #1e3a8a;
+          color: #0097A7;
           font-size: 20px;
           margin-bottom: 20px;
           font-weight: 600;
+          font-family: 'Outfit', sans-serif;
         }
 
-        .overall-status {
+        .fh-overall-status {
           display: flex;
           gap: 30px;
           align-items: center;
           margin-bottom: 30px;
           padding-bottom: 20px;
-          border-bottom: 1px solid #e5e7eb;
+          border-bottom: 1px solid #1E293B;
         }
 
-        .status-circle {
+        .fh-status-circle {
           width: 120px;
           height: 120px;
         }
 
-        .status-circle svg {
+        .fh-status-circle svg {
           width: 100%;
           height: 100%;
         }
 
-        .status-details {
+        .fh-status-details {
           flex: 1;
           display: flex;
           flex-direction: column;
           gap: 10px;
         }
 
-        .status-item {
+        .fh-status-item {
           display: flex;
           justify-content: space-between;
           align-items: center;
@@ -165,171 +163,180 @@ const FleetHealth = ({ fleetHealth }) => {
           border-radius: 6px;
         }
 
-        .status-item.operational {
-          background: #dcfce7;
+        .fh-status-item.fh-operational {
+          background: rgba(16, 185, 129, 0.15);
         }
 
-        .status-item.maintenance {
-          background: #fef3c7;
+        .fh-status-item.fh-maintenance {
+          background: rgba(245, 158, 11, 0.15);
         }
 
-        .status-item.breakdown {
-          background: #fee2e2;
+        .fh-status-item.fh-breakdown {
+          background: rgba(220, 38, 38, 0.15);
         }
 
-        .status-item .label {
+        .fh-status-item .fh-label {
           font-size: 14px;
-          color: #4b5563;
+          color: #94A3B8;
           font-weight: 500;
+          font-family: 'Inter', sans-serif;
         }
 
-        .status-item .value {
+        .fh-status-item .fh-value {
           font-size: 18px;
           font-weight: 600;
-          color: #1e3a8a;
+          color: #0097A7;
+          font-family: 'JetBrains Mono', monospace;
         }
 
-        .fleet-categories {
+        .fh-fleet-categories {
           margin-bottom: 30px;
         }
 
         h4 {
           font-size: 16px;
-          color: #374151;
+          color: #FFFFFF;
           margin-bottom: 15px;
           font-weight: 600;
+          font-family: 'Outfit', sans-serif;
         }
 
-        .category-item {
+        .fh-category-item {
           display: flex;
           align-items: center;
           gap: 15px;
           margin-bottom: 12px;
         }
 
-        .category-info {
+        .fh-category-info {
           flex: 0 0 140px;
           display: flex;
           flex-direction: column;
         }
 
-        .category-type {
+        .fh-category-type {
           font-size: 14px;
           font-weight: 500;
-          color: #374151;
+          color: #FFFFFF;
+          font-family: 'Inter', sans-serif;
         }
 
-        .category-stats {
+        .fh-category-stats {
           font-size: 12px;
-          color: #6b7280;
+          color: #94A3B8;
+          font-family: 'JetBrains Mono', monospace;
         }
 
-        .category-bar {
+        .fh-category-bar {
           flex: 1;
           height: 8px;
-          background: #f3f4f6;
+          background: #1E293B;
           border-radius: 4px;
           overflow: hidden;
         }
 
-        .category-bar-fill {
+        .fh-category-bar-fill {
           height: 100%;
-          background: linear-gradient(90deg, #3b82f6, #1e3a8a);
+          background: linear-gradient(90deg, #0097A7, #00838F);
           transition: width 0.5s ease;
         }
 
-        .category-percentage {
+        .fh-category-percentage {
           flex: 0 0 45px;
           text-align: right;
           font-size: 14px;
           font-weight: 600;
-          color: #1e3a8a;
+          color: #0097A7;
+          font-family: 'JetBrains Mono', monospace;
         }
 
-        .top-issues {
+        .fh-top-issues {
           padding-top: 20px;
-          border-top: 1px solid #e5e7eb;
+          border-top: 1px solid #1E293B;
         }
 
-        .issues-list {
+        .fh-issues-list {
           display: flex;
           flex-direction: column;
           gap: 8px;
         }
 
-        .issue-item {
+        .fh-issue-item {
           display: grid;
           grid-template-columns: 30px 1fr auto 30px;
           gap: 10px;
           align-items: center;
           padding: 8px;
-          background: #f9fafb;
+          background: #0F1624;
           border-radius: 6px;
           transition: all 0.2s;
         }
 
-        .issue-item:hover {
-          background: #f3f4f6;
+        .fh-issue-item:hover {
+          background: #1E293B;
         }
 
-        .issue-rank {
+        .fh-issue-rank {
           width: 24px;
           height: 24px;
-          background: #e5e7eb;
+          background: #1E293B;
           border-radius: 50%;
           display: flex;
           align-items: center;
           justify-content: center;
           font-size: 12px;
           font-weight: 600;
-          color: #4b5563;
+          color: #94A3B8;
+          font-family: 'JetBrains Mono', monospace;
         }
 
-        .issue-name {
+        .fh-issue-name {
           font-size: 14px;
-          color: #374151;
+          color: #FFFFFF;
           font-weight: 500;
+          font-family: 'Inter', sans-serif;
         }
 
-        .issue-count {
+        .fh-issue-count {
           font-size: 16px;
           font-weight: 600;
-          color: #1e3a8a;
+          color: #0097A7;
+          font-family: 'JetBrains Mono', monospace;
         }
 
-        .issue-trend {
+        .fh-issue-trend {
           font-size: 14px;
           font-weight: 600;
           text-align: center;
         }
 
-        .trend-up {
+        .fh-trend-up {
           color: #ef4444;
         }
 
-        .trend-down {
+        .fh-trend-down {
           color: #10b981;
         }
 
-        .trend-stable {
+        .fh-trend-stable {
           color: #f59e0b;
         }
 
         @media (max-width: 480px) {
-          .overall-status {
+          .fh-overall-status {
             flex-direction: column;
             text-align: center;
           }
 
-          .status-details {
+          .fh-status-details {
             width: 100%;
           }
 
-          .category-info {
+          .fh-category-info {
             flex: 0 0 100px;
           }
 
-          .category-type {
+          .fh-category-type {
             font-size: 13px;
           }
         }

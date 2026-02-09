@@ -48,6 +48,7 @@ const ControlRoomDisplay = () => {
   const [geocodedLocations, setGeocodedLocations] = useState({});
   const [previousBreakdownCount, setPreviousBreakdownCount] = useState(0);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [lastBusAlerts, setLastBusAlerts] = useState({}); // keyed by breakdown_id
 
   const scrollIntervalRef = useRef(null);
   const audioRef = useRef(null);
@@ -382,6 +383,26 @@ const ControlRoomDisplay = () => {
           .slice(0, 3);
 
         setPriorityAlerts(alerts);
+
+        // Check last bus status for each breakdown with a route
+        const apiBase = import.meta.env.VITE_API_URL || 'https://breakdowns.gobarry.co.uk/api';
+        const lastBusChecks = {};
+        for (const bd of activeBreakdowns) {
+          const routeId = bd.route_id || bd.service || bd.route_number;
+          if (!routeId || routeId === 'Unknown') continue;
+          try {
+            const params = new URLSearchParams({ route_id: routeId });
+            if (bd.location_lat) params.set('lat', bd.location_lat);
+            if (bd.location_lng) params.set('lng', bd.location_lng);
+            const lbRes = await fetch(`${apiBase}/api/public/last-bus-check?${params}`).then(r => r.json());
+            if (lbRes?.isLastBusAffected) {
+              lastBusChecks[bd.breakdown_id || bd.id] = lbRes.affectedLastBuses;
+            }
+          } catch (e) {
+            // Non-critical - skip
+          }
+        }
+        setLastBusAlerts(lastBusChecks);
       }
     } catch (error) {
       console.error('Error fetching breakdowns:', error);
@@ -533,6 +554,9 @@ const ControlRoomDisplay = () => {
                   <span className={`status-badge ${getStatusBadge(currentBreakdown.status).class}`}>
                     {getStatusBadge(currentBreakdown.status).label}
                   </span>
+                  {lastBusAlerts[currentBreakdown.breakdown_id || currentBreakdown.id] && (
+                    <span className="last-bus-badge-cr">LAST BUS</span>
+                  )}
                 </div>
               </div>
 
@@ -562,6 +586,23 @@ const ControlRoomDisplay = () => {
 
             {/* Card Body */}
             <div className="card-body">
+              {/* Last Bus Alert Banner */}
+              {lastBusAlerts[currentBreakdown.breakdown_id || currentBreakdown.id] && (
+                <div className="last-bus-alert-cr">
+                  <div className="last-bus-alert-cr-main">
+                    <span className="last-bus-alert-cr-icon">&#x1F6A8;</span>
+                    <span className="last-bus-alert-cr-text">
+                      LAST BUS AT RISK: {lastBusAlerts[currentBreakdown.breakdown_id || currentBreakdown.id]
+                        .map(b => `${b.departureTime?.substring(0, 5)} towards ${b.headsign}`)
+                        .join(' | ')}
+                    </span>
+                  </div>
+                  <div className="last-bus-alert-cr-social">
+                    &#x1F4F1; UPDATE SOCIAL MEDIA &mdash; Advise passengers of prospective delays on this route
+                  </div>
+                </div>
+              )}
+
               {/* Location Bar - Full Width Above Issue/Supervisor */}
               <div className="location-bar">
                 <span className="location-bar-value">

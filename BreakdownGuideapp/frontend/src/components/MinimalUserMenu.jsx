@@ -64,6 +64,24 @@ const MinimalUserMenu = ({ currentDuty, onDutyClick }) => {
       label: 'Fleet Intelligence',
       icon: '📊',
       description: 'Fleet analytics'
+    },
+    {
+      path: '/dashboards/gtfs/routes',
+      label: 'Route Status',
+      icon: '🚌',
+      description: 'Live route status'
+    },
+    {
+      path: '/dashboards/gtfs/timetable',
+      label: 'Timetable',
+      icon: '🕐',
+      description: 'Route timetable viewer'
+    },
+    {
+      path: '/dashboards/gtfs/stops',
+      label: 'Stop Finder',
+      icon: '🔍',
+      description: 'Search stops & departures'
     }
   ];
 

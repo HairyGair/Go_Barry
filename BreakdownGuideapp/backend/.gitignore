@@ -29,3 +29,6 @@ npm-debug.log*
 # Data backups
 data/*.bak
 data/*.backup
+
+# Deployment builds
+deploy/

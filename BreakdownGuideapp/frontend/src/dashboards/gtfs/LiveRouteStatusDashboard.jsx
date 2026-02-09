@@ -1,41 +1,58 @@
 /**
  * Live Route Status Dashboard
- * Displays real-time status of all 225 bus routes
- * Shows Green/Amber/Red status based on active breakdowns
+ * Real-time status monitoring for all 225 bus routes
+ *
+ * Features:
+ * - Collapsible status groups (RED/AMBER/GREEN) with GREEN hidden by default
+ * - Card view and compact table view toggle
+ * - Route number quick-jump index strip
+ * - Sticky summary bar
+ * - Working "View Breakdown Details" navigation
+ *
+ * Version: 4.0.0 - Ocean Teal Redesign
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../components/DashboardLayout';
 import RouteStatusCard from './RouteStatusCard';
 import { gtfsApiService } from '../../services/gtfsApiService';
 import './LiveRouteStatusDashboard.css';
 
-const REFRESH_INTERVAL = 10000; // Refresh every 10 seconds for live data
+const REFRESH_INTERVAL = 10000;
 
 const LiveRouteStatusDashboard = () => {
-  // State
+  const navigate = useNavigate();
+
+  // Data state
   const [routes, setRoutes] = useState([]);
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
 
-  // Filters
-  const [statusFilter, setStatusFilter] = useState('ALL'); // ALL, GREEN, AMBER, RED
+  // UI state
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('status'); // status, number, name
+  const [sortBy, setSortBy] = useState('status');
+  const [viewMode, setViewMode] = useState('cards'); // 'cards' or 'table'
+  const [showGreenRoutes, setShowGreenRoutes] = useState(false);
 
-  // Real-time connection
-  const wsRef = useRef(null);
+  // Collapsible group state
+  const [groupCollapsed, setGroupCollapsed] = useState({
+    RED: false,
+    AMBER: false,
+    GREEN: true  // Green collapsed by default
+  });
+
+  // Refs
   const refreshIntervalRef = useRef(null);
+  const groupRefs = useRef({});
+  const searchInputRef = useRef(null);
 
-  /**
-   * Fetch live route status from API
-   */
+  // Fetch live route status
   const fetchRouteStatus = useCallback(async () => {
     try {
       const response = await gtfsApiService.getLiveRouteStatus();
-
       if (response.success) {
         setRoutes(response.routes || []);
         setSummary(response.summary || null);
@@ -44,7 +61,6 @@ const LiveRouteStatusDashboard = () => {
       } else {
         setError('Failed to fetch route status');
       }
-
       setLoading(false);
     } catch (err) {
       console.error('Error fetching route status:', err);
@@ -53,265 +69,526 @@ const LiveRouteStatusDashboard = () => {
     }
   }, []);
 
-  /**
-   * Setup auto-refresh interval
-   */
+  // Auto-refresh setup
   useEffect(() => {
-    // Initial fetch
     fetchRouteStatus();
-
-    // Setup refresh interval
-    refreshIntervalRef.current = setInterval(() => {
-      fetchRouteStatus();
-    }, REFRESH_INTERVAL);
-
+    refreshIntervalRef.current = setInterval(fetchRouteStatus, REFRESH_INTERVAL);
     return () => {
-      if (refreshIntervalRef.current) {
-        clearInterval(refreshIntervalRef.current);
-      }
+      if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current);
     };
   }, [fetchRouteStatus]);
 
-  /**
-   * Filter and sort routes
-   */
-  const getFilteredRoutes = useCallback(() => {
-    let filtered = [...routes];
+  // Navigate to breakdown details
+  const handleRouteDetails = useCallback((route) => {
+    navigate('/dashboards/control-room', {
+      state: { filterRoute: route.routeShortName }
+    });
+  }, [navigate]);
 
-    // Apply status filter
-    if (statusFilter !== 'ALL') {
-      filtered = filtered.filter(route => route.status === statusFilter);
+  // Manual refresh
+  const handleManualRefresh = async () => {
+    setLoading(true);
+    await fetchRouteStatus();
+  };
+
+  // Toggle group collapse
+  const toggleGroup = useCallback((status) => {
+    setGroupCollapsed(prev => ({ ...prev, [status]: !prev[status] }));
+  }, []);
+
+  // Toggle green routes visibility
+  const toggleGreenRoutes = useCallback(() => {
+    setShowGreenRoutes(prev => {
+      const next = !prev;
+      if (next) {
+        setGroupCollapsed(prev => ({ ...prev, GREEN: false }));
+      }
+      return next;
+    });
+  }, []);
+
+  // Scroll to group
+  const scrollToGroup = useCallback((status) => {
+    if (status === 'GREEN' && !showGreenRoutes) {
+      setShowGreenRoutes(true);
+      setGroupCollapsed(prev => ({ ...prev, GREEN: false }));
+      setTimeout(() => {
+        groupRefs.current[status]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    } else {
+      setGroupCollapsed(prev => ({ ...prev, [status]: false }));
+      setTimeout(() => {
+        groupRefs.current[status]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 50);
     }
+  }, [showGreenRoutes]);
+
+  // Filter and sort routes
+  const filteredRoutes = useMemo(() => {
+    let filtered = [...routes];
 
     // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(route =>
-        route.routeShortName.toLowerCase().includes(query) ||
-        route.routeLongName.toLowerCase().includes(query) ||
-        route.routeId.toLowerCase().includes(query)
+        (route.routeShortName || '').toLowerCase().includes(query) ||
+        (route.routeLongName || '').toLowerCase().includes(query) ||
+        (route.routeId || '').toLowerCase().includes(query)
       );
     }
 
-    // Apply sorting
+    // Sort
     filtered.sort((a, b) => {
       switch (sortBy) {
-        case 'status':
-          // RED > AMBER > GREEN
-          const statusOrder = { RED: 0, AMBER: 1, GREEN: 2 };
-          return statusOrder[a.status] - statusOrder[b.status];
-
-        case 'number':
-          // Numeric sort
+        case 'status': {
+          const order = { RED: 0, AMBER: 1, GREEN: 2 };
+          return order[a.status] - order[b.status];
+        }
+        case 'number': {
           const numA = parseInt(a.routeShortName) || 999;
           const numB = parseInt(b.routeShortName) || 999;
           return numA - numB;
-
+        }
         case 'name':
           return a.routeLongName.localeCompare(b.routeLongName);
-
         default:
           return 0;
       }
     });
 
     return filtered;
-  }, [routes, statusFilter, searchQuery, sortBy]);
+  }, [routes, searchQuery, sortBy]);
 
-  /**
-   * Handle route card details click
-   */
-  const handleRouteDetails = (route) => {
-    console.log('Route details:', route);
-    // Could open a modal or navigate to detailed view
+  // Group routes by status
+  const groupedRoutes = useMemo(() => {
+    const groups = { RED: [], AMBER: [], GREEN: [] };
+    filteredRoutes.forEach(route => {
+      if (groups[route.status]) {
+        groups[route.status].push(route);
+      }
+    });
+    return groups;
+  }, [filteredRoutes]);
+
+  // Generate route quick-jump index
+  const routeIndex = useMemo(() => {
+    const numbers = new Set();
+    routes.forEach(route => {
+      const first = route.routeShortName.charAt(0).toUpperCase();
+      numbers.add(first);
+    });
+    return [...numbers].sort((a, b) => {
+      const numA = parseInt(a);
+      const numB = parseInt(b);
+      if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+      if (!isNaN(numA)) return -1;
+      if (!isNaN(numB)) return 1;
+      return a.localeCompare(b);
+    });
+  }, [routes]);
+
+  // Quick-jump to a route starting with character
+  const handleQuickJump = useCallback((char) => {
+    setSearchQuery(char);
+    setSortBy('number');
+    // Expand all groups so results are visible
+    setGroupCollapsed({ RED: false, AMBER: false, GREEN: false });
+    setShowGreenRoutes(true);
+    searchInputRef.current?.focus();
+  }, []);
+
+  // Status group config
+  const statusConfig = {
+    RED: {
+      label: 'Problem Routes',
+      sublabel: '2+ active breakdowns',
+      icon: '\u26A0',
+      accentClass: 'group-red'
+    },
+    AMBER: {
+      label: 'At-Risk Routes',
+      sublabel: '1 active breakdown',
+      icon: '!',
+      accentClass: 'group-amber'
+    },
+    GREEN: {
+      label: 'Operational Routes',
+      sublabel: 'No active issues',
+      icon: '\u2713',
+      accentClass: 'group-green'
+    }
   };
 
-  /**
-   * Manual refresh button
-   */
-  const handleManualRefresh = async () => {
-    setLoading(true);
-    await fetchRouteStatus();
-  };
-
-  const filteredRoutes = getFilteredRoutes();
+  // Count of visible problem routes
+  const issueCount = (summary?.red_routes || 0) + (summary?.amber_routes || 0);
 
   return (
     <DashboardLayout>
-      <div className="live-route-dashboard">
-        {/* Header */}
-        <div className="dashboard-header">
-          <div className="header-title">
-            <h1>Live Route Status Dashboard</h1>
-            <p>Real-time monitoring of all 225 bus routes</p>
-          </div>
+      <div className="lrs-dashboard">
 
-          {/* Header Actions */}
-          <div className="header-actions">
+        {/* Sticky Header Bar */}
+        <div className="lrs-header">
+          <div className="lrs-header__left">
+            <div className="lrs-header__icon-wrap">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 18l6-6-6-6"/>
+              </svg>
+            </div>
+            <div>
+              <h1 className="lrs-header__title">Route Status</h1>
+              <p className="lrs-header__subtitle">
+                {issueCount > 0
+                  ? <>{issueCount} route{issueCount !== 1 ? 's' : ''} with active issues</>
+                  : <>All routes operational</>
+                }
+              </p>
+            </div>
+          </div>
+          <div className="lrs-header__right">
+            {lastUpdated && (
+              <span className="lrs-header__timestamp">
+                Updated {lastUpdated.toLocaleTimeString()}
+              </span>
+            )}
             <button
-              className="refresh-button"
+              className="lrs-refresh-btn"
               onClick={handleManualRefresh}
               disabled={loading}
-              title="Refresh data (auto-refreshes every 10 seconds)"
             >
-              <span className="refresh-icon" style={{
-                animation: loading ? 'spin 1s linear infinite' : 'none'
-              }}>
-                ↻
+              <span className={`lrs-refresh-icon ${loading ? 'spinning' : ''}`}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="23 4 23 10 17 10"/>
+                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                </svg>
               </span>
-              {loading ? 'Refreshing...' : 'Refresh'}
+              {loading ? 'Refreshing' : 'Refresh'}
             </button>
-
-            {lastUpdated && (
-              <div className="last-updated">
-                Last updated: {lastUpdated.toLocaleTimeString()}
-              </div>
-            )}
           </div>
         </div>
 
-        {/* Summary Stats */}
+        {/* Summary Stats Row */}
         {summary && (
-          <div className="summary-stats">
-            <div className="stat-card green">
-              <div className="stat-number">{summary.green_routes}</div>
-              <div className="stat-label">Operational Routes</div>
-              <div className="stat-subtitle">GREEN - No Issues</div>
-            </div>
+          <div className="lrs-stats-row">
+            <button
+              className="lrs-stat-pill lrs-stat-pill--red"
+              onClick={() => scrollToGroup('RED')}
+              title="Jump to problem routes"
+            >
+              <span className="lrs-stat-pill__number">{summary.red_routes}</span>
+              <span className="lrs-stat-pill__label">Problem</span>
+            </button>
+            <button
+              className="lrs-stat-pill lrs-stat-pill--amber"
+              onClick={() => scrollToGroup('AMBER')}
+              title="Jump to at-risk routes"
+            >
+              <span className="lrs-stat-pill__number">{summary.amber_routes}</span>
+              <span className="lrs-stat-pill__label">At-Risk</span>
+            </button>
+            <button
+              className="lrs-stat-pill lrs-stat-pill--green"
+              onClick={() => scrollToGroup('GREEN')}
+              title="Jump to operational routes"
+            >
+              <span className="lrs-stat-pill__number">{summary.green_routes}</span>
+              <span className="lrs-stat-pill__label">Operational</span>
+            </button>
 
-            <div className="stat-card amber">
-              <div className="stat-number">{summary.amber_routes}</div>
-              <div className="stat-label">At-Risk Routes</div>
-              <div className="stat-subtitle">AMBER - 1 Breakdown</div>
-            </div>
+            <div className="lrs-stats-divider" />
 
-            <div className="stat-card red">
-              <div className="stat-number">{summary.red_routes}</div>
-              <div className="stat-label">Problem Routes</div>
-              <div className="stat-subtitle">RED - Multiple Issues</div>
-            </div>
-
-            <div className="stat-card blue">
-              <div className="stat-number">{summary.total_active_breakdowns}</div>
-              <div className="stat-label">Active Breakdowns</div>
-              <div className="stat-subtitle">Total Issues</div>
+            <div className="lrs-stat-pill lrs-stat-pill--total">
+              <span className="lrs-stat-pill__number">{summary.total_active_breakdowns}</span>
+              <span className="lrs-stat-pill__label">Active Breakdowns</span>
             </div>
           </div>
         )}
 
-        {/* Filters Bar */}
-        <div className="filters-bar">
-          <div className="filter-group">
-            <label htmlFor="status-filter">Filter by Status:</label>
-            <select
-              id="status-filter"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="filter-select"
-            >
-              <option value="ALL">All Routes</option>
-              <option value="GREEN">✓ Operational (GREEN)</option>
-              <option value="AMBER">! At-Risk (AMBER)</option>
-              <option value="RED">⚠ Problems (RED)</option>
-            </select>
-          </div>
-
-          <div className="filter-group">
-            <label htmlFor="sort-by">Sort by:</label>
-            <select
-              id="sort-by"
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="filter-select"
-            >
-              <option value="status">Status (Critical First)</option>
-              <option value="number">Route Number</option>
-              <option value="name">Route Name</option>
-            </select>
-          </div>
-
-          <div className="filter-group search">
+        {/* Controls Bar */}
+        <div className="lrs-controls">
+          {/* Search */}
+          <div className="lrs-search-wrap">
+            <svg className="lrs-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
             <input
+              ref={searchInputRef}
               type="text"
-              placeholder="Search route number, name, or ID..."
+              className="lrs-search-input"
+              placeholder="Search routes..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="search-input"
             />
             {searchQuery && (
-              <button
-                className="clear-search"
-                onClick={() => setSearchQuery('')}
-                title="Clear search"
-              >
-                ✕
+              <button className="lrs-search-clear" onClick={() => setSearchQuery('')}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/>
+                  <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
               </button>
             )}
           </div>
+
+          {/* Sort */}
+          <select
+            className="lrs-select"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+          >
+            <option value="status">Sort: Status</option>
+            <option value="number">Sort: Route Number</option>
+            <option value="name">Sort: Route Name</option>
+          </select>
+
+          {/* View Toggle */}
+          <div className="lrs-view-toggle">
+            <button
+              className={`lrs-view-btn ${viewMode === 'cards' ? 'active' : ''}`}
+              onClick={() => setViewMode('cards')}
+              title="Card view"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="7" height="7"/>
+                <rect x="14" y="3" width="7" height="7"/>
+                <rect x="3" y="14" width="7" height="7"/>
+                <rect x="14" y="14" width="7" height="7"/>
+              </svg>
+            </button>
+            <button
+              className={`lrs-view-btn ${viewMode === 'table' ? 'active' : ''}`}
+              onClick={() => setViewMode('table')}
+              title="Table view"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="8" y1="6" x2="21" y2="6"/>
+                <line x1="8" y1="12" x2="21" y2="12"/>
+                <line x1="8" y1="18" x2="21" y2="18"/>
+                <line x1="3" y1="6" x2="3.01" y2="6"/>
+                <line x1="3" y1="12" x2="3.01" y2="12"/>
+                <line x1="3" y1="18" x2="3.01" y2="18"/>
+              </svg>
+            </button>
+          </div>
+
+          {/* Green Routes Toggle */}
+          <button
+            className={`lrs-toggle-green ${showGreenRoutes ? 'active' : ''}`}
+            onClick={toggleGreenRoutes}
+          >
+            <span className="lrs-toggle-green__dot" />
+            {showGreenRoutes ? 'Hide' : 'Show'} Operational
+          </button>
         </div>
+
+        {/* Route Quick-Jump Index */}
+        {routeIndex.length > 0 && (
+          <div className="lrs-quickjump">
+            <span className="lrs-quickjump__label">Jump to:</span>
+            <div className="lrs-quickjump__strip">
+              {routeIndex.map(char => (
+                <button
+                  key={char}
+                  className={`lrs-quickjump__btn ${searchQuery === char ? 'active' : ''}`}
+                  onClick={() => handleQuickJump(char)}
+                >
+                  {char}
+                </button>
+              ))}
+              {searchQuery && (
+                <button
+                  className="lrs-quickjump__btn lrs-quickjump__btn--clear"
+                  onClick={() => { setSearchQuery(''); setSortBy('status'); }}
+                >
+                  All
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Error State */}
         {error && (
-          <div className="error-message">
-            <div className="error-icon">⚠</div>
-            <div className="error-text">{error}</div>
-            <button onClick={handleManualRefresh} className="error-retry">
-              Try Again
-            </button>
+          <div className="lrs-error">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            <span className="lrs-error__text">{error}</span>
+            <button onClick={handleManualRefresh} className="lrs-error__retry">Retry</button>
           </div>
         )}
 
         {/* Loading State */}
         {loading && routes.length === 0 && (
-          <div className="loading-state">
-            <div className="spinner"></div>
-            <p>Loading route status...</p>
+          <div className="lrs-loading">
+            <div className="lrs-loading__spinner" />
+            <p>Loading route status data...</p>
           </div>
         )}
 
-        {/* Results Count */}
+        {/* Results Info */}
         {!loading && (
-          <div className="results-info">
-            Showing <strong>{filteredRoutes.length}</strong> of <strong>{routes.length}</strong> routes
-            {searchQuery && ` (filtered by "${searchQuery}")`}
+          <div className="lrs-results-info">
+            Showing <strong>{filteredRoutes.length - (showGreenRoutes ? 0 : groupedRoutes.GREEN.length)}</strong> of <strong>{routes.length}</strong> routes
+            {searchQuery && <> matching &ldquo;{searchQuery}&rdquo;</>}
+            {!showGreenRoutes && groupedRoutes.GREEN.length > 0 && (
+              <span className="lrs-results-info__hidden">
+                ({groupedRoutes.GREEN.length} operational routes hidden)
+              </span>
+            )}
           </div>
         )}
 
-        {/* Routes List */}
-        <div className="routes-container">
-          {filteredRoutes.length > 0 ? (
-            filteredRoutes.map((route) => (
-              <RouteStatusCard
-                key={route.routeId}
-                route={route}
-                onDetailsClick={handleRouteDetails}
-              />
-            ))
-          ) : (
-            <div className="no-results">
-              <div className="no-results-icon">🔍</div>
-              <p>No routes found matching your criteria</p>
-              {searchQuery && (
+        {/* Route Groups */}
+        <div className="lrs-groups">
+          {['RED', 'AMBER', 'GREEN'].map(status => {
+            const config = statusConfig[status];
+            const groupRoutes = groupedRoutes[status] || [];
+            const isCollapsed = groupCollapsed[status];
+
+            // Skip green group entirely if not shown and not searching
+            if (status === 'GREEN' && !showGreenRoutes && !searchQuery) return null;
+            // Skip empty groups
+            if (groupRoutes.length === 0) return null;
+
+            return (
+              <div
+                key={status}
+                className={`lrs-group ${config.accentClass}`}
+                ref={el => groupRefs.current[status] = el}
+              >
+                {/* Group Header */}
                 <button
-                  onClick={() => setSearchQuery('')}
-                  className="reset-button"
+                  className="lrs-group__header"
+                  onClick={() => toggleGroup(status)}
                 >
-                  Clear Search
+                  <div className="lrs-group__header-left">
+                    <span className={`lrs-group__indicator lrs-indicator--${status.toLowerCase()}`} />
+                    <span className="lrs-group__title">{config.label}</span>
+                    <span className="lrs-group__count">{groupRoutes.length}</span>
+                    <span className="lrs-group__sublabel">{config.sublabel}</span>
+                  </div>
+                  <svg
+                    className={`lrs-group__chevron ${isCollapsed ? '' : 'open'}`}
+                    width="20" height="20" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" strokeWidth="2"
+                    strokeLinecap="round" strokeLinejoin="round"
+                  >
+                    <polyline points="6 9 12 15 18 9"/>
+                  </svg>
+                </button>
+
+                {/* Group Content */}
+                {!isCollapsed && (
+                  <div className="lrs-group__content">
+                    {viewMode === 'table' ? (
+                      /* Table View */
+                      <div className="lrs-table-wrap">
+                        <table className="lrs-table">
+                          <thead>
+                            <tr>
+                              <th className="lrs-table__th--route">Route</th>
+                              <th className="lrs-table__th--name">Name</th>
+                              <th className="lrs-table__th--status">Status</th>
+                              <th className="lrs-table__th--breakdowns">Breakdowns</th>
+                              <th className="lrs-table__th--severity">Severity</th>
+                              <th className="lrs-table__th--time">Last Incident</th>
+                              <th className="lrs-table__th--action"></th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {groupRoutes.map(route => (
+                              <tr key={route.routeId} className="lrs-table__row">
+                                <td className="lrs-table__td--route">
+                                  <span className="lrs-table__route-badge">{route.routeShortName}</span>
+                                </td>
+                                <td className="lrs-table__td--name">{route.routeLongName}</td>
+                                <td className="lrs-table__td--status">
+                                  <span className={`lrs-table__status lrs-table__status--${route.status.toLowerCase()}`}>
+                                    {route.status}
+                                  </span>
+                                </td>
+                                <td className="lrs-table__td--breakdowns">
+                                  {route.breakdownCount > 0 ? route.breakdownCount : '\u2014'}
+                                </td>
+                                <td className="lrs-table__td--severity">
+                                  {route.breakdownSeverities?.length > 0 ? (
+                                    <div className="lrs-table__severity-badges">
+                                      {route.breakdownSeverities.map((sev, idx) => (
+                                        <span key={idx} className={`lrs-sev-badge lrs-sev-badge--${sev.toLowerCase()}`}>
+                                          {sev}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  ) : '\u2014'}
+                                </td>
+                                <td className="lrs-table__td--time">
+                                  {route.lastBreakdownTime
+                                    ? new Date(route.lastBreakdownTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                                    : '\u2014'
+                                  }
+                                </td>
+                                <td className="lrs-table__td--action">
+                                  {route.breakdownCount > 0 && (
+                                    <button
+                                      className="lrs-table__view-btn"
+                                      onClick={() => handleRouteDetails(route)}
+                                    >
+                                      View
+                                    </button>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      /* Card View */
+                      <div className="lrs-cards-grid">
+                        {groupRoutes.map(route => (
+                          <RouteStatusCard
+                            key={route.routeId}
+                            route={route}
+                            onDetailsClick={handleRouteDetails}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {/* No Results */}
+          {filteredRoutes.length === 0 && !loading && (
+            <div className="lrs-empty">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.4">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <p>No routes match your search</p>
+              {searchQuery && (
+                <button className="lrs-empty__clear" onClick={() => setSearchQuery('')}>
+                  Clear search
                 </button>
               )}
             </div>
           )}
         </div>
 
-        {/* Footer Info */}
-        <div className="dashboard-footer">
-          <p>
-            <strong>Status Definitions:</strong>
-            <span className="status-def green">● GREEN: Operational (0 active breakdowns)</span>
-            <span className="status-def amber">● AMBER: At-Risk (1 active breakdown)</span>
-            <span className="status-def red">● RED: Problem (2+ active breakdowns)</span>
-          </p>
-          <p>Data auto-refreshes every 10 seconds • Last updated: {lastUpdated?.toLocaleTimeString() || 'Never'}</p>
+        {/* Footer */}
+        <div className="lrs-footer">
+          <div className="lrs-footer__defs">
+            <span className="lrs-footer__def lrs-footer__def--red">RED: 2+ breakdowns</span>
+            <span className="lrs-footer__def lrs-footer__def--amber">AMBER: 1 breakdown</span>
+            <span className="lrs-footer__def lrs-footer__def--green">GREEN: No issues</span>
+          </div>
+          <span className="lrs-footer__meta">
+            Auto-refreshes every 10s &middot; Last updated: {lastUpdated?.toLocaleTimeString() || 'Never'}
+          </span>
         </div>
       </div>
     </DashboardLayout>

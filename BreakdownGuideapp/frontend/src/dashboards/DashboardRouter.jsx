@@ -7,6 +7,8 @@ import EngineeringDashboard from './engineering/EngineeringDashboard';
 import ManagementDashboard from './management/ManagementDashboard';
 import SDCDashboard from './sdc/SDCDashboard';
 import LiveRouteStatusDashboard from './gtfs/LiveRouteStatusDashboard';
+import RouteTimetableViewer from './gtfs/RouteTimetableViewer';
+import StopFinder from './gtfs/StopFinder';
 import FleetDefectIntelligence from './FleetDefectIntelligence';
 
 const DashboardRouter = () => {
@@ -22,6 +24,8 @@ const DashboardRouter = () => {
       <Route path="/management" element={<ManagementDashboard />} />
       <Route path="/sdc" element={<SDCDashboard />} />
       <Route path="/gtfs/routes" element={<LiveRouteStatusDashboard />} />
+      <Route path="/gtfs/timetable" element={<RouteTimetableViewer />} />
+      <Route path="/gtfs/stops" element={<StopFinder />} />
       <Route path="/fleet-defects" element={<FleetDefectIntelligence />} />
     </Routes>
   );

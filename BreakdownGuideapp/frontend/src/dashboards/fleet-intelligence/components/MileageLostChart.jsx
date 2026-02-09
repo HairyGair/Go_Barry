@@ -1,7 +1,7 @@
 /**
  * MileageLostChart Component
  *
- * Displays a 7-day trend chart of mileage lost due to breakdowns.
+ * Ocean Teal themed mileage lost chart for Fleet Intelligence Dashboard.
  * Features: Area/Bar chart toggle, trend indicator, top routes summary.
  */
 
@@ -19,15 +19,49 @@ import {
 } from 'recharts';
 import MileageDetailsModal from './MileageDetailsModal';
 
+// Inline SVG Icons
+const TrendLineIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M2 12L5 9L8 11L14 5M14 5H10M14 5V9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+const BarChartIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="2" y="8" width="3" height="6" fill="currentColor" rx="1"/>
+    <rect x="6.5" y="4" width="3" height="10" fill="currentColor" rx="1"/>
+    <rect x="11" y="6" width="3" height="8" fill="currentColor" rx="1"/>
+  </svg>
+);
+
+const TrendUpIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M1 13L7 7L10 10L13 1M13 1H9M13 1V5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+const TrendDownIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M1 1L7 7L10 4L13 13M13 13H9M13 13V9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+  </svg>
+);
+
+const MagnifyIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.5"/>
+    <path d="M11 11L14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+  </svg>
+);
+
 // Custom tooltip component
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
     return (
-      <div className="chart-tooltip">
-        <p className="tooltip-date">{label}</p>
-        <p className="tooltip-value">
-          <span className="tooltip-label">Mileage Lost:</span>
-          <span className="tooltip-number">{payload[0].value.toFixed(1)} mi</span>
+      <div className="fi__tooltip">
+        <p className="fi__tooltip-label">{label}</p>
+        <p className="fi__tooltip-value">
+          <span>Mileage Lost:</span>
+          <strong>{payload[0].value.toFixed(1)} mi</strong>
         </p>
       </div>
     );
@@ -82,53 +116,56 @@ const MileageLostChart = ({ data, loading }) => {
 
   if (loading) {
     return (
-      <div className="fid-card mileage-chart-container">
-        <div className="chart-header">
-          <h3>📈 Mileage Lost (7 Days)</h3>
+      <div className="fi__card">
+        <div className="fi__card-header">
+          <h3 className="fi__card-title">Mileage Lost (7 Days)</h3>
         </div>
-        <div className="chart-loading">
-          <div className="loading-skeleton chart-skeleton"></div>
-        </div>
+        <div className="fi__skeleton fi__skeleton--chart"></div>
       </div>
     );
   }
 
   return (
-    <div className="fid-card mileage-chart-container">
-      <div className="chart-header">
-        <div className="chart-title-section">
-          <h3>📈 Mileage Lost (7 Days)</h3>
-          <div className="chart-summary">
-            <span className="total-miles">{totals.thisWeek.toFixed(1)} mi</span>
-            <span className={`trend ${totals.change >= 0 ? 'up' : 'down'}`}>
-              {totals.change >= 0 ? '↑' : '↓'} {Math.abs(totals.change).toFixed(1)}%
+    <div className="fi__card">
+      <div className="fi__card-header">
+        <div className="fi__chart-header">
+          <h3 className="fi__card-title">Mileage Lost (7 Days)</h3>
+          <div className="fi__chart-summary">
+            <span className="fi__chart-total">{totals.thisWeek.toFixed(1)} mi</span>
+            <span className={`fi__chart-trend ${totals.change >= 0 ? 'fi__chart-trend--up' : 'fi__chart-trend--down'}`}>
+              {totals.change >= 0 ? <TrendUpIcon /> : <TrendDownIcon />}
+              {Math.abs(totals.change).toFixed(1)}%
             </span>
           </div>
         </div>
-        <div className="chart-type-toggle">
+        <div className="fi__chart-toggle">
           <button
             className={chartType === 'area' ? 'active' : ''}
             onClick={() => setChartType('area')}
+            aria-label="Trend view"
           >
-            📈 Trend
+            <TrendLineIcon />
+            Trend
           </button>
           <button
             className={chartType === 'bar' ? 'active' : ''}
             onClick={() => setChartType('bar')}
+            aria-label="Bar chart view"
           >
-            📊 Daily
+            <BarChartIcon />
+            Daily
           </button>
         </div>
       </div>
 
-      <div className="chart-container">
+      <div className="fi__chart-container">
         <ResponsiveContainer width="100%" height={200}>
           {chartType === 'area' ? (
             <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
               <defs>
-                <linearGradient id="mileageGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#E30613" stopOpacity={0.4} />
-                  <stop offset="95%" stopColor="#E30613" stopOpacity={0} />
+                <linearGradient id="mileageGradientOcean" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="rgba(0,151,167,0.4)" stopOpacity={1} />
+                  <stop offset="95%" stopColor="rgba(0,151,167,0)" stopOpacity={1} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
@@ -148,9 +185,9 @@ const MileageLostChart = ({ data, loading }) => {
               <Area
                 type="monotone"
                 dataKey="total"
-                stroke="#E30613"
+                stroke="#0097A7"
                 strokeWidth={2}
-                fill="url(#mileageGradient)"
+                fill="url(#mileageGradientOcean)"
                 animationDuration={500}
               />
             </AreaChart>
@@ -172,7 +209,7 @@ const MileageLostChart = ({ data, loading }) => {
               <Tooltip content={<CustomTooltip />} />
               <Bar
                 dataKey="total"
-                fill="#E30613"
+                fill="#00BCD4"
                 radius={[4, 4, 0, 0]}
                 animationDuration={500}
               />
@@ -182,11 +219,11 @@ const MileageLostChart = ({ data, loading }) => {
       </div>
 
       {totals.topRoutes.length > 0 && (
-        <div className="top-routes">
+        <div className="fi__chart-routes">
           <h4>Top Impact Routes</h4>
-          <div className="route-chips">
+          <div className="fi__route-chips">
             {totals.topRoutes.map((route, index) => (
-              <span key={index} className="route-chip">
+              <span key={index} className="fi__route-chip">
                 Route {route.route || route.route_id}: {(route.miles || route.mileage_lost || 0).toFixed(1)} mi
               </span>
             ))}
@@ -194,17 +231,16 @@ const MileageLostChart = ({ data, loading }) => {
         </div>
       )}
 
-      {/* View Details Button */}
-      <div className="chart-actions">
+      <div className="fi__chart-actions">
         <button
-          className="view-details-btn"
+          className="fi__view-details-btn"
           onClick={() => setShowDetailsModal(true)}
         >
-          🔍 View Detailed Breakdown
+          <MagnifyIcon />
+          View Detailed Breakdown
         </button>
       </div>
 
-      {/* Mileage Details Modal */}
       <MileageDetailsModal
         isOpen={showDetailsModal}
         onClose={() => setShowDetailsModal(false)}

@@ -227,6 +227,10 @@ class SupervisorBreakdownLogger {
             route_name: this.currentBreakdown.routeName || null,
             service: this.currentBreakdown.route || null, // Alias for route
 
+            // Trip/Journey information (GTFS link)
+            trip_id: this.currentBreakdown.vehicle?.tripId || null,
+            block_id: this.currentBreakdown.vehicle?.blockId || null,
+
             // Supervisor information (with fallbacks)
             supervisor_badge: this.supervisor?.supervisorId || this.supervisor?.badge || 'TEST001',
             supervisor_name: this.supervisor?.name || 'Test Supervisor',

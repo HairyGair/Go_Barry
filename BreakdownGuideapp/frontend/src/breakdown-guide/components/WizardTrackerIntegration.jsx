@@ -302,6 +302,10 @@ class WizardTrackerIntegration {
         issue_description: issueDescription,
         severity: severity,
 
+        // Trip/Journey information (GTFS link)
+        trip_id: responses?.tripId || null,
+        block_id: responses?.blockId || null,
+
         // Additional context
         priority_level: severity === 'STOP' ? 1 : (severity === 'AMBER' ? 2 : 3),
         engineering_required: severity === 'STOP' || this.requiresEngineering(wizardType, responses),

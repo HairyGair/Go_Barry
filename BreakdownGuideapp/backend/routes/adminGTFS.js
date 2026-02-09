@@ -63,7 +63,8 @@ function parseGTFSFile(buffer, fileType) {
       routes: ['route_id', 'agency_id', 'route_short_name'],
       stops: ['stop_id', 'stop_name', 'stop_lat', 'stop_lon'],
       trips: ['trip_id', 'route_id', 'service_id'],
-      stop_times: ['trip_id', 'stop_id', 'stop_sequence', 'arrival_time', 'departure_time']
+      stop_times: ['trip_id', 'stop_id', 'stop_sequence', 'arrival_time', 'departure_time'],
+      shapes: ['shape_id', 'shape_pt_lat', 'shape_pt_lon', 'shape_pt_sequence']
     };
 
     if (records.length === 0) {
@@ -458,6 +459,8 @@ router.post('/trips', upload.single('csvFile'), async (req, res) => {
                   service_id = ?,
                   trip_headsign = ?,
                   direction_id = ?,
+                  shape_id = ?,
+                  block_id = ?,
                   updated_at = NOW()
                 WHERE trip_id = ?`,
                 [
@@ -465,6 +468,8 @@ router.post('/trips', upload.single('csvFile'), async (req, res) => {
                   row.service_id || null,
                   row.trip_headsign || null,
                   row.direction_id || null,
+                  row.shape_id || null,
+                  row.block_id || null,
                   row.trip_id
                 ]
               );
@@ -472,14 +477,16 @@ router.post('/trips', upload.single('csvFile'), async (req, res) => {
             } else {
               await connection.execute(
                 `INSERT INTO gtfs_trips
-                (trip_id, route_id, service_id, trip_headsign, direction_id, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
+                (trip_id, route_id, service_id, trip_headsign, direction_id, shape_id, block_id, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
                 [
                   row.trip_id,
                   row.route_id || null,
                   row.service_id || null,
                   row.trip_headsign || null,
-                  row.direction_id || null
+                  row.direction_id || null,
+                  row.shape_id || null,
+                  row.block_id || null
                 ]
               );
               successCount++;
@@ -687,6 +694,344 @@ router.post('/stop-times', upload.single('csvFile'), async (req, res) => {
 });
 
 /**
+ * POST /api/admin/gtfs/shapes
+ * Import shape points from GTFS shapes.txt file
+ * Uses batch INSERT ON DUPLICATE KEY UPDATE for performance (like stop_times)
+ */
+router.post('/shapes', upload.single('csvFile'), async (req, res) => {
+  try {
+    console.log('🚀 GTFS Shapes import request received');
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'No file provided',
+        message: 'Please upload a shapes.txt file'
+      });
+    }
+
+    console.log(`📄 Parsing ${(req.file.size / (1024 * 1024)).toFixed(2)}MB file...`);
+
+    const parseResult = parseGTFSFile(req.file.buffer, 'shapes');
+
+    if (!parseResult.valid) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid GTFS format',
+        message: parseResult.errors[0],
+        details: 'Ensure file contains: shape_id, shape_pt_lat, shape_pt_lon, shape_pt_sequence'
+      });
+    }
+
+    console.log(`📊 Parsed ${parseResult.recordCount} shape points - Beginning batch import...`);
+
+    let successCount = 0;
+    const importErrors = [];
+    const batchSize = 5000;
+
+    try {
+      for (let i = 0; i < parseResult.data.length; i += batchSize) {
+        const batch = parseResult.data.slice(i, i + batchSize);
+
+        const values = [];
+        const placeholders = [];
+
+        for (const row of batch) {
+          placeholders.push('(?, ?, ?, ?, ?, NOW(), NOW())');
+          values.push(
+            row.shape_id,
+            parseFloat(row.shape_pt_lat) || 0,
+            parseFloat(row.shape_pt_lon) || 0,
+            parseInt(row.shape_pt_sequence) || 0,
+            row.shape_dist_traveled ? parseFloat(row.shape_dist_traveled) : null
+          );
+        }
+
+        try {
+          await query(
+            `INSERT INTO gtfs_shapes
+            (shape_id, shape_pt_lat, shape_pt_lon, shape_pt_sequence, shape_dist_traveled, created_at, updated_at)
+            VALUES ${placeholders.join(',')}
+            ON DUPLICATE KEY UPDATE
+              shape_pt_lat = VALUES(shape_pt_lat),
+              shape_pt_lon = VALUES(shape_pt_lon),
+              shape_dist_traveled = VALUES(shape_dist_traveled),
+              updated_at = NOW()`,
+            values
+          );
+
+          successCount += batch.length;
+        } catch (batchError) {
+          console.error(`   Error importing batch ${i / batchSize}:`, batchError.message);
+          importErrors.push({
+            batchNumber: Math.floor(i / batchSize),
+            batchSize: batch.length,
+            error: batchError.message
+          });
+        }
+
+        const progressPercent = Math.round(((i + batchSize) / parseResult.data.length) * 100);
+        console.log(`   Progress: ${progressPercent}% (${Math.min(i + batchSize, parseResult.data.length)} / ${parseResult.recordCount})`);
+      }
+
+      console.log('✅ Shapes import completed');
+
+      await activityLogger.logActivity({
+        activityType: ACTIVITY_TYPES.GTFS_IMPORTED,
+        action: `imported ${successCount} shape points`,
+        actorType: ACTOR_TYPES.ADMIN,
+        actorId: req.user?.badge_number || 'ADMIN',
+        actorName: req.user?.name || 'Admin',
+        entityType: ENTITY_TYPES.GTFS,
+        entityDetails: {
+          file_type: 'shapes',
+          processed_count: successCount,
+          failed_count: importErrors.length,
+          total_rows: parseResult.recordCount
+        },
+        severity: SEVERITY_LEVELS.SUCCESS,
+        source: 'admin_panel',
+        icon: '📐'
+      });
+
+      return res.json({
+        success: true,
+        message: 'Shapes imported successfully',
+        totalRows: parseResult.recordCount,
+        processedCount: successCount,
+        failureCount: importErrors.length,
+        errors: importErrors.slice(0, 5)
+      });
+
+    } catch (batchImportError) {
+      console.error('❌ Batch import error:', batchImportError);
+      return res.status(500).json({
+        success: false,
+        error: 'Batch import failed',
+        message: batchImportError.message,
+        processedCount: successCount
+      });
+    }
+
+  } catch (error) {
+    console.error('❌ Shapes import error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Import failed',
+      message: error.message
+    });
+  }
+});
+
+/**
+ * Haversine distance helper (local to this module for compute-distances)
+ */
+function haversineDistance(lat1, lon1, lat2, lon2) {
+  const toRad = (deg) => deg * (Math.PI / 180);
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+            Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return 6371 * c; // km
+}
+
+/**
+ * POST /api/admin/gtfs/compute-distances
+ * Compute route distances from shape data and cache in gtfs_route_distances.
+ * Must be run after importing shapes.txt and trips.txt (with shape_id).
+ */
+router.post('/compute-distances', async (req, res) => {
+  try {
+    console.log('🚀 Computing route distances from shapes...');
+
+    // Get all routes with their trips and shape_ids
+    const routeTrips = await query(`
+      SELECT DISTINCT
+        r.route_id,
+        r.route_short_name,
+        t.direction_id,
+        t.shape_id,
+        t.trip_id
+      FROM gtfs_routes r
+      INNER JOIN gtfs_trips t ON r.route_id = t.route_id
+      WHERE t.shape_id IS NOT NULL
+      ORDER BY r.route_id, t.direction_id
+    `);
+
+    if (!routeTrips || routeTrips.length === 0) {
+      return res.json({
+        success: false,
+        error: 'No routes with shape_id found. Import trips.txt with shape_id column first.',
+        routesProcessed: 0
+      });
+    }
+
+    // Group by route + direction, pick one shape_id per group
+    const routeDirections = {};
+    for (const rt of routeTrips) {
+      const key = `${rt.route_id}_${rt.direction_id ?? 0}`;
+      if (!routeDirections[key]) {
+        routeDirections[key] = {
+          routeId: rt.route_id,
+          directionId: rt.direction_id ?? 0,
+          shapeId: rt.shape_id,
+          tripId: rt.trip_id
+        };
+      }
+    }
+
+    let processedCount = 0;
+    let errorCount = 0;
+    const results = [];
+
+    for (const rd of Object.values(routeDirections)) {
+      try {
+        // Get shape points ordered by sequence
+        const shapePoints = await query(`
+          SELECT shape_pt_lat, shape_pt_lon, shape_pt_sequence
+          FROM gtfs_shapes
+          WHERE shape_id = ?
+          ORDER BY shape_pt_sequence
+        `, [rd.shapeId]);
+
+        if (!shapePoints || shapePoints.length < 2) {
+          errorCount++;
+          continue;
+        }
+
+        // Sum Haversine distances between consecutive shape points
+        let totalDistanceKm = 0;
+        for (let i = 0; i < shapePoints.length - 1; i++) {
+          totalDistanceKm += haversineDistance(
+            parseFloat(shapePoints[i].shape_pt_lat),
+            parseFloat(shapePoints[i].shape_pt_lon),
+            parseFloat(shapePoints[i + 1].shape_pt_lat),
+            parseFloat(shapePoints[i + 1].shape_pt_lon)
+          );
+        }
+
+        // Get stops for this trip to compute cumulative distances
+        const tripStops = await query(`
+          SELECT s.stop_lat, s.stop_lon, st.stop_sequence
+          FROM gtfs_stop_times st
+          INNER JOIN gtfs_stops s ON st.stop_id = s.stop_id
+          WHERE st.trip_id = ?
+          ORDER BY st.stop_sequence
+        `, [rd.tripId]);
+
+        // Project each stop onto the shape to get cumulative distance
+        const cumulativeDistances = [];
+        if (tripStops && tripStops.length > 0) {
+          for (const stop of tripStops) {
+            // Find the closest shape point to this stop
+            let minDist = Infinity;
+            let bestShapeIdx = 0;
+            for (let j = 0; j < shapePoints.length; j++) {
+              const d = haversineDistance(
+                parseFloat(stop.stop_lat), parseFloat(stop.stop_lon),
+                parseFloat(shapePoints[j].shape_pt_lat), parseFloat(shapePoints[j].shape_pt_lon)
+              );
+              if (d < minDist) {
+                minDist = d;
+                bestShapeIdx = j;
+              }
+            }
+            // Cumulative distance along shape up to this shape point
+            let cumDist = 0;
+            for (let k = 0; k < bestShapeIdx && k < shapePoints.length - 1; k++) {
+              cumDist += haversineDistance(
+                parseFloat(shapePoints[k].shape_pt_lat),
+                parseFloat(shapePoints[k].shape_pt_lon),
+                parseFloat(shapePoints[k + 1].shape_pt_lat),
+                parseFloat(shapePoints[k + 1].shape_pt_lon)
+              );
+            }
+            cumulativeDistances.push(Math.round(cumDist * 1000) / 1000);
+          }
+        }
+
+        const distanceMiles = totalDistanceKm * 0.621371;
+
+        // Upsert into gtfs_route_distances
+        await query(`
+          INSERT INTO gtfs_route_distances
+            (route_id, direction_id, distance_km, distance_miles, shape_id, stop_count, cumulative_distances, computed_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+          ON DUPLICATE KEY UPDATE
+            distance_km = VALUES(distance_km),
+            distance_miles = VALUES(distance_miles),
+            shape_id = VALUES(shape_id),
+            stop_count = VALUES(stop_count),
+            cumulative_distances = VALUES(cumulative_distances),
+            computed_at = NOW(),
+            updated_at = NOW()
+        `, [
+          rd.routeId,
+          rd.directionId,
+          Math.round(totalDistanceKm * 10000) / 10000,
+          Math.round(distanceMiles * 10000) / 10000,
+          rd.shapeId,
+          tripStops ? tripStops.length : 0,
+          JSON.stringify(cumulativeDistances)
+        ]);
+
+        processedCount++;
+        results.push({
+          routeId: rd.routeId,
+          directionId: rd.directionId,
+          distanceKm: Math.round(totalDistanceKm * 100) / 100,
+          distanceMiles: Math.round(distanceMiles * 100) / 100,
+          shapePoints: shapePoints.length,
+          stops: tripStops ? tripStops.length : 0
+        });
+
+      } catch (routeError) {
+        console.error(`Error computing distance for route ${rd.routeId} dir ${rd.directionId}:`, routeError.message);
+        errorCount++;
+      }
+    }
+
+    console.log(`✅ Route distances computed: ${processedCount} succeeded, ${errorCount} failed`);
+
+    await activityLogger.logActivity({
+      activityType: ACTIVITY_TYPES.GTFS_IMPORTED,
+      action: `computed ${processedCount} route distances from shapes`,
+      actorType: ACTOR_TYPES.ADMIN,
+      actorId: req.user?.badge_number || 'ADMIN',
+      actorName: req.user?.name || 'Admin',
+      entityType: ENTITY_TYPES.GTFS,
+      entityDetails: {
+        operation: 'compute_distances',
+        processed: processedCount,
+        errors: errorCount
+      },
+      severity: SEVERITY_LEVELS.SUCCESS,
+      source: 'admin_panel',
+      icon: '📏'
+    });
+
+    return res.json({
+      success: true,
+      message: `Computed distances for ${processedCount} route-directions`,
+      routesProcessed: processedCount,
+      errors: errorCount,
+      totalRouteDirections: Object.keys(routeDirections).length,
+      sampleResults: results.slice(0, 20)
+    });
+
+  } catch (error) {
+    console.error('❌ Compute distances error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to compute distances',
+      message: error.message
+    });
+  }
+});
+
+/**
  * GET /api/admin/gtfs/stats
  * Get statistics on imported GTFS data
  */
@@ -696,32 +1041,55 @@ router.get('/stats', async (req, res) => {
 
     // Count routes
     const [routeCount] = await query('SELECT COUNT(*) as count FROM gtfs_routes');
-    stats.routes = routeCount[0].count;
+    stats.routes = routeCount.count;
 
     // Count stops
     const [stopCount] = await query('SELECT COUNT(*) as count FROM gtfs_stops');
-    stats.stops = stopCount[0].count;
+    stats.stops = stopCount.count;
 
     // Count trips
     const [tripCount] = await query('SELECT COUNT(*) as count FROM gtfs_trips');
-    stats.trips = tripCount[0].count;
+    stats.trips = tripCount.count;
 
     // Count stop times
     const [stopTimeCount] = await query('SELECT COUNT(*) as count FROM gtfs_stop_times');
-    stats.stopTimes = stopTimeCount[0].count;
+    stats.stopTimes = stopTimeCount.count;
+
+    // Count shapes (with graceful handling if table doesn't exist yet)
+    try {
+      const [shapeCount] = await query('SELECT COUNT(*) as count FROM gtfs_shapes');
+      stats.shapes = shapeCount.count;
+    } catch (e) {
+      stats.shapes = 0;
+    }
+
+    // Count cached route distances
+    try {
+      const [distCount] = await query('SELECT COUNT(*) as count FROM gtfs_route_distances');
+      stats.routeDistances = distCount.count;
+    } catch (e) {
+      stats.routeDistances = 0;
+    }
 
     // Last import times
     const [routeUpdate] = await query('SELECT MAX(updated_at) as lastUpdate FROM gtfs_routes');
-    stats.routesLastUpdated = routeUpdate[0].lastUpdate;
+    stats.routesLastUpdated = routeUpdate.lastUpdate;
 
     const [stopUpdate] = await query('SELECT MAX(updated_at) as lastUpdate FROM gtfs_stops');
-    stats.stopsLastUpdated = stopUpdate[0].lastUpdate;
+    stats.stopsLastUpdated = stopUpdate.lastUpdate;
 
     const [tripUpdate] = await query('SELECT MAX(updated_at) as lastUpdate FROM gtfs_trips');
-    stats.tripsLastUpdated = tripUpdate[0].lastUpdate;
+    stats.tripsLastUpdated = tripUpdate.lastUpdate;
 
     const [stopTimeUpdate] = await query('SELECT MAX(updated_at) as lastUpdate FROM gtfs_stop_times');
-    stats.stopTimesLastUpdated = stopTimeUpdate[0].lastUpdate;
+    stats.stopTimesLastUpdated = stopTimeUpdate.lastUpdate;
+
+    try {
+      const [shapeUpdate] = await query('SELECT MAX(updated_at) as lastUpdate FROM gtfs_shapes');
+      stats.shapesLastUpdated = shapeUpdate.lastUpdate;
+    } catch (e) {
+      stats.shapesLastUpdated = null;
+    }
 
     res.json({
       success: true,

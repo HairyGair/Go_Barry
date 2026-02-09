@@ -248,9 +248,9 @@ export const analyticsSchemas = {
   // GET /api/analytics/summary
   summary: {
     query: Joi.object({
-      period: Joi.string().valid('today', 'week', 'month', 'year').default('today')
+      period: Joi.string().valid('today', 'week', 'month', 'quarter', 'year').default('today')
         .messages({
-          'any.only': 'Period must be today, week, month, or year'
+          'any.only': 'Period must be today, week, month, quarter, or year'
         }),
       depot: commonSchemas.depot.optional()
     })
@@ -277,9 +277,9 @@ export const analyticsSchemas = {
   // GET /api/analytics/kpis
   kpis: {
     query: Joi.object({
-      period: Joi.string().valid('today', 'week', 'month', 'year').default('today')
+      period: Joi.string().valid('today', 'week', 'month', 'quarter', 'year').default('today')
         .messages({
-          'any.only': 'Period must be today, week, month, or year'
+          'any.only': 'Period must be today, week, month, quarter, or year'
         }),
       depot: commonSchemas.depot.optional()
     })

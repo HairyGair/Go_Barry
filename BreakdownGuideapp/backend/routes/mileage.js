@@ -152,20 +152,29 @@ router.post('/breakdown/:breakdownId/calculate', async (req, res) => {
       });
     }
 
-    // Calculate actual downtime if resolved
-    let downtimeMinutes = estimatedDowntimeMinutes || 60;
-    if (breakdown.resolved_at && breakdown.created_at) {
+    // Fix 2: Calculate actual downtime - live elapsed for open, actual for resolved
+    let downtimeMinutes;
+    if (estimatedDowntimeMinutes) {
+      downtimeMinutes = estimatedDowntimeMinutes;
+    } else if (breakdown.resolved_at && breakdown.created_at) {
       const createdAt = new Date(breakdown.created_at);
       const resolvedAt = new Date(breakdown.resolved_at);
       downtimeMinutes = Math.ceil((resolvedAt - createdAt) / (1000 * 60));
+    } else if (breakdown.created_at) {
+      // Live elapsed time for unresolved breakdowns
+      const createdAt = new Date(breakdown.created_at);
+      downtimeMinutes = Math.ceil((Date.now() - createdAt.getTime()) / (1000 * 60));
+    } else {
+      downtimeMinutes = 60;
     }
 
-    // Calculate mileage lost
+    // Calculate mileage lost (with time-aware frequency)
     const result = await calculateMileageLost({
       routeId: breakdown.route_id,
       lat: breakdown.location_lat,
       lng: breakdown.location_lng,
       estimatedDowntimeMinutes: downtimeMinutes,
+      breakdownStartTime: breakdown.created_at,
     });
 
     if (!result.success) {
@@ -495,20 +504,26 @@ router.post('/recalculate-all', async (req, res) => {
 
     for (const breakdown of breakdowns) {
       try {
-        // Calculate downtime
-        let downtimeMinutes = 60;
+        // Fix 2: Calculate downtime - live elapsed for open, actual for resolved
+        let downtimeMinutes;
         if (breakdown.resolved_at && breakdown.created_at) {
           const createdAt = new Date(breakdown.created_at);
           const resolvedAt = new Date(breakdown.resolved_at);
           downtimeMinutes = Math.ceil((resolvedAt - createdAt) / (1000 * 60));
+        } else if (breakdown.created_at) {
+          const createdAt = new Date(breakdown.created_at);
+          downtimeMinutes = Math.ceil((Date.now() - createdAt.getTime()) / (1000 * 60));
+        } else {
+          downtimeMinutes = 60;
         }
 
-        // Calculate mileage
+        // Calculate mileage (with time-aware frequency)
         const result = await calculateMileageLost({
           routeId: breakdown.route_id,
           lat: breakdown.location_lat,
           lng: breakdown.location_lng,
           estimatedDowntimeMinutes: downtimeMinutes,
+          breakdownStartTime: breakdown.created_at,
         });
 
         if (result.success) {

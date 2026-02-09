@@ -209,6 +209,7 @@ import displayRoutes from './routes/displays.js';
 import adminFleetRoutes from './routes/adminFleet.js';
 import adminGTFSRoutes from './routes/adminGTFS.js';
 import gtfsPhase1Routes from './routes/gtfsPhase1.js';
+import gtfsPhase2Routes from './routes/gtfsPhase2.js';
 import supervisorSessionsRoutes from './routes/supervisorSessions.js';
 import assessmentRoutes from './routes/assessment.js';
 import dutyHandoverRoutes from './routes/dutyHandover.js';
@@ -647,6 +648,8 @@ app.use('/api/settings', systemSettingsRoutes); // System settings (Phase 9.1) -
 
 // GTFS Phase 1 Features - Live route status, coverage analysis, incident heatmap
 app.use('/api/gtfs', authenticateSupervisor, gtfsPhase1Routes);
+// GTFS Phase 2 Features - Trips at risk, service gaps, shape matching, timetable, stop finder
+app.use('/api/gtfs', authenticateSupervisor, gtfsPhase2Routes);
 app.use('/api/mileage', authenticateSupervisor, mileageRoutes); // Mileage lost calculation
 
 // SDC Dashboard API routes (requires SDC operator authentication and rate limiting)

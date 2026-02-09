@@ -1,7 +1,10 @@
-import React, { useState, memo, useMemo } from 'react';
+import React, { useState, useCallback, memo, useMemo } from 'react';
 import { getWizardInfo } from './utils/wizardTypeMapping';
 import DepotContactBadge from '../../components/DepotContactBadge';
 import QuickDecisionButtons from './QuickDecisionButtons';
+import TripsAtRiskPanel, { LastBusBadge } from './TripsAtRiskPanel';
+import MultiRouteImpactMap from './MultiRouteImpactMap';
+import apiClient from '../../services/api-client';
 
 const SDCBreakdownCard = memo(({
   breakdown,
@@ -22,6 +25,66 @@ const SDCBreakdownCard = memo(({
   const [showWizardResponses, setShowWizardResponses] = useState(false);
   const [showNoteInput, setShowNoteInput] = useState(false);
   const [noteText, setNoteText] = useState('');
+  const [showImpactMap, setShowImpactMap] = useState(false);
+
+  // Journey/Trip editor state
+  const [showTripPicker, setShowTripPicker] = useState(false);
+  const [availableTrips, setAvailableTrips] = useState([]);
+  const [loadingTrips, setLoadingTrips] = useState(false);
+  const [linkedTrip, setLinkedTrip] = useState(breakdown.trip_id ? {
+    tripId: breakdown.trip_id,
+    blockId: breakdown.block_id,
+  } : null);
+  const [savingTrip, setSavingTrip] = useState(false);
+
+  const fetchTripsForRoute = useCallback(async () => {
+    const routeId = breakdown.route_id || breakdown.wizard_assessment_data?.route;
+    if (!routeId) return;
+    setLoadingTrips(true);
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
+      const res = await fetch(`${apiUrl}/api/public/route-trips?route_id=${encodeURIComponent(routeId)}&limit=30`);
+      const data = await res.json();
+      if (data.success && data.trips) {
+        setAvailableTrips(data.trips);
+      }
+    } catch (err) {
+      console.error('Error fetching trips:', err);
+    } finally {
+      setLoadingTrips(false);
+    }
+  }, [breakdown.route_id, breakdown.wizard_assessment_data?.route]);
+
+  const handleTripSelect = useCallback(async (trip) => {
+    setSavingTrip(true);
+    try {
+      await apiClient.put(`/api/breakdowns/${breakdown.id || breakdown.breakdown_id}`, {
+        trip_id: trip.tripId,
+        block_id: trip.blockId || null,
+      });
+      setLinkedTrip(trip);
+      setShowTripPicker(false);
+    } catch (err) {
+      console.error('Error saving trip:', err);
+    } finally {
+      setSavingTrip(false);
+    }
+  }, [breakdown.id, breakdown.breakdown_id]);
+
+  const handleUnlinkTrip = useCallback(async () => {
+    setSavingTrip(true);
+    try {
+      await apiClient.put(`/api/breakdowns/${breakdown.id || breakdown.breakdown_id}`, {
+        trip_id: null,
+        block_id: null,
+      });
+      setLinkedTrip(null);
+    } catch (err) {
+      console.error('Error unlinking trip:', err);
+    } finally {
+      setSavingTrip(false);
+    }
+  }, [breakdown.id, breakdown.breakdown_id]);
 
   // Phase 7.4: Check if shift is ending soon (priority indicator)
   const shiftPriorityInfo = useMemo(() => {
@@ -169,6 +232,7 @@ const SDCBreakdownCard = memo(({
           <div className="fleet-number">Fleet {breakdown.fleet_no}</div>
           <div className="route-badge">
             Route <span className="route-id">{breakdown.route_id || 'N/A'}</span>
+            <LastBusBadge routeId={breakdown.route_id} lat={breakdown.location_lat} lng={breakdown.location_lng} />
           </div>
         </div>
         <div className="breakdown-time">
@@ -261,6 +325,99 @@ const SDCBreakdownCard = memo(({
           </div>
         )}
       </div>
+
+      {/* Journey/Trip Link Section */}
+      {(breakdown.route_id || breakdown.wizard_assessment_data?.route) && (
+        <div className="sdc-journey-section">
+          {linkedTrip && !showTripPicker ? (
+            <div className="sdc-journey-linked">
+              <div className="sdc-journey-label">Linked Journey</div>
+              <div className="sdc-journey-detail">
+                {linkedTrip.departureTime ? (
+                  <span>
+                    <strong>{linkedTrip.departureTime?.substring(0, 5)}</strong> {linkedTrip.originStop || ''}
+                    {' \u2192 '}
+                    <strong>{linkedTrip.arrivalTime?.substring(0, 5) || ''}</strong> {linkedTrip.destStop || linkedTrip.headsign || ''}
+                  </span>
+                ) : (
+                  <span style={{ color: '#94A3B8' }}>Trip ID: {linkedTrip.tripId}</span>
+                )}
+                {linkedTrip.blockId && <span className="sdc-journey-block">Block {linkedTrip.blockId}</span>}
+              </div>
+              <div className="sdc-journey-actions">
+                <button onClick={() => { setShowTripPicker(true); fetchTripsForRoute(); }} className="sdc-journey-btn">Change</button>
+                <button onClick={handleUnlinkTrip} disabled={savingTrip} className="sdc-journey-btn sdc-journey-btn--remove">Remove</button>
+              </div>
+            </div>
+          ) : !showTripPicker ? (
+            <button
+              onClick={() => { setShowTripPicker(true); fetchTripsForRoute(); }}
+              className="sdc-journey-link-btn"
+            >
+              + Link Journey
+            </button>
+          ) : null}
+
+          {showTripPicker && (
+            <div className="sdc-trip-picker">
+              <div className="sdc-trip-picker-header">
+                <span>Select Journey</span>
+                <button onClick={() => setShowTripPicker(false)} className="sdc-trip-picker-close">\u2715</button>
+              </div>
+              {loadingTrips && <div className="sdc-trip-picker-loading">Loading trips...</div>}
+              {!loadingTrips && availableTrips.length === 0 && (
+                <div className="sdc-trip-picker-empty">No scheduled trips found</div>
+              )}
+              {!loadingTrips && availableTrips.length > 0 && (
+                <div className="sdc-trip-picker-list">
+                  {availableTrips.map((trip) => (
+                    <button
+                      key={trip.tripId}
+                      onClick={() => handleTripSelect(trip)}
+                      disabled={savingTrip}
+                      className={`sdc-trip-option ${linkedTrip?.tripId === trip.tripId ? 'sdc-trip-option--selected' : ''} ${trip.isPast ? 'sdc-trip-option--past' : ''}`}
+                    >
+                      <span className="sdc-trip-time">{trip.departureTime?.substring(0, 5)}</span>
+                      <span className="sdc-trip-route">
+                        {trip.originStop || ''} {'\u2192'} {trip.arrivalTime?.substring(0, 5) || ''} {trip.destStop || trip.headsign}
+                      </span>
+                      <span className="sdc-trip-ago">
+                        {trip.isPast ? `${Math.abs(trip.minutesFromNow)}m ago` : trip.minutesFromNow <= 0 ? 'now' : `in ${trip.minutesFromNow}m`}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* GTFS Phase 2: Trips at Risk Panel */}
+      {breakdown.route_id && (
+        <TripsAtRiskPanel
+          routeId={breakdown.route_id}
+          lat={breakdown.location_lat}
+          lng={breakdown.location_lng}
+          breakdownTime={null}
+        />
+      )}
+
+      {/* GTFS Phase 2: Impact Map Button */}
+      {breakdown.location_lat && breakdown.location_lng && (
+        <button className="mri-trigger-btn" onClick={() => setShowImpactMap(true)}>
+          &#x1F5FA;&#xFE0F; View Impact Map
+        </button>
+      )}
+
+      {/* Impact Map Modal */}
+      {showImpactMap && breakdown.location_lat && breakdown.location_lng && (
+        <MultiRouteImpactMap
+          lat={breakdown.location_lat}
+          lng={breakdown.location_lng}
+          onClose={() => setShowImpactMap(false)}
+        />
+      )}
 
       {/* Comprehensive Assessment Results */}
       {(breakdown.wizard_decision || breakdown.severity) && (
@@ -1902,6 +2059,172 @@ const SDCBreakdownCard = memo(({
           .action-number {
             align-self: flex-start;
           }
+        }
+
+        /* Journey/Trip Section */
+        .sdc-journey-section {
+          margin: 0 16px 12px;
+        }
+        .sdc-journey-linked {
+          background: rgba(0, 151, 167, 0.12);
+          border: 1px solid rgba(0, 188, 212, 0.3);
+          border-radius: 8px;
+          padding: 10px 12px;
+        }
+        .sdc-journey-label {
+          font-size: 11px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          color: #0097A7;
+          font-weight: 600;
+          margin-bottom: 4px;
+        }
+        .sdc-journey-detail {
+          font-size: 13px;
+          color: #E0F7FA;
+          line-height: 1.4;
+        }
+        .sdc-journey-detail strong {
+          font-family: 'JetBrains Mono', monospace;
+          color: #fff;
+        }
+        .sdc-journey-block {
+          display: inline-block;
+          font-size: 11px;
+          background: rgba(0, 151, 167, 0.25);
+          color: #80DEEA;
+          padding: 1px 6px;
+          border-radius: 4px;
+          margin-left: 8px;
+        }
+        .sdc-journey-actions {
+          display: flex;
+          gap: 8px;
+          margin-top: 8px;
+        }
+        .sdc-journey-btn {
+          font-size: 11px;
+          padding: 4px 10px;
+          border-radius: 4px;
+          border: 1px solid rgba(0, 188, 212, 0.4);
+          background: rgba(0, 151, 167, 0.15);
+          color: #80DEEA;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .sdc-journey-btn:hover {
+          background: rgba(0, 151, 167, 0.3);
+        }
+        .sdc-journey-btn--remove {
+          border-color: rgba(239, 68, 68, 0.4);
+          background: rgba(239, 68, 68, 0.1);
+          color: #FCA5A5;
+        }
+        .sdc-journey-btn--remove:hover {
+          background: rgba(239, 68, 68, 0.2);
+        }
+        .sdc-journey-link-btn {
+          width: 100%;
+          padding: 8px 12px;
+          font-size: 13px;
+          border-radius: 8px;
+          border: 1px dashed rgba(0, 188, 212, 0.4);
+          background: rgba(0, 151, 167, 0.08);
+          color: #0097A7;
+          cursor: pointer;
+          transition: all 0.2s;
+          text-align: left;
+        }
+        .sdc-journey-link-btn:hover {
+          background: rgba(0, 151, 167, 0.15);
+          border-color: rgba(0, 188, 212, 0.6);
+        }
+
+        /* Trip Picker */
+        .sdc-trip-picker {
+          background: rgba(15, 23, 42, 0.95);
+          border: 1px solid rgba(0, 188, 212, 0.3);
+          border-radius: 8px;
+          overflow: hidden;
+        }
+        .sdc-trip-picker-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 8px 12px;
+          background: rgba(0, 151, 167, 0.15);
+          font-size: 12px;
+          font-weight: 600;
+          color: #80DEEA;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        .sdc-trip-picker-close {
+          background: none;
+          border: none;
+          color: #94A3B8;
+          cursor: pointer;
+          font-size: 14px;
+          padding: 2px 6px;
+        }
+        .sdc-trip-picker-close:hover { color: #fff; }
+        .sdc-trip-picker-loading,
+        .sdc-trip-picker-empty {
+          padding: 16px;
+          text-align: center;
+          font-size: 12px;
+          color: #64748B;
+        }
+        .sdc-trip-picker-list {
+          max-height: 220px;
+          overflow-y: auto;
+          padding: 4px;
+        }
+        .sdc-trip-option {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 10px;
+          margin-bottom: 2px;
+          border-radius: 6px;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          background: rgba(30, 41, 59, 0.6);
+          color: #E2E8F0;
+          cursor: pointer;
+          transition: all 0.15s;
+          text-align: left;
+          font-size: 12px;
+        }
+        .sdc-trip-option:hover {
+          background: rgba(0, 151, 167, 0.15);
+          border-color: rgba(0, 188, 212, 0.3);
+        }
+        .sdc-trip-option--selected {
+          background: linear-gradient(135deg, rgba(0, 151, 167, 0.3), rgba(0, 131, 143, 0.3));
+          border-color: #00BCD4;
+          box-shadow: 0 0 8px rgba(0, 188, 212, 0.3);
+        }
+        .sdc-trip-option--past {
+          opacity: 0.6;
+        }
+        .sdc-trip-time {
+          font-family: 'JetBrains Mono', monospace;
+          font-weight: 700;
+          font-size: 13px;
+          min-width: 40px;
+          color: #fff;
+        }
+        .sdc-trip-route {
+          flex: 1;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .sdc-trip-ago {
+          font-size: 11px;
+          color: #64748B;
+          white-space: nowrap;
         }
       `}</style>
     </div>

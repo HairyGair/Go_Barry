@@ -1,0 +1,192 @@
+/* MultiRouteImpactMap - Route shape overlay on breakdown location */
+
+.mri-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(2px);
+}
+
+.mri-modal {
+  background: #fff;
+  border-radius: 16px;
+  width: 90vw;
+  max-width: 1100px;
+  height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.mri-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+  background: linear-gradient(135deg, #006064 0%, #00838F 100%);
+  color: white;
+}
+
+.mri-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.mri-header-stats {
+  display: flex;
+  gap: 12px;
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+.mri-close-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.mri-close-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.mri-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.mri-map-container {
+  flex: 1;
+  min-width: 0;
+}
+
+.mri-map-container .leaflet-container {
+  height: 100%;
+  width: 100%;
+}
+
+.mri-legend {
+  width: 240px;
+  border-left: 1px solid #e5e7eb;
+  overflow-y: auto;
+  padding: 12px;
+  background: #fafafa;
+}
+
+.mri-legend h4 {
+  margin: 0 0 10px 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+}
+
+.mri-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  margin-bottom: 4px;
+  font-size: 12px;
+  transition: background 0.15s;
+}
+
+.mri-legend-item:hover {
+  background: rgba(0, 151, 167, 0.08);
+}
+
+.mri-legend-swatch {
+  width: 20px;
+  height: 4px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.mri-legend-route {
+  font-weight: 600;
+  color: #333;
+}
+
+.mri-legend-name {
+  font-size: 11px;
+  color: #777;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mri-comparison {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.mri-comparison h4 {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #555;
+}
+
+.mri-comparison-stat {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #666;
+  padding: 3px 0;
+}
+
+.mri-comparison-stat span:last-child {
+  font-weight: 600;
+  color: #00838F;
+}
+
+.mri-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 14px;
+  color: #999;
+}
+
+/* Impact Map Button in SDCBreakdownCard */
+.mri-trigger-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 151, 167, 0.3);
+  background: rgba(0, 151, 167, 0.06);
+  color: #00838F;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  margin-top: 8px;
+}
+
+.mri-trigger-btn:hover {
+  background: rgba(0, 151, 167, 0.14);
+  border-color: #00838F;
+}

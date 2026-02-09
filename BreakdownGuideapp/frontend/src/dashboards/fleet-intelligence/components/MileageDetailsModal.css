@@ -137,8 +137,8 @@
 .filter-group select:focus,
 .filter-group input:focus {
   outline: none;
-  border-color: #E30613;
-  box-shadow: 0 0 0 3px rgba(227, 6, 19, 0.15);
+  border-color: #0097A7;
+  box-shadow: 0 0 0 3px rgba(0, 151, 167, 0.15);
 }
 
 .filter-group select option {
@@ -151,8 +151,8 @@
   display: flex;
   gap: 20px;
   padding: 16px 28px;
-  background: rgba(227, 6, 19, 0.05);
-  border-bottom: 1px solid rgba(227, 6, 19, 0.1);
+  background: rgba(0, 151, 167, 0.05);
+  border-bottom: 1px solid rgba(0, 151, 167, 0.1);
   flex-wrap: wrap;
 }
 
@@ -167,8 +167,8 @@
 }
 
 .summary-stat.highlight {
-  background: linear-gradient(135deg, rgba(227, 6, 19, 0.2), rgba(227, 6, 19, 0.05));
-  border: 1px solid rgba(227, 6, 19, 0.2);
+  background: linear-gradient(135deg, rgba(0, 151, 167, 0.2), rgba(0, 151, 167, 0.05));
+  border: 1px solid rgba(0, 151, 167, 0.2);
 }
 
 .summary-stat.warning {
@@ -183,7 +183,7 @@
 }
 
 .summary-stat.highlight .stat-value {
-  color: #E30613;
+  color: #0097A7;
 }
 
 .summary-stat.warning .stat-value {
@@ -222,8 +222,8 @@
 }
 
 .tab-btn.active {
-  background: linear-gradient(135deg, rgba(227, 6, 19, 0.2), rgba(227, 6, 19, 0.1));
-  border-color: rgba(227, 6, 19, 0.3);
+  background: linear-gradient(135deg, rgba(0, 151, 167, 0.2), rgba(0, 151, 167, 0.1));
+  border-color: rgba(0, 151, 167, 0.3);
   color: #fff;
 }
 
@@ -248,7 +248,7 @@
   width: 40px;
   height: 40px;
   border: 3px solid rgba(255, 255, 255, 0.1);
-  border-top-color: #E30613;
+  border-top-color: #0097A7;
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 16px;
@@ -274,7 +274,7 @@
 
 .error-state button {
   margin-top: 16px;
-  background: #E30613;
+  background: #0097A7;
   border: none;
   color: white;
   padding: 10px 24px;
@@ -285,7 +285,7 @@
 }
 
 .error-state button:hover {
-  background: #c50510;
+  background: #00838F;
 }
 
 /* Empty State */
@@ -326,7 +326,7 @@
 
 .breakdown-card.expanded {
   background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(227, 6, 19, 0.3);
+  border-color: rgba(0, 151, 167, 0.3);
 }
 
 .breakdown-card-header {
@@ -395,7 +395,7 @@
 .mileage-value {
   font-size: 28px;
   font-weight: 700;
-  color: #E30613;
+  color: #0097A7;
 }
 
 .mileage-unit {
@@ -482,8 +482,8 @@
 }
 
 .calc-item.total {
-  background: linear-gradient(135deg, rgba(227, 6, 19, 0.15), rgba(227, 6, 19, 0.05));
-  border: 1px solid rgba(227, 6, 19, 0.2);
+  background: linear-gradient(135deg, rgba(0, 151, 167, 0.15), rgba(0, 151, 167, 0.05));
+  border: 1px solid rgba(0, 151, 167, 0.2);
 }
 
 .calc-label,
@@ -502,7 +502,7 @@
 }
 
 .calc-item.total .calc-value {
-  color: #E30613;
+  color: #0097A7;
   font-size: 20px;
 }
 
@@ -516,7 +516,7 @@
   background: rgba(0, 0, 0, 0.2);
   padding: 16px;
   border-radius: 10px;
-  border-left: 3px solid rgba(227, 6, 19, 0.5);
+  border-left: 3px solid rgba(0, 151, 167, 0.5);
 }
 
 .formula {
@@ -592,14 +592,14 @@
 .depot-rank {
   width: 36px;
   height: 36px;
-  background: linear-gradient(135deg, rgba(227, 6, 19, 0.2), rgba(227, 6, 19, 0.1));
+  background: linear-gradient(135deg, rgba(0, 151, 167, 0.2), rgba(0, 151, 167, 0.1));
   border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 14px;
   font-weight: 700;
-  color: #E30613;
+  color: #0097A7;
   flex-shrink: 0;
 }
 
@@ -667,7 +667,7 @@
 .route-bar-fill,
 .depot-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #E30613, #FF4D58);
+  background: linear-gradient(90deg, #0097A7, #00BCD4);
   border-radius: 4px;
   transition: width 0.5s ease;
 }

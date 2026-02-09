@@ -49,8 +49,6 @@ const EngineeringDashboard = () => {
 
   const connectWebSocket = async () => {
     try {
-      // NOTE: Authentication now uses HTTP-only cookies (XSS protection)
-      // The browser automatically sends the auth_token cookie with WebSocket upgrade request
       console.log('🔒 Using HTTP-only cookie authentication for Engineering WebSocket');
 
       const WS_URL = import.meta.env.VITE_WS_URL || 'wss://api.breakdowns.gobarry.co.uk/ws';
@@ -61,7 +59,6 @@ const EngineeringDashboard = () => {
         console.log('✅ Engineering Dashboard WebSocket connected');
         setWsConnected(true);
 
-        // Subscribe to engineering events
         ws.send(JSON.stringify({
           type: 'subscribe',
           channel: 'engineering'
@@ -86,7 +83,6 @@ const EngineeringDashboard = () => {
         console.log('WebSocket disconnected. Reconnecting in 5s...');
         setWsConnected(false);
 
-        // Attempt to reconnect after 5 seconds
         setTimeout(() => {
           connectWebSocket();
         }, 5000);
@@ -102,7 +98,7 @@ const EngineeringDashboard = () => {
     switch (data.type) {
       case 'job_assigned':
         showNotification(`New job assigned: Fleet ${data.breakdown?.fleet_number}`);
-        fetchAllData(); // Refresh data
+        fetchAllData();
         break;
 
       case 'job_accepted':
@@ -121,7 +117,7 @@ const EngineeringDashboard = () => {
         break;
 
       case 'new_breakdown':
-        showNotification(`🚨 New breakdown: Fleet ${data.breakdown?.fleet_number}`);
+        showNotification(`New breakdown: Fleet ${data.breakdown?.fleet_number}`);
         fetchAllData();
         break;
 
@@ -135,10 +131,8 @@ const EngineeringDashboard = () => {
     setTimeout(() => setNotification(null), 5000);
   };
 
-  // Fetch engineering jobs from new API
   const fetchBreakdowns = async () => {
     try {
-      // Use the new /api/engineering/jobs endpoint with filter support
       const params = new URLSearchParams();
       if (currentFilter !== 'all') {
         params.append('filter', currentFilter);
@@ -159,7 +153,6 @@ const EngineeringDashboard = () => {
     }
   };
 
-  // Fetch engineering metrics
   const fetchMetrics = async () => {
     try {
       const data = await apiClient.get('/api/engineering/metrics');
@@ -171,7 +164,6 @@ const EngineeringDashboard = () => {
     }
   };
 
-  // Combined fetch function
   const fetchAllData = useCallback(async () => {
     setLoading(true);
     await Promise.all([
@@ -182,7 +174,6 @@ const EngineeringDashboard = () => {
     setLoading(false);
   }, [currentFilter]);
 
-  // Initial load and auto-refresh
   useEffect(() => {
     fetchAllData();
 
@@ -193,10 +184,8 @@ const EngineeringDashboard = () => {
     return () => clearInterval(interval);
   }, [fetchAllData]);
 
-  // Filtered breakdowns (already filtered by API, but can add client-side filtering if needed)
   const filteredBreakdowns = allBreakdowns;
 
-  // Calculate statistics (simplified - no individual engineer tracking)
   const stats = {
     total: allBreakdowns.length,
     awaitingDispatch: allBreakdowns.filter(b =>
@@ -212,7 +201,6 @@ const EngineeringDashboard = () => {
     slaCompliance: engineeringMetrics.slaCompliance || 0
   };
 
-  // Callback handlers for card actions
   const handleJobAccepted = () => {
     fetchAllData();
   };
@@ -225,7 +213,6 @@ const EngineeringDashboard = () => {
     fetchAllData();
   };
 
-  // Calculate depot statistics
   const depotStats = Object.entries(
     allBreakdowns.reduce((acc, breakdown) => {
       const depot = breakdown.depot || 'Unknown';
@@ -249,13 +236,12 @@ const EngineeringDashboard = () => {
     breakdowns: data.total,
     onSite: data.onSite,
     overdue: data.overdue,
-    avgWaitTime: data.avgWaitTime.length > 0 
+    avgWaitTime: data.avgWaitTime.length > 0
       ? Math.round(data.avgWaitTime.reduce((a, b) => a + b, 0) / data.avgWaitTime.length)
       : 0,
     sla: data.total > 0 ? Math.round(((data.total - data.overdue) / data.total) * 100) : 100
   }));
 
-  // Handle engineer assignment
   const handleAssignEngineer = async (breakdownId) => {
     setSelectedBreakdownId(breakdownId);
     setShowEngineerModal(true);
@@ -270,7 +256,7 @@ const EngineeringDashboard = () => {
 
       setNotification('Engineer assigned successfully');
       setShowEngineerModal(false);
-      fetchAllData(); // Refresh data
+      fetchAllData();
 
       setTimeout(() => setNotification(null), 3000);
     } catch (error) {
@@ -280,7 +266,6 @@ const EngineeringDashboard = () => {
     }
   };
 
-  // Handle status update
   const handleStatusUpdate = async (breakdownId, newStatus) => {
     try {
       await apiClient.put(`/api/engineering/assignment/${breakdownId}/status`, {
@@ -288,7 +273,7 @@ const EngineeringDashboard = () => {
       });
 
       setNotification(`Status updated to ${newStatus}`);
-      fetchAllData(); // Refresh data
+      fetchAllData();
 
       setTimeout(() => setNotification(null), 3000);
     } catch (error) {
@@ -296,7 +281,6 @@ const EngineeringDashboard = () => {
     }
   };
 
-  // Handle auto-assign
   const handleAutoAssign = async (breakdownId) => {
     try {
       await apiClient.post('/api/engineering/auto-assign', {
@@ -304,7 +288,7 @@ const EngineeringDashboard = () => {
       });
 
       setNotification('Engineer auto-assigned successfully');
-      fetchAllData(); // Refresh data
+      fetchAllData();
 
       setTimeout(() => setNotification(null), 3000);
     } catch (error) {
@@ -315,14 +299,24 @@ const EngineeringDashboard = () => {
   return (
     <DashboardLayout title="Engineering Dashboard" icon="🔧">
       {/* Dashboard Header */}
-      <div className="dashboard-header">
-        <div className="header-info">
-          <h2>Engineering Dispatch & Management</h2>
-          <p>Monitor and dispatch engineers to active breakdowns</p>
+      <div className="eng-dashboard-header">
+        <div className="eng-header-left">
+          <div className="eng-header-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+            </svg>
+          </div>
+          <div className="eng-header-text">
+            <h2>Engineering Dispatch</h2>
+            <p>Monitor and dispatch engineers to active breakdowns</p>
+          </div>
         </div>
-        <span className={`ws-indicator ${wsConnected ? 'connected' : 'disconnected'}`}>
-          {wsConnected ? '🟢 Live Updates' : '🔴 Offline'}
-        </span>
+        <div className="eng-header-right">
+          <span className={`eng-ws-badge ${wsConnected ? 'connected' : 'disconnected'}`}>
+            <span className="eng-ws-dot"></span>
+            {wsConnected ? 'Live' : 'Offline'}
+          </span>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -377,21 +371,19 @@ const EngineeringDashboard = () => {
       {/* Breakdown Cards */}
       <div className="mt-6 space-y-4">
         {loading && filteredBreakdowns.length === 0 ? (
-          <div className="text-center py-8">
-            <div className="spinner-border" role="status">
-              <span className="sr-only">Loading engineering jobs...</span>
-            </div>
-            <p className="mt-2 text-gray-400">Fetching live job data...</p>
+          <div className="eng-loading-state">
+            <div className="eng-spinner"></div>
+            <p>Fetching live job data...</p>
           </div>
         ) : error ? (
-          <div className="alert alert-danger">
-            {error}
-            <button onClick={fetchAllData} className="btn btn-sm btn-outline-danger ms-3">
-              Retry
-            </button>
+          <div className="eng-error-state">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F87171" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            <span>{error}</span>
+            <button onClick={fetchAllData} className="eng-retry-btn">Retry</button>
           </div>
         ) : filteredBreakdowns.length === 0 ? (
-          <div className="no-data-message">
+          <div className="eng-empty-state">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#64748B" strokeWidth="1.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
             <p>No jobs matching the selected filter</p>
             <small>Real-time engineering jobs feed</small>
           </div>
@@ -411,147 +403,241 @@ const EngineeringDashboard = () => {
 
       {/* Notification Toast */}
       {notification && (
-        <div className="notification-toast">
+        <div className="eng-notification-toast">
           {notification}
         </div>
       )}
 
       {/* Live Data Indicator */}
-      <div className="dashboard-footer">
-        <span className="live-indicator">
-          <span className="pulse"></span>
+      <div className="eng-dashboard-footer">
+        <span className="eng-live-indicator">
+          <span className="eng-live-pulse"></span>
           Live Data - Real breakdowns from assessments
         </span>
-        <span className="last-update">
+        <span className="eng-last-update">
           Last update: {lastUpdate.toLocaleTimeString()}
         </span>
       </div>
 
       <style>{`
-        .dashboard-header {
-          background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+        .eng-dashboard-header {
+          background: linear-gradient(135deg, #0097A7 0%, #00838F 100%);
           padding: 20px 24px;
           border-radius: 12px;
           margin-bottom: 24px;
           display: flex;
           justify-content: space-between;
           align-items: center;
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+          box-shadow: 0 4px 20px rgba(0, 151, 167, 0.25);
+          border: 1px solid rgba(0, 188, 212, 0.3);
         }
 
-        .header-info h2 {
-          margin: 0 0 4px 0;
+        .eng-header-left {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+        }
+
+        .eng-header-icon {
+          width: 44px;
+          height: 44px;
+          background: rgba(255, 255, 255, 0.15);
+          border-radius: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
           color: white;
-          font-size: 22px;
+          backdrop-filter: blur(8px);
+        }
+
+        .eng-header-text h2 {
+          margin: 0 0 2px 0;
+          color: white;
+          font-size: 20px;
           font-weight: 700;
+          font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+          letter-spacing: -0.3px;
         }
 
-        .header-info p {
+        .eng-header-text p {
           margin: 0;
-          color: #93c5fd;
-          font-size: 14px;
-        }
-
-        .ws-indicator {
-          padding: 8px 14px;
-          border-radius: 6px;
+          color: rgba(255, 255, 255, 0.7);
           font-size: 13px;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        .eng-ws-badge {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 6px 14px;
+          border-radius: 20px;
+          font-size: 12px;
           font-weight: 600;
+          font-family: 'Inter', sans-serif;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
         }
 
-        .ws-indicator.connected {
-          background: rgba(16, 185, 129, 0.2);
-          color: #10b981;
+        .eng-ws-badge.connected {
+          background: rgba(16, 185, 129, 0.15);
+          color: #10B981;
+          border: 1px solid rgba(16, 185, 129, 0.3);
         }
 
-        .ws-indicator.disconnected {
-          background: rgba(239, 68, 68, 0.2);
-          color: #ef4444;
+        .eng-ws-badge.disconnected {
+          background: rgba(239, 68, 68, 0.15);
+          color: #EF4444;
+          border: 1px solid rgba(239, 68, 68, 0.3);
         }
 
-        .no-data-message {
+        .eng-ws-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: currentColor;
+        }
+
+        .eng-ws-badge.connected .eng-ws-dot {
+          animation: eng-pulse-dot 2s infinite;
+        }
+
+        @keyframes eng-pulse-dot {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5); }
+          50% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+        }
+
+        .eng-loading-state {
           text-align: center;
           padding: 60px 20px;
-          background: rgba(255, 255, 255, 0.05);
-          border-radius: 8px;
-          border: 1px dashed rgba(255, 255, 255, 0.2);
+          color: #94A3B8;
+          font-family: 'Inter', sans-serif;
         }
 
-        .no-data-message p {
-          font-size: 18px;
-          color: #aaa;
-          margin-bottom: 8px;
+        .eng-spinner {
+          width: 36px;
+          height: 36px;
+          border: 3px solid #1E293B;
+          border-top-color: #0097A7;
+          border-radius: 50%;
+          animation: eng-spin 0.8s linear infinite;
+          margin: 0 auto 16px;
         }
 
-        .no-data-message small {
-          color: #888;
+        @keyframes eng-spin {
+          to { transform: rotate(360deg); }
         }
 
-        .notification-toast {
+        .eng-error-state {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding: 16px 20px;
+          background: rgba(220, 38, 38, 0.1);
+          border: 1px solid rgba(220, 38, 38, 0.25);
+          border-radius: 10px;
+          color: #F87171;
+          font-size: 14px;
+          font-family: 'Inter', sans-serif;
+        }
+
+        .eng-retry-btn {
+          margin-left: auto;
+          padding: 6px 16px;
+          background: rgba(220, 38, 38, 0.15);
+          border: 1px solid rgba(220, 38, 38, 0.3);
+          border-radius: 6px;
+          color: #F87171;
+          font-size: 13px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .eng-retry-btn:hover {
+          background: rgba(220, 38, 38, 0.25);
+        }
+
+        .eng-empty-state {
+          text-align: center;
+          padding: 60px 20px;
+          background: rgba(255, 255, 255, 0.02);
+          border-radius: 12px;
+          border: 1px dashed #1E293B;
+        }
+
+        .eng-empty-state svg {
+          margin: 0 auto 16px;
+          display: block;
+        }
+
+        .eng-empty-state p {
+          font-size: 16px;
+          color: #94A3B8;
+          margin-bottom: 4px;
+          font-family: 'Inter', sans-serif;
+        }
+
+        .eng-empty-state small {
+          color: #64748B;
+          font-size: 13px;
+        }
+
+        .eng-notification-toast {
           position: fixed;
-          bottom: 20px;
-          right: 20px;
-          background: #10b981;
-          color: white;
-          padding: 12px 20px;
-          border-radius: 8px;
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-          animation: slideIn 0.3s ease-out;
+          bottom: 24px;
+          right: 24px;
+          background: #141D2B;
+          color: #10B981;
+          padding: 14px 22px;
+          border-radius: 10px;
+          border: 1px solid rgba(16, 185, 129, 0.3);
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+          animation: eng-slide-in 0.3s ease-out;
           z-index: 1000;
+          font-size: 14px;
+          font-family: 'Inter', sans-serif;
+          font-weight: 500;
         }
 
-        @keyframes slideIn {
-          from {
-            transform: translateX(100%);
-            opacity: 0;
-          }
-          to {
-            transform: translateX(0);
-            opacity: 1;
-          }
+        @keyframes eng-slide-in {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
         }
 
-        .dashboard-footer {
+        .eng-dashboard-footer {
           display: flex;
           justify-content: space-between;
           align-items: center;
           margin-top: 30px;
-          padding: 20px;
-          background: rgba(0, 0, 0, 0.2);
-          border-radius: 8px;
+          padding: 16px 20px;
+          background: #141D2B;
+          border-radius: 10px;
+          border: 1px solid #1E293B;
         }
 
-        .live-indicator {
+        .eng-live-indicator {
           display: flex;
           align-items: center;
-          gap: 8px;
-          color: #4ade80;
-          font-size: 14px;
+          gap: 10px;
+          color: #10B981;
+          font-size: 13px;
+          font-family: 'Inter', sans-serif;
+          font-weight: 500;
         }
 
-        .pulse {
+        .eng-live-pulse {
           width: 8px;
           height: 8px;
-          background: #4ade80;
+          background: #10B981;
           border-radius: 50%;
-          animation: pulse 2s infinite;
+          animation: eng-pulse-dot 2s infinite;
         }
 
-        @keyframes pulse {
-          0% {
-            box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7);
-          }
-          70% {
-            box-shadow: 0 0 0 10px rgba(74, 222, 128, 0);
-          }
-          100% {
-            box-shadow: 0 0 0 0 rgba(74, 222, 128, 0);
-          }
-        }
-
-        .last-update {
-          color: #888;
+        .eng-last-update {
+          color: #64748B;
           font-size: 12px;
+          font-family: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
         }
       `}</style>
     </DashboardLayout>

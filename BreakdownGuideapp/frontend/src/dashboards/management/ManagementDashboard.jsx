@@ -36,9 +36,12 @@ const ManagementDashboard = () => {
   const fetchAllData = useCallback(async () => {
     try {
       // Fetch data in parallel (auth automatic via apiClient)
+      // Trends endpoint only supports week/month/year and requires a metric
+      const trendPeriod = (selectedPeriod === 'today' || selectedPeriod === 'quarter') ? 'week' : selectedPeriod;
+
       const [kpiJson, trendJson, depotJson, fleetJson] = await Promise.all([
         apiClient.get(`/api/analytics/kpis?period=${selectedPeriod}`),
-        apiClient.get(`/api/analytics/trends?period=${selectedPeriod}`),
+        apiClient.get(`/api/analytics/trends?metric=breakdowns&period=${trendPeriod}`),
         apiClient.get(`/api/analytics/depot-comparison?period=${selectedPeriod}`),
         apiClient.get('/api/analytics/fleet-health')
       ]);
@@ -47,7 +50,7 @@ const ManagementDashboard = () => {
       setTrendData(trendJson.data || null);
       setDepotData(depotJson.data || null);
       setFleetHealth(fleetJson.data || null);
-      
+
       setLoading(false);
       setError(null);
     } catch (error) {
@@ -95,13 +98,13 @@ const ManagementDashboard = () => {
   // Handle export
   const handleExport = async (format, sections) => {
     setNotification({ message: `Preparing ${format.toUpperCase()} export...`, type: 'info' });
-    
+
     try {
       // Simulate export preparation
       setTimeout(() => {
-        setNotification({ 
-          message: `Export completed! Check your downloads folder.`, 
-          type: 'success' 
+        setNotification({
+          message: `Export completed! Check your downloads folder.`,
+          type: 'success'
         });
         // In real implementation, this would trigger actual file download
       }, 2000);
@@ -119,11 +122,11 @@ const ManagementDashboard = () => {
   // Setup auto-refresh
   useEffect(() => {
     fetchAllData();
-    
+
     const interval = setInterval(() => {
       fetchAllData();
     }, REFRESH_INTERVAL);
-    
+
     return () => clearInterval(interval);
   }, [fetchAllData]);
 
@@ -134,43 +137,57 @@ const ManagementDashboard = () => {
         fetchAllData();
       }
     };
-    
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [fetchAllData]);
 
   return (
-    <DashboardLayout title="📊 Management Overview" activeTab="management">
+    <DashboardLayout title="Management Overview" activeTab="management">
       {/* Period Selector */}
-      <div className="period-selector">
-        <div className="period-buttons">
-          {periodOptions.map(option => (
-            <button
-              key={option.value}
-              className={`period-btn ${selectedPeriod === option.value ? 'active' : ''}`}
-              onClick={() => setSelectedPeriod(option.value)}
-            >
-              {option.label}
-            </button>
-          ))}
+      <div className="mgmt-period-selector">
+        <div className="mgmt-header-content">
+          <div className="mgmt-title-row">
+            <svg className="mgmt-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3 3H9V9H3V3Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M15 3H21V9H15V3Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M15 15H21V21H15V15Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M3 15H9V21H3V15Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <h1 className="mgmt-title">Management Overview</h1>
+          </div>
+          <div className="mgmt-period-buttons">
+            {periodOptions.map(option => (
+              <button
+                key={option.value}
+                className={`mgmt-period-btn ${selectedPeriod === option.value ? 'mgmt-active' : ''}`}
+                onClick={() => setSelectedPeriod(option.value)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="last-updated">
+        <div className="mgmt-last-updated">
           Last updated: {new Date().toLocaleTimeString()}
         </div>
       </div>
 
       {/* Error Banner */}
       {error && (
-        <div className="error-banner">
-          ⚠️ {error}
+        <div className="mgmt-error-banner">
+          <svg className="mgmt-error-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 9V13M12 17H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          {error}
         </div>
       )}
 
       {/* Loading State */}
       {loading ? (
-        <div className="loading">
-          <div className="spinner"></div>
-          <p>Loading executive dashboard...</p>
+        <div className="mgmt-loading">
+          <div className="mgmt-spinner"></div>
+          <p className="mgmt-loading-text">Loading executive dashboard...</p>
         </div>
       ) : (
         <>
@@ -181,7 +198,7 @@ const ManagementDashboard = () => {
           <PerformanceTrends trendData={trendData} period={selectedPeriod} />
 
           {/* Two Column Layout */}
-          <div className="two-column-layout">
+          <div className="mgmt-two-column-layout">
             {/* Depot Comparison */}
             <DepotComparison depotData={depotData} />
 
@@ -205,148 +222,274 @@ const ManagementDashboard = () => {
 
       {/* Notification */}
       {notification && (
-        <div className={`notification ${notification.type}`}>
-          {notification.type === 'success' ? '✅ ' : 
-           notification.type === 'error' ? '❌ ' : 'ℹ️ '}
+        <div className={`mgmt-notification mgmt-notification--${notification.type}`}>
+          <svg className="mgmt-notification-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            {notification.type === 'success' && (
+              <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            )}
+            {notification.type === 'error' && (
+              <path d="M10 14L12 12M12 12L14 10M12 12L10 10M12 12L14 14M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            )}
+            {notification.type === 'info' && (
+              <path d="M13 16H12V12H11M12 8H12.01M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            )}
+          </svg>
           {notification.message}
         </div>
       )}
 
       <style jsx>{`
-        .period-selector {
+        /* Period Selector Card */
+        .mgmt-period-selector {
+          background: #141D2B;
+          border: 1px solid #1E293B;
+          border-radius: 12px;
+          padding: 24px;
+          margin-bottom: 24px;
+          box-shadow: 0 0 20px rgba(0, 151, 167, 0.1);
+        }
+
+        .mgmt-header-content {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 20px;
-          background: white;
-          padding: 15px 20px;
-          border-radius: 8px;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+          margin-bottom: 16px;
         }
 
-        .period-buttons {
+        .mgmt-title-row {
           display: flex;
-          gap: 10px;
+          align-items: center;
+          gap: 12px;
         }
 
-        .period-btn {
-          padding: 8px 16px;
-          border: 1px solid #d1d5db;
-          background: white;
-          border-radius: 6px;
+        .mgmt-icon {
+          color: #0097A7;
+          flex-shrink: 0;
+        }
+
+        .mgmt-title {
+          color: white;
+          font-family: 'Outfit', sans-serif;
+          font-size: 24px;
+          font-weight: 600;
+          margin: 0;
+        }
+
+        .mgmt-period-buttons {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+
+        .mgmt-period-btn {
+          padding: 8px 20px;
+          border: 1px solid #1E293B;
+          background: #0B1120;
+          border-radius: 8px;
           cursor: pointer;
-          transition: all 0.2s;
+          transition: all 0.2s ease;
+          font-family: 'Inter', sans-serif;
           font-weight: 500;
           font-size: 14px;
+          color: #94A3B8;
         }
 
-        .period-btn:hover {
-          background: #f9fafb;
-        }
-
-        .period-btn.active {
-          background: #1e3a8a;
+        .mgmt-period-btn:hover {
+          background: #1E293B;
+          border-color: rgba(0, 151, 167, 0.3);
           color: white;
-          border-color: #1e3a8a;
         }
 
-        .last-updated {
-          color: #6b7280;
+        .mgmt-period-btn.mgmt-active {
+          background: linear-gradient(135deg, #0097A7 0%, #00838F 100%);
+          color: white;
+          border-color: #0097A7;
+          box-shadow: 0 0 20px rgba(0, 151, 167, 0.3);
+        }
+
+        .mgmt-last-updated {
+          color: #64748B;
+          font-family: 'JetBrains Mono', monospace;
           font-size: 13px;
+          margin-top: 8px;
+          text-align: right;
         }
 
-        .error-banner {
-          background: #fef3c7;
-          color: #92400e;
-          padding: 12px 20px;
-          border-radius: 8px;
-          margin-bottom: 20px;
+        /* Error Banner */
+        .mgmt-error-banner {
+          background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(245, 158, 11, 0.05) 100%);
+          border: 1px solid rgba(245, 158, 11, 0.3);
+          color: #F59E0B;
+          padding: 16px 20px;
+          border-radius: 12px;
+          margin-bottom: 24px;
+          font-family: 'Inter', sans-serif;
           font-size: 14px;
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 12px;
         }
 
-        .loading {
+        .mgmt-error-icon {
+          flex-shrink: 0;
+        }
+
+        /* Loading State */
+        .mgmt-loading {
           text-align: center;
-          padding: 80px;
-          color: #6b7280;
+          padding: 80px 20px;
+          color: #64748B;
         }
 
-        .spinner {
-          border: 3px solid #f3f4f6;
-          border-top: 3px solid #1e3a8a;
+        .mgmt-loading-text {
+          font-family: 'Inter', sans-serif;
+          font-size: 15px;
+          margin-top: 16px;
+        }
+
+        .mgmt-spinner {
+          border: 3px solid #1E293B;
+          border-top: 3px solid #0097A7;
           border-radius: 50%;
           width: 50px;
           height: 50px;
-          animation: spin 1s linear infinite;
-          margin: 0 auto 20px;
+          animation: mgmt-spin 1s linear infinite;
+          margin: 0 auto;
+          box-shadow: 0 0 20px rgba(0, 151, 167, 0.3);
         }
 
-        @keyframes spin {
+        @keyframes mgmt-spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
         }
 
-        .two-column-layout {
+        /* Two Column Layout */
+        .mgmt-two-column-layout {
           display: grid;
           grid-template-columns: 1fr 1fr;
-          gap: 20px;
-          margin-top: 20px;
+          gap: 24px;
+          margin-top: 24px;
         }
 
-        .notification {
+        /* Notification Toast */
+        .mgmt-notification {
           position: fixed;
-          top: 20px;
+          top: 24px;
           left: 50%;
           transform: translateX(-50%);
-          padding: 15px 30px;
-          border-radius: 8px;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+          padding: 16px 32px;
+          border-radius: 12px;
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
           z-index: 10000;
+          font-family: 'Inter', sans-serif;
           font-weight: 500;
-          animation: slideDown 0.3s ease-out;
+          font-size: 14px;
+          animation: mgmt-slideDown 0.3s ease-out;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          border: 1px solid transparent;
         }
 
-        .notification.success {
-          background: #10b981;
+        .mgmt-notification-icon {
+          flex-shrink: 0;
+        }
+
+        .mgmt-notification--success {
+          background: linear-gradient(135deg, #10B981 0%, #059669 100%);
           color: white;
+          border-color: rgba(16, 185, 129, 0.3);
+          box-shadow: 0 8px 32px rgba(16, 185, 129, 0.3);
         }
 
-        .notification.error {
-          background: #ef4444;
+        .mgmt-notification--error {
+          background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%);
           color: white;
+          border-color: rgba(220, 38, 38, 0.3);
+          box-shadow: 0 8px 32px rgba(220, 38, 38, 0.3);
         }
 
-        .notification.info {
-          background: #3b82f6;
+        .mgmt-notification--info {
+          background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
           color: white;
+          border-color: rgba(59, 130, 246, 0.3);
+          box-shadow: 0 8px 32px rgba(59, 130, 246, 0.3);
         }
 
-        @keyframes slideDown {
-          from { transform: translateX(-50%) translateY(-100%); }
-          to { transform: translateX(-50%) translateY(0); }
+        @keyframes mgmt-slideDown {
+          from {
+            transform: translateX(-50%) translateY(-100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+          }
         }
 
+        /* Responsive Layout */
         @media (max-width: 1024px) {
-          .two-column-layout {
+          .mgmt-two-column-layout {
             grid-template-columns: 1fr;
           }
         }
 
-        @media (max-width: 640px) {
-          .period-selector {
+        @media (max-width: 768px) {
+          .mgmt-header-content {
             flex-direction: column;
-            gap: 15px;
+            align-items: flex-start;
+            gap: 16px;
           }
 
-          .period-buttons {
+          .mgmt-period-buttons {
+            width: 100%;
+          }
+
+          .mgmt-period-btn {
+            flex: 1;
+            min-width: 80px;
+          }
+
+          .mgmt-last-updated {
+            text-align: left;
+          }
+        }
+
+        @media (max-width: 640px) {
+          .mgmt-period-selector {
+            padding: 16px;
+          }
+
+          .mgmt-title {
+            font-size: 20px;
+          }
+
+          .mgmt-period-buttons {
             flex-wrap: wrap;
-            justify-content: center;
+            gap: 6px;
           }
 
-          .last-updated {
-            text-align: center;
+          .mgmt-period-btn {
+            padding: 6px 14px;
+            font-size: 13px;
+          }
+
+          .mgmt-notification {
+            left: 12px;
+            right: 12px;
+            transform: none;
+            padding: 12px 20px;
+          }
+
+          @keyframes mgmt-slideDown {
+            from {
+              transform: translateY(-100%);
+              opacity: 0;
+            }
+            to {
+              transform: translateY(0);
+              opacity: 1;
+            }
           }
         }
       `}</style>

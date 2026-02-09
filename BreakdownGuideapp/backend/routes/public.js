@@ -393,4 +393,252 @@ router.get('/breakdowns/stats', async (req, res) => {
   }
 });
 
+// GET /api/public/route-trips - Get current/upcoming trips on a route for trip picker
+// Public endpoint for breakdown creation flow (no auth required)
+router.get('/route-trips', async (req, res) => {
+  try {
+    const { route_id } = req.query;
+    const tripLimit = Math.min(Math.max(parseInt(req.query.limit) || 15, 1), 50);
+    if (!route_id) {
+      return res.json({ success: true, trips: [] });
+    }
+
+    // Resolve route_short_name to actual GTFS route_id
+    // The frontend passes the short name (e.g. "21") but GTFS uses its own route_id format
+    let gtfsRouteId = route_id;
+    const routeLookup = await query(
+      `SELECT route_id FROM gtfs_routes WHERE route_short_name = ? LIMIT 1`,
+      [route_id]
+    );
+    if (routeLookup?.length > 0) {
+      gtfsRouteId = routeLookup[0].route_id;
+    }
+
+    // Current time as HH:MM:SS
+    const now = new Date();
+    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+
+    // Also show trips from 30 min ago (driver may have been on a trip that departed recently)
+    const thirtyAgo = new Date(now.getTime() - 30 * 60000);
+    const fromTime = `${String(thirtyAgo.getHours()).padStart(2, '0')}:${String(thirtyAgo.getMinutes()).padStart(2, '0')}:00`;
+
+    // 3 hour window ahead
+    const endHour = now.getHours() + 3;
+    const toTime = `${String(Math.min(endHour, 28)).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:00`;
+
+    // Determine day-of-week code for filtering
+    // Go North East service_id pattern: ...MF... = Mon-Fri, ...SA... = Saturday, ...SU... = Sunday
+    const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+    let dayCode;
+    if (dayOfWeek === 0) dayCode = 'SU';
+    else if (dayOfWeek === 6) dayCode = 'SA';
+    else dayCode = 'MF';
+
+    // Count total trips for this route
+    const totalTrips = await query(
+      `SELECT COUNT(*) as cnt FROM gtfs_trips WHERE route_id = ?`,
+      [gtfsRouteId]
+    );
+    if (!totalTrips?.[0]?.cnt) {
+      return res.json({ success: true, trips: [], debug: { gtfsRouteId, totalTrips: 0 } });
+    }
+
+    // Get trips for this route in the time window, filtered to today's schedule
+    // service_id contains day code (MF/SA/SU) - filter to match today
+    const allTripsRaw = await query(
+      `SELECT t.trip_id, t.trip_headsign, t.direction_id, t.block_id,
+              MIN(st.departure_time) as departure_time,
+              MAX(st.departure_time) as arrival_time
+       FROM gtfs_trips t
+       JOIN gtfs_stop_times st ON st.trip_id = t.trip_id
+       WHERE t.route_id = ? AND t.service_id LIKE ?
+       GROUP BY t.trip_id, t.trip_headsign, t.direction_id, t.block_id
+       HAVING departure_time >= ? AND departure_time <= ?
+       ORDER BY departure_time ASC
+       LIMIT ${tripLimit}`,
+      [gtfsRouteId, `%${dayCode}%`, fromTime, toTime]
+    );
+
+    // Batch lookup: origin stop (first) and destination stop (last) for each trip
+    const tripIds = (allTripsRaw || []).map(t => t.trip_id);
+    const tripEndpoints = {}; // { trip_id: { originStop, destStop } }
+    if (tripIds.length > 0) {
+      const placeholders = tripIds.map(() => '?').join(',');
+      // Get first and last stop for each trip in one query
+      const endpointRows = await query(
+        `SELECT sub.trip_id, sub.endpoint, s.stop_name
+         FROM (
+           SELECT st.trip_id, st.stop_id, 'origin' as endpoint
+           FROM gtfs_stop_times st
+           WHERE st.trip_id IN (${placeholders})
+             AND st.stop_sequence = (SELECT MIN(st2.stop_sequence) FROM gtfs_stop_times st2 WHERE st2.trip_id = st.trip_id)
+           UNION ALL
+           SELECT st.trip_id, st.stop_id, 'dest' as endpoint
+           FROM gtfs_stop_times st
+           WHERE st.trip_id IN (${placeholders})
+             AND st.stop_sequence = (SELECT MAX(st2.stop_sequence) FROM gtfs_stop_times st2 WHERE st2.trip_id = st.trip_id)
+         ) sub
+         JOIN gtfs_stops s ON sub.stop_id = s.stop_id`,
+        [...tripIds, ...tripIds]
+      );
+      for (const row of (endpointRows || [])) {
+        if (!tripEndpoints[row.trip_id]) tripEndpoints[row.trip_id] = {};
+        if (row.endpoint === 'origin') tripEndpoints[row.trip_id].originStop = row.stop_name;
+        if (row.endpoint === 'dest') tripEndpoints[row.trip_id].destStop = row.stop_name;
+      }
+    }
+
+    const nowMins = now.getHours() * 60 + now.getMinutes();
+    const allTrips = (allTripsRaw || []).map(trip => {
+      const depParts = trip.departure_time.split(':').map(Number);
+      const depMins = depParts[0] * 60 + depParts[1];
+      const ep = tripEndpoints[trip.trip_id] || {};
+      return {
+        tripId: trip.trip_id,
+        headsign: trip.trip_headsign || 'Unknown',
+        directionId: trip.direction_id,
+        blockId: trip.block_id || null,
+        departureTime: trip.departure_time,
+        arrivalTime: trip.arrival_time || null,
+        originStop: ep.originStop || null,
+        destStop: ep.destStop || null,
+        minutesFromNow: Math.round(depMins - nowMins),
+        isPast: depMins < nowMins,
+      };
+    });
+
+    return res.json({
+      success: true,
+      routeId: route_id,
+      gtfsRouteId,
+      currentTime,
+      dayCode,
+      timeWindow: { from: fromTime, to: toTime },
+      totalTripsOnRoute: totalTrips[0].cnt,
+      trips: allTrips,
+    });
+
+  } catch (error) {
+    console.error('Error in route-trips:', error);
+    return res.json({ success: true, trips: [], error: error.message });
+  }
+});
+
+// GET /api/public/last-bus-check - Check if breakdowns affect last bus services
+// Public endpoint for Control Room Display (no auth required)
+router.get('/last-bus-check', async (req, res) => {
+  try {
+    const { route_id, lat, lng } = req.query;
+    if (!route_id) {
+      return res.json({ success: true, isLastBusAffected: false, affectedLastBuses: [] });
+    }
+
+    // Get current time as HH:MM:SS
+    const now = new Date();
+    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+
+    // Find dominant service_id
+    const serviceRows = await query(
+      `SELECT service_id, COUNT(*) as cnt FROM gtfs_trips WHERE route_id = ? GROUP BY service_id ORDER BY cnt DESC LIMIT 1`,
+      [route_id]
+    );
+    const serviceId = serviceRows?.[0]?.service_id;
+    if (!serviceId) {
+      return res.json({ success: true, isLastBusAffected: false, affectedLastBuses: [] });
+    }
+
+    // Find nearest stop on route (or first stop if no coords)
+    let stopId = null;
+    if (lat && lng) {
+      const latNum = parseFloat(lat);
+      const lngNum = parseFloat(lng);
+      const stops = await query(
+        `SELECT DISTINCT s.stop_id, s.stop_name,
+           (POW(s.stop_lat - ?, 2) + POW(s.stop_lon - ?, 2)) as dist_sq
+         FROM gtfs_stops s
+         JOIN gtfs_stop_times st ON s.stop_id = st.stop_id
+         JOIN gtfs_trips t ON st.trip_id = t.trip_id
+         WHERE t.route_id = ? AND t.service_id = ?
+           AND s.stop_lat BETWEEN ? AND ? AND s.stop_lon BETWEEN ? AND ?
+         ORDER BY dist_sq ASC LIMIT 1`,
+        [latNum, lngNum, route_id, serviceId,
+         latNum - 0.02, latNum + 0.02, lngNum - 0.03, lngNum + 0.03]
+      );
+      stopId = stops?.[0]?.stop_id;
+    }
+
+    if (!stopId) {
+      const firstStop = await query(
+        `SELECT DISTINCT st.stop_id FROM gtfs_stop_times st
+         JOIN gtfs_trips t ON st.trip_id = t.trip_id
+         WHERE t.route_id = ? AND t.service_id = ?
+         ORDER BY st.stop_sequence ASC LIMIT 1`,
+        [route_id, serviceId]
+      );
+      stopId = firstStop?.[0]?.stop_id;
+    }
+
+    if (!stopId) {
+      return res.json({ success: true, isLastBusAffected: false, affectedLastBuses: [] });
+    }
+
+    // Get last 2 trips per direction at this stop
+    const lastTrips = await query(
+      `SELECT t.trip_id, t.trip_headsign, t.direction_id, st.departure_time
+       FROM gtfs_stop_times st
+       JOIN gtfs_trips t ON st.trip_id = t.trip_id
+       WHERE t.route_id = ? AND t.service_id = ? AND st.stop_id = ?
+       ORDER BY st.departure_time DESC LIMIT 4`,
+      [route_id, serviceId, stopId]
+    );
+
+    // Get upcoming trips (within 3 hours)
+    const endHour = now.getHours() + 3;
+    const endTime = `${String(Math.min(endHour, 28)).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:00`;
+
+    const upcomingTrips = await query(
+      `SELECT t.trip_id FROM gtfs_stop_times st
+       JOIN gtfs_trips t ON st.trip_id = t.trip_id
+       WHERE t.route_id = ? AND t.service_id = ? AND st.stop_id = ?
+         AND st.departure_time >= ? AND st.departure_time <= ?`,
+      [route_id, serviceId, stopId, currentTime, endTime]
+    );
+
+    const upcomingIds = new Set((upcomingTrips || []).map(t => t.trip_id));
+    const affectedLastBuses = [];
+
+    // Group by direction to find last per direction
+    const byDir = {};
+    for (const trip of (lastTrips || [])) {
+      const dir = trip.direction_id ?? 0;
+      if (!byDir[dir]) byDir[dir] = [];
+      if (byDir[dir].length < 2) byDir[dir].push(trip);
+    }
+
+    for (const [dir, dirTrips] of Object.entries(byDir)) {
+      for (let i = 0; i < dirTrips.length; i++) {
+        if (upcomingIds.has(dirTrips[i].trip_id)) {
+          affectedLastBuses.push({
+            tripId: dirTrips[i].trip_id,
+            headsign: dirTrips[i].trip_headsign || 'Unknown',
+            departureTime: dirTrips[i].departure_time,
+            isAbsoluteLastBus: i === 0,
+            directionId: parseInt(dir),
+          });
+        }
+      }
+    }
+
+    return res.json({
+      success: true,
+      isLastBusAffected: affectedLastBuses.length > 0,
+      affectedLastBuses,
+    });
+
+  } catch (error) {
+    console.error('Error in last-bus-check:', error);
+    return res.json({ success: true, isLastBusAffected: false, affectedLastBuses: [] });
+  }
+});
+
 export default router;

@@ -1,0 +1,295 @@
+/**
+ * Next Trip Countdown Badge Styles
+ * Escalating urgency visual system for next scheduled trip alerts
+ */
+
+/* ====================================
+   BASE BADGE STYLES
+   ==================================== */
+
+.next-trip-badge {
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+/* ====================================
+   COMPACT MODE (Card Header)
+   ==================================== */
+
+.next-trip-badge.compact {
+  padding: 0.3rem 0.55rem;
+  font-size: 0.72rem;
+  gap: 0.25rem;
+  border-radius: 6px;
+  letter-spacing: 0.02em;
+}
+
+/* Info: >30 min — Teal, static */
+.next-trip-badge.compact.info {
+  background: rgba(0, 151, 167, 0.15);
+  border: 1px solid rgba(0, 151, 167, 0.35);
+  color: #0097A7;
+}
+
+/* Warning: 15–30 min — Amber, static */
+.next-trip-badge.compact.warning {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #d97706;
+}
+
+/* Urgent: 5–15 min — Red, slow pulse */
+.next-trip-badge.compact.urgent {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #EF4444;
+  animation: ntb-pulse-slow 2s ease-in-out infinite;
+}
+
+/* Critical: <5 min — Red, fast pulse */
+.next-trip-badge.compact.critical {
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  color: #EF4444;
+  animation: ntb-pulse-fast 0.8s ease-in-out infinite;
+}
+
+/* Missed: past departure — Dark red, solid */
+.next-trip-badge.compact.missed {
+  background: rgba(153, 27, 27, 0.2);
+  border: 1px solid rgba(153, 27, 27, 0.5);
+  color: #991B1B;
+}
+
+.next-trip-badge.compact .ntb-label {
+  font-weight: 700;
+}
+
+/* ====================================
+   FULL MODE (Journey Tab)
+   ==================================== */
+
+.next-trip-badge.full {
+  flex-direction: column;
+  align-items: stretch;
+  padding: 0.85rem 1rem;
+  gap: 0.6rem;
+  border-radius: 10px;
+  margin-bottom: 0.75rem;
+}
+
+/* Full mode urgency backgrounds */
+.next-trip-badge.full.info {
+  background: linear-gradient(135deg, rgba(0, 151, 167, 0.1), rgba(0, 151, 167, 0.05));
+  border: 1px solid rgba(0, 151, 167, 0.3);
+}
+
+.next-trip-badge.full.warning {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(245, 158, 11, 0.05));
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.next-trip-badge.full.urgent {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(239, 68, 68, 0.05));
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  animation: ntb-pulse-slow 2s ease-in-out infinite;
+}
+
+.next-trip-badge.full.critical {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.18), rgba(239, 68, 68, 0.08));
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  animation: ntb-pulse-fast 0.8s ease-in-out infinite;
+}
+
+.next-trip-badge.full.missed {
+  background: linear-gradient(135deg, rgba(153, 27, 27, 0.15), rgba(153, 27, 27, 0.06));
+  border: 1px solid rgba(153, 27, 27, 0.4);
+}
+
+/* Header row */
+.ntb-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ntb-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #475569;
+}
+
+.next-trip-badge.full.urgent .ntb-title,
+.next-trip-badge.full.critical .ntb-title,
+.next-trip-badge.full.missed .ntb-title {
+  color: #991B1B;
+}
+
+.ntb-countdown {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.1rem;
+  font-weight: 800;
+  padding: 0.15rem 0.5rem;
+  border-radius: 6px;
+}
+
+.ntb-countdown.info {
+  color: #0097A7;
+  background: rgba(0, 151, 167, 0.12);
+}
+
+.ntb-countdown.warning {
+  color: #d97706;
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.ntb-countdown.urgent,
+.ntb-countdown.critical {
+  color: #EF4444;
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.ntb-countdown.missed {
+  color: #991B1B;
+  background: rgba(153, 27, 27, 0.12);
+}
+
+/* Route detail row */
+.ntb-route-detail {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: #334155;
+  flex-wrap: wrap;
+}
+
+.ntb-time {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  color: #006064;
+}
+
+.ntb-stop {
+  color: #475569;
+}
+
+.ntb-arrow {
+  color: #94a3b8;
+  font-size: 0.9rem;
+}
+
+/* Action buttons */
+.ntb-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.2rem;
+}
+
+.ntb-btn {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.ntb-btn-covered {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #059669;
+}
+
+.ntb-btn-covered:hover {
+  background: rgba(16, 185, 129, 0.25);
+}
+
+.ntb-btn-cancelled {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: #DC2626;
+}
+
+.ntb-btn-cancelled:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.ntb-btn-website {
+  background: rgba(0, 151, 167, 0.1);
+  border: 1px solid rgba(0, 151, 167, 0.25);
+  color: #0097A7;
+}
+
+.ntb-btn-website:hover {
+  background: rgba(0, 151, 167, 0.2);
+}
+
+/* ====================================
+   ANIMATIONS
+   ==================================== */
+
+@keyframes ntb-pulse-slow {
+  0%, 100% {
+    box-shadow: 0 0 4px rgba(239, 68, 68, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
+  }
+}
+
+@keyframes ntb-pulse-fast {
+  0%, 100% {
+    box-shadow: 0 0 4px rgba(239, 68, 68, 0.25);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(239, 68, 68, 0.5);
+    transform: scale(1.02);
+  }
+}
+
+/* ====================================
+   DISMISSED STATE (shown in Journey tab)
+   ==================================== */
+
+.ntb-dismissed {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  color: #059669;
+  margin-bottom: 0.75rem;
+}
+
+/* ====================================
+   RESPONSIVE
+   ==================================== */
+
+@media (max-width: 768px) {
+  .next-trip-badge.compact {
+    padding: 0.25rem 0.4rem;
+    font-size: 0.68rem;
+  }
+
+  .next-trip-badge.full {
+    padding: 0.7rem 0.8rem;
+  }
+
+  .ntb-btn {
+    padding: 0.4rem 0.5rem;
+    font-size: 0.75rem;
+  }
+}
