@@ -19,6 +19,8 @@ import { validate } from '../middleware/validationMiddleware.js';
 import { breakdownSchemas } from '../validation/schemas.js';
 import breakdownAssignmentService from '../services/breakdownAssignmentService.js';
 import { calculateMileageLost } from '../services/mileageCalculationService.js';
+import { calculateRoadDistance } from '../services/googleDirectionsService.js';
+import { replacementSchemas } from '../validation/schemas.js';
 
 const router = express.Router();
 
@@ -161,6 +163,12 @@ router.get('/', async (req, res) => {
       .limit(parseInt(limit))
       .offset(offset);
 
+    // Hide demo breakdowns from real users
+    const isDemoUser = req.user?.badge_number === 'DEMO01';
+    if (!isDemoUser) {
+      queryBuilder = queryBuilder.neq('supervisor_badge', 'DEMO01');
+    }
+
     if (status) {
       queryBuilder = queryBuilder.eq('status', status);
     }
@@ -176,6 +184,11 @@ router.get('/', async (req, res) => {
     // Get total count for pagination
     let countSQL = 'SELECT COUNT(*) as count FROM breakdowns WHERE 1=1';
     const countParams = [];
+
+    // Hide demo breakdowns from real users
+    if (!isDemoUser) {
+      countSQL += " AND supervisor_badge != 'DEMO01'";
+    }
 
     if (status) {
       countSQL += ' AND status = ?';
@@ -211,11 +224,17 @@ router.get('/', async (req, res) => {
 // GET /api/breakdowns/active - Get active breakdowns
 router.get('/active', async (req, res) => {
   try {
-    const { data, error } = await from('breakdowns')
+    let activeQuery = from('breakdowns')
       .select('*')
       .in('status', ['active', 'pending', 'in_progress'])
-      .order('created_at', 'DESC')
-      .execute();
+      .order('created_at', 'DESC');
+
+    // Hide demo breakdowns from real users
+    if (req.user?.badge_number !== 'DEMO01') {
+      activeQuery = activeQuery.neq('supervisor_badge', 'DEMO01');
+    }
+
+    const { data, error } = await activeQuery.execute();
 
     if (error) throw error;
 
@@ -339,9 +358,12 @@ router.get('/live', async (req, res) => {
 
     // Query for unresolved breakdowns using direct MySQL query
     // Exclude: resolved, deleted, cancelled, completed statuses
+    // Hide demo breakdowns from real users
+    const isDemoUser = req.user?.badge_number === 'DEMO01';
+    const demoFilter = isDemoUser ? '' : " AND supervisor_badge != 'DEMO01'";
     const breakdowns = await query(`
       SELECT * FROM breakdowns
-      WHERE status NOT IN ('resolved', 'deleted', 'cancelled', 'completed')
+      WHERE status NOT IN ('resolved', 'deleted', 'cancelled', 'completed')${demoFilter}
       ORDER BY created_at DESC
     `);
 
@@ -353,6 +375,26 @@ router.get('/live', async (req, res) => {
       nextTripMap = await batchFetchNextTrips(breakdowns);
     } catch (ntErr) {
       console.error('Non-fatal: batchFetchNextTrips failed:', ntErr.message);
+    }
+
+    // Batch-fetch replacement vehicle data
+    let replacementMap = {};
+    try {
+      const breakdownIds = breakdowns.map(b => b.breakdown_id).filter(Boolean);
+      if (breakdownIds.length > 0) {
+        const placeholders = breakdownIds.map(() => '?').join(',');
+        const replacements = await query(
+          `SELECT * FROM replacement_vehicles WHERE breakdown_id IN (${placeholders}) AND status != 'cancelled'`,
+          breakdownIds
+        );
+        if (replacements) {
+          for (const rv of replacements) {
+            replacementMap[rv.breakdown_id] = rv;
+          }
+        }
+      }
+    } catch (rvErr) {
+      console.error('Non-fatal: replacement_vehicles fetch failed:', rvErr.message);
     }
 
     // Additional processing for dashboard compatibility
@@ -454,6 +496,9 @@ router.get('/live', async (req, res) => {
         next_trip: nextTripMap[b.breakdown_id] || null,
         next_trip_action: b.next_trip_action || null,
 
+        // Replacement vehicle data (BSOG mileage tracking)
+        replacement_vehicle: replacementMap[b.breakdown_id] || null,
+
         // Wizard assessment data (for frontend to access additional context)
         wizard_assessment_data: b.wizard_assessment_data || null,
 
@@ -466,7 +511,13 @@ router.get('/live', async (req, res) => {
         decision_at: b.decision_at,
         dispatched_at: b.dispatched_at,
         on_site_at: b.on_site_at,
-        cleared_at: b.cleared_at
+        cleared_at: b.cleared_at,
+
+        // Engineer ETA countdown fields
+        engineer_dispatched_at: b.engineer_dispatched_at || b.dispatched_at || null,
+        engineer_eta_minutes: b.engineer_eta_minutes ? parseInt(b.engineer_eta_minutes) : null,
+        engineer_name: b.engineer_name || null,
+        engineer_on_site_at: b.engineer_on_site_at || b.on_site_at || null
       };
     });
 
@@ -511,10 +562,16 @@ router.get('/stats', async (req, res) => {
         startDate.setHours(0, 0, 0, 0);
     }
 
-    const { data, error } = await from('breakdowns')
+    let statsQuery = from('breakdowns')
       .select('status')
-      .gte('created_at', startDate.toISOString())
-      .execute();
+      .gte('created_at', startDate.toISOString());
+
+    // Hide demo breakdowns from real users
+    if (req.user?.badge_number !== 'DEMO01') {
+      statsQuery = statsQuery.neq('supervisor_badge', 'DEMO01');
+    }
+
+    const { data, error } = await statsQuery.execute();
 
     if (error) throw error;
 
@@ -2314,6 +2371,341 @@ router.get('/assignments/on-duty', async (req, res) => {
       success: false,
       error: 'Failed to get on-duty supervisors'
     });
+  }
+});
+
+// ============================================
+// REPLACEMENT VEHICLE ENDPOINTS (BSOG Mileage)
+// ============================================
+
+// POST /api/breakdowns/:id/replacement - Dispatch a replacement vehicle
+router.post('/:id/replacement', validate(replacementSchemas.dispatch), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { fleet_no, sending_depot_code } = req.body;
+
+    // Fetch the breakdown
+    const { data: breakdown, error: bErr } = await from('breakdowns')
+      .select('*')
+      .eq('breakdown_id', id)
+      .single();
+
+    if (bErr || !breakdown) {
+      return res.status(404).json({ success: false, error: 'Breakdown not found' });
+    }
+
+    // Check if replacement already exists
+    const existingRows = await query(
+      'SELECT id FROM replacement_vehicles WHERE breakdown_id = ? AND status != ?',
+      [id, 'cancelled']
+    );
+    if (existingRows && existingRows.length > 0) {
+      return res.status(409).json({ success: false, error: 'Replacement already dispatched for this breakdown' });
+    }
+
+    // Hardcoded depot coordinates fallback (in case DB lookup fails)
+    const DEPOT_COORDS = {
+      WAS: { name: 'Washington', lat: 54.9005, lng: -1.5169 },
+      NCL: { name: 'Riverside', lat: 54.9731, lng: -1.6178 },
+      CON: { name: 'Consett', lat: 54.8519, lng: -1.8314 },
+      HEX: { name: 'Hexham', lat: 54.9719, lng: -2.1011 },
+      GTS: { name: 'Deptford', lat: 54.9501, lng: -1.5783 },
+      PM:  { name: 'Percy Main', lat: 55.0072, lng: -1.4581 },
+      DAR: { name: 'Darlington', lat: 54.5245, lng: -1.5515 }
+    };
+
+    // Look up depot coordinates from DB, fall back to hardcoded
+    let depotName, depotLat, depotLng;
+    try {
+      const { data: depot } = await from('depots')
+        .select('code, name, latitude, longitude')
+        .eq('code', sending_depot_code)
+        .single();
+
+      if (depot && depot.latitude && depot.longitude) {
+        depotName = depot.name;
+        depotLat = parseFloat(depot.latitude);
+        depotLng = parseFloat(depot.longitude);
+      }
+    } catch (dbErr) {
+      console.error('Depot DB lookup failed (using fallback):', dbErr.message);
+    }
+
+    // Fallback to hardcoded coordinates
+    if (!depotLat || !depotLng) {
+      const fallback = DEPOT_COORDS[sending_depot_code];
+      if (!fallback) {
+        return res.status(400).json({ success: false, error: `Unknown depot code: ${sending_depot_code}` });
+      }
+      depotName = fallback.name;
+      depotLat = fallback.lat;
+      depotLng = fallback.lng;
+      console.log(`Using fallback coordinates for depot ${sending_depot_code}`);
+    }
+
+    const breakdownLat = breakdown.location_lat || breakdown.wizard_assessment_data?.location_coords?.lat;
+    const breakdownLng = breakdown.location_lng || breakdown.wizard_assessment_data?.location_coords?.lng;
+
+    if (!breakdownLat || !breakdownLng) {
+      return res.status(400).json({ success: false, error: 'Breakdown has no GPS coordinates' });
+    }
+
+    // Calculate dead miles using Google Directions
+    let deadMiles = null;
+    let deadMilesDuration = null;
+    try {
+      const distance = await calculateRoadDistance(
+        depotLat, depotLng,
+        breakdownLat, breakdownLng
+      );
+      deadMiles = distance.distanceMiles;
+      deadMilesDuration = distance.durationMinutes;
+    } catch (distErr) {
+      console.error('Google Directions error (non-fatal):', distErr.message);
+      // Continue without distance - can be calculated later
+    }
+
+    // Get supervisor info from the request (set by auth middleware)
+    const supervisorBadge = req.user?.badge_number || req.body.dispatched_by_badge || null;
+    const supervisorName = req.user?.name || req.body.dispatched_by_name || null;
+
+    // Insert replacement record
+    await insert('replacement_vehicles', {
+      breakdown_id: id,
+      breakdown_ref: breakdown.breakdown_id,
+      replacement_fleet_no: fleet_no,
+      sending_depot_code: sending_depot_code,
+      sending_depot_name: depotName,
+      depot_lat: depotLat,
+      depot_lng: depotLng,
+      breakdown_lat: breakdownLat,
+      breakdown_lng: breakdownLng,
+      dead_miles: deadMiles,
+      dead_miles_duration_minutes: deadMilesDuration,
+      total_dead_miles: deadMiles,
+      status: 'dispatched',
+      dispatched_by_badge: supervisorBadge,
+      dispatched_by_name: supervisorName,
+      created_at: toMySQLDatetime(),
+      updated_at: toMySQLDatetime()
+    });
+
+    // Log activity
+    try {
+      await activityLogger.log({
+        activityType: ACTIVITY_TYPES.BREAKDOWN_UPDATED,
+        actorType: ACTOR_TYPES.SUPERVISOR,
+        actorId: supervisorBadge || 'system',
+        actorName: supervisorName || 'System',
+        entityType: ENTITY_TYPES.BREAKDOWN,
+        entityId: id,
+        severity: SEVERITY_LEVELS.MEDIUM,
+        message: `Replacement vehicle ${fleet_no} dispatched from ${depotName}`,
+        metadata: { fleet_no, depot: depotName, dead_miles: deadMiles }
+      });
+    } catch (logErr) {
+      console.error('Activity log error (non-fatal):', logErr.message);
+    }
+
+    // Broadcast via WebSocket
+    try {
+      webSocketHandler.broadcast({
+        type: 'replacement_dispatched',
+        breakdown_id: id,
+        replacement_fleet_no: fleet_no,
+        sending_depot: depotName,
+        dead_miles: deadMiles
+      });
+    } catch (wsErr) {
+      console.error('WebSocket broadcast error (non-fatal):', wsErr.message);
+    }
+
+    res.json({
+      success: true,
+      message: 'Replacement vehicle dispatched',
+      data: {
+        breakdown_id: id,
+        replacement_fleet_no: fleet_no,
+        sending_depot: depotName,
+        dead_miles: deadMiles,
+        dead_miles_duration_minutes: deadMilesDuration,
+        status: 'dispatched'
+      }
+    });
+  } catch (error) {
+    console.error('Error dispatching replacement:', error);
+    res.status(500).json({ success: false, error: 'Failed to dispatch replacement vehicle' });
+  }
+});
+
+// PUT /api/breakdowns/:id/replacement/return-to-service - Record where replacement enters service
+router.put('/:id/replacement/return-to-service', validate(replacementSchemas.returnToService), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { stop_id, latitude, longitude, location_description } = req.body;
+
+    // Find the active replacement for this breakdown
+    const rows = await query(
+      'SELECT * FROM replacement_vehicles WHERE breakdown_id = ? AND status = ? LIMIT 1',
+      [id, 'dispatched']
+    );
+
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'No dispatched replacement found for this breakdown' });
+    }
+
+    const replacement = rows[0];
+    let rtsLat = latitude;
+    let rtsLng = longitude;
+    let rtsLocation = location_description || '';
+
+    // If stop_id provided, look up stop coordinates
+    if (stop_id) {
+      const stopRows = await query(
+        'SELECT stop_name, stop_lat, stop_lon FROM gtfs_stops WHERE stop_id = ? LIMIT 1',
+        [stop_id]
+      );
+      if (stopRows && stopRows.length > 0) {
+        rtsLat = stopRows[0].stop_lat;
+        rtsLng = stopRows[0].stop_lon;
+        rtsLocation = stopRows[0].stop_name;
+      } else {
+        return res.status(400).json({ success: false, error: 'Stop not found' });
+      }
+    }
+
+    if (!rtsLat || !rtsLng) {
+      return res.status(400).json({ success: false, error: 'Return-to-service coordinates required' });
+    }
+
+    // Calculate pickup miles: breakdown -> return-to-service point
+    let pickupMiles = null;
+    let pickupDuration = null;
+    try {
+      const distance = await calculateRoadDistance(
+        replacement.breakdown_lat, replacement.breakdown_lng,
+        rtsLat, rtsLng
+      );
+      pickupMiles = distance.distanceMiles;
+      pickupDuration = distance.durationMinutes;
+    } catch (distErr) {
+      console.error('Google Directions error (non-fatal):', distErr.message);
+    }
+
+    const totalDeadMiles = (parseFloat(replacement.dead_miles || 0) + (pickupMiles || 0)).toFixed(2);
+
+    // Update replacement record
+    await update('replacement_vehicles', { id: replacement.id }, {
+      return_to_service_lat: rtsLat,
+      return_to_service_lng: rtsLng,
+      return_to_service_location: rtsLocation,
+      return_to_service_at: toMySQLDatetime(),
+      pickup_miles: pickupMiles,
+      pickup_miles_duration_minutes: pickupDuration,
+      total_dead_miles: totalDeadMiles,
+      status: 'in_service',
+      updated_at: toMySQLDatetime()
+    });
+
+    // Broadcast via WebSocket
+    try {
+      webSocketHandler.broadcast({
+        type: 'replacement_in_service',
+        breakdown_id: id,
+        replacement_fleet_no: replacement.replacement_fleet_no,
+        pickup_miles: pickupMiles,
+        total_dead_miles: parseFloat(totalDeadMiles)
+      });
+    } catch (wsErr) {
+      console.error('WebSocket broadcast error (non-fatal):', wsErr.message);
+    }
+
+    res.json({
+      success: true,
+      message: 'Replacement vehicle returned to service',
+      data: {
+        breakdown_id: id,
+        replacement_fleet_no: replacement.replacement_fleet_no,
+        dead_miles: replacement.dead_miles,
+        pickup_miles: pickupMiles,
+        pickup_miles_duration_minutes: pickupDuration,
+        total_dead_miles: parseFloat(totalDeadMiles),
+        return_to_service_location: rtsLocation,
+        status: 'in_service'
+      }
+    });
+  } catch (error) {
+    console.error('Error recording return to service:', error);
+    res.status(500).json({ success: false, error: 'Failed to record return to service' });
+  }
+});
+
+// GET /api/breakdowns/:id/replacement - Get replacement details for a breakdown
+router.get('/:id/replacement', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const rows = await query(
+      'SELECT * FROM replacement_vehicles WHERE breakdown_id = ? AND status != ? ORDER BY created_at DESC LIMIT 1',
+      [id, 'cancelled']
+    );
+
+    if (!rows || rows.length === 0) {
+      return res.json({ success: true, data: null });
+    }
+
+    res.json({ success: true, data: rows[0] });
+  } catch (error) {
+    console.error('Error fetching replacement:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch replacement data' });
+  }
+});
+
+// GET /api/breakdowns/:id/replacement/route-stops - Get GTFS stops for the breakdown's route
+router.get('/:id/replacement/route-stops', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Get the breakdown to find its route
+    const { data: breakdown, error: bErr } = await from('breakdowns')
+      .select('*')
+      .eq('breakdown_id', id)
+      .single();
+
+    if (bErr || !breakdown) {
+      return res.status(404).json({ success: false, error: 'Breakdown not found' });
+    }
+
+    const routeValue = breakdown.wizard_assessment_data?.route || breakdown.route_id || breakdown.route;
+    if (!routeValue) {
+      return res.json({ success: true, stops: [], message: 'No route linked to this breakdown' });
+    }
+
+    // Resolve route_short_name to GTFS route_id (breakdown stores "21", GTFS uses internal IDs)
+    let gtfsRouteId = routeValue;
+    const routeLookup = await query(
+      'SELECT route_id FROM gtfs_routes WHERE route_id = ? OR route_short_name = ? LIMIT 1',
+      [routeValue, routeValue]
+    );
+    if (routeLookup && routeLookup.length > 0) {
+      gtfsRouteId = routeLookup[0].route_id;
+    }
+
+    // Find stops on this route via GTFS join
+    const stops = await query(`
+      SELECT DISTINCT gs.stop_id, gs.stop_name, gs.stop_lat, gs.stop_lon
+      FROM gtfs_stops gs
+      JOIN gtfs_stop_times gst ON gst.stop_id = gs.stop_id
+      JOIN gtfs_trips gt ON gt.trip_id = gst.trip_id
+      WHERE gt.route_id = ?
+      ORDER BY gs.stop_name ASC
+      LIMIT 200
+    `, [gtfsRouteId]);
+
+    res.json({ success: true, stops: stops || [] });
+  } catch (error) {
+    console.error('Error fetching route stops:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch route stops' });
   }
 });
 

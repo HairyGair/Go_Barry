@@ -4,6 +4,7 @@ import SimpleLocationMap from './SimpleLocationMap';
 import DepotContactBadge from '../../components/DepotContactBadge';
 import ShiftEndingBadge from '../../components/ShiftEndingBadge';
 import NextTripCountdownBadge from '../../components/NextTripCountdownBadge';
+import EngineerEtaCountdown from '../../components/EngineerEtaCountdown';
 import QuickDecisionButtons from './QuickDecisionButtons';
 import apiClient from '../../services/api-client';
 import './SDCBreakdownCard-Carousel.css';
@@ -125,6 +126,8 @@ const SDCBreakdownCardEnhanced = memo(({
   onAddNote,
   onQuickDecision,
   onContact,
+  onDispatchReplacement,
+  onReturnToService,
   animationDelay = 0,
   isHighlighted = false,
   engineeringTimer = null,
@@ -552,6 +555,14 @@ const SDCBreakdownCardEnhanced = memo(({
             compact
             onAction={handleNextTripAction}
           />
+          {breakdown.engineer_dispatched_at && breakdown.engineer_eta_minutes && !breakdown.engineer_on_site_at && (
+            <EngineerEtaCountdown
+              dispatchedAt={breakdown.engineer_dispatched_at}
+              etaMinutes={breakdown.engineer_eta_minutes}
+              onSite={!!breakdown.engineer_on_site_at}
+              compact
+            />
+          )}
           {breakdown.isResolving && (
             <div className="resolving-badge">
               <span className="spinner">⏳</span>
@@ -986,7 +997,56 @@ const SDCBreakdownCardEnhanced = memo(({
             <button className="btn btn-contact" onClick={() => onContact ? onContact(breakdown) : null}>
               <span>📞</span> Contact
             </button>
+            {/* Dispatch Replacement - show when STOP severity or replacement required, and no replacement dispatched yet */}
+            {onDispatchReplacement && !breakdown.replacement_vehicle &&
+              (breakdown.severity === 'STOP' || breakdown.wizard_decision === 'STOP' || breakdown.replacement_vehicle_required) && (
+              <button className="btn btn-replacement" onClick={() => onDispatchReplacement(breakdown)}>
+                <span>🚌</span> Replacement
+              </button>
+            )}
+            {/* Return to Service - show when replacement dispatched but not yet in service */}
+            {onReturnToService && breakdown.replacement_vehicle && breakdown.replacement_vehicle.status === 'dispatched' && (
+              <button className="btn btn-return-service" onClick={() => onReturnToService(breakdown)}>
+                <span>📍</span> Return to Service
+              </button>
+            )}
           </div>
+
+          {/* Replacement Vehicle Info */}
+          {breakdown.replacement_vehicle && (
+            <div className="rv-info-section">
+              <div className="rv-info-header">Replacement Vehicle</div>
+              <div className="rv-info-grid">
+                <div className="rv-info-item">
+                  <span className="rv-info-label">Fleet</span>
+                  <span className="rv-info-value">{breakdown.replacement_vehicle.replacement_fleet_no}</span>
+                </div>
+                <div className="rv-info-item">
+                  <span className="rv-info-label">From</span>
+                  <span className="rv-info-value">{breakdown.replacement_vehicle.sending_depot_name}</span>
+                </div>
+                <div className="rv-info-item">
+                  <span className="rv-info-label">Dead mi</span>
+                  <span className="rv-info-value">{breakdown.replacement_vehicle.dead_miles ?? 'N/A'}</span>
+                </div>
+                {breakdown.replacement_vehicle.pickup_miles != null && (
+                  <div className="rv-info-item">
+                    <span className="rv-info-label">Pickup mi</span>
+                    <span className="rv-info-value">{breakdown.replacement_vehicle.pickup_miles}</span>
+                  </div>
+                )}
+                {breakdown.replacement_vehicle.total_dead_miles != null && breakdown.replacement_vehicle.status === 'in_service' && (
+                  <div className="rv-info-item rv-info-total">
+                    <span className="rv-info-label">Total dead</span>
+                    <span className="rv-info-value">{breakdown.replacement_vehicle.total_dead_miles}</span>
+                  </div>
+                )}
+              </div>
+              <div className={`rv-status-badge rv-status-${breakdown.replacement_vehicle.status}`}>
+                {breakdown.replacement_vehicle.status === 'dispatched' ? 'En Route' : 'In Service'}
+              </div>
+            </div>
+          )}
 
           {/* Notes Section */}
           {showNotes && (

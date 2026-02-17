@@ -20,6 +20,7 @@ import express from 'express';
 import { query, select, insert, update } from '../config/mysql.js';
 import { from } from '../utils/queryHelpers.js';
 import { activityLogger, ACTIVITY_TYPES, ACTOR_TYPES, SEVERITY_LEVELS } from '../services/activityLogger.js';
+import { calculateRoadDistance } from '../services/googleDirectionsService.js';
 
 const router = express.Router();
 
@@ -60,12 +61,18 @@ router.get('/depot-stats', async (req, res) => {
       // Count breakdowns by depot in last 24 hours
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-      const { data: breakdowns, error: breakdownError } = await from('breakdowns')
+      let depotBreakdownQuery = from('breakdowns')
         .select('*')
         .eq('depot', depot.code)
         .gte('created_at', oneDayAgo.toISOString())
-        .in('status', ['active', 'pending', 'in_progress', 'dispatched', 'on_site'])
-        .execute();
+        .in('status', ['active', 'pending', 'in_progress', 'dispatched', 'on_site']);
+
+      // Hide demo breakdowns from real users
+      if (req.user?.badge_number !== 'DEMO01') {
+        depotBreakdownQuery = depotBreakdownQuery.neq('supervisor_badge', 'DEMO01');
+      }
+
+      const { data: breakdowns, error: breakdownError } = await depotBreakdownQuery.execute();
 
       if (breakdownError) throw breakdownError;
 
@@ -172,10 +179,16 @@ router.get('/metrics', async (req, res) => {
     }
 
     // Get breakdowns for the period
-    const { data: breakdowns, error } = await from('breakdowns')
+    let metricsQuery = from('breakdowns')
       .select('*')
-      .gte('created_at', startDate.toISOString())
-      .execute();
+      .gte('created_at', startDate.toISOString());
+
+    // Hide demo breakdowns from real users
+    if (req.user?.badge_number !== 'DEMO01') {
+      metricsQuery = metricsQuery.neq('supervisor_badge', 'DEMO01');
+    }
+
+    const { data: breakdowns, error } = await metricsQuery.execute();
 
     if (error) throw error;
 
@@ -280,10 +293,10 @@ router.get('/engineers/available/:depotId', async (req, res) => {
   }
 });
 
-// POST /api/engineering/assign - Simplified engineer dispatch (anonymous)
+// POST /api/engineering/assign - Dispatch engineer (named or anonymous)
 router.post('/assign', async (req, res) => {
   try {
-    const { breakdown_id, estimated_arrival_minutes, assigned_by } = req.body;
+    const { breakdown_id, engineer_id, estimated_arrival_minutes, assigned_by } = req.body;
 
     if (!breakdown_id) {
       return res.status(400).json({
@@ -293,19 +306,43 @@ router.post('/assign', async (req, res) => {
     }
 
     const dispatchTime = new Date();
+    let engineerName = null;
+    let engineerBadge = null;
+
+    // If engineer_id provided, look up the engineer and validate
+    if (engineer_id) {
+      const [engineer] = await select('engineers', { id: engineer_id });
+      if (!engineer) {
+        return res.status(404).json({ success: false, error: 'Engineer not found' });
+      }
+      engineerName = engineer.name;
+      engineerBadge = engineer.badge_number;
+
+      // Update engineer status to on_job
+      await update('engineers', {
+        status: 'on_job',
+        current_breakdown_id: breakdown_id,
+        updated_at: dispatchTime
+      }, { id: engineer_id });
+    }
 
     // Update breakdown status to dispatched
-    const affectedRows = await update(
-      'breakdowns',
-      {
-        status: 'dispatched',
-        dispatched_at: dispatchTime,
-        engineer_dispatched_at: dispatchTime,
-        engineer_eta_minutes: estimated_arrival_minutes || null,
-        updated_at: dispatchTime
-      },
-      { breakdown_id }
-    );
+    const updateFields = {
+      status: 'dispatched',
+      dispatched_at: dispatchTime,
+      engineer_dispatched_at: dispatchTime,
+      engineer_eta_minutes: estimated_arrival_minutes || null,
+      updated_at: dispatchTime
+    };
+
+    // Add engineer details if named dispatch
+    if (engineerName) {
+      updateFields.engineer_name = engineerName;
+      updateFields.engineer_badge = engineerBadge;
+      updateFields.engineer_id = engineerBadge;
+    }
+
+    const affectedRows = await update('breakdowns', updateFields, { breakdown_id });
 
     if (affectedRows === 0) {
       throw new Error('Breakdown not found');
@@ -314,6 +351,10 @@ router.post('/assign', async (req, res) => {
     // Get updated breakdown
     const [breakdown] = await select('breakdowns', { breakdown_id });
 
+    const dispatchedBy = engineerName
+      ? `${engineerName} (${engineerBadge})`
+      : (assigned_by || 'Engineering Manager');
+
     // Create breakdown event for audit trail
     await insert('breakdown_events', {
       breakdown_id: breakdown.id,
@@ -321,7 +362,10 @@ router.post('/assign', async (req, res) => {
       event_data: JSON.stringify({
         dispatched_at: dispatchTime.toISOString(),
         estimated_arrival_minutes: estimated_arrival_minutes || null,
-        assigned_by: assigned_by || 'Engineering Manager',
+        assigned_by: dispatchedBy,
+        engineer_name: engineerName || null,
+        engineer_badge: engineerBadge || null,
+        engineer_id: engineer_id || null,
         breakdown_id: breakdown_id,
         fleet_no: breakdown.fleet_no,
         depot: breakdown.depot
@@ -334,8 +378,8 @@ router.post('/assign', async (req, res) => {
         activityType: ACTIVITY_TYPES.ENGINEER_DISPATCHED,
         action: 'engineer dispatched',
         actorType: ACTOR_TYPES.ENGINEERING,
-        actorId: assigned_by || 'manager',
-        actorName: assigned_by || 'Engineering Manager',
+        actorId: engineerBadge || assigned_by || 'manager',
+        actorName: engineerName || assigned_by || 'Engineering Manager',
         depot: breakdown.depot || 'Unknown',
         severity: SEVERITY_LEVELS.INFO,
         source: 'engineering_dashboard',
@@ -344,6 +388,7 @@ router.post('/assign', async (req, res) => {
           fleet_no: breakdown.fleet_no,
           dispatched_at: dispatchTime.toISOString(),
           eta_minutes: estimated_arrival_minutes,
+          engineer_name: engineerName || null,
           location: breakdown.location_description || breakdown.location,
           issue: breakdown.issue_category
         }
@@ -353,6 +398,14 @@ router.post('/assign', async (req, res) => {
       console.error('⚠️ Failed to log engineer dispatch activity:', activityError);
     }
 
+    // Broadcast WebSocket event with engineer name
+    broadcastEngineeringEvent('engineer_dispatched', {
+      breakdown_id,
+      engineer_name: engineerName,
+      engineer_badge: engineerBadge,
+      breakdown
+    });
+
     // Return assignment details
     res.json({
       success: true,
@@ -361,7 +414,9 @@ router.post('/assign', async (req, res) => {
         dispatched_at: dispatchTime.toISOString(),
         status: 'dispatched',
         estimated_arrival_minutes: estimated_arrival_minutes || null,
-        assigned_by: assigned_by || 'Engineering Manager'
+        assigned_by: dispatchedBy,
+        engineer_name: engineerName || null,
+        engineer_badge: engineerBadge || null
       },
       timestamp: new Date().toISOString()
     });
@@ -701,6 +756,11 @@ router.get('/performance', async (req, res) => {
     let sql = 'SELECT * FROM breakdowns WHERE created_at >= ?';
     let params = [startDate];
 
+    // Hide demo breakdowns from real users
+    if (req.user?.badge_number !== 'DEMO01') {
+      sql += " AND supervisor_badge != 'DEMO01'";
+    }
+
     if (depot) {
       sql += ' AND depot = ?';
       params.push(depot);
@@ -831,6 +891,11 @@ router.get('/sla', async (req, res) => {
     let sql = 'SELECT * FROM breakdowns WHERE created_at >= ?';
     let params = [startDate];
 
+    // Hide demo breakdowns from real users
+    if (req.user?.badge_number !== 'DEMO01') {
+      sql += " AND supervisor_badge != 'DEMO01'";
+    }
+
     if (depot) {
       sql += ' AND depot = ?';
       params.push(depot);
@@ -958,12 +1023,16 @@ router.get('/teams', async (req, res) => {
 
     for (const depot of depots) {
       // Get active breakdowns for this depot
-      const sql = `
+      let teamsSql = `
         SELECT * FROM breakdowns
         WHERE depot = ?
         AND status IN ('active', 'pending', 'in_progress', 'dispatched', 'on_site')
       `;
-      const activeBreakdowns = await query(sql, [depot.code]);
+      // Hide demo breakdowns from real users
+      if (req.user?.badge_number !== 'DEMO01') {
+        teamsSql += " AND supervisor_badge != 'DEMO01'";
+      }
+      const activeBreakdowns = await query(teamsSql, [depot.code]);
 
       // Get engineer data for this depot
       const { data: depotEngineers } = await from('engineers')
@@ -1304,6 +1373,11 @@ router.get('/jobs', async (req, res) => {
     let sql = "SELECT * FROM breakdowns WHERE status != 'resolved'";
     let params = [];
 
+    // Hide demo breakdowns from real users
+    if (req.user?.badge_number !== 'DEMO01') {
+      sql += " AND supervisor_badge != 'DEMO01'";
+    }
+
     // Apply filters
     switch (filter) {
       case 'unassigned':
@@ -1572,6 +1646,92 @@ router.get('/vehicle-history/:fleet_no', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch vehicle history'
+    });
+  }
+});
+
+// Depot coordinates for ETA calculation (verified from OpenStreetMap Dec 2025)
+const DEPOT_COORDS = {
+  WAS: { lat: 54.9068, lng: -1.5140, name: 'Washington' },
+  NCL: { lat: 54.9586, lng: -1.6579, name: 'Riverside' },
+  CON: { lat: 54.8403, lng: -1.8380, name: 'Consett' },
+  GTS: { lat: 54.9142, lng: -1.3976, name: 'Deptford' },
+  HEX: { lat: 54.9689, lng: -2.0953, name: 'Hexham' },
+  DAR: { lat: 54.9962, lng: -1.4692, name: 'Percy Main' },
+  PM:  { lat: 54.9962, lng: -1.4692, name: 'Percy Main' }
+};
+
+// POST /api/engineering/calculate-eta - Auto-calculate ETA from depot to breakdown via Google Directions
+router.post('/calculate-eta', async (req, res) => {
+  try {
+    const { depot_code, breakdown_lat, breakdown_lng } = req.body;
+
+    if (!depot_code || !breakdown_lat || !breakdown_lng) {
+      return res.status(400).json({
+        success: false,
+        error: 'depot_code, breakdown_lat, and breakdown_lng are required'
+      });
+    }
+
+    const depot = DEPOT_COORDS[depot_code];
+    if (!depot) {
+      return res.status(400).json({
+        success: false,
+        error: `Unknown depot code: ${depot_code}`
+      });
+    }
+
+    const lat = parseFloat(breakdown_lat);
+    const lng = parseFloat(breakdown_lng);
+
+    if (isNaN(lat) || isNaN(lng)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid breakdown coordinates'
+      });
+    }
+
+    const result = await calculateRoadDistance(depot.lat, depot.lng, lat, lng);
+
+    res.json({
+      success: true,
+      eta_minutes: result.durationMinutes,
+      distance_miles: result.distanceMiles,
+      from_depot: depot.name,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error calculating ETA:', error.message);
+
+    // Graceful fallback: estimate based on straight-line distance
+    try {
+      const depot = DEPOT_COORDS[req.body.depot_code];
+      if (depot) {
+        const lat = parseFloat(req.body.breakdown_lat);
+        const lng = parseFloat(req.body.breakdown_lng);
+        // Haversine approximation for NE England (~111km per degree lat)
+        const dLat = (lat - depot.lat) * 111;
+        const dLng = (lng - depot.lng) * 111 * Math.cos(depot.lat * Math.PI / 180);
+        const straightLineKm = Math.sqrt(dLat * dLat + dLng * dLng);
+        const roadKm = straightLineKm * 1.35; // ~35% road factor
+        const etaMinutes = Math.round(roadKm / 0.67); // ~40 km/h average
+
+        return res.json({
+          success: true,
+          eta_minutes: etaMinutes,
+          distance_miles: parseFloat((roadKm * 0.621371).toFixed(1)),
+          from_depot: depot.name,
+          estimated: true,
+          timestamp: new Date().toISOString()
+        });
+      }
+    } catch (fallbackErr) {
+      // ignore fallback errors
+    }
+
+    res.status(500).json({
+      success: false,
+      error: 'Failed to calculate ETA'
     });
   }
 });

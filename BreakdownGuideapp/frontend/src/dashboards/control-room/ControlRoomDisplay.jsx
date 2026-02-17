@@ -27,6 +27,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { apiClient } from '../../services/api-client';
 import useConnectionManager from '../../hooks/useConnectionManager';
 import GairWareLogo from '../../components/GairWareLogo';
+import EngineerEtaCountdown from '../../components/EngineerEtaCountdown';
 import './ControlRoomDisplay.css';
 
 const ControlRoomDisplay = () => {
@@ -49,6 +50,9 @@ const ControlRoomDisplay = () => {
   const [previousBreakdownCount, setPreviousBreakdownCount] = useState(0);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [lastBusAlerts, setLastBusAlerts] = useState({}); // keyed by breakdown_id
+  const [tripsAtRisk, setTripsAtRisk] = useState(null);
+  const [stopDepartures, setStopDepartures] = useState(null);
+  const [serviceGapData, setServiceGapData] = useState(null);
 
   const scrollIntervalRef = useRef(null);
   const audioRef = useRef(null);
@@ -461,6 +465,55 @@ const ControlRoomDisplay = () => {
   // Get current breakdown to display
   const currentBreakdown = breakdowns[currentIndex];
 
+  // Fetch GTFS intelligence for current breakdown
+  useEffect(() => {
+    if (!currentBreakdown) {
+      setTripsAtRisk(null);
+      setStopDepartures(null);
+      setServiceGapData(null);
+      return;
+    }
+
+    const apiBase = import.meta.env.VITE_API_URL || 'https://breakdowns.gobarry.co.uk/api';
+    const routeId = currentBreakdown.route_id || currentBreakdown.service || currentBreakdown.route_number;
+    const lat = currentBreakdown.location_lat;
+    const lng = currentBreakdown.location_lng;
+
+    // Trips at risk
+    if (routeId && routeId !== 'Unknown') {
+      const params = new URLSearchParams({ route_id: routeId, minutes: '120' });
+      if (lat) params.set('lat', lat);
+      if (lng) params.set('lng', lng);
+      fetch(`${apiBase}/api/public/trips-at-risk?${params}`)
+        .then(r => r.json())
+        .then(data => { if (data?.success) setTripsAtRisk(data); })
+        .catch(() => setTripsAtRisk(null));
+
+      // Service gap / frequency impact
+      const gapParams = new URLSearchParams({ route_id: routeId });
+      if (lat) gapParams.set('lat', lat);
+      if (lng) gapParams.set('lng', lng);
+      fetch(`${apiBase}/api/public/service-gaps?${gapParams}`)
+        .then(r => r.json())
+        .then(data => { if (data?.success) setServiceGapData(data); })
+        .catch(() => setServiceGapData(null));
+    } else {
+      setTripsAtRisk(null);
+      setServiceGapData(null);
+    }
+
+    // Departure board for nearest stop
+    if (lat && lng) {
+      const depParams = new URLSearchParams({ lat, lng, limit: '8' });
+      fetch(`${apiBase}/api/public/stop-departures?${depParams}`)
+        .then(r => r.json())
+        .then(data => { if (data?.success) setStopDepartures(data); })
+        .catch(() => setStopDepartures(null));
+    } else {
+      setStopDepartures(null);
+    }
+  }, [currentBreakdown?.breakdown_id, currentIndex]);
+
   // Get severity badge styling
   const getSeverityBadge = (severity) => {
     const badges = {
@@ -501,24 +554,38 @@ const ControlRoomDisplay = () => {
         <GairWareLogo height={40} variant="icon" />
       </div>
 
-      {/* Stats Bar */}
+      {/* Stats Bar - Asymmetric Command Strip */}
       <div className="stats-bar">
-        <div className="stat-item">
-          <span className="stat-label">🔴 ACTIVE NOW</span>
-          <span className="stat-value">{stats.total}</span>
+        <div className="stat-hero">
+          <span className="stat-hero-value">{stats.total}</span>
+          <span className="stat-hero-label">ACTIVE</span>
         </div>
-        <div className="stat-item">
-          <span className="stat-label">📅 TODAY'S TOTAL</span>
-          <span className="stat-value">{stats.today}</span>
+        <div className="stat-secondary-group">
+          <div className="stat-secondary">
+            <span className="stat-secondary-value">{stats.today}</span>
+            <span className="stat-secondary-label">TODAY</span>
+          </div>
+          <div className="stat-divider" />
+          <div className="stat-secondary stat-clock">
+            <span className="stat-secondary-value">{formatTime(currentTime)}</span>
+            <span className="stat-secondary-label">{currentTime.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }).toUpperCase()}</span>
+          </div>
+          {weatherData && (
+            <>
+              <div className="stat-divider" />
+              <div className="stat-secondary stat-weather">
+                <span className="stat-secondary-value">{weatherData.temp}°C</span>
+                <span className="stat-secondary-label">{weatherData.location}</span>
+              </div>
+            </>
+          )}
         </div>
-        <div className="stat-item status-icon">
-          <span className="stat-label">📅 {currentTime.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
-          <span className="stat-value">{formatTime(currentTime)}</span>
-        </div>
-        {weatherData && (
-          <div className="stat-item weather-icon">
-            <span className="stat-label">🌤️ {weatherData.location}</span>
-            <span className="stat-value">{weatherData.temp}°C</span>
+        {breakdowns.length > 1 && (
+          <div className="stat-progress-strip">
+            <span className="stat-progress-text">{currentIndex + 1}/{breakdowns.length}</span>
+            <div className="stat-progress-bar">
+              <div className="stat-progress-fill" style={{ width: `${((currentIndex + 1) / breakdowns.length) * 100}%` }} />
+            </div>
           </div>
         )}
       </div>
@@ -545,7 +612,7 @@ const ControlRoomDisplay = () => {
                 <div className="card-badges">
                   {currentBreakdown.secured_mileage && (
                     <span className="secured-mileage-badge">
-                      🚨 SECURED MILEAGE
+                      SECURED MILEAGE
                     </span>
                   )}
                   <span className={`severity-badge ${getSeverityBadge(currentBreakdown.severity).class}`}>
@@ -572,6 +639,9 @@ const ControlRoomDisplay = () => {
               </div>
 
               <div className="card-header-right">
+                {currentBreakdown.breakdown_id && (
+                  <span className="breakdown-id-tag">{currentBreakdown.breakdown_id}</span>
+                )}
                 <div className={`breakdown-time ${
                     (() => {
                       const createdAt = new Date(currentBreakdown.created_at);
@@ -680,22 +750,18 @@ const ControlRoomDisplay = () => {
                 </span>
               </div>
 
-              <div className="info-grid-top">
+              <div className="info-grid-dense">
                 <div className="info-item">
                   <div className="info-label">ISSUE</div>
                   <div className="info-value">
                     {(() => {
                       const issueType = currentBreakdown.issue_type || currentBreakdown.issue_category || 'Unknown';
                       const issueDesc = currentBreakdown.issue_description || currentBreakdown.description || '';
-
-                      // Capitalize first letter of each word
                       const capitalize = (str) => {
                         return str.split(' ').map(word =>
                           word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
                         ).join(' ');
                       };
-
-                      // Don't show "wizard assessment completed" or generic descriptions
                       if (issueDesc && !issueDesc.toLowerCase().includes('wizard') && !issueDesc.toLowerCase().includes('assessment completed')) {
                         return `${capitalize(issueType)} - ${capitalize(issueDesc)}`;
                       }
@@ -704,41 +770,113 @@ const ControlRoomDisplay = () => {
                   </div>
                 </div>
                 <div className="info-item">
+                  <div className="info-label">DEPOT</div>
+                  <div className="info-value">
+                    {currentBreakdown.depot || currentBreakdown.supervisor_depot || 'Unknown'}
+                  </div>
+                </div>
+                <div className="info-item">
                   <div className="info-label">SUPERVISOR</div>
                   <div className="info-value">
                     {currentBreakdown.supervisor_name || 'Unknown'}
                   </div>
                 </div>
+                <div className="info-item">
+                  <div className="info-label">ENGINEER</div>
+                  <div className="info-value">
+                    {currentBreakdown.engineer_name
+                      ? currentBreakdown.engineer_name
+                      : currentBreakdown.dispatched_at
+                        ? 'Dispatched'
+                        : 'Awaiting'}
+                  </div>
+                  {currentBreakdown.on_site_at && (
+                    <div className="info-sub-badge info-sub-badge--onsite">ON SITE</div>
+                  )}
+                  {currentBreakdown.dispatched_at && !currentBreakdown.on_site_at && (
+                    currentBreakdown.engineer_eta_minutes && currentBreakdown.engineer_dispatched_at ? (
+                      <EngineerEtaCountdown
+                        dispatchedAt={currentBreakdown.engineer_dispatched_at}
+                        etaMinutes={currentBreakdown.engineer_eta_minutes}
+                        onSite={!!currentBreakdown.engineer_on_site_at}
+                        compact={false}
+                      />
+                    ) : (
+                      <div className="info-sub-badge info-sub-badge--dispatched">EN ROUTE</div>
+                    )
+                  )}
+                </div>
               </div>
-              <div className="info-grid-bottom">
-                {currentBreakdown.dispatched_at && (
-                  <div className="info-item">
-                    <div className="info-label">ENGINEER</div>
-                    <div className="info-value">{currentBreakdown.engineer_name || 'Dispatched'}</div>
+
+              {/* GTFS Intelligence Panels */}
+              <div className="cr-gtfs-panels">
+                {/* 3C: Frequency Impact Banner */}
+                {serviceGapData && serviceGapData.normalFrequency && (
+                  <div className="cr-freq-banner">
+                    <span className="cr-freq-label">Normal: every {serviceGapData.normalFrequency} min</span>
+                    {serviceGapData.currentGap && serviceGapData.currentGap > serviceGapData.normalFrequency * 1.5 && (
+                      <span className="cr-freq-gap cr-freq-gap--warning">
+                        Current gap: {serviceGapData.currentGap} min
+                      </span>
+                    )}
+                    {serviceGapData.currentGap && serviceGapData.currentGap <= serviceGapData.normalFrequency * 1.5 && (
+                      <span className="cr-freq-gap">
+                        Current gap: {serviceGapData.currentGap} min
+                      </span>
+                    )}
                   </div>
                 )}
-                {currentBreakdown.on_site_at && (
-                  <div className="info-item">
-                    <div className="info-label">STATUS</div>
-                    <div className="info-value">On Site</div>
+
+                {/* 3A: Trips at Risk */}
+                {tripsAtRisk && tripsAtRisk.tripsAtRisk && tripsAtRisk.tripsAtRisk.length > 0 && (
+                  <div className="cr-trips-at-risk">
+                    <div className="cr-trips-header">
+                      <span className="cr-trips-title">TRIPS AT RISK</span>
+                      <span className="cr-trips-count">{tripsAtRisk.summary?.totalTripsAtRisk || 0}</span>
+                    </div>
+                    <div className="cr-trips-list">
+                      {tripsAtRisk.tripsAtRisk.slice(0, 4).map((trip, i) => (
+                        <div key={i} className={`cr-trip-item ${trip.minutesUntilDeparture <= 15 ? 'cr-trip-urgent' : trip.minutesUntilDeparture <= 30 ? 'cr-trip-warning' : ''}`}>
+                          <span className="cr-trip-time">{trip.departureTime?.substring(0, 5)}</span>
+                          <span className="cr-trip-headsign">{trip.headsign}</span>
+                          <span className="cr-trip-mins">{trip.minutesUntilDeparture} min</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 3B: Mini Departure Board */}
+                {stopDepartures && stopDepartures.departures && stopDepartures.departures.length > 0 && (
+                  <div className="cr-departure-board">
+                    <div className="cr-dep-header">
+                      <span className="cr-dep-title">NEAREST STOP</span>
+                      <span className="cr-dep-stop-name">{stopDepartures.stop?.stopName || 'Unknown'}</span>
+                    </div>
+                    <div className="cr-dep-list">
+                      {stopDepartures.departures.slice(0, 6).map((dep, i) => (
+                        <div key={i} className="cr-dep-item">
+                          <span className="cr-dep-route">{dep.routeShortName}</span>
+                          <span className="cr-dep-headsign">{dep.headsign}</span>
+                          <span className="cr-dep-mins">
+                            {dep.minutesUntilDeparture <= 0 ? 'Due' : `${dep.minutesUntilDeparture} min`}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
 
-              {/* Progress Indicator with Counter */}
+              {/* Progress dots - compact */}
               {breakdowns.length > 1 && (
-                <div className="progress-section">
-                  <div className="progress-counter">
-                    Breakdown {currentIndex + 1} of {breakdowns.length}
-                  </div>
-                  <div className="progress-dots">
-                    {breakdowns.map((_, idx) => (
-                      <div
-                        key={idx}
-                        className={`progress-dot ${idx === currentIndex ? 'active' : ''}`}
-                      />
-                    ))}
-                  </div>
+                <div className="progress-dots-compact">
+                  {breakdowns.map((_, idx) => (
+                    <div
+                      key={idx}
+                      className={`progress-dot ${idx === currentIndex ? 'active' : ''}`}
+                    />
+                  ))}
                 </div>
               )}
             </div>
@@ -873,21 +1011,19 @@ const ControlRoomDisplay = () => {
         )}
       </div>
 
-      {/* Most Affected Routes - Only show when there are active breakdowns */}
-      {breakdowns.length > 0 && (
-        <div className="affected-routes-section">
-          <h3 className="section-title">🚌 MOST AFFECTED ROUTES</h3>
-          <div className="routes-grid">
-            {affectedRoutes.length > 0 ? (
-              affectedRoutes.map((route, idx) => (
-                <div key={idx} className="route-item">
-                  <span className="route-number">{route.route}</span>
-                  <span className="route-count">{route.count} breakdown{route.count !== 1 ? 's' : ''}</span>
-                </div>
-              ))
-            ) : (
-              <div className="no-routes">No affected routes</div>
-            )}
+      {/* Most Affected Routes - Compact tile strip */}
+      {breakdowns.length > 0 && affectedRoutes.length > 0 && (
+        <div className="affected-routes-strip">
+          <span className="affected-routes-label">AFFECTED</span>
+          <div className="affected-routes-tiles">
+            {affectedRoutes.map((route, idx) => (
+              <div key={idx} className="route-tile">
+                <span className="route-tile-number">{route.route}</span>
+                {route.count > 1 && (
+                  <span className="route-tile-count">{route.count}</span>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       )}

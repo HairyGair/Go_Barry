@@ -18,6 +18,9 @@ router.get('/breakdowns', async (req, res) => {
     // Query from breakdowns table using MySQL
     let queryBuilder = from('breakdowns').select('*');
 
+    // Always exclude demo breakdowns from public endpoints
+    queryBuilder = queryBuilder.neq('supervisor_badge', 'DEMO01');
+
     // Apply depot filter if provided
     if (depot) {
       queryBuilder = queryBuilder.eq('depot', depot);
@@ -94,8 +97,10 @@ router.get('/breakdowns', async (req, res) => {
 router.get('/breakdowns/live', async (req, res) => {
   try {
     // Query from breakdowns table using MySQL
+    // Always exclude demo breakdowns from public endpoints
     const { data: allBreakdowns, error } = await from('breakdowns')
       .select('*')
+      .neq('supervisor_badge', 'DEMO01')
       .order('created_at', 'DESC')
       .execute();
 
@@ -200,7 +205,16 @@ router.get('/breakdowns/live', async (req, res) => {
         decision_at: b.decision_at,
         dispatched_at: b.dispatched_at,
         on_site_at: b.on_site_at,
-        cleared_at: b.cleared_at
+        cleared_at: b.cleared_at,
+
+        // Engineer ETA countdown fields
+        engineer_dispatched_at: b.engineer_dispatched_at || b.dispatched_at || null,
+        engineer_eta_minutes: b.engineer_eta_minutes ? parseInt(b.engineer_eta_minutes) : null,
+        engineer_name: b.engineer_name || null,
+        engineer_on_site_at: b.engineer_on_site_at || b.on_site_at || null,
+
+        // Depot (needed by Control Room)
+        depot: b.depot || null
       };
     });
 
@@ -323,6 +337,7 @@ router.get('/activity/feed', async (req, res) => {
 
     const { data, error } = await from('activities')
       .select('*')
+      .neq('actor_id', 'DEMO01')
       .order('created_at', 'DESC')
       .limit(parseInt(limit))
       .offset(parseInt(offset))
@@ -373,6 +388,7 @@ router.get('/breakdowns/stats', async (req, res) => {
 
     const { data, error } = await from('breakdowns')
       .select('status')
+      .neq('supervisor_badge', 'DEMO01')
       .gte('created_at', startDate.toISOString())
       .execute();
 
@@ -638,6 +654,308 @@ router.get('/last-bus-check', async (req, res) => {
   } catch (error) {
     console.error('Error in last-bus-check:', error);
     return res.json({ success: true, isLastBusAffected: false, affectedLastBuses: [] });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// GTFS Public Endpoints for Operations Display (no auth required)
+// ═══════════════════════════════════════════════════════════════
+
+/** Haversine distance in km */
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function currentTimeGTFS() {
+  const now = new Date();
+  return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+}
+
+function addMinutesToGTFS(timeStr, minutes) {
+  const parts = timeStr.split(':').map(Number);
+  let totalMinutes = parts[0] * 60 + parts[1] + minutes;
+  const h = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
+  const mi = String(totalMinutes % 60).padStart(2, '0');
+  const s = String(parts[2] || 0).padStart(2, '0');
+  return `${h}:${mi}:${s}`;
+}
+
+function minutesBetween(timeA, timeB) {
+  const toMin = (t) => { const p = t.split(':').map(Number); return p[0] * 60 + p[1] + (p[2] || 0) / 60; };
+  return toMin(timeB) - toMin(timeA);
+}
+
+function getTodayDayCode() {
+  const d = new Date().getDay();
+  return d === 0 ? 'SU' : d === 6 ? 'SA' : 'MF';
+}
+
+async function getDominantServiceIdForRoute(routeId) {
+  const rows = await query(
+    `SELECT service_id, COUNT(*) as cnt FROM gtfs_trips WHERE route_id = ? GROUP BY service_id ORDER BY cnt DESC LIMIT 1`,
+    [routeId]
+  );
+  return rows?.[0]?.service_id || null;
+}
+
+// GET /api/public/trips-at-risk - Upcoming trips affected by a breakdown
+router.get('/trips-at-risk', async (req, res) => {
+  try {
+    const { route_id, lat, lng, minutes = 120 } = req.query;
+    if (!route_id) return res.json({ success: true, tripsAtRisk: [], summary: { totalTripsAtRisk: 0 } });
+
+    const now = currentTimeGTFS();
+    const endTime = addMinutesToGTFS(now, parseInt(minutes));
+    const dayCode = getTodayDayCode();
+
+    // Resolve short name to GTFS route_id
+    let gtfsRouteId = route_id;
+    const routeLookup = await query(
+      `SELECT route_id FROM gtfs_routes WHERE route_short_name = ? LIMIT 1`,
+      [route_id]
+    );
+    if (routeLookup?.length > 0) gtfsRouteId = routeLookup[0].route_id;
+
+    const serviceId = await getDominantServiceIdForRoute(gtfsRouteId);
+    if (!serviceId) return res.json({ success: true, tripsAtRisk: [], summary: { totalTripsAtRisk: 0 } });
+
+    // Find nearest stop on this route
+    let stopId = null;
+    let stopName = null;
+    if (lat && lng) {
+      const latNum = parseFloat(lat);
+      const lngNum = parseFloat(lng);
+      const stops = await query(
+        `SELECT DISTINCT s.stop_id, s.stop_name, s.stop_lat, s.stop_lon
+         FROM gtfs_stops s JOIN gtfs_stop_times st ON s.stop_id = st.stop_id
+         JOIN gtfs_trips t ON st.trip_id = t.trip_id
+         WHERE t.route_id = ? AND t.service_id = ?
+           AND s.stop_lat BETWEEN ? AND ? AND s.stop_lon BETWEEN ? AND ?
+         LIMIT 50`,
+        [gtfsRouteId, serviceId, latNum - 0.02, latNum + 0.02, lngNum - 0.03, lngNum + 0.03]
+      );
+      let minDist = Infinity;
+      for (const s of (stops || [])) {
+        const d = haversineKm(latNum, lngNum, parseFloat(s.stop_lat), parseFloat(s.stop_lon));
+        if (d < minDist) { minDist = d; stopId = s.stop_id; stopName = s.stop_name; }
+      }
+    }
+
+    if (!stopId) {
+      const first = await query(
+        `SELECT DISTINCT s.stop_id, s.stop_name FROM gtfs_stops s
+         JOIN gtfs_stop_times st ON s.stop_id = st.stop_id JOIN gtfs_trips t ON st.trip_id = t.trip_id
+         WHERE t.route_id = ? AND t.service_id = ? ORDER BY st.stop_sequence ASC LIMIT 1`,
+        [gtfsRouteId, serviceId]
+      );
+      if (first?.length > 0) { stopId = first[0].stop_id; stopName = first[0].stop_name; }
+    }
+
+    if (!stopId) return res.json({ success: true, tripsAtRisk: [], summary: { totalTripsAtRisk: 0 } });
+
+    const trips = await query(
+      `SELECT t.trip_id, t.trip_headsign, t.direction_id, st.departure_time
+       FROM gtfs_stop_times st JOIN gtfs_trips t ON st.trip_id = t.trip_id
+       WHERE t.route_id = ? AND t.service_id = ? AND st.stop_id = ?
+         AND st.departure_time >= ? AND st.departure_time <= ?
+       ORDER BY st.departure_time ASC`,
+      [gtfsRouteId, serviceId, stopId, now, endTime]
+    );
+
+    const tripsAtRisk = (trips || []).map(t => ({
+      tripId: t.trip_id,
+      headsign: t.trip_headsign || 'Unknown',
+      directionId: t.direction_id,
+      departureTime: t.departure_time,
+      minutesUntilDeparture: Math.max(0, Math.round(minutesBetween(now, t.departure_time))),
+    }));
+
+    return res.json({
+      success: true,
+      nearestStop: { stopId, stopName },
+      tripsAtRisk,
+      summary: { totalTripsAtRisk: tripsAtRisk.length, timeWindow: parseInt(minutes) },
+    });
+  } catch (error) {
+    console.error('Error in public trips-at-risk:', error);
+    return res.json({ success: true, tripsAtRisk: [], summary: { totalTripsAtRisk: 0 } });
+  }
+});
+
+// GET /api/public/stop-departures - Departures at a stop (for mini departure boards)
+router.get('/stop-departures', async (req, res) => {
+  try {
+    const { stop_id, lat, lng, limit = 8 } = req.query;
+    const userLimit = Math.min(Math.max(parseInt(limit) || 8, 1), 30);
+    const now = currentTimeGTFS();
+    const dayCode = getTodayDayCode();
+
+    let targetStopId = stop_id;
+
+    // If lat/lng provided instead of stop_id, find nearest stop
+    if (!targetStopId && lat && lng) {
+      const latNum = parseFloat(lat);
+      const lngNum = parseFloat(lng);
+      const nearbyStops = await query(
+        `SELECT stop_id, stop_name, stop_lat, stop_lon FROM gtfs_stops
+         WHERE stop_lat BETWEEN ? AND ? AND stop_lon BETWEEN ? AND ?
+         LIMIT 20`,
+        [latNum - 0.005, latNum + 0.005, lngNum - 0.008, lngNum + 0.008]
+      );
+      let minDist = Infinity;
+      for (const s of (nearbyStops || [])) {
+        const d = haversineKm(latNum, lngNum, parseFloat(s.stop_lat), parseFloat(s.stop_lon));
+        if (d < minDist) { minDist = d; targetStopId = s.stop_id; }
+      }
+    }
+
+    if (!targetStopId) return res.json({ success: true, departures: [], stop: null });
+
+    // Get stop info
+    const stopInfo = await query(
+      'SELECT stop_id, stop_name, stop_lat, stop_lon FROM gtfs_stops WHERE stop_id = ? LIMIT 1',
+      [targetStopId]
+    );
+
+    // Get departures filtered by day type
+    let departures = await query(
+      `SELECT st.departure_time, r.route_short_name, t.trip_headsign
+       FROM gtfs_stop_times st
+       JOIN gtfs_trips t ON st.trip_id = t.trip_id
+       JOIN gtfs_routes r ON t.route_id = r.route_id
+       WHERE st.stop_id = ? AND st.departure_time >= ? AND t.service_id LIKE ?
+       ORDER BY st.departure_time ASC
+       LIMIT ${userLimit * 3}`,
+      [targetStopId, now, `%${dayCode}%`]
+    );
+
+    // Deduplicate
+    const seen = new Set();
+    const results = (departures || []).filter(d => {
+      const key = `${d.route_short_name}-${d.departure_time}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).slice(0, userLimit).map(d => ({
+      departureTime: d.departure_time,
+      minutesUntilDeparture: Math.max(0, Math.round(minutesBetween(now, d.departure_time))),
+      routeShortName: d.route_short_name,
+      headsign: d.trip_headsign || 'Unknown',
+    }));
+
+    const stop = stopInfo?.[0] ? {
+      stopId: stopInfo[0].stop_id,
+      stopName: stopInfo[0].stop_name,
+      lat: parseFloat(stopInfo[0].stop_lat),
+      lng: parseFloat(stopInfo[0].stop_lon),
+    } : null;
+
+    return res.json({ success: true, stop, departures: results, currentTime: now });
+  } catch (error) {
+    console.error('Error in public stop-departures:', error);
+    return res.json({ success: true, departures: [], stop: null });
+  }
+});
+
+// GET /api/public/service-gaps - Frequency impact for a route
+router.get('/service-gaps', async (req, res) => {
+  try {
+    const { route_id, lat, lng } = req.query;
+    if (!route_id) return res.json({ success: true, normalFrequency: null, currentGap: null });
+
+    const now = currentTimeGTFS();
+
+    // Resolve short name
+    let gtfsRouteId = route_id;
+    const routeLookup = await query(
+      `SELECT route_id FROM gtfs_routes WHERE route_short_name = ? LIMIT 1`,
+      [route_id]
+    );
+    if (routeLookup?.length > 0) gtfsRouteId = routeLookup[0].route_id;
+
+    const serviceId = await getDominantServiceIdForRoute(gtfsRouteId);
+    if (!serviceId) return res.json({ success: true, normalFrequency: null, currentGap: null });
+
+    // Find a stop to analyze
+    let stopId = null;
+    if (lat && lng) {
+      const latNum = parseFloat(lat);
+      const lngNum = parseFloat(lng);
+      const stops = await query(
+        `SELECT DISTINCT s.stop_id FROM gtfs_stops s
+         JOIN gtfs_stop_times st ON s.stop_id = st.stop_id
+         JOIN gtfs_trips t ON st.trip_id = t.trip_id
+         WHERE t.route_id = ? AND t.service_id = ?
+           AND s.stop_lat BETWEEN ? AND ? AND s.stop_lon BETWEEN ? AND ?
+         LIMIT 10`,
+        [gtfsRouteId, serviceId, latNum - 0.02, latNum + 0.02, lngNum - 0.03, lngNum + 0.03]
+      );
+      if (stops?.length > 0) stopId = stops[0].stop_id;
+    }
+
+    if (!stopId) {
+      const busiest = await query(
+        `SELECT st.stop_id, COUNT(*) as cnt FROM gtfs_stop_times st
+         JOIN gtfs_trips t ON st.trip_id = t.trip_id
+         WHERE t.route_id = ? AND t.service_id = ? GROUP BY st.stop_id ORDER BY cnt DESC LIMIT 1`,
+        [gtfsRouteId, serviceId]
+      );
+      stopId = busiest?.[0]?.stop_id;
+    }
+
+    if (!stopId) return res.json({ success: true, normalFrequency: null, currentGap: null });
+
+    // Get departures in a 4-hour window around now
+    const windowStart = addMinutesToGTFS(now, -120);
+    const windowEnd = addMinutesToGTFS(now, 120);
+
+    const departures = await query(
+      `SELECT st.departure_time FROM gtfs_stop_times st
+       JOIN gtfs_trips t ON st.trip_id = t.trip_id
+       WHERE t.route_id = ? AND t.service_id = ? AND st.stop_id = ?
+         AND st.departure_time >= ? AND st.departure_time <= ?
+       ORDER BY st.departure_time ASC`,
+      [gtfsRouteId, serviceId, stopId, windowStart, windowEnd]
+    );
+
+    if (!departures || departures.length < 3) {
+      return res.json({ success: true, normalFrequency: null, currentGap: null });
+    }
+
+    // Calculate median headway (normal frequency)
+    const headways = [];
+    for (let i = 1; i < departures.length; i++) {
+      headways.push(minutesBetween(departures[i - 1].departure_time, departures[i].departure_time));
+    }
+    const sorted = [...headways].sort((a, b) => a - b);
+    const medianHeadway = sorted[Math.floor(sorted.length / 2)];
+
+    // Find current gap (gap around now)
+    let currentGap = null;
+    for (let i = 1; i < departures.length; i++) {
+      const prevTime = departures[i - 1].departure_time;
+      const nextTime = departures[i].departure_time;
+      if (prevTime <= now && nextTime >= now) {
+        currentGap = Math.round(minutesBetween(prevTime, nextTime));
+        break;
+      }
+    }
+
+    return res.json({
+      success: true,
+      normalFrequency: Math.round(medianHeadway),
+      currentGap,
+      routeId: route_id,
+    });
+  } catch (error) {
+    console.error('Error in public service-gaps:', error);
+    return res.json({ success: true, normalFrequency: null, currentGap: null });
   }
 });
 
