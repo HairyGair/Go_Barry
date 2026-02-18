@@ -168,7 +168,7 @@ function BatteryWizard({ currentStep, responses, updateResponse, onNext, onPrevi
                 <div className="flex-1 ml-4">
                   <h3 className="text-xl font-bold text-red-200 mb-3">🛑 MANDATORY SAFETY PROTOCOL</h3>
                   <div className="text-red-300/90 space-y-2">
-                    <p className="font-semibold text-lg">Operational Guidance: "ALWAYS advise the driver to steer clear of moving belts and turn the engine off before inspection"</p>
+                    <p className="font-semibold text-lg">Operational Guidance: "ALWAYS advise the driver to keep clear of moving belts and turn the engine off before inspection"</p>
                     <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mt-4">
                       <h4 className="font-semibold text-red-200 mb-2">Before proceeding:</h4>
                       <ul className="list-disc list-inside space-y-1 text-red-300/90 text-sm">
@@ -297,7 +297,7 @@ function BatteryWizard({ currentStep, responses, updateResponse, onNext, onPrevi
                           <li>Wait for engineering assistance</li>
                           <li>If no other warning lights (e.g., temperature), vehicle may be moved a short distance if needed for safety</li>
                           <li>Do NOT attempt to drive in normal service</li>
-                          <li>Record defect on their handheld device immediately</li>
+                          <li>Record the defect on their handheld device immediately</li>
                         </ul>
                       </div>
                     </div>
@@ -309,9 +309,9 @@ function BatteryWizard({ currentStep, responses, updateResponse, onNext, onPrevi
                 <div className="flex items-start space-x-3">
                   <Info className="w-5 h-5 text-blue-400" />
                   <div>
-                    <h4 className="font-semibold text-blue-200">the defect reporting system Recording Required</h4>
+                    <h4 className="font-semibold text-blue-200">Reporting Device Recording Required</h4>
                     <p className="text-sm text-blue-300/90 mt-1">
-                      Record this belt failure in the the defect reporting system System when stationary and safe. 
+                      Record this belt failure in the reporting device when stationary and safe. 
                       EP Morris code likely "BDBA" (Battery/Alternator) - mark as URGENT.
                     </p>
                   </div>
@@ -360,7 +360,7 @@ function BatteryWizard({ currentStep, responses, updateResponse, onNext, onPrevi
                         <ul className="list-disc list-inside space-y-1 text-orange-300/90 text-sm">
                           <li>Arrange changeover at earliest opportunity</li>
                           <li>Do not continue beyond next convenient changeover point</li>
-                          <li>Monitor battery light and vehicle performance</li>
+                          <li>Monitor the battery light and vehicle performance</li>
                           <li>Record issue on their handheld device</li>
                         </ul>
                       </div>
@@ -565,7 +565,7 @@ function BatteryWizard({ currentStep, responses, updateResponse, onNext, onPrevi
                         <li>Risk of transmission drive loss</li>
                         <li>Risk of complete electrical component failure</li>
                         <li>Do NOT attempt to continue in service</li>
-                        <li>Record defect on their handheld device as URGENT</li>
+                        <li>Record the defect on their handheld device as URGENT</li>
                       </ul>
                     </div>
                   </div>

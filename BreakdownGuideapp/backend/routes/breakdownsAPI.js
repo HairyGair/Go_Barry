@@ -78,12 +78,18 @@ router.get('/live', async (req, res) => {
     console.log('📊 SDC API: Fetching live breakdowns');
 
     // Query database for active breakdowns (exclude resolved)
-    const { data: breakdowns, error: breakdownError } = await from('breakdowns')
+    let sdcQuery = from('breakdowns')
       .select('*')
       .neq('status', 'resolved')
       .order('created_at', 'DESC')
-      .limit(100)
-      .execute();
+      .limit(100);
+
+    // Hide demo breakdowns from real users
+    if (req.user?.badge_number !== 'DEMO01') {
+      sdcQuery = sdcQuery.neq('supervisor_badge', 'DEMO01');
+    }
+
+    const { data: breakdowns, error: breakdownError } = await sdcQuery.execute();
 
     if (breakdownError) {
       console.error('Error fetching breakdowns from Supabase:', breakdownError);

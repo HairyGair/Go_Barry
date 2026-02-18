@@ -390,9 +390,9 @@ const WarningLightsWizard = ({ currentStep, responses, updateResponse, onNext, o
             <AdditionalContext responses={responses} updateResponse={updateResponse} />
 
             <div className="bg-blue-500/20 border border-blue-500 rounded-lg p-4">
-              <p className="text-blue-300 font-semibold mb-2">the defect reporting system Recording</p>
+              <p className="text-blue-300 font-semibold mb-2">the reporting device Recording</p>
               <p className="text-sm text-gray-300">
-                Instruct driver: "Please take a clear photo of your dashboard showing all warning lights and upload it to the defect reporting system. This helps our engineers prepare for any repairs needed."
+                Instruct driver: "Please take a clear photo of your dashboard showing all warning lights and upload it to the reporting device. This helps our engineers prepare for any repairs needed."
               </p>
             </div>
           </div>
@@ -425,7 +425,7 @@ const WarningLightsWizard = ({ currentStep, responses, updateResponse, onNext, o
                         <li>Switch off the engine</li>
                         <li>Do NOT attempt to continue driving</li>
                         <li>Await assistance from engineering</li>
-                        <li>Record defect on their handheld device with photo of warning light</li>
+                        <li>Record the defect on their handheld device with photo of warning light</li>
                       </ol>
                     </div>
                   </div>

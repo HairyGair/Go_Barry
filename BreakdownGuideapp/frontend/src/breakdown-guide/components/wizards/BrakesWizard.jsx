@@ -445,7 +445,7 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
                       <li>Switch off the engine</li>
                       <li>Apply the parking brake</li>
                       <li>Await engineering assistance</li>
-                      <li>Record defects immediately on the the defect reporting system System when the bus is stationary</li>
+                      <li>Record defects immediately on the reporting device when the bus is stationary</li>
                     </ol>
                   </div>
                 </div>
@@ -542,7 +542,7 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
                   <h3 className="text-lg font-semibold text-red-200 mb-4">Immediate Actions:</h3>
                   <ol className="list-decimal ml-6 space-y-2 text-red-300/90 text-sm">
                     <li>Vehicle must remain stationary</li>
-                    <li>Contact engineering immediately</li>
+                    <li>Contact the engineering team immediately</li>
                     <li>Arrange passenger transfer if needed</li>
                     <li>Complete incident report on their handheld device</li>
                   </ol>
@@ -598,7 +598,7 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
                     <ul className="list-disc ml-6 space-y-2 text-amber-300/90 text-sm">
                       <li>Vehicle can continue to next convenient changeover point</li>
                       <li>Driver should remain vigilant and stop if conditions worsen</li>
-                      <li>Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location</li>
+                      <li>Record any defects immediately on the reporting device when the bus is stationary and in a safe location</li>
                       <li>Ensure a planned changeover is organised at the earliest opportunity</li>
                       <li>Arrange engineering inspection at depot</li>
                     </ul>
@@ -713,9 +713,9 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
             <div className="bg-gray-800/50 rounded-lg p-4 border border-gray-600/30">
               <h4 className="font-semibold text-white mb-3">Additional Guidance (Operational procedures):</h4>
               <ul className="list-disc ml-6 space-y-2 text-gray-300 text-sm">
-                <li>Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location</li>
+                <li>Record any defects immediately on the reporting device when the bus is stationary and in a safe location</li>
                 <li>Vehicles permitted to continue must have a planned changeover organised at the earliest opportunity</li>
-                <li>Report to the depot management team if you feel a particular individual is persistently reporting brake problems that, when investigated by engineering, reveal no fault. This ensures any unnecessary service disruption can be appropriately addressed</li>
+                <li>Report to the depot management team if a particular individual appears to be persistently reporting brake problems that, when investigated by engineering, reveal no fault. This ensures any unnecessary service disruption can be appropriately addressed</li>
               </ul>
               <p className="text-sm text-gray-300 mt-3">
                 <strong className="text-white">Remember:</strong> Safety is non-negotiable. When in doubt about brake system integrity, always err on the side of caution and seek engineering advice.

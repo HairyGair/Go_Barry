@@ -35,7 +35,7 @@
                 supervisorId: b.supervisorId,
                 requiresEngineering: b.requiresEngineering,
                 estimatedDowntime: b.estimatedDowntime,
-                goCheckReported: b.goCheckReported,
+                defectReported: b.defectReported,
                 timestamp: b.timestamp
             }));
         },
@@ -149,7 +149,7 @@
                 'Date', 'Time', 'Fleet Number', 'Depot', 'Category', 
                 'Decision', 'Safety Critical', 'Driver Name', 'Route', 
                 'Location', 'Supervisor', 'Requires Engineering', 
-                'Est. Downtime (hrs)', 'GO-Check Reported'
+                'Est. Downtime (hrs)', 'Defect Reported'
             ];
             
             // Create CSV rows
@@ -167,7 +167,7 @@
                 r.supervisorName,
                 r.requiresEngineering ? 'Yes' : 'No',
                 r.estimatedDowntime,
-                r.goCheckReported ? 'Yes' : 'No'
+                r.defectReported ? 'Yes' : 'No'
             ]);
             
             // Combine headers and rows

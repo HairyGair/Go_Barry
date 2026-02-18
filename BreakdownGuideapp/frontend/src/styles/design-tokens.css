@@ -8,8 +8,7 @@
    Version: 3.0.0 - Ocean Teal Modern Transport Theme
    ============================================================================ */
 
-/* Google Fonts Import */
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+/* Adobe Fonts loaded via index.html <link> tag (Typekit project jug1pdv) */
 
 :root {
   /* =========================================================================
@@ -138,13 +137,13 @@
      TYPOGRAPHY SYSTEM - Modern Transport
      ========================================================================= */
 
-  /* Font Family - Custom Google Fonts */
-  --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Monaco', 'Menlo', monospace;
+  /* Font Family - Adobe Fonts (Typekit) */
+  --font-display: 'boiga', 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'aileron', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'new-astro-soft', 'JetBrains Mono', 'Monaco', 'Menlo', monospace;
 
   /* Legacy font-family for compatibility */
-  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  --font-family: 'aileron', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
 
   /* Font Weights */
   --font-light: 300;

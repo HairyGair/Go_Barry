@@ -1,125 +1,146 @@
 /**
  * App Footer Styles
- * Compact single-line professional footer
- * © 2025 GairWare - Anthony Gair
+ * Compact branded footer with GairWare logo
+ * Consistent across all screens
  */
 
-.app-footer {
-  width: 100%;
-  padding: 10px 20px;
-  margin-top: auto;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+.af-footer {
+    width: 100%;
+    padding: 10px 24px;
+    margin-top: auto;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    flex-shrink: 0;
+    font-family: var(--font-body, 'aileron', -apple-system, BlinkMacSystemFont, sans-serif);
+    font-size: 12px;
+    transition: background 0.3s ease;
 }
 
-/* Default variant - dark theme */
-.app-footer-default {
-  background: #0B1120;
-  color: rgba(255, 255, 255, 0.5);
+/* ── Default variant (dark) ── */
+.af-default {
+    background: #0B1120;
+    color: rgba(255, 255, 255, 0.45);
 }
 
-/* Dark variant */
-.app-footer-dark {
-  background: rgba(10, 15, 30, 0.95);
-  color: rgba(255, 255, 255, 0.5);
+/* ── Dark variant (display / control room pages) ── */
+.af-dark {
+    background: rgba(8, 12, 24, 0.96);
+    color: rgba(255, 255, 255, 0.4);
+    border-top-color: rgba(255, 255, 255, 0.05);
 }
 
-/* Minimal variant */
-.app-footer-minimal {
-  background: transparent;
-  color: rgba(255, 255, 255, 0.4);
+/* ── Minimal variant ── */
+.af-minimal {
+    background: transparent;
+    color: rgba(255, 255, 255, 0.35);
+    border-top-color: transparent;
 }
 
-.footer-row {
-  display: -webkit-box;
-  display: -ms-flexbox;
-  display: flex;
-  -webkit-box-align: center;
-  -ms-flex-align: center;
-  align-items: center;
-  -webkit-box-pack: center;
-  -ms-flex-pack: center;
-  justify-content: center;
-  gap: 8px;
-  font-size: 12px;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+/* ── Inner layout ── */
+.af-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 1400px;
+    margin: 0 auto;
+    gap: 16px;
 }
 
-.footer-copy {
-  color: rgba(255, 255, 255, 0.4);
+/* ── Left: logo + brand ── */
+.af-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
-.footer-brand {
-  font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 11px;
-  letter-spacing: -0.02em;
-  color: rgba(255, 255, 255, 0.6);
+.af-brand {
+    font-family: var(--font-mono, 'new-astro-soft', 'JetBrains Mono', ui-monospace, monospace);
+    font-size: 11px;
+    letter-spacing: -0.02em;
+    color: rgba(255, 255, 255, 0.55);
 }
 
-.footer-brand strong {
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.7);
+.af-brand strong {
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.7);
 }
 
-.footer-sep {
-  color: rgba(255, 255, 255, 0.2);
+/* ── Centre: copyright ── */
+.af-copy {
+    color: rgba(255, 255, 255, 0.35);
+    font-size: 11px;
+    letter-spacing: 0.02em;
 }
 
-.footer-hosted {
-  color: rgba(255, 255, 255, 0.4);
+/* ── Right: hosted by ── */
+.af-right {
+    display: flex;
+    align-items: center;
 }
 
-.footer-hosted a {
-  color: #0097A7;
-  text-decoration: none;
-  font-weight: 500;
-  -webkit-transition: color 0.2s ease;
-  -o-transition: color 0.2s ease;
-  transition: color 0.2s ease;
+.af-hosted {
+    color: rgba(255, 255, 255, 0.35);
+    font-size: 11px;
 }
 
-.footer-hosted a:hover {
-  color: #00BCD4;
-  text-decoration: underline;
+.af-hosted a {
+    color: rgba(255, 255, 255, 0.5);
+    text-decoration: none;
+    transition: color 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    vertical-align: middle;
 }
 
-/* Light theme variant */
-.app-footer-light {
-  background: #F8FAFC;
-  border-top-color: rgba(0, 0, 0, 0.08);
-  color: rgba(0, 0, 0, 0.5);
+.af-hosted a:hover {
+    color: rgba(255, 255, 255, 0.8);
 }
 
-.app-footer-light .footer-copy {
-  color: rgba(0, 0, 0, 0.4);
+.af-pixelish-link svg {
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
 }
 
-.app-footer-light .footer-brand {
-  color: rgba(0, 0, 0, 0.6);
+.af-pixelish-link:hover svg {
+    opacity: 1;
 }
 
-.app-footer-light .footer-brand strong {
-  color: rgba(0, 0, 0, 0.8);
+/* ── Dark variant overrides ── */
+.af-dark .af-brand {
+    color: rgba(255, 255, 255, 0.45);
+}
+.af-dark .af-brand strong {
+    color: rgba(255, 255, 255, 0.6);
+}
+.af-dark .af-copy {
+    color: rgba(255, 255, 255, 0.3);
+}
+.af-dark .af-hosted {
+    color: rgba(255, 255, 255, 0.3);
+}
+.af-dark .af-hosted a {
+    color: rgba(255, 255, 255, 0.35);
+}
+.af-dark .af-pixelish-link svg {
+    opacity: 0.45;
 }
 
-.app-footer-light .footer-sep {
-  color: rgba(0, 0, 0, 0.2);
+/* ── Responsive ── */
+@media (max-width: 600px) {
+    .af-footer {
+        padding: 8px 16px;
+    }
+    .af-inner {
+        flex-direction: column;
+        gap: 4px;
+    }
+    .af-right {
+        display: none;
+    }
 }
 
-.app-footer-light .footer-hosted {
-  color: rgba(0, 0, 0, 0.4);
-}
-
-.app-footer-light .footer-hosted a {
-  color: #00838F;
-}
-
-.app-footer-light .footer-hosted a:hover {
-  color: #0097A7;
-}
-
-/* Print */
+/* ── Print ── */
 @media print {
-  .app-footer {
-    display: none;
-  }
+    .af-footer {
+        display: none;
+    }
 }

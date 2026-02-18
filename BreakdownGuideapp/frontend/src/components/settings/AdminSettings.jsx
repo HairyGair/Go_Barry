@@ -29,6 +29,14 @@ const AdminSettings = () => {
   const [resetting, setResetting] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
 
+  // Role change modal state
+  const [showRoleModal, setShowRoleModal] = useState(false);
+  const [roleChangeSupervisor, setRoleChangeSupervisor] = useState(null);
+  const [newRole, setNewRole] = useState('');
+  const [roleChanging, setRoleChanging] = useState(false);
+  const [roleSuccessMessage, setRoleSuccessMessage] = useState('');
+  const [roleError, setRoleError] = useState('');
+
   // Supervisor history modal state
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [historySuperviorId, setHistorySupervisorId] = useState(null);
@@ -43,6 +51,79 @@ const AdminSettings = () => {
   const closeHistoryModal = () => {
     setShowHistoryModal(false);
     setHistorySupervisorId(null);
+  };
+
+  // Open role change modal
+  const openRoleModal = (supervisor) => {
+    setRoleChangeSupervisor(supervisor);
+    setNewRole(supervisor.role || 'supervisor');
+    setShowRoleModal(true);
+    setRoleSuccessMessage('');
+    setRoleError('');
+  };
+
+  // Close role change modal
+  const closeRoleModal = () => {
+    setShowRoleModal(false);
+    setRoleChangeSupervisor(null);
+    setNewRole('');
+    setRoleSuccessMessage('');
+    setRoleError('');
+  };
+
+  // Handle role change
+  const handleRoleChange = async () => {
+    if (!roleChangeSupervisor || !newRole) return;
+    if (newRole === roleChangeSupervisor.role) {
+      setRoleError('Role is already set to this value');
+      return;
+    }
+
+    try {
+      setRoleChanging(true);
+      setRoleError('');
+
+      // Fetch CSRF token (required for PUT requests)
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
+      let csrfToken = null;
+      try {
+        const csrfResponse = await fetch(`${apiUrl}/api/auth/csrf-token`, {
+          credentials: 'include'
+        });
+        if (csrfResponse.ok) {
+          const csrfData = await csrfResponse.json();
+          csrfToken = csrfData.csrfToken;
+        }
+      } catch (csrfError) {
+        console.warn('Failed to get CSRF token for role change:', csrfError);
+      }
+
+      const response = await fetch(`${apiUrl}/api/auth/supervisor/${roleChangeSupervisor.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'CSRF-Token': csrfToken || ''
+        },
+        credentials: 'include',
+        body: JSON.stringify({ role: newRole })
+      }).then(res => res.json());
+
+      if (response.success) {
+        const roleLabels = { supervisor: 'Supervisor', manager: 'Manager', admin: 'Admin', engineering: 'Engineering Manager' };
+        setRoleSuccessMessage(`Role updated to ${roleLabels[newRole] || newRole} for ${roleChangeSupervisor.name}`);
+        await loadSupervisors();
+        setTimeout(() => {
+          closeRoleModal();
+        }, 1500);
+      } else {
+        setRoleError(response.error || 'Failed to update role');
+      }
+    } catch (err) {
+      console.error('Role change error:', err);
+      setRoleError(err.message || 'Failed to update role. Please try again.');
+    } finally {
+      setRoleChanging(false);
+    }
   };
 
   // Load supervisors on mount
@@ -116,11 +197,34 @@ const AdminSettings = () => {
     try {
       setResetting(true);
 
+      // Fetch CSRF token (required for POST requests)
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
+      let csrfToken = null;
+      try {
+        const csrfResponse = await fetch(`${apiUrl}/api/auth/csrf-token`, {
+          credentials: 'include'
+        });
+        if (csrfResponse.ok) {
+          const csrfData = await csrfResponse.json();
+          csrfToken = csrfData.csrfToken;
+        }
+      } catch (csrfError) {
+        console.warn('Failed to get CSRF token for password reset:', csrfError);
+      }
+
       // Call admin password reset endpoint
-      const response = await apiClient.post('/api/auth/admin/reset-password', {
-        email: selectedSupervisor.email,
-        newPassword: newPassword
-      });
+      const response = await fetch(`${apiUrl}/api/auth/admin/reset-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'CSRF-Token': csrfToken || ''
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          email: selectedSupervisor.email,
+          newPassword: newPassword
+        })
+      }).then(res => res.json());
 
       if (response.success) {
         setSuccessMessage(`Password updated successfully for ${selectedSupervisor.name}`);
@@ -150,6 +254,10 @@ const AdminSettings = () => {
       manager: {
         bg: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
         label: 'Manager'
+      },
+      engineering: {
+        bg: 'linear-gradient(135deg, #0097A7 0%, #00838F 100%)',
+        label: 'Eng. Manager'
       },
       supervisor: {
         bg: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
@@ -427,7 +535,7 @@ const AdminSettings = () => {
           {/* Table Header */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: '2fr 2fr 1fr 1.5fr 1fr',
+            gridTemplateColumns: '2fr 2fr 1fr 1.5fr 1.5fr',
             gap: '16px',
             padding: '16px 20px',
             background: 'var(--bg-input, #333333)',
@@ -459,7 +567,7 @@ const AdminSettings = () => {
                 key={supervisor.id}
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: '2fr 2fr 1fr 1.5fr 1fr',
+                  gridTemplateColumns: '2fr 2fr 1fr 1.5fr 1.5fr',
                   gap: '16px',
                   padding: '16px 20px',
                   alignItems: 'center',
@@ -525,7 +633,18 @@ const AdminSettings = () => {
                   {supervisor.depot || 'N/A'}
                 </div>
 
-                <div>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  <button
+                    className="settings-button secondary"
+                    style={{
+                      padding: '6px 12px',
+                      fontSize: '12px',
+                      whiteSpace: 'nowrap'
+                    }}
+                    onClick={() => openRoleModal(supervisor)}
+                  >
+                    Change Role
+                  </button>
                   <button
                     className="settings-button secondary"
                     style={{
@@ -693,6 +812,123 @@ const AdminSettings = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Role Change Modal */}
+      {showRoleModal && roleChangeSupervisor && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '20px'
+        }}>
+          <div style={{
+            background: 'var(--bg-secondary, #1a1a1a)',
+            borderRadius: '12px',
+            padding: '30px',
+            maxWidth: '450px',
+            width: '100%',
+            boxShadow: '0 10px 40px rgba(0, 0, 0, 0.5)',
+            border: '1px solid var(--border-color, #444444)'
+          }}>
+            <h3 style={{
+              margin: '0 0 8px 0',
+              fontSize: '22px',
+              color: 'var(--text-primary)'
+            }}>
+              Change Role
+            </h3>
+
+            <p style={{
+              margin: '0 0 20px 0',
+              fontSize: '14px',
+              color: 'var(--text-secondary)'
+            }}>
+              Update role for <strong style={{ color: 'var(--text-primary)' }}>{roleChangeSupervisor.name}</strong>
+            </p>
+
+            <div style={{ marginBottom: '8px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+              Current role: {getRoleBadge(roleChangeSupervisor.role)}
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{
+                display: 'block',
+                marginBottom: '8px',
+                marginTop: '16px',
+                fontSize: '13px',
+                fontWeight: '600',
+                color: 'var(--text-secondary)'
+              }}>
+                New Role
+              </label>
+              <select
+                className="settings-input"
+                value={newRole}
+                onChange={(e) => { setNewRole(e.target.value); setRoleError(''); }}
+                disabled={roleChanging}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  fontSize: '14px',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="supervisor">Supervisor</option>
+                <option value="manager">Manager</option>
+                <option value="admin">Admin</option>
+                <option value="engineering">Engineering Manager</option>
+              </select>
+            </div>
+
+            {roleError && (
+              <div className="info-box error" style={{ marginBottom: '16px' }}>
+                <p>{roleError}</p>
+              </div>
+            )}
+
+            {roleSuccessMessage && (
+              <div className="info-box success" style={{ marginBottom: '16px' }}>
+                <p>{roleSuccessMessage}</p>
+              </div>
+            )}
+
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              justifyContent: 'flex-end',
+              marginTop: '24px'
+            }}>
+              <button
+                type="button"
+                className="settings-button secondary"
+                onClick={closeRoleModal}
+                disabled={roleChanging}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="settings-button"
+                onClick={handleRoleChange}
+                disabled={roleChanging || newRole === roleChangeSupervisor.role}
+                style={{
+                  opacity: (roleChanging || newRole === roleChangeSupervisor.role) ? 0.5 : 1,
+                  cursor: (roleChanging || newRole === roleChangeSupervisor.role) ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {roleChanging ? 'Updating...' : 'Confirm Change'}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -6,7 +6,7 @@ import { apiClient } from '../../services/api-client';
 import EngineeringCardEnhanced from './EngineeringCardEnhanced';
 import DepotStats from './DepotStats';
 import DepotContactsPanel from './DepotContactsPanel';
-// Supabase removed - uses backend API for authentication and WebSocket
+import ShiftCheckInModal from './ShiftCheckInModal';
 
 const REFRESH_INTERVAL = 10000; // 10 seconds
 const PRIORITY_ROUTES = ['X10', 'X21', '21', '56', '1'];
@@ -24,6 +24,27 @@ const EngineeringDashboard = () => {
   const [notification, setNotification] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [wsConnected, setWsConnected] = useState(false);
+  const [showShiftCheckIn, setShowShiftCheckIn] = useState(false);
+  const [onShiftData, setOnShiftData] = useState([]);
+
+  // Check if shift check-in modal should show
+  useEffect(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const checkInStatus = sessionStorage.getItem(`shift_checkin_${today}`);
+    if (!checkInStatus) {
+      setShowShiftCheckIn(true);
+    }
+  }, []);
+
+  // Fetch on-shift engineer counts
+  const fetchOnShift = useCallback(async () => {
+    try {
+      const res = await apiClient.get('/api/engineer-management/on-shift');
+      if (res.success) setOnShiftData(res.engineers || []);
+    } catch (err) {
+      // Silently fail - on-shift data is supplementary
+    }
+  }, []);
 
   // Filter options (simplified - no individual engineer tracking)
   const filterOptions = [
@@ -168,11 +189,12 @@ const EngineeringDashboard = () => {
     setLoading(true);
     await Promise.all([
       fetchBreakdowns(),
-      fetchMetrics()
+      fetchMetrics(),
+      fetchOnShift()
     ]);
     setLastUpdate(new Date());
     setLoading(false);
-  }, [currentFilter]);
+  }, [currentFilter, fetchOnShift]);
 
   useEffect(() => {
     fetchAllData();
@@ -186,6 +208,9 @@ const EngineeringDashboard = () => {
 
   const filteredBreakdowns = allBreakdowns;
 
+  const onShiftAvailable = onShiftData.filter(e => e.is_available).length;
+  const onShiftTotal = onShiftData.length;
+
   const stats = {
     total: allBreakdowns.length,
     awaitingDispatch: allBreakdowns.filter(b =>
@@ -198,7 +223,9 @@ const EngineeringDashboard = () => {
     onSite: allBreakdowns.filter(b => b.status === 'on_site' || b.status === 'in_progress').length,
     overdue: allBreakdowns.filter(b => b.is_overdue).length,
     avgResponseTime: engineeringMetrics.avgResponseTime || 0,
-    slaCompliance: engineeringMetrics.slaCompliance || 0
+    slaCompliance: engineeringMetrics.slaCompliance || 0,
+    engineersAvailable: onShiftAvailable,
+    engineersOnShift: onShiftTotal
   };
 
   const handleJobAccepted = () => {
@@ -241,30 +268,6 @@ const EngineeringDashboard = () => {
       : 0,
     sla: data.total > 0 ? Math.round(((data.total - data.overdue) / data.total) * 100) : 100
   }));
-
-  const handleAssignEngineer = async (breakdownId) => {
-    setSelectedBreakdownId(breakdownId);
-    setShowEngineerModal(true);
-  };
-
-  const handleEngineerSelect = async (engineerId) => {
-    try {
-      await apiClient.post('/api/engineering/assign', {
-        breakdown_id: selectedBreakdownId,
-        engineer_id: engineerId
-      });
-
-      setNotification('Engineer assigned successfully');
-      setShowEngineerModal(false);
-      fetchAllData();
-
-      setTimeout(() => setNotification(null), 3000);
-    } catch (error) {
-      console.error('Error assigning engineer:', error);
-      setNotification('Failed to assign engineer');
-      setTimeout(() => setNotification(null), 3000);
-    }
-  };
 
   const handleStatusUpdate = async (breakdownId, newStatus) => {
     try {
@@ -322,35 +325,56 @@ const EngineeringDashboard = () => {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
         <StatsCard
-          title="Total Active"
+          label="Total Active"
           value={stats.total}
           change="All breakdowns"
           trend="neutral"
         />
         <StatsCard
-          title="Awaiting Dispatch"
+          label="Awaiting Dispatch"
           value={stats.awaitingDispatch}
           change={stats.awaitingDispatch > 2 ? 'Action needed' : 'Under control'}
           trend={stats.awaitingDispatch > 2 ? 'danger' : 'success'}
         />
         <StatsCard
-          title="Dispatched"
-          value={stats.dispatched}
-          change="Engineers en route"
-          trend="info"
+          label="Engineers On Shift"
+          value={`${stats.engineersAvailable}/${stats.engineersOnShift}`}
+          change={stats.engineersOnShift > 0 ? `${stats.engineersAvailable} available` : 'None checked in'}
+          trend={stats.engineersAvailable > 0 ? 'success' : 'warning'}
         />
         <StatsCard
-          title="On Site / Working"
+          label="On Site / Working"
           value={stats.onSite}
           change="Repairs in progress"
           trend="neutral"
         />
         <StatsCard
-          title="SLA Compliance"
+          label="SLA Compliance"
           value={`${stats.slaCompliance || 0}%`}
           change={`${stats.avgResponseTime || 0} min avg`}
           trend={stats.slaCompliance >= 95 ? 'success' : 'warning'}
         />
+      </div>
+
+      {/* Quick actions row */}
+      <div className="eng-quick-actions">
+        <button
+          className="eng-quick-btn"
+          onClick={() => setShowShiftCheckIn(true)}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <line x1="19" y1="8" x2="19" y2="14"/><line x1="16" y1="11" x2="22" y2="11"/>
+          </svg>
+          Shift Check-In
+        </button>
+        <a href="/dashboards/engineering/manage" className="eng-quick-btn eng-quick-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+          Manage Engineers
+        </a>
       </div>
 
       {/* Filter Bar */}
@@ -400,6 +424,14 @@ const EngineeringDashboard = () => {
           ))
         )}
       </div>
+
+      {/* Shift Check-In Modal */}
+      {showShiftCheckIn && (
+        <ShiftCheckInModal
+          onComplete={() => { setShowShiftCheckIn(false); fetchAllData(); }}
+          onSkip={() => setShowShiftCheckIn(false)}
+        />
+      )}
 
       {/* Notification Toast */}
       {notification && (
@@ -638,6 +670,39 @@ const EngineeringDashboard = () => {
           color: #64748B;
           font-size: 12px;
           font-family: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+        }
+
+        .eng-quick-actions {
+          display: flex;
+          gap: 8px;
+          margin-bottom: 16px;
+        }
+
+        .eng-quick-btn {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 8px 16px;
+          background: rgba(255,255,255,0.04);
+          border: 1px solid rgba(255,255,255,0.08);
+          border-radius: 8px;
+          color: #94a3b8;
+          font-family: 'Outfit', sans-serif;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.15s;
+          text-decoration: none;
+        }
+
+        .eng-quick-btn:hover {
+          background: rgba(0,151,167,0.1);
+          border-color: rgba(0,151,167,0.3);
+          color: #22d3ee;
+        }
+
+        .eng-quick-link {
+          text-decoration: none;
         }
       `}</style>
     </DashboardLayout>

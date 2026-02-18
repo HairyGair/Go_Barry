@@ -1526,3 +1526,51 @@ body {
   margin: 0;
   opacity: 0.9;
 }
+
+/* ============================================
+   DEMO MODE BANNER
+   ============================================ */
+
+.demo-mode-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #0097A7 0%, #00838F 100%);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.demo-mode-banner-text {
+  flex: 0 0 auto;
+}
+
+.demo-mode-hide-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: #fff;
+  padding: 2px 12px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.demo-mode-hide-btn:hover {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+/* Push content down when demo banner is visible */
+.app.demo-mode .main-container {
+  margin-top: 36px;
+}

@@ -193,6 +193,74 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    const demoLogin = async () => {
+        try {
+            console.log('🎭 Starting demo login...');
+
+            const apiUrl = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
+
+            // Get CSRF token
+            let csrfToken = null;
+            try {
+                const csrfResponse = await fetch(`${apiUrl}/api/auth/csrf-token`, {
+                    method: 'GET',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (csrfResponse.ok) {
+                    const csrfData = await csrfResponse.json();
+                    csrfToken = csrfData.csrfToken;
+                }
+            } catch (csrfError) {
+                console.warn('⚠️ Failed to get CSRF token for demo login:', csrfError);
+            }
+
+            const response = await fetch(`${apiUrl}/api/auth/demo-login`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'CSRF-Token': csrfToken || ''
+                }
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                return {
+                    success: false,
+                    error: data.error || 'Demo login failed'
+                };
+            }
+
+            const { user: supervisor } = data;
+
+            const user = {
+                id: supervisor.user_id || supervisor.supervisorId || supervisor.id,
+                email: supervisor.email,
+                name: supervisor.name || supervisor.full_name,
+                role: supervisor.role || 'admin',
+                depot: supervisor.depot,
+                badge_number: supervisor.badge_number,
+                is_demo: true,
+                loginTime: Date.now()
+            };
+
+            setIsAuthenticated(true);
+            setCurrentUser(user);
+
+            console.log('🎭 Demo login successful');
+
+            return { success: true, user };
+        } catch (error) {
+            console.error('🎭 Demo login error:', error);
+            return {
+                success: false,
+                error: error.message || 'Demo login failed. Please check your connection.'
+            };
+        }
+    };
+
     const logout = async () => {
         console.log('🚪 Logging out...');
 
@@ -272,6 +340,7 @@ export const AuthProvider = ({ children }) => {
         currentUser,
         isSessionChecking,
         login,
+        demoLogin,
         logout
     };
 

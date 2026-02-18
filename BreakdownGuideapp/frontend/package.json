@@ -58,6 +58,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.0",
+    "@supabase/supabase-js": "^2.96.0",
     "@tanstack/react-table": "^8.11.0",
     "axios": "^1.6.0",
     "classnames": "^2.5.0",

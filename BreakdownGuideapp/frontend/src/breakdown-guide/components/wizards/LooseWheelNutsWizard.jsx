@@ -345,9 +345,9 @@ const LooseWheelNutsWizard = ({ currentStep, responses, updateResponse, onNext, 
                                                 <div className="space-y-3">
                                                     <h5 className="font-semibold text-red-200 text-lg">IMMEDIATE ACTIONS:</h5>
                                                     <ul className="list-disc list-inside space-y-2 text-red-300/90 text-sm">
-                                                        <li>🛑 STOP vehicle immediately</li>
-                                                        <li>🔒 Switch off engine</li>
-                                                        <li>🏢 Secure vehicle area</li>
+                                                        <li>🛑 Instruct the driver to STOP the vehicle immediately</li>
+                                                        <li>🔒 Switch off the engine</li>
+                                                        <li>🏢 Secure the vehicle area</li>
                                                         <li>👥 Evacuate all passengers</li>
                                                     </ul>
                                                 </div>
@@ -683,7 +683,7 @@ const LooseWheelNutsWizard = ({ currentStep, responses, updateResponse, onNext, 
                         <div className="flex items-start space-x-4">
                             <FileText className="w-6 h-6 text-blue-400 mt-1" />
                             <div>
-                                <h4 className="font-semibold text-blue-200 mb-2">📱 the defect reporting system Critical Incident Documentation</h4>
+                                <h4 className="font-semibold text-blue-200 mb-2">📱 the reporting device Critical Incident Documentation</h4>
                                 <p className="text-blue-300/80 text-sm mb-2">
                                     This incident has been classified as a CRITICAL SAFETY EMERGENCY and must be recorded on their handheld device with full details, 
                                     photographs, and all actions taken. This will form part of the safety audit trail.

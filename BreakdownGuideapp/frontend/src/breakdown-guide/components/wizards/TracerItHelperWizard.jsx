@@ -4,7 +4,7 @@ import constants from '../common/constants.js';
 
 // TraceIt Helper Wizard Component - Supervisor Data Collection Tool
 // Uses icons and constants from common components
-// Helps supervisors collect all necessary information for Tracerit reports and insurance claims
+// Helps supervisors collect all necessary information for incident reports and insurance claims
 
 const TracerItHelperWizard = ({ currentStep, responses, updateResponse, onNext, onPrevious, onComplete, onWizardSelect }) => {
     // Get icons from global scope
@@ -60,7 +60,7 @@ const TracerItHelperWizard = ({ currentStep, responses, updateResponse, onNext, 
                     <div className="bg-amber-500/20 backdrop-blur-sm rounded-lg p-6 border border-amber-400/30">
                         <h3 className="text-lg font-semibold text-amber-200 mb-4">📋 VEHICLE DETAILS COLLECTION</h3>
                         <p className="text-amber-300/80 text-sm leading-relaxed mb-4">
-                            This information is essential for insurance claims and Tracerit reporting. Collect all details accurately at the scene.
+                            This information is essential for insurance claims and incident reporting. Collect all details accurately at the scene.
                         </p>
                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
                             <h4 className="font-semibold text-amber-200 mb-2">Required Information:</h4>
@@ -551,8 +551,8 @@ const TracerItHelperWizard = ({ currentStep, responses, updateResponse, onNext, 
                         <div className="mx-auto w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mb-4">
                             <CheckCircle className="w-8 h-8 text-green-400" />
                         </div>
-                        <h2 className="text-2xl font-bold text-white mb-2">📊 Tracerit Report Summary</h2>
-                        <p className="text-gray-300">Complete information package ready for Tracerit submission.</p>
+                        <h2 className="text-2xl font-bold text-white mb-2">📊 Incident Report Summary</h2>
+                        <p className="text-gray-300">Complete information package ready for incident report submission.</p>
                     </div>
                     
                     {/* Vehicle Information Summary */}
@@ -673,11 +673,11 @@ const TracerItHelperWizard = ({ currentStep, responses, updateResponse, onNext, 
                         <div className="space-y-3">
                             <div className="bg-white/10 backdrop-blur-sm rounded p-4">
                                 <h4 className="font-semibold text-green-200 mb-2">✅ Information Collection Complete</h4>
-                                <p className="text-green-300/90 text-sm">All necessary third-party information has been collected for the Tracerit report.</p>
+                                <p className="text-green-300/90 text-sm">All necessary third-party information has been collected for the incident report.</p>
                             </div>
                             <div className="bg-white/10 backdrop-blur-sm rounded p-4">
-                                <h4 className="font-semibold text-green-200 mb-2">📝 Tracerit Report Submission</h4>
-                                <p className="text-green-300/90 text-sm">Use this information to complete the Tracerit report within 24 hours of the incident.</p>
+                                <h4 className="font-semibold text-green-200 mb-2">📝 Incident Report Submission</h4>
+                                <p className="text-green-300/90 text-sm">Use this information to complete the incident report within 24 hours of the incident.</p>
                             </div>
                             <div className="bg-white/10 backdrop-blur-sm rounded p-4">
                                 <h4 className="font-semibold text-green-200 mb-2">🔄 Follow-up Actions</h4>
@@ -706,7 +706,7 @@ const TracerItHelperWizard = ({ currentStep, responses, updateResponse, onNext, 
                                 onClick={onComplete}
                                 className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-500 transition-colors"
                             >
-                                ✅ Complete Tracerit Collection
+                                ✅ Complete Incident Collection
                             </button>
                         </div>
                     </div>

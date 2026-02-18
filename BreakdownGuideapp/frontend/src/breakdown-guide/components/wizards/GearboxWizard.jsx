@@ -34,7 +34,7 @@ function GearboxWizard({ currentStep, responses, updateResponse, onNext, onPrevi
       notes += 'Proceed carefully to changeover point for immediate vehicle change. Stop immediately if situation worsens en route.';
     }
     
-    notes += ' Record defect on their handheld device when stationary and safe.';
+    notes += ' Record the defect on their handheld device when stationary and safe.';
     
     onComplete(finalDecision, notes);
   };
@@ -433,7 +433,7 @@ function GearboxWizard({ currentStep, responses, updateResponse, onNext, onPrevi
                     <div className="space-y-2">
                         <div className="flex items-start space-x-2">
                             <span className="text-blue-400 mt-1"><Check className="w-5 h-5 text-blue-400" /></span>
-                            <span className="text-blue-100 text-sm">Record defect immediately on defect reporting system when stationary and safe</span>
+                            <span className="text-blue-100 text-sm">Record defect immediately on their reporting device when stationary and safe</span>
                         </div>
                         <div className="flex items-start space-x-2">
                             <span className="text-blue-400 mt-1"><Check className="w-5 h-5 text-blue-400" /></span>

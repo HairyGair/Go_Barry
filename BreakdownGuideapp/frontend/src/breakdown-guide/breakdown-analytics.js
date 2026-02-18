@@ -59,7 +59,7 @@
                     
                     // Metadata
                     recordedBy: this.supervisorSession?.supervisorId || 'Supervisor',
-                    goCheckReported: responses.goCheckReported || false,
+                    defectReported: responses.defectReported || false,
                     
                     // Audit Trail
                     auditLog: {
@@ -242,7 +242,7 @@
                 'Requires Engineering': b.requiresEngineering ? 'Yes' : 'No',
                 'Estimated Downtime (hrs)': b.estimatedDowntime,
                 'Recorded By': b.recordedBy,
-                'GO-Check Reported': b.goCheckReported ? 'Yes' : 'No'
+                'Defect Reported': b.defectReported ? 'Yes' : 'No'
             }));
             
             return excelData;

@@ -4,7 +4,7 @@ import constants from '../common/constants.js';
 
 // Cooling System (Overheating) Wizard Component
 // Follows operational safety procedures Section: "Overheating" (Page 11)
-// Ensures full compliance with DVSA standards and defect reporting system integration
+// Ensures full compliance with DVSA standards and reporting device integration
 
 const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, onPrevious, onComplete }) => {
     console.log('CoolingSystemWizard - currentStep:', currentStep, 'responses:', responses);
@@ -166,7 +166,7 @@ const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, o
                                             <ul className="list-disc list-inside space-y-1 text-green-300/90 text-sm">
                                                 <li>Continue to convenient changeover point</li>
                                                 <li>Monitor temperature throughout journey</li>
-                                                <li>Record any concerns in defect reporting system</li>
+                                                <li>Record any concerns in their reporting device</li>
                                                 <li>No immediate engine risk at current temperature</li>
                                             </ul>
                                         </div>
@@ -421,7 +421,7 @@ const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, o
                                             <ul className="list-disc list-inside space-y-1 text-green-300/90 text-sm">
                                                 <li>Proceed to next convenient changeover point</li>
                                                 <li>Continue monitoring temperature</li>
-                                                <li>Record defect on their handheld device</li>
+                                                <li>Record the defect on their handheld device</li>
                                                 <li>Arrange engineering inspection at depot</li>
                                             </ul>
                                         </div>
@@ -544,9 +544,9 @@ const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, o
                         <div className="flex items-start space-x-3">
                             <AlertTriangle className="w-6 h-6 text-blue-400 mt-1" />
                             <div>
-                                <h4 className="font-semibold text-blue-200">the defect reporting system System Reminder</h4>
+                                <h4 className="font-semibold text-blue-200">Reporting Device Reminder</h4>
                                 <p className="text-sm text-blue-300/90 mt-1">
-                                    Log this incident in defect reporting system when stationary and in a safe location
+                                    Advise the driver to log this incident in their reporting device when stationary and in a safe location
                                 </p>
                             </div>
                         </div>
@@ -651,7 +651,7 @@ const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, o
                                                 <li>Continue to next convenient changeover point</li>
                                                 <li>Keep heaters/demisters running to maintain heat dispersion</li>
                                                 <li>Monitor temperature gauge continuously</li>
-                                                <li>Record defect on their handheld device</li>
+                                                <li>Record the defect on their handheld device</li>
                                                 <li>Arrange engineering inspection at depot</li>
                                             </ul>
                                         </div>
@@ -689,7 +689,7 @@ const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, o
                         <div className="flex items-start space-x-3">
                             <AlertTriangle className="w-6 h-6 text-blue-400 mt-1" />
                             <div>
-                                <h4 className="font-semibold text-blue-200">the defect reporting system System Documentation</h4>
+                                <h4 className="font-semibold text-blue-200">Reporting Device Documentation</h4>
                                 <p className="text-sm text-blue-300/90 mt-1">
                                     Record: Overheating - {responses.cause_identification} - Heat mitigation: {responses.heat_mitigation_result}
                                 </p>

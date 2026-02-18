@@ -395,7 +395,7 @@ function BuzzersWizard({ currentStep, responses, updateResponse, onNext, onPrevi
                       <ul className="list-disc list-inside space-y-1">
                         <li>Stop immediately and seek assistance from engineering</li>
                         <li>Do not attempt to continue without engineering clearance</li>
-                        <li>Record defect on their handheld device</li>
+                        <li>Record the defect on their handheld device</li>
                         <li>Follow safety protocols for stopped vehicle</li>
                       </ul>
                     </div>
@@ -407,7 +407,7 @@ function BuzzersWizard({ currentStep, responses, updateResponse, onNext, onPrevi
             <div className="bg-blue-500/20 backdrop-blur-sm rounded-lg p-6 border border-blue-400/30">
               <h3 className="text-lg font-semibold text-blue-200 mb-4">🔧 Final Operational Guidance</h3>
               <div className="text-blue-300/80 text-sm space-y-3">
-                <p className="font-semibold">operational safety procedures states:</p>
+                <p className="font-semibold">Operational safety procedures state:</p>
                 <ul className="list-disc list-inside space-y-2">
                   <li>Some vehicles will not drive with a buzzer sounding</li>
                   <li>If issue cannot be resolved, stop and await assistance from engineering</li>

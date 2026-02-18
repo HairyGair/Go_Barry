@@ -266,7 +266,7 @@ const additionalFlows4 = {
             {
                 type: 'final',
                 title: 'Registration Plate Issues',
-                content: 'Registration Plate Missing/Incomplete/Insecure/Faded/Obscured: Record the issue on the defect reporting system, the vehicle can continue in service. However, the plate should be replaced and repaired when possible, and a changeover should be arranged as soon as feasible.',
+                content: 'Registration Plate Missing/Incomplete/Insecure/Faded/Obscured: Record the issue on the reporting device, the vehicle can continue in service. However, the plate should be replaced and repaired when possible, and a changeover should be arranged as soon as feasible.',
                 result: 'Continue in service, arrange changeover when feasible.',
                 severity: 'continue'
             },
@@ -486,7 +486,7 @@ const additionalFlows4 = {
                     'If the vehicle can safely continue, ensure a changeover is arranged at the earliest opportunity.',
                     'Ensure that all actions, including top-ups and changeovers, are communicated to the driver promptly.',
                     'Monitor the situation and provide updates to the driver as needed.',
-                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.'
+                    'Record any defects immediately on the reporting device when the bus is stationary and in a safe location.'
                 ]
             }
         ]

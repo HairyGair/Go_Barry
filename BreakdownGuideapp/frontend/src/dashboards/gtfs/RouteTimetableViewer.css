@@ -1,4 +1,5 @@
-/* RouteTimetableViewer - Classic bus timetable grid */
+/* RouteTimetableViewer - Transposed bus timetable grid */
+/* Stops as rows, trips as columns - matches real timetable boards */
 
 .rtv-container {
   padding: 20px;
@@ -53,6 +54,38 @@
 .rtv-search:focus {
   border-color: #00BCD4;
   background: rgba(255, 255, 255, 0.12);
+}
+
+/* Interchange filter buttons */
+.rtv-interchange-filters {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.rtv-interchange-btn {
+  padding: 8px 16px;
+  border-radius: 20px;
+  border: 1px solid rgba(0, 188, 212, 0.3);
+  background: rgba(0, 188, 212, 0.08);
+  color: rgba(224, 247, 250, 0.7);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.rtv-interchange-btn:hover {
+  background: rgba(0, 188, 212, 0.15);
+  color: #e0f7fa;
+  border-color: rgba(0, 188, 212, 0.5);
+}
+
+.rtv-interchange-btn.active {
+  background: rgba(0, 188, 212, 0.25);
+  color: #e0f7fa;
+  border-color: #00BCD4;
 }
 
 .rtv-route-list {
@@ -143,38 +176,385 @@
   color: #00BCD4;
 }
 
-/* Timetable Grid */
+/* ── Time banner ── */
+.rtv-time-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  margin-bottom: 10px;
+  background: rgba(0, 96, 100, 0.3);
+  border-radius: 10px;
+  border: 1px solid rgba(0, 188, 212, 0.2);
+  flex-wrap: wrap;
+}
+
+.rtv-time-now {
+  font-size: 22px;
+  font-weight: 700;
+  color: #00BCD4;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  letter-spacing: 1px;
+}
+
+.rtv-trip-badge {
+  background: rgba(0, 188, 212, 0.2);
+  color: #80DEEA;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.rtv-trip-badge--showing {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(224, 247, 250, 0.7);
+}
+
+.rtv-next-label {
+  font-size: 13px;
+  color: rgba(224, 247, 250, 0.6);
+  margin-left: auto;
+}
+
+.rtv-jump-now-btn {
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 188, 212, 0.4);
+  background: rgba(0, 188, 212, 0.15);
+  color: #80DEEA;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.rtv-jump-now-btn:hover {
+  background: rgba(0, 188, 212, 0.3);
+  border-color: #00BCD4;
+  color: #fff;
+}
+
+/* ── Toolbar row ── */
+.rtv-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+/* Time period filter buttons */
+.rtv-time-filters {
+  display: flex;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.rtv-time-filter {
+  padding: 5px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(224, 247, 250, 0.55);
+  border: none;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.rtv-time-filter + .rtv-time-filter {
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.rtv-time-filter:hover {
+  background: rgba(0, 188, 212, 0.1);
+  color: rgba(224, 247, 250, 0.8);
+}
+
+.rtv-time-filter.active {
+  background: #00838F;
+  color: white;
+}
+
+/* Hide past toggle */
+.rtv-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: rgba(224, 247, 250, 0.6);
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.rtv-toggle-label input[type="checkbox"] {
+  accent-color: #00BCD4;
+  width: 14px;
+  height: 14px;
+  cursor: pointer;
+}
+
+/* Stop search in toolbar */
+.rtv-stop-search-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.rtv-stop-search {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.08);
+  color: #e0f7fa;
+  font-size: 13px;
+  width: 220px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.rtv-stop-search::placeholder {
+  color: rgba(224, 247, 250, 0.35);
+}
+
+.rtv-stop-search:focus {
+  border-color: #00BCD4;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.rtv-stop-match-count {
+  font-size: 12px;
+  color: #80DEEA;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.rtv-clear-search {
+  padding: 3px 10px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(224, 247, 250, 0.6);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.rtv-clear-search:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #e0f7fa;
+}
+
+/* ── Stop quick-view panel ── */
+.rtv-quick-view {
+  margin-bottom: 12px;
+  padding: 12px 16px;
+  background: rgba(0, 60, 65, 0.5);
+  border: 1px solid rgba(0, 188, 212, 0.3);
+  border-radius: 10px;
+}
+
+.rtv-qv-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.rtv-qv-seq {
+  background: #00838F;
+  color: white;
+  padding: 2px 10px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.rtv-qv-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #e0f7fa;
+}
+
+.rtv-qv-close {
+  margin-left: auto;
+  padding: 3px 12px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(224, 247, 250, 0.6);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.rtv-qv-close:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #e0f7fa;
+}
+
+.rtv-qv-times {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.rtv-qv-time {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(224, 247, 250, 0.85);
+}
+
+.rtv-qv-time--past {
+  opacity: 0.35;
+}
+
+.rtv-qv-time--next {
+  background: rgba(0, 188, 212, 0.3);
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 0 0 2px rgba(0, 188, 212, 0.5);
+  opacity: 1;
+}
+
+.rtv-qv-none {
+  font-size: 12px;
+  color: rgba(224, 247, 250, 0.4);
+  font-style: italic;
+}
+
+.rtv-qv-next {
+  font-size: 12px;
+  color: rgba(224, 247, 250, 0.6);
+}
+
+.rtv-qv-next strong {
+  color: #00BCD4;
+  font-size: 14px;
+}
+
+/* ── Transposed Timetable Grid ── */
 .rtv-table-wrapper {
   overflow-x: auto;
+  overflow-y: auto;
+  max-height: calc(100vh - 420px);
   border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(0, 0, 0, 0.2);
 }
 
-.rtv-table {
-  width: 100%;
-  border-collapse: collapse;
+.rtv-table--transposed {
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 12px;
   white-space: nowrap;
 }
 
-.rtv-table thead th {
+/* Sticky sequence number column */
+.rtv-table--transposed .rtv-stop-header:first-child,
+.rtv-table--transposed .rtv-stop-seq {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  background: rgba(0, 40, 45, 0.98);
+  width: 32px;
+  min-width: 32px;
+  max-width: 32px;
+  text-align: center;
+  padding: 5px 2px;
+  font-size: 10px;
+  font-weight: 600;
+  color: rgba(224, 247, 250, 0.4);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Sticky stop name column (after sequence #) */
+.rtv-table--transposed .rtv-stop-header--name,
+.rtv-table--transposed .rtv-stop-name {
+  position: sticky;
+  left: 32px;
+  z-index: 3;
+  background: rgba(0, 40, 45, 0.97);
+  min-width: 200px;
+  max-width: 280px;
+  white-space: normal;
+  word-wrap: break-word;
+  text-align: left;
+  padding: 7px 12px;
+  border-right: 2px solid rgba(0, 188, 212, 0.25);
+}
+
+/* Header row for # and Stop */
+.rtv-table--transposed .rtv-stop-header {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  font-weight: 700;
+  font-size: 12px;
+  color: #80DEEA;
+  background: rgba(0, 60, 65, 0.98);
+  padding: 8px 6px;
+  border-bottom: 2px solid rgba(0, 188, 212, 0.25);
+}
+
+.rtv-table--transposed .rtv-stop-header--name {
+  z-index: 6;
+  background: rgba(0, 60, 65, 0.98);
+}
+
+.rtv-table--transposed .rtv-stop-header:first-child {
+  z-index: 6;
+  background: rgba(0, 60, 65, 0.98);
+  border-bottom: 2px solid rgba(0, 188, 212, 0.25);
+}
+
+.rtv-table--transposed .rtv-stop-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: #e0f7fa;
+  line-height: 1.3;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.rtv-table--transposed .rtv-stop-name:hover {
+  background: rgba(0, 188, 212, 0.08) !important;
+}
+
+.rtv-table--transposed .rtv-stop-seq {
+  cursor: pointer;
+}
+
+/* Trip header cells (departure time columns) */
+.rtv-table--transposed thead th {
   position: sticky;
   top: 0;
   z-index: 2;
   padding: 8px 6px;
-  background: rgba(0, 96, 100, 0.8);
-  color: #e0f7fa;
+  background: rgba(0, 60, 65, 0.98);
+  color: rgba(224, 247, 250, 0.8);
   font-weight: 600;
   font-size: 11px;
   text-align: center;
-  border-bottom: 2px solid rgba(0, 188, 212, 0.3);
-  max-width: 100px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  border-bottom: 2px solid rgba(0, 188, 212, 0.25);
+  min-width: 52px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
 }
 
-.rtv-table tbody td {
+/* Body cells */
+.rtv-table--transposed tbody td {
   padding: 5px 6px;
   text-align: center;
   color: rgba(224, 247, 250, 0.85);
@@ -183,24 +563,161 @@
   font-size: 11px;
 }
 
-.rtv-table tbody tr:hover {
-  background: rgba(0, 188, 212, 0.08);
+/* Row hover */
+.rtv-table--transposed tbody tr {
+  cursor: pointer;
+  transition: background 0.1s;
 }
 
-.rtv-table tbody tr.rtv-current-row {
-  background: rgba(0, 188, 212, 0.15);
+.rtv-table--transposed tbody tr:hover td:not(.rtv-stop-name):not(.rtv-stop-seq) {
+  background: rgba(0, 188, 212, 0.06);
+}
+
+.rtv-table--transposed tbody tr:hover .rtv-stop-name {
+  background: rgba(0, 50, 55, 0.97);
+}
+
+.rtv-table--transposed tbody tr:hover .rtv-stop-seq {
+  background: rgba(0, 50, 55, 0.97);
+  color: rgba(224, 247, 250, 0.7);
+}
+
+/* Past trip columns */
+.rtv-col-past {
+  opacity: 0.35;
+}
+
+/* Current "now" trip column highlight */
+.rtv-col-now {
+  background: rgba(0, 188, 212, 0.15) !important;
+  opacity: 1;
+}
+
+th.rtv-col-now {
+  background: rgba(0, 131, 143, 0.9) !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  box-shadow: inset 0 -3px 0 #00BCD4;
+}
+
+/* Empty time cells */
+.rtv-cell-empty {
+  color: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* ── Stop search match highlighting ── */
+.rtv-stop-match .rtv-stop-name {
+  background: rgba(0, 188, 212, 0.2) !important;
+  border-left: 3px solid #00BCD4;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.rtv-stop-match .rtv-stop-seq {
+  color: #00BCD4 !important;
+  font-weight: 700;
+}
+
+/* Dimmed but still readable */
+.rtv-stop-dimmed td:not(.rtv-stop-name):not(.rtv-stop-seq) {
+  opacity: 0.2;
+}
+
+.rtv-stop-dimmed .rtv-stop-name {
+  opacity: 0.45;
+}
+
+.rtv-stop-dimmed .rtv-stop-seq {
+  opacity: 0.3;
+}
+
+/* ── Selected stop row ── */
+.rtv-stop-selected .rtv-stop-name {
+  background: rgba(0, 188, 212, 0.25) !important;
+  color: #ffffff;
+  font-weight: 600;
   border-left: 3px solid #00BCD4;
 }
 
-.rtv-table tbody tr.rtv-past-row {
-  opacity: 0.4;
+.rtv-stop-selected .rtv-stop-seq {
+  color: #00BCD4 !important;
+  font-weight: 700;
+  background: rgba(0, 188, 212, 0.1) !important;
 }
 
-.rtv-cell-empty {
-  color: rgba(255, 255, 255, 0.15);
+.rtv-stop-selected td:not(.rtv-stop-name):not(.rtv-stop-seq) {
+  background: rgba(0, 188, 212, 0.06);
 }
 
-/* Loading / Empty states */
+/* Row alternation for readability */
+.rtv-table--transposed tbody tr:nth-child(even) .rtv-stop-name {
+  background: rgba(0, 45, 50, 0.97);
+}
+
+.rtv-table--transposed tbody tr:nth-child(even) .rtv-stop-seq {
+  background: rgba(0, 45, 50, 0.97);
+}
+
+.rtv-table--transposed tbody tr:nth-child(even) td:not(.rtv-stop-name):not(.rtv-stop-seq) {
+  background: rgba(255, 255, 255, 0.015);
+}
+
+/* ── Reset filters button ── */
+.rtv-reset-filters {
+  margin-top: 12px;
+  padding: 8px 20px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 188, 212, 0.3);
+  background: rgba(0, 188, 212, 0.1);
+  color: #80DEEA;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.rtv-reset-filters:hover {
+  background: rgba(0, 188, 212, 0.2);
+  border-color: #00BCD4;
+  color: #fff;
+}
+
+/* ── Journey time and frequency badges ── */
+.rtv-trip-badge--journey {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34D399;
+}
+
+.rtv-trip-badge--freq {
+  background: rgba(245, 158, 11, 0.2);
+  color: #FCD34D;
+}
+
+/* ── Timing points (stops in 90%+ trips) ── */
+.rtv-timing-point .rtv-stop-name {
+  font-weight: 700 !important;
+  color: #ffffff !important;
+}
+
+.rtv-timing-point .rtv-stop-seq {
+  color: #00BCD4 !important;
+  font-weight: 700;
+}
+
+/* ── Clickable stop names ── */
+.rtv-stop-link {
+  cursor: pointer !important;
+  text-decoration: none;
+  transition: color 0.15s;
+}
+
+.rtv-stop-link:hover {
+  color: #00BCD4 !important;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ── Loading / Empty states ── */
 .rtv-loading {
   display: flex;
   align-items: center;
@@ -219,10 +736,4 @@
 
 .rtv-empty p {
   margin: 8px 0;
-}
-
-.rtv-current-time {
-  font-size: 12px;
-  color: rgba(224, 247, 250, 0.5);
-  padding: 8px 0;
 }

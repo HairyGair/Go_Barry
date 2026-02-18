@@ -73,6 +73,9 @@ class APIClient {
         throw new Error(`HTTP error! status: ${response.status}`);
 
       } catch (error) {
+        // AbortError - never retry, rethrow immediately
+        if (error.name === 'AbortError') throw error;
+
         lastError = error;
 
         // Network error - retry
@@ -93,9 +96,9 @@ class APIClient {
     throw lastError;
   }
 
-  // GET request
-  async get(endpoint) {
-    return this.request(endpoint, { method: 'GET' });
+  // GET request (options: { signal, retries, retryDelay, headers })
+  async get(endpoint, options = {}) {
+    return this.request(endpoint, { method: 'GET', ...options });
   }
 
   // POST request

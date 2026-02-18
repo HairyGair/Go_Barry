@@ -407,7 +407,7 @@ const ExteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, 
                              <CheckCircle className="w-8 h-8 text-green-400" />}
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">📋 Exterior Lights Safety Decision</h2>
-                        <p className="text-gray-300">compliant safety assessment based on current lighting defects.</p>
+                        <p className="text-gray-300">Operational safety assessment based on current lighting defects.</p>
                     </div>
 
                     {/* Assessment Summary */}
@@ -494,7 +494,7 @@ const ExteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, 
                                                 <li>Arrange changeover before darkness falls</li>
                                                 <li>Monitor time and plan route accordingly</li>
                                                 <li>If darkness approaches before changeover, stop and await assistance</li>
-                                                <li>Record defect on their handheld device</li>
+                                                <li>Record the defect on their handheld device</li>
                                             </ul>
                                         </div>
                                     </div>
@@ -518,7 +518,7 @@ const ExteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, 
                                                 <li>Arrange changeover at earliest opportunity</li>
                                                 <li>Monitor remaining brake lights closely</li>
                                                 <li>If any additional lights fail, stop immediately</li>
-                                                <li>Record defect on their handheld device</li>
+                                                <li>Record the defect on their handheld device</li>
                                             </ul>
                                         </div>
                                     </div>
@@ -568,7 +568,7 @@ const ExteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, 
                             <div>
                                 <h4 className="font-semibold text-purple-200 mb-2">📱 Defect Documentation Required</h4>
                                 <p className="text-purple-300/80 text-sm">
-                                    Record this lighting assessment in the defect reporting system immediately when vehicle is stationary and in a safe location. 
+                                    Record this lighting assessment in the reporting device immediately when vehicle is stationary and in a safe location. 
                                     Include details of all lighting systems checked and any defects found.
                                 </p>
                             </div>

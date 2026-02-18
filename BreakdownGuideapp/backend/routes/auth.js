@@ -23,6 +23,7 @@ import { validate } from '../middleware/validationMiddleware.js';
 import { authSchemas } from '../validation/schemas.js';
 import webSocketHandler from './webSocketHandler.js';
 import { logAuditEvent, ACTION_TYPES as AUDIT_ACTIONS } from './dutyAudit.js';
+import { seedDemoData } from '../services/demoDataService.js';
 
 // Load environment variables
 dotenv.config();
@@ -468,6 +469,118 @@ router.post('/login', rateLimitLogin, clearLoginAttempts, validate(authSchemas.l
     res.status(500).json({
       error: 'Authentication failed. Please try again.',
       code: 'AUTH_ERROR'
+    });
+  }
+});
+
+// POST /api/auth/demo-login - One-click demo login (no password required)
+router.post('/demo-login', rateLimitLogin, async (req, res) => {
+  try {
+    console.log('🎭 Demo login attempt');
+
+    // Look up demo supervisor
+    const { data: supervisor, error: supervisorError } = await from('supervisors')
+      .select('*')
+      .eq('badge_number', 'DEMO01')
+      .single();
+
+    if (supervisorError || !supervisor) {
+      console.error('🎭 Demo supervisor not found - run migration 033');
+      return res.status(500).json({
+        error: 'Demo mode not available. Contact administrator.',
+        code: 'DEMO_NOT_CONFIGURED'
+      });
+    }
+
+    // Seed fresh demo data (clears old, inserts new)
+    try {
+      await seedDemoData();
+    } catch (seedError) {
+      console.error('🎭 Failed to seed demo data:', seedError);
+      // Continue with login even if seeding fails
+    }
+
+    // Generate JWT token
+    const token = generateToken(supervisor);
+
+    // Calculate expiration
+    const expiresIn = 24 * 60 * 60;
+    const expiresAt = Math.floor(Date.now() / 1000) + expiresIn;
+
+    // Close any existing demo sessions
+    try {
+      await query(`
+        UPDATE supervisor_sessions
+        SET is_online = FALSE, logout_time = NOW(),
+            session_duration_minutes = TIMESTAMPDIFF(MINUTE, login_time, NOW())
+        WHERE supervisor_id = ? AND is_online = TRUE
+      `, [supervisor.id]);
+    } catch (sessionCleanupError) {
+      console.warn('🎭 Session cleanup error:', sessionCleanupError.message);
+    }
+
+    // Create new session
+    try {
+      await insert('supervisor_sessions', {
+        supervisor_id: supervisor.id,
+        supervisor_name: supervisor.name,
+        email: supervisor.email,
+        badge_number: supervisor.badge_number,
+        current_duty: 'Duty 200',
+        depot: supervisor.depot || 'Riverside',
+        role: supervisor.role || 'admin',
+        login_time: new Date().toISOString().slice(0, 19).replace('T', ' '),
+        last_activity: new Date().toISOString().slice(0, 19).replace('T', ' '),
+        is_online: true
+      });
+    } catch (sessionError) {
+      console.warn('🎭 Session creation error:', sessionError.message);
+    }
+
+    // Build session response data
+    const sessionData = {
+      user_id: supervisor.id,
+      supervisorId: supervisor.id,
+      username: supervisor.name,
+      full_name: supervisor.name,
+      name: supervisor.name,
+      email: supervisor.email,
+      depot: supervisor.depot,
+      role: supervisor.role || 'admin',
+      badge_number: supervisor.badge_number,
+      current_duty: 'Duty 200',
+      login_time: new Date().toISOString(),
+      expires_at: expiresAt,
+      is_demo: true
+    };
+
+    // Set JWT token in HTTP-only cookie (same as regular login)
+    res.cookie('auth_token', token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'None',
+      maxAge: 24 * 60 * 60 * 1000,
+      path: '/',
+      domain: '.gobarry.co.uk'
+    });
+
+    console.log('🎭 Demo login successful');
+
+    res.json({
+      success: true,
+      user: sessionData,
+      session: {
+        expires_at: expiresAt,
+        expires_in: expiresIn,
+        token_type: 'Bearer'
+      },
+      message: 'Demo login successful'
+    });
+  } catch (error) {
+    console.error('🎭 Demo login error:', error);
+    res.status(500).json({
+      error: 'Demo login failed. Please try again.',
+      code: 'DEMO_LOGIN_ERROR'
     });
   }
 });

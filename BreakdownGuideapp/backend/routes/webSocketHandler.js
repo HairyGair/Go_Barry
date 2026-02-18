@@ -535,10 +535,12 @@ class WebSocketHandler {
       console.log(`📊 Fetching breakdowns for engineering display in depot: ${depot}`);
 
       // Query MySQL for breakdowns in this specific depot
+      // Always exclude demo breakdowns from public engineering displays
       const depotBreakdownsSQL = `
         SELECT * FROM breakdowns
         WHERE depot = ?
           AND status NOT IN ('resolved', 'cleared')
+          AND supervisor_badge != 'DEMO01'
         ORDER BY created_at DESC
         LIMIT 100
       `;

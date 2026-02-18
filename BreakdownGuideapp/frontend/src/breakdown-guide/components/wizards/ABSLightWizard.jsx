@@ -436,11 +436,11 @@ const ABSLightWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                                 <div className="text-left mt-6">
                                     <h4 className="font-semibold text-red-200 mb-3">Immediate Actions Required:</h4>
                                     <ol className="list-decimal ml-6 space-y-2 text-red-300/90 text-sm">
-                                        <li>Driver must stop the vehicle safely immediately</li>
+                                        <li>Advise the driver to stop the vehicle safely and immediately</li>
                                         <li>Do not continue in service under any circumstances</li>
                                         <li>Contact engineering team for immediate attendance</li>
                                         <li>Await engineering inspection before moving vehicle</li>
-                                        <li>Record defect immediately on the defect reporting system</li>
+                                        <li>Record defect immediately on the reporting device</li>
                                         <li>Arrange passenger transfer if vehicle was in service</li>
                                         <li>Normal brakes function but without ABS assistance</li>
                                     </ol>
@@ -454,7 +454,7 @@ const ABSLightWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                                         <li>Vehicle may remain in service</li>
                                         <li>Changeover at the earliest convenience</li>
                                         <li>Monitor brake performance continuously</li>
-                                        <li>Record defect immediately on the defect reporting system</li>
+                                        <li>Record defect immediately on the reporting device</li>
                                         <li>Inform engineering of ABS system fault</li>
                                         <li>If any brake performance issues occur, stop immediately</li>
                                         <li>Driver should be aware - no ABS assistance available</li>
@@ -467,7 +467,7 @@ const ABSLightWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                                     <h4 className="font-semibold text-green-200 mb-3">Monitoring Actions:</h4>
                                     <ol className="list-decimal ml-6 space-y-2 text-green-300/90 text-sm">
                                         <li>Vehicle may remain in service safely</li>
-                                        <li>Defect should be logged on the defect reporting system</li>
+                                        <li>Defect should be logged on the reporting device</li>
                                         <li>Monitor for ABS light reoccurrence</li>
                                         <li>If the light reappears seek further advice</li>
                                         <li>Normal braking available (without ABS assistance)</li>
@@ -482,7 +482,7 @@ const ABSLightWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                     <div className="bg-blue-500/20 backdrop-blur-sm rounded-lg p-6 border border-blue-400/30">
                         <h3 className="font-bold text-blue-200 mb-3">🔔 Additional Guidance</h3>
                         <ul className="list-disc ml-6 space-y-1 text-blue-300/90 text-sm">
-                            <li>Record any defects immediately on the defect reporting system</li>
+                            <li>Record any defects immediately on the reporting device</li>
                             <li>Safety is the priority. Any light regarding an ABS fault must be checked over by an engineer</li>
                             <li>If the vehicle can safely continue, ensure a changeover is arranged at the earliest opportunity</li>
                             <li>Ensure that all actions, including changeovers, are communicated to the driver promptly</li>
@@ -495,9 +495,9 @@ const ABSLightWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                         <div className="flex items-start space-x-4">
                             <FileText className="w-6 h-6 text-purple-400 mt-1" />
                             <div>
-                                <h4 className="font-semibold text-purple-200 mb-2">📱 the defect reporting system System Recording</h4>
+                                <h4 className="font-semibold text-purple-200 mb-2">📱 Reporting Device Recording</h4>
                                 <p className="text-purple-300/80 text-sm">
-                                    Record any defects immediately on the defect reporting system when the bus is stationary and in a safe location. 
+                                    Record any defects immediately on the reporting device when the bus is stationary and in a safe location. 
                                     Include ABS light color, reset attempt results, and final safety decision.
                                 </p>
                             </div>

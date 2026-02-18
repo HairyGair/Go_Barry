@@ -18,7 +18,7 @@ const SuspensionWizard = ({ currentStep, responses, updateResponse, onNext, onPr
                             <Tool className="w-8 h-8 text-amber-400" />
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">🏗️ Suspension System Assessment</h2>
-                        <p className="text-gray-300">Following standard operational safety checks guidance for suspension issues - we'll start with the required reset procedure.</p>
+                        <p className="text-gray-300">Following standard operational safety procedures for suspension issues - we'll start with the required reset procedure.</p>
                     </div>
                     
                     <div className="bg-red-500/20 backdrop-blur-sm rounded-lg p-6 border border-red-400/30">
@@ -146,7 +146,7 @@ const SuspensionWizard = ({ currentStep, responses, updateResponse, onNext, onPr
                                             <h4 className="font-semibold text-green-200 mb-2">Required Actions:</h4>
                                             <ul className="list-disc list-inside space-y-1 text-green-300/90 text-sm">
                                                 <li>Continue in service normally</li>
-                                                <li>Record the incident in defect reporting system when stationary and safe</li>
+                                                <li>Record the incident in their reporting device when stationary and safe</li>
                                                 <li>Monitor suspension performance during continued operation</li>
                                                 <li>Arrange engineering assessment at depot if issue recurs</li>
                                                 <li>If any suspension problems return, follow this assessment again</li>
@@ -163,7 +163,7 @@ const SuspensionWizard = ({ currentStep, responses, updateResponse, onNext, onPr
                                 <div>
                                     <h4 className="font-semibold text-blue-200">Important Reminders</h4>
                                     <ul className="text-sm text-blue-300/90 mt-1 space-y-1">
-                                        <li>• Record this reset and outcome in defect reporting system</li>
+                                        <li>• Record this reset and outcome in their reporting device</li>
                                         <li>• Continue monitoring suspension performance</li>
                                         <li>• If symptoms return, stop and seek engineering assistance</li>
                                         <li>• Ensure passenger comfort and safety at all times</li>
@@ -565,55 +565,17 @@ const SuspensionWizard = ({ currentStep, responses, updateResponse, onNext, onPr
             );
 
         case 5:
-            // Decision logic based on operational procedures and responses
-            const generateDecision = () => {
-                // Critical conditions requiring immediate stop
-                if (responses.warning_lights === 'red' ||
-                    responses.vehicle_lean === 'yes' ||
-                    responses.audible_bang === 'yes' ||
-                    responses.air_pressure === 'failing' ||
-                    responses.ride_quality === 'unstable') {
-                    return {
-                        action: 'stop',
-                        priority: 'critical',
-                        message: 'Stop immediately and await engineering assistance',
-                        details: 'Critical suspension safety issues detected that require immediate attention'
-                    };
-                }
-
-                // Unable to reset initially
-                if (responses.reset_result === 'unable') {
-                    return {
-                        action: 'stop',
-                        priority: 'high',
-                        message: 'Stop and await engineering assistance',
-                        details: 'Unable to perform required reset procedure - engineering assessment needed'
-                    };
-                }
-
-                // Less critical issues - may continue with monitoring
-                if (responses.warning_lights === 'amber' ||
-                    responses.air_pressure === 'low' ||
-                    responses.ride_quality === 'hard' ||
-                    responses.ride_quality === 'soft') {
-                    return {
-                        action: 'continue_monitor',
-                        priority: 'medium',
-                        message: 'Continue with close monitoring',
-                        details: 'Non-critical suspension issues detected - continue to changeover point'
-                    };
-                }
-
-                // All assessments appear normal after failed reset
-                return {
-                    action: 'continue_assess',
-                    priority: 'low',
-                    message: 'Continue with engineering assessment at depot',
-                    details: 'Reset failed but no critical issues found - depot assessment recommended'
-                };
+            // Guide v6 Suspension Decision:
+            // Step 1: Reset vehicle → if clears, continue (handled in case 2)
+            // Step 2: If problem persists → STOP and await engineering assistance
+            // The detailed questions (warning lights, lean, bang, air pressure, ride quality)
+            // are information gathering for engineering - they do NOT change the STOP decision.
+            const decision = {
+                action: 'stop',
+                priority: 'critical',
+                message: 'Stop and await assistance from engineering',
+                details: 'Suspension problem persists after reset - engineering assessment required'
             };
-
-            const decision = generateDecision();
 
             return (
                 <div className="space-y-6">
@@ -667,9 +629,9 @@ const SuspensionWizard = ({ currentStep, responses, updateResponse, onNext, onPr
                                             <ul className="list-disc list-inside space-y-1 text-red-300/90 text-sm">
                                                 <li>Stop vehicle immediately in safe location</li>
                                                 <li>Switch off ignition</li>
-                                                <li>Contact engineering immediately</li>
+                                                <li>Contact the engineering team immediately</li>
                                                 <li>Do NOT attempt to continue driving</li>
-                                                <li>Record details in defect reporting system</li>
+                                                <li>Record details in their reporting device</li>
                                                 <li>Report to depot management team immediately</li>
                                             </ul>
                                         </div>
@@ -693,7 +655,7 @@ const SuspensionWizard = ({ currentStep, responses, updateResponse, onNext, onPr
                                             <ul className="list-disc list-inside space-y-1 text-orange-300/90 text-sm">
                                                 <li>Stop vehicle and await engineering assistance</li>
                                                 <li>Contact engineering for guidance</li>
-                                                <li>Record issue in defect reporting system</li>
+                                                <li>Record issue in their reporting device</li>
                                                 <li>Ensure passenger safety during delay</li>
                                                 <li>Do not attempt to continue until cleared by engineering</li>
                                             </ul>
@@ -704,55 +666,16 @@ const SuspensionWizard = ({ currentStep, responses, updateResponse, onNext, onPr
                         </div>
                     )}
 
-                    {decision.priority === 'medium' && (
-                        <div className="bg-yellow-500/20 backdrop-blur-sm rounded-lg p-6 border border-yellow-400/30">
-                            <div className="flex items-start">
-                                <AlertTriangle className="w-8 h-8 text-yellow-400 mt-1 mr-4" />
-                                <div className="flex-1">
-                                    <h3 className="text-xl font-bold text-yellow-200 mb-3">⚠️ CONTINUE WITH MONITORING</h3>
-                                    <div className="text-yellow-300/90 space-y-2">
-                                        <p className="font-semibold">{decision.message}</p>
-                                        <p className="text-sm">{decision.details}</p>
-                                        <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mt-4">
-                                            <h4 className="font-semibold text-yellow-200 mb-2">Actions Required:</h4>
-                                            <ul className="list-disc list-inside space-y-1 text-yellow-300/90 text-sm">
-                                                <li>Continue to next convenient changeover point</li>
-                                                <li>Monitor suspension performance closely</li>
-                                                <li>Record issue in defect reporting system</li>
-                                                <li>Arrange changeover at earliest opportunity</li>
-                                                <li>If condition worsens, stop immediately</li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                </div>
+                    {/* Information gathered will be shared with engineering */}
+                    <div className="bg-blue-500/20 backdrop-blur-sm rounded-lg p-6 border border-blue-400/30">
+                        <div className="flex items-start space-x-3">
+                            <FileText className="w-6 h-6 text-blue-400 mt-1" />
+                            <div>
+                                <h4 className="font-semibold text-blue-200 mb-2">Information for Engineering</h4>
+                                <p className="text-blue-300/90 text-sm">The assessment details above will help engineering diagnose the suspension issue when they attend.</p>
                             </div>
                         </div>
-                    )}
-
-                    {decision.priority === 'low' && (
-                        <div className="bg-blue-500/20 backdrop-blur-sm rounded-lg p-6 border border-blue-400/30">
-                            <div className="flex items-start">
-                                <AlertCircle className="w-8 h-8 text-blue-400 mt-1 mr-4" />
-                                <div className="flex-1">
-                                    <h3 className="text-xl font-bold text-blue-200 mb-3">ℹ️ CONTINUE WITH ASSESSMENT</h3>
-                                    <div className="text-blue-300/90 space-y-2">
-                                        <p className="font-semibold">{decision.message}</p>
-                                        <p className="text-sm">{decision.details}</p>
-                                        <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mt-4">
-                                            <h4 className="font-semibold text-blue-200 mb-2">Actions Required:</h4>
-                                            <ul className="list-disc list-inside space-y-1 text-blue-300/90 text-sm">
-                                                <li>Continue in service to depot</li>
-                                                <li>Record reset attempt and symptoms on their handheld device</li>
-                                                <li>Arrange engineering assessment at depot</li>
-                                                <li>Monitor for any changes in suspension performance</li>
-                                                <li>Report any worsening symptoms immediately</li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                    </div>
 
                     <div className="bg-blue-500/20 rounded-lg p-4 border border-blue-400/30">
                         <div className="flex items-start space-x-3">

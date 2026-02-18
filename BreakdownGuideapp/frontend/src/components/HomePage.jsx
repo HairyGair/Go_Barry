@@ -19,11 +19,12 @@ import './HomePage.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
 
-const HomePage = ({ onStatsChange }) => {
+const HomePage = ({ onStatsChange, currentDuty: propDuty }) => {
   const navigate = useNavigate();
   const { isAuthenticated, currentUser, isSessionChecking } = useAuth();
   const isLoading = false;
-  const [currentDuty, setCurrentDuty] = useState(null);
+  const [localDuty, setLocalDuty] = useState(null);
+  const currentDuty = propDuty || localDuty;
   const [showHandoverModal, setShowHandoverModal] = useState(false);
   const [showExtensionModal, setShowExtensionModal] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -65,19 +66,19 @@ const HomePage = ({ onStatsChange }) => {
           if (dutyData.shiftEnd) {
             const shiftEndTime = new Date(dutyData.shiftEnd);
             if (new Date() < shiftEndTime) {
-              setCurrentDuty(dutyData);
+              setLocalDuty(dutyData);
             } else {
-              setCurrentDuty(null);
+              setLocalDuty(null);
               sessionStorage.removeItem('currentDuty');
             }
           } else {
-            setCurrentDuty(dutyData);
+            setLocalDuty(dutyData);
           }
         } catch (error) {
           console.error('Error parsing duty data:', error);
         }
       } else {
-        setCurrentDuty(null);
+        setLocalDuty(null);
       }
     };
 
@@ -130,7 +131,7 @@ const HomePage = ({ onStatsChange }) => {
   const handleExtensionRequested = (result) => console.log('Extension requested:', result);
 
   const handleHandoverComplete = (result) => {
-    setCurrentDuty(null);
+    setLocalDuty(null);
     sessionStorage.removeItem('currentDuty');
     loadDashboardData();
   };
@@ -211,13 +212,15 @@ const HomePage = ({ onStatsChange }) => {
           <span className="hp-date">{formatDate(currentTime)}</span>
         </div>
 
-        <button
-          className={`hp-emergency-btn ${hasActiveBreakdowns ? 'hp-emergency-btn--active' : ''}`}
-          onClick={() => navigate('/breakdown-guide')}
-        >
-          <span className="hp-emergency-icon">⚠</span>
-          <span>Report Breakdown</span>
-        </button>
+        {currentUser?.role !== 'engineering' && currentUser?.role !== 'engineering_manager' && (
+          <button
+            className={`hp-emergency-btn ${hasActiveBreakdowns ? 'hp-emergency-btn--active' : ''}`}
+            onClick={() => navigate('/breakdown-guide')}
+          >
+            <span className="hp-emergency-icon">⚠</span>
+            <span>Report Breakdown</span>
+          </button>
+        )}
       </header>
 
       {/* Stats Row */}

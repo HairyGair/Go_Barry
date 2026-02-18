@@ -32,7 +32,7 @@ const WingMirrorsWizard = ({ currentStep, responses, updateResponse, onNext, onP
                             <AlertTriangle className="w-8 h-8 text-red-400" />
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">🪞 WING MIRRORS - SAFETY ASSESSMENT</h2>
-                        <p className="text-gray-300">Following standard operational safety checks procedure for wing mirror damage evaluation.</p>
+                        <p className="text-gray-300">Following standard operational safety procedures for wing mirror damage evaluation.</p>
                     </div>
                     
                     <div className="bg-red-500/30 backdrop-blur-sm rounded-lg p-6 border border-red-400/50">
@@ -425,24 +425,27 @@ const WingMirrorsWizard = ({ currentStep, responses, updateResponse, onNext, onP
             );
 
         case 3:
-            // Determine final decision based on Operational logic
+            // Determine final decision based on Guide v6:
+            // - Driver cannot use mirror satisfactorily: STOP
+            // - Offside (driver side) damage: STOP (guide says "higher risk, STOP, await engineering")
+            // - Both sides affected: STOP
+            // - Mirror completely missing: STOP
+            // - Additional safety-affecting damage: STOP
+            // Only nearside + glass only + driver CAN use satisfactorily = continue to changeover
             const mustStopEngineering = responses.driver_capability === 'cannot_use' ||
                                        responses.damage_type === 'completely_missing' ||
                                        responses.vehicle_side === 'both_sides' ||
-                                       responses.additional_damage === 'safety_affecting' ||
-                                       responses.engineering_needed === 'yes';
+                                       responses.vehicle_side === 'offside' ||
+                                       responses.additional_damage === 'safety_affecting';
 
             const canContinueToChangeover = responses.driver_capability === 'satisfactory' &&
-                                          responses.damage_type !== 'completely_missing' &&
-                                          responses.vehicle_side !== 'both_sides' &&
-                                          responses.additional_damage !== 'safety_affecting' &&
-                                          responses.engineering_needed === 'no';
+                                          !mustStopEngineering;
 
             return (
                 <div className="space-y-6">
                     <div className="text-center">
                         <h2 className="text-2xl font-bold text-white mb-2">📋 WING MIRRORS - FINAL DECISION</h2>
-                        <p className="text-gray-300">compliant safety decision based on mirror damage assessment.</p>
+                        <p className="text-gray-300">Safety decision based on mirror damage assessment per operational procedures.</p>
                     </div>
                     
                     {mustStopEngineering ? (
@@ -467,11 +470,11 @@ const WingMirrorsWizard = ({ currentStep, responses, updateResponse, onNext, onP
                                     {responses.vehicle_side === 'both_sides' && (
                                         <li>Multiple mirror damage creates dangerous blind spots</li>
                                     )}
+                                    {responses.vehicle_side === 'offside' && responses.vehicle_side !== 'both_sides' && (
+                                        <li>Offside (driver side) mirror damage poses higher risk - stop and await engineering</li>
+                                    )}
                                     {responses.additional_damage === 'safety_affecting' && (
                                         <li>Combined damage affects overall vehicle safety</li>
-                                    )}
-                                    {responses.engineering_needed === 'yes' && (
-                                        <li>Professional engineering assessment required</li>
                                     )}
                                 </ul>
                             </div>

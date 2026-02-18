@@ -156,8 +156,8 @@ export const SDC_GUIDE_REFERENCE = {
         'Police notification',
         'Vehicle damage assessment'
       ],
-      reporting: 'Tracerit report within 24 hours',
-      documentation: 'defect reporting system immediately'
+      reporting: 'Incident report within 24 hours',
+      documentation: 'reporting device immediately'
     },
     'Puncture': {
       icon: '🔧',
@@ -228,8 +228,8 @@ export const SDC_GUIDE_REFERENCE = {
     }
   },
 
-  // the defect reporting system Integration
-  GO_CHECK_CODES: {
+  // Defect Reporting Codes
+  DEFECT_CODES: {
     'Steering': 'STR',
     'Brakes': 'BRK',
     'ABS Light': 'ABS',
@@ -306,12 +306,12 @@ export const getSLAForIssue = (issueType, isPriorityRoute = false) => {
 
 export const getDefectCode = (issueType) => {
   // Try to find exact match
-  if (SDC_GUIDE_REFERENCE.GO_CHECK_CODES[issueType]) {
-    return SDC_GUIDE_REFERENCE.GO_CHECK_CODES[issueType];
+  if (SDC_GUIDE_REFERENCE.DEFECT_CODES[issueType]) {
+    return SDC_GUIDE_REFERENCE.DEFECT_CODES[issueType];
   }
   
   // Try partial match
-  for (const [key, code] of Object.entries(SDC_GUIDE_REFERENCE.GO_CHECK_CODES)) {
+  for (const [key, code] of Object.entries(SDC_GUIDE_REFERENCE.DEFECT_CODES)) {
     if (issueType.toLowerCase().includes(key.toLowerCase())) {
       return code;
     }

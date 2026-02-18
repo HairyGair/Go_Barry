@@ -7,7 +7,7 @@ const DashboardLayout = ({ children, title, icon, breakdownCount, criticalCount,
   const [isQuickPanelOpen, setIsQuickPanelOpen] = useState(false);
   
   return (
-    <div style={{ backgroundColor: theme.colors.bgPrimary, minHeight: '100vh' }}>
+    <div className="dark-theme" style={{ backgroundColor: theme.colors.bgPrimary, minHeight: '100vh' }}>
 
       {/* Main Content - Dark Theme */}
       <div

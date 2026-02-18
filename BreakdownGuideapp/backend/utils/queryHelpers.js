@@ -58,7 +58,10 @@ const ALLOWED_TABLES = new Set([
   'duty_audit_log',
   'duty_notes',
   'route_coverage_analysis',
-  'breakdown_lost_trips'
+  'breakdown_lost_trips',
+  'replacement_vehicles',
+  'engineer_shift_templates',
+  'engineer_daily_shifts'
 ]);
 
 /**

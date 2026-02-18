@@ -23,36 +23,11 @@ const SpeedoWizard = ({ currentStep, responses, updateResponse, onNext, onPrevio
                         </p>
                         
                         <div className="space-y-4">
-                            <h3 className="text-lg font-semibold text-white mb-3">Is the speedometer completely not working?</h3>
-                            
-                            <div className="grid grid-cols-1 gap-3">
-                                <button
-                                    onClick={() => { updateResponse('speedo_not_working', 'yes'); onNext(); }}
-                                    className={`p-4 rounded-lg border-2 transition-all ${
-                                        responses.speedo_not_working === 'yes'
-                                            ? 'border-red-500 bg-red-500/20 text-white'
-                                            : 'border-gray-600 bg-gray-700/50 text-gray-300 hover:border-red-400'
-                                    }`}
-                                >
-                                    <div className="flex items-center">
-                                        {XCircle && <XCircle className="w-5 h-5 mr-3 text-red-400" />}
-                                        <span>Yes - Speedometer is completely not working</span>
-                                    </div>
-                                </button>
-                                
-                                <button
-                                    onClick={() => { updateResponse('speedo_not_working', 'no'); onNext(); }}
-                                    className={`p-4 rounded-lg border-2 transition-all ${
-                                        responses.speedo_not_working === 'no'
-                                            ? 'border-green-500 bg-green-500/20 text-white'
-                                            : 'border-gray-600 bg-gray-700/50 text-gray-300 hover:border-green-400'
-                                    }`}
-                                >
-                                    <div className="flex items-center">
-                                        {CheckCircle && <CheckCircle className="w-5 h-5 mr-3 text-green-400" />}
-                                        <span>No - Speedometer is working but may have issues</span>
-                                    </div>
-                                </button>
+                            <div className="bg-orange-500/20 border border-orange-500/50 rounded-lg p-4">
+                                <h3 className="text-lg font-semibold text-orange-300 mb-2">Speedometer Not Working</h3>
+                                <p className="text-orange-200 text-sm">
+                                    Per Guide v6: A changeover must be arranged at the earliest reasonable time. We need to check whether the vehicle has a tachograph to determine interim speed monitoring.
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -68,10 +43,9 @@ const SpeedoWizard = ({ currentStep, responses, updateResponse, onNext, onPrevio
                         
                         <button
                             onClick={onNext}
-                            disabled={!responses.speedo_not_working}
-                            className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                         >
-                            Next
+                            Check Tachograph
                             {ArrowRight && <ArrowRight className="w-4 h-4 ml-2" />}
                         </button>
                     </div>
@@ -180,75 +154,38 @@ const SpeedoWizard = ({ currentStep, responses, updateResponse, onNext, onPrevio
             );
 
         case 3:
-            // Determine the decision based on responses
-            const needsImmediateChangeover = responses.speedo_not_working === 'yes' && (
-                responses.has_tachograph === 'no' || responses.tacho_working === 'no'
-            );
-            
-            const canContinueWithCaution = responses.speedo_not_working === 'yes' && 
-                responses.has_tachograph === 'yes' && responses.tacho_working === 'yes';
-            
-            const minorIssue = responses.speedo_not_working === 'no';
+            // Guide v6: Speedo not working = ALWAYS arrange changeover
+            // Tachograph only provides interim speed reference, does NOT exempt from changeover
+            const hasTachoReference = responses.has_tachograph === 'yes' && responses.tacho_working === 'yes';
 
             return (
                 <div className="space-y-6">
                     <div className="bg-black/40 backdrop-blur-lg rounded-xl p-6 border border-white/10">
                         <div className="flex items-center mb-4">
-                            {Shield && <Shield className="w-8 h-8 text-blue-400 mr-3" />}
+                            {Shield && <Shield className="w-8 h-8 text-orange-400 mr-3" />}
                             <h2 className="text-2xl font-bold text-white">Safety Decision</h2>
                         </div>
 
-                        {needsImmediateChangeover && (
-                            <div className="bg-orange-500/20 border border-orange-500/50 rounded-lg p-4 mb-6">
-                                <div className="flex items-center mb-3">
-                                    {AlertTriangle && <AlertTriangle className="w-6 h-6 text-orange-400 mr-3" />}
-                                    <h3 className="text-lg font-bold text-orange-400">Changeover Required</h3>
-                                </div>
-                                <p className="text-orange-200 mb-4">
-                                    The speedometer is not working and there is no functioning tachograph. A changeover must be arranged at the earliest opportunity.
-                                </p>
-                                <div className="space-y-3 text-orange-200">
-                                    <p><strong>• Arrange changeover:</strong> At the next convenient location and time within a reasonable timeframe</p>
-                                    <p><strong>• Driver instruction:</strong> Drive with extreme caution and do not exceed any speed limits</p>
-                                    <p><strong>• If considerable distance:</strong> Plan to change at a convenient point en-route</p>
-                                    <p><strong>• Priority:</strong> Avoid unnecessary delay or loss of mileage</p>
-                                </div>
+                        <div className="bg-orange-500/20 border border-orange-500/50 rounded-lg p-4 mb-6">
+                            <div className="flex items-center mb-3">
+                                {AlertTriangle && <AlertTriangle className="w-6 h-6 text-orange-400 mr-3" />}
+                                <h3 className="text-lg font-bold text-orange-400">Changeover Required</h3>
                             </div>
-                        )}
-
-                        {canContinueWithCaution && (
-                            <div className="bg-blue-500/20 border border-blue-500/50 rounded-lg p-4 mb-6">
-                                <div className="flex items-center mb-3">
-                                    {CheckCircle && <CheckCircle className="w-6 h-6 text-blue-400 mr-3" />}
-                                    <h3 className="text-lg font-bold text-blue-400">Can Continue - Tachograph Available</h3>
-                                </div>
-                                <p className="text-blue-200 mb-4">
-                                    The speedometer is not working but the tachograph is functioning. The vehicle can continue with the tachograph providing speed reference.
-                                </p>
-                                <div className="space-y-3 text-blue-200">
-                                    <p><strong>• Tachograph:</strong> Provides adequate speed monitoring</p>
-                                    <p><strong>• Driver instruction:</strong> Use tachograph for speed reference</p>
-                                    <p><strong>• Arrange repair:</strong> Schedule speedometer repair at next convenient maintenance</p>
-                                </div>
+                            <p className="text-orange-200 mb-4">
+                                {hasTachoReference
+                                    ? 'The speedometer is not working. The tachograph can provide interim speed reference while driving to the changeover point, but a changeover must still be arranged.'
+                                    : 'The speedometer is not working and there is no functioning tachograph. A changeover must be arranged at the earliest opportunity.'}
+                            </p>
+                            <div className="space-y-3 text-orange-200">
+                                <p><strong>• Arrange changeover:</strong> At the next convenient location and time within a reasonable timeframe</p>
+                                <p><strong>• Driver instruction:</strong> Drive with extreme caution and do not exceed any speed limits</p>
+                                {hasTachoReference && (
+                                    <p><strong>• Tachograph:</strong> Use tachograph for interim speed reference while driving to changeover</p>
+                                )}
+                                <p><strong>• If considerable distance:</strong> Plan to change at a convenient point en-route</p>
+                                <p><strong>• Priority:</strong> Avoid unnecessary delay or loss of mileage</p>
                             </div>
-                        )}
-
-                        {minorIssue && (
-                            <div className="bg-green-500/20 border border-green-500/50 rounded-lg p-4 mb-6">
-                                <div className="flex items-center mb-3">
-                                    {CheckCircle && <CheckCircle className="w-6 h-6 text-green-400 mr-3" />}
-                                    <h3 className="text-lg font-bold text-green-400">Continue in Service</h3>
-                                </div>
-                                <p className="text-green-200 mb-4">
-                                    The speedometer is working but may have minor issues. The vehicle can continue in service.
-                                </p>
-                                <div className="space-y-3 text-green-200">
-                                    <p><strong>• Monitor:</strong> Driver should monitor speedometer accuracy</p>
-                                    <p><strong>• Report:</strong> Log any irregularities on their handheld device</p>
-                                    <p><strong>• Maintenance:</strong> Schedule inspection at next service</p>
-                                </div>
-                            </div>
-                        )}
+                        </div>
 
                         <div className="bg-gray-700/50 rounded-lg p-4">
                             <h4 className="font-semibold text-white mb-2">Key Safety Points:</h4>
@@ -282,15 +219,9 @@ const SpeedoWizard = ({ currentStep, responses, updateResponse, onNext, onPrevio
             );
 
         case 4:
-            const decision = (() => {
-                if (responses.speedo_not_working === 'yes' && (responses.has_tachograph === 'no' || responses.tacho_working === 'no')) {
-                    return 'CHANGEOVER_REQUIRED';
-                } else if (responses.speedo_not_working === 'yes' && responses.has_tachograph === 'yes' && responses.tacho_working === 'yes') {
-                    return 'CONTINUE_WITH_TACHO';
-                } else {
-                    return 'CONTINUE_IN_SERVICE';
-                }
-            })();
+            // Guide v6: ALL speedo-not-working cases require changeover
+            const decision = 'CHANGEOVER_REQUIRED';
+            const tachoAvailable = responses.has_tachograph === 'yes' && responses.tacho_working === 'yes';
 
             return (
                 <div className="space-y-6">
@@ -329,14 +260,8 @@ const SpeedoWizard = ({ currentStep, responses, updateResponse, onNext, onPrevio
 
                             <div className="bg-gray-700/50 rounded-lg p-4">
                                 <h3 className="font-semibold text-white mb-3">Decision</h3>
-                                <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                                    decision === 'CHANGEOVER_REQUIRED' ? 'bg-orange-500/20 text-orange-400' :
-                                    decision === 'CONTINUE_WITH_TACHO' ? 'bg-blue-500/20 text-blue-400' :
-                                    'bg-green-500/20 text-green-400'
-                                }`}>
-                                    {decision === 'CHANGEOVER_REQUIRED' ? 'Changeover Required' :
-                                     decision === 'CONTINUE_WITH_TACHO' ? 'Continue with Tachograph' :
-                                     'Continue in Service'}
+                                <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-500/20 text-orange-400">
+                                    Changeover Required{tachoAvailable ? ' (Tacho available for interim reference)' : ''}
                                 </div>
                             </div>
                         </div>
@@ -349,14 +274,13 @@ const SpeedoWizard = ({ currentStep, responses, updateResponse, onNext, onPrevio
                             <div className="space-y-2 text-blue-200 text-sm">
                                 <p>• Record this defect immediately on their handheld device</p>
                                 <p>• Communicate decision clearly to the driver</p>
+                                <p>• Arrange changeover at earliest reasonable opportunity</p>
+                                <p>• Driver must drive with extreme caution and not exceed speed limits</p>
+                                {tachoAvailable && (
+                                    <p>• Use tachograph for interim speed reference while driving to changeover</p>
+                                )}
+                                <p>• If considerable distance to changeover, plan to change at convenient point en-route</p>
                                 <p>• Monitor situation and provide updates as needed</p>
-                                {decision === 'CHANGEOVER_REQUIRED' && (
-                                    <p>• Arrange changeover at earliest opportunity with extreme caution driving</p>
-                                )}
-                                {decision === 'CONTINUE_WITH_TACHO' && (
-                                    <p>• Ensure driver understands to use tachograph for speed reference</p>
-                                )}
-                                <p>• Schedule speedometer repair/inspection as appropriate</p>
                             </div>
                         </div>
                     </div>

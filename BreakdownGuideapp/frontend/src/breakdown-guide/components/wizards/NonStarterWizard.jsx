@@ -116,9 +116,9 @@ function NonStarterWizard({ currentStep, responses, updateResponse, onNext, onPr
                 <div className="flex items-start space-x-3">
                   <Info className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
                   <div>
-                    <h4 className="font-semibold text-blue-200">the defect reporting system System Reminder</h4>
+                    <h4 className="font-semibold text-blue-200">Reporting Device Reminder</h4>
                     <p className="text-sm text-gray-300 mt-1">
-                      Record this incident in the the defect reporting system System (EP Morris code) when the bus is stationary and in a safe location
+                      Record this incident in the reporting device (EP Morris code) when the bus is stationary and in a safe location
                     </p>
                   </div>
                 </div>
@@ -270,9 +270,9 @@ function NonStarterWizard({ currentStep, responses, updateResponse, onNext, onPr
                 <div className="flex items-start space-x-3">
                   <Info className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
                   <div>
-                    <h4 className="font-semibold text-blue-200">the defect reporting system System Reminder</h4>
+                    <h4 className="font-semibold text-blue-200">Reporting Device Reminder</h4>
                     <p className="text-sm text-gray-300 mt-1">
-                      Record this incident in the the defect reporting system System (EP Morris code) when the bus is stationary and in a safe location
+                      Record this incident in the reporting device (EP Morris code) when the bus is stationary and in a safe location
                     </p>
                   </div>
                 </div>
@@ -469,9 +469,9 @@ function NonStarterWizard({ currentStep, responses, updateResponse, onNext, onPr
               <div className="flex items-start space-x-3">
                 <Info className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="font-semibold text-blue-200">the defect reporting system System Reminder</h4>
+                  <h4 className="font-semibold text-blue-200">Reporting Device Reminder</h4>
                   <p className="text-sm text-gray-300 mt-1">
-                    Record this incident immediately in the the defect reporting system System (EP Morris code) with all diagnostic information
+                    Record this incident immediately in the reporting device (EP Morris code) with all diagnostic information
                   </p>
                 </div>
               </div>

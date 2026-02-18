@@ -443,7 +443,7 @@ router.get('/route-trips', async (req, res) => {
     const toTime = `${String(Math.min(endHour, 28)).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:00`;
 
     // Determine day-of-week code for filtering
-    // Go North East service_id pattern: ...MF... = Mon-Fri, ...SA... = Saturday, ...SU... = Sunday
+    // Service_id day-of-week pattern: ...MF... = Mon-Fri, ...SA... = Saturday, ...SU... = Sunday
     const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
     let dayCode;
     if (dayOfWeek === 0) dayCode = 'SU';

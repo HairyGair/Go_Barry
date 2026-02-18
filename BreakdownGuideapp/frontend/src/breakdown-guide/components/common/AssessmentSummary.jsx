@@ -1,9 +1,9 @@
 /**
  * Assessment Summary Component
- * Provides a comprehensive summary of the breakdown assessment for Tracerit reporting
- * 
- * This component displays all relevant information from the assessment that drivers
- * need to complete their Tracerit forms accurately.
+ * Provides a comprehensive summary of the breakdown assessment for incident reporting
+ *
+ * This component displays all relevant information from the assessment that supervisors
+ * need to complete their incident reports accurately.
  */
 
 import React from 'react';
@@ -125,14 +125,14 @@ Name: ${supervisor?.name || 'N/A'}
 ID: ${supervisor?.supervisorId || 'N/A'}
 Depot: ${supervisor?.depot || 'N/A'}
 
-${wizardType?.toLowerCase().includes('road-traffic') || wizardType?.toLowerCase().includes('incident') ? `TRACERIT REQUIREMENTS
----------------------
-- Log this assessment in Tracerit within 24 hours
+${wizardType?.toLowerCase().includes('road-traffic') || wizardType?.toLowerCase().includes('incident') ? `INCIDENT REPORTING REQUIREMENTS
+-------------------------------
+- Log this assessment in the incident reporting system within 24 hours
 - Include breakdown ID: ${assessmentData?.breakdownId || 'Pending'}
 - Attach any photos taken during assessment
 - Record all defects identified
 - Note any safety concerns
-${String(decision || '').toUpperCase() === 'STOP' ? '- Mark as SAFETY CRITICAL in Tracerit' : ''}` : ''}
+${String(decision || '').toUpperCase() === 'STOP' ? '- Mark as SAFETY CRITICAL in the incident reporting system' : ''}` : ''}
 
 ADDITIONAL NOTES
 ----------------
@@ -208,7 +208,7 @@ ${new Date().toISOString()}
                     <FileText className="w-8 h-8 text-blue-400" />
                 </div>
                 <h2 className="text-2xl font-bold text-white mb-2">Assessment Summary</h2>
-                <p className="text-gray-300">Complete summary for Tracerit reporting</p>
+                <p className="text-gray-300">Complete summary for incident reporting</p>
             </div>
             
             {/* Decision Banner */}
@@ -312,21 +312,20 @@ ${new Date().toISOString()}
                 </div>
             </div>
             
-            {/* Tracerit Reminder - Only shown for Road Traffic Incidents per standard operational procedures */}
-            {/* Only Road Traffic Incidents require Tracerit reports per standard control-room procedure */}
+            {/* Incident Reporting Reminder - Only shown for Road Traffic Incidents per standard operational procedures */}
             {(wizardType?.toLowerCase().includes('road-traffic') || wizardType?.toLowerCase().includes('incident')) && (
                 <div className="bg-purple-500/20 backdrop-blur-sm rounded-lg p-6 border border-purple-400/30">
                     <div className="flex items-start space-x-4">
                         <AlertTriangle className="w-6 h-6 text-purple-400 mt-1 flex-shrink-0" />
                         <div>
-                            <h4 className="font-semibold text-purple-200 mb-2">Tracerit Reporting Requirements</h4>
+                            <h4 className="font-semibold text-purple-200 mb-2">Incident Reporting Requirements</h4>
                             <ul className="list-disc list-inside space-y-1 text-purple-300/90 text-sm">
-                                <li>Complete Tracerit report within 24 hours</li>
+                                <li>Complete incident report within 24 hours</li>
                                 <li>Include this breakdown ID: <span className="font-mono bg-black/30 px-1 rounded">{assessmentData?.breakdownId || 'Pending'}</span></li>
                                 <li>Attach any photos taken during assessment</li>
                                 <li>Record all defects identified above</li>
                                 <li>Include location details and time of assessment</li>
-                                {String(decision || '').toUpperCase() === 'STOP' && <li className="text-red-300">Mark as SAFETY CRITICAL in Tracerit</li>}
+                                {String(decision || '').toUpperCase() === 'STOP' && <li className="text-red-300">Mark as SAFETY CRITICAL in the incident reporting system</li>}
                             </ul>
                         </div>
                     </div>

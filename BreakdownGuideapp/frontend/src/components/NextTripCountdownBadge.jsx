@@ -72,7 +72,7 @@ const NextTripCountdownBadge = ({ nextTrip, nextTripAction, compact = false, onA
   // Compact mode: small badge for card header
   if (compact) {
     const labelText = minutesLeft <= 0
-      ? 'MISSED'
+      ? 'TRIP LOST'
       : `NEXT: ${minutesLeft}m${minutesLeft <= 5 ? '!' : ''}`;
 
     return (
@@ -95,7 +95,7 @@ const NextTripCountdownBadge = ({ nextTrip, nextTripAction, compact = false, onA
     <div className={`next-trip-badge full ${level}`}>
       <div className="ntb-header">
         <span className="ntb-title">
-          {minutesLeft <= 0 ? 'NEXT TRIP MISSED' : 'NEXT TRIP APPROACHING'}
+          {minutesLeft <= 0 ? 'TRIP LOST — DEPARTED' : 'NEXT TRIP APPROACHING'}
         </span>
         <span className={`ntb-countdown ${level}`}>
           {minutesLeft <= 0 ? 'DEPARTED' : `${minutesLeft}m`}

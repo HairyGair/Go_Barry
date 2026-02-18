@@ -38,9 +38,9 @@ export const authSchemas = {
         }),
       badgeNumber: commonSchemas.badgeNumber,
       depot: commonSchemas.depot.optional(),
-      role: Joi.string().valid('supervisor', 'manager', 'admin').default('supervisor')
+      role: Joi.string().valid('supervisor', 'manager', 'admin', 'engineering_manager').default('supervisor')
         .messages({
-          'any.only': 'Role must be supervisor, manager, or admin'
+          'any.only': 'Role must be supervisor, manager, admin, or engineering_manager'
         })
     })
   },
@@ -401,6 +401,48 @@ export const activitySchemas = {
   }
 };
 
+// ============================================
+// REPLACEMENT VEHICLE ENDPOINTS
+// ============================================
+
+export const replacementSchemas = {
+  // POST /api/breakdowns/:id/replacement - Dispatch replacement
+  dispatch: {
+    params: Joi.object({
+      id: Joi.string().required()
+    }),
+    body: Joi.object({
+      fleet_no: Joi.string().pattern(/^\d{4}$/).required()
+        .messages({
+          'string.pattern.base': 'Fleet number must be exactly 4 digits',
+          'any.required': 'Fleet number is required'
+        }),
+      sending_depot_code: Joi.string().max(10).required()
+        .messages({
+          'any.required': 'Sending depot is required'
+        })
+    })
+  },
+
+  // PUT /api/breakdowns/:id/replacement/return-to-service
+  returnToService: {
+    params: Joi.object({
+      id: Joi.string().required()
+    }),
+    body: Joi.object({
+      stop_id: Joi.string().max(50).optional(),
+      latitude: Joi.number().min(-90).max(90).optional(),
+      longitude: Joi.number().min(-180).max(180).optional(),
+      location_description: Joi.string().max(255).optional()
+    }).custom((value, helpers) => {
+      if (!value.stop_id && (value.latitude == null || value.longitude == null)) {
+        return helpers.error('any.custom', { message: 'Either stop_id or latitude+longitude is required' });
+      }
+      return value;
+    })
+  }
+};
+
 // Export all schemas
 export default {
   authSchemas,
@@ -408,5 +450,6 @@ export default {
   analyticsSchemas,
   fleetSchemas,
   wizardSchemas,
-  activitySchemas
+  activitySchemas,
+  replacementSchemas
 };

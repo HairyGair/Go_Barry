@@ -1,458 +1,58 @@
 /**
- * Welcome Message Styles
- * Card with gradient background, dynamic colors, and responsive design
+ * Welcome Message - Shift Status Panel
+ * Transport control panel aesthetic with boiga/aileron
+ * Prefix: wm- (welcome message)
  */
 
-/* Main Container */
-.welcome-message {
+/* ============================================================
+   CARD
+   ============================================================ */
+
+.wm-card {
     position: relative;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%);
-    backdrop-filter: blur(10px);
-    border-radius: 20px;
-    padding: 28px;
-    margin: 160px 24px 24px 24px; /* Top margin clears fixed header with comfortable spacing */
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
-    border: 2px solid rgba(0, 102, 161, 0.15);
-    transition: all 0.3s ease;
-    animation: slideInDown 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-    z-index: 100; /* Below header but above page content */
-    max-width: 800px; /* Centered card look */
+    background: #FFFFFF;
+    border-radius: 16px;
+    overflow: hidden;
+    margin: 160px 24px 24px;
+    max-width: 720px;
     margin-left: auto;
     margin-right: auto;
+    box-shadow:
+        0 1px 3px rgba(0, 0, 0, 0.04),
+        0 8px 32px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    animation: wm-enter 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 100;
+    font-family: var(--font-body, 'aileron', 'Inter', -apple-system, sans-serif);
 }
 
-@keyframes slideInDown {
+@keyframes wm-enter {
     from {
         opacity: 0;
-        transform: translateY(-30px);
+        transform: translateY(-20px) scale(0.98);
     }
     to {
         opacity: 1;
-        transform: translateY(0);
+        transform: translateY(0) scale(1);
     }
 }
 
-/* Warning State - Yellow */
-.welcome-message.warning {
-    background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
-    border-color: #F59E0B;
-    box-shadow: 0 10px 40px rgba(245, 158, 11, 0.2);
-}
-
-/* Urgent State - Red with pulse */
-.welcome-message.urgent {
-    background: linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%);
-    border-color: #EF4444;
-    box-shadow: 0 10px 40px rgba(239, 68, 68, 0.25);
-    animation: urgentShake 0.5s cubic-bezier(0.16, 1, 0.3, 1),
-               urgentPulseCard 2s ease-in-out infinite;
-}
-
-@keyframes urgentShake {
-    0%, 100% { transform: translateX(0); }
-    25% { transform: translateX(-5px); }
-    75% { transform: translateX(5px); }
-}
-
-@keyframes urgentPulseCard {
-    0%, 100% {
-        box-shadow: 0 10px 40px rgba(239, 68, 68, 0.25);
-    }
-    50% {
-        box-shadow: 0 15px 50px rgba(239, 68, 68, 0.4);
-    }
-}
-
-/* Close Button */
-.welcome-close {
-    position: absolute;
-    top: 16px;
-    right: 16px;
-    background: rgba(0, 0, 0, 0.08);
-    border: none;
-    border-radius: 50%;
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-    color: #6B7280;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.welcome-close:hover {
-    background: rgba(0, 0, 0, 0.15);
-    color: #1F2937;
-    transform: scale(1.1);
-}
-
-/* Header */
-.welcome-header {
-    margin-bottom: 24px;
-    padding-right: 40px;
-}
-
-.welcome-greeting {
-    margin: 0 0 8px 0;
-    font-size: 28px;
-    font-weight: 800;
-    color: #1a202c;
-    background: linear-gradient(135deg, #003B5C 0%, #0066A1 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
-.welcome-subtitle {
-    margin: 0;
-    font-size: 15px;
-    color: #4B5563;
-    font-weight: 500;
-}
-
-.welcome-subtitle strong {
-    color: #1F2937;
-    font-weight: 700;
-}
-
-/* Duty Card */
-.welcome-duty-card {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    padding: 20px;
-    background: linear-gradient(135deg, rgba(0, 102, 161, 0.08) 0%, rgba(0, 59, 92, 0.08) 100%);
-    border-radius: 16px;
-    border-left: 5px solid var(--duty-color, #0066A1);
-    margin-bottom: 16px;
-}
-
-.duty-card-icon {
-    font-size: 48px;
-    flex-shrink: 0;
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
-}
-
-.duty-card-info {
-    flex: 1;
-}
-
-.duty-card-code {
-    font-size: 20px;
-    font-weight: 800;
-    color: #1a202c;
-    margin-bottom: 4px;
-}
-
-.duty-card-time {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--duty-color, #0066A1);
-}
-
-.duty-card-progress {
-    flex-shrink: 0;
-}
-
-/* Progress Circle */
-.progress-circle {
-    width: 70px;
-    height: 70px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: relative;
-}
-
-.progress-inner {
-    width: 54px;
-    height: 54px;
-    border-radius: 50%;
-    background: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
-    font-weight: 800;
-    color: #1a202c;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-/* Progress Bar */
-.welcome-progress-bar {
-    width: 100%;
-    height: 8px;
-    background: rgba(0, 0, 0, 0.08);
-    border-radius: 4px;
-    overflow: hidden;
-    margin-bottom: 20px;
-}
-
-.welcome-progress-fill {
-    height: 100%;
-    border-radius: 4px;
-    transition: width 0.5s ease;
-    position: relative;
-    overflow: hidden;
-}
-
-.welcome-progress-fill::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(90deg,
-        transparent 0%,
-        rgba(255, 255, 255, 0.4) 50%,
-        transparent 100%
-    );
-    animation: shimmer 2s linear infinite;
-}
-
-@keyframes shimmer {
-    0% {
-        transform: translateX(-100%);
-    }
-    100% {
-        transform: translateX(100%);
-    }
-}
-
-/* Message Text */
-.welcome-message-text {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 16px 20px;
-    background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(5, 150, 105, 0.08) 100%);
-    border-radius: 12px;
-    border-left: 4px solid #10B981;
-    font-size: 15px;
-    font-weight: 600;
-    color: #065F46;
-    margin-bottom: 24px;
-}
-
-.welcome-message-text.warning {
-    background: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(217, 119, 6, 0.12) 100%);
-    border-left-color: #F59E0B;
-    color: #92400E;
-}
-
-.welcome-message-text.urgent {
-    background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.15) 100%);
-    border-left-color: #EF4444;
-    color: #991B1B;
-    animation: urgentTextPulse 1s ease-in-out infinite;
-}
-
-@keyframes urgentTextPulse {
-    0%, 100% {
-        transform: scale(1);
-    }
-    50% {
-        transform: scale(1.02);
-    }
-}
-
-.message-icon {
-    font-size: 24px;
-    flex-shrink: 0;
-}
-
-/* Quick Actions */
-.welcome-quick-actions {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-}
-
-.quick-action-btn {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    padding: 16px 12px;
-    border: 2px solid transparent;
-    border-radius: 12px;
-    background: linear-gradient(135deg, rgba(0, 102, 161, 0.08) 0%, rgba(0, 59, 92, 0.08) 100%);
-    cursor: pointer;
-    transition: all 0.2s ease;
-    font-family: inherit;
-}
-
-.quick-action-btn:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
-}
-
-.quick-action-btn.breakdown {
-    border-color: transparent;
-}
-
-.quick-action-btn.breakdown:hover {
-    background: linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%);
-    border-color: #EF4444;
-}
-
-.quick-action-btn.dashboard {
-    border-color: transparent;
-}
-
-.quick-action-btn.dashboard:hover {
-    background: linear-gradient(135deg, #DBEAFE 0%, #BFDBFE 100%);
-    border-color: #3B82F6;
-}
-
-.quick-action-btn.handover {
-    border-color: transparent;
-}
-
-.quick-action-btn.handover:hover {
-    background: linear-gradient(135deg, #D1FAE5 0%, #A7F3D0 100%);
-    border-color: #10B981;
-}
-
-.action-icon {
-    font-size: 28px;
-    display: block;
-}
-
-.action-text {
-    font-size: 13px;
-    font-weight: 700;
-    color: #1a202c;
-    text-align: center;
-}
-
-/* Mobile Responsive */
-@media (max-width: 768px) {
-    .welcome-message {
-        padding: 24px 20px;
-        margin: 150px 16px 16px 16px; /* Slightly less top margin on mobile */
-        max-width: none;
-    }
-
-    .welcome-greeting {
-        font-size: 24px;
-    }
-
-    .welcome-duty-card {
-        gap: 16px;
-        padding: 16px;
-    }
-
-    .duty-card-icon {
-        font-size: 40px;
-    }
-
-    .duty-card-code {
-        font-size: 18px;
-    }
-
-    .duty-card-time {
-        font-size: 14px;
-    }
-
-    .progress-circle {
-        width: 60px;
-        height: 60px;
-    }
-
-    .progress-inner {
-        width: 46px;
-        height: 46px;
-        font-size: 14px;
-    }
-
-    .welcome-quick-actions {
-        gap: 8px;
-    }
-
-    .quick-action-btn {
-        padding: 12px 8px;
-    }
-
-    .action-icon {
-        font-size: 24px;
-    }
-
-    .action-text {
-        font-size: 11px;
-    }
-}
-
-@media (max-width: 480px) {
-    .welcome-message {
-        padding: 20px 16px;
-        margin: 140px 12px 12px 12px; /* Even less margin on small screens */
-    }
-
-    .welcome-greeting {
-        font-size: 20px;
-    }
-
-    .welcome-subtitle {
-        font-size: 13px;
-    }
-
-    .welcome-duty-card {
-        flex-wrap: wrap;
-        gap: 12px;
-    }
-
-    .duty-card-progress {
-        width: 100%;
-        display: flex;
-        justify-content: center;
-    }
-
-    .welcome-quick-actions {
-        grid-template-columns: 1fr;
-        gap: 10px;
-    }
-
-    .quick-action-btn {
-        flex-direction: row;
-        justify-content: flex-start;
-        padding: 14px 16px;
-        gap: 12px;
-    }
-
-    .action-icon {
-        font-size: 28px;
-    }
-
-    .action-text {
-        font-size: 14px;
-        text-align: left;
-    }
-}
-
-/* ==============================================
-   Phase 8.3: Duty Start Celebration Animations
-   ============================================== */
-
-/* Celebration state - enhanced entrance */
-.welcome-message.celebrating {
-    animation: celebrationEntrance 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+/* Celebration entrance */
+.wm-card.wm-celebrating {
+    animation: wm-celebrate 0.7s cubic-bezier(0.34, 1.56, 0.64, 1);
     box-shadow:
-        0 10px 40px rgba(0, 0, 0, 0.12),
-        0 0 60px var(--celebration-color, rgba(0, 102, 161, 0.3));
+        0 8px 32px rgba(0, 0, 0, 0.08),
+        0 0 0 2px var(--wm-color, #0097A7),
+        0 0 40px color-mix(in srgb, var(--wm-color, #0097A7) 25%, transparent);
 }
 
-@keyframes celebrationEntrance {
+@keyframes wm-celebrate {
     0% {
         opacity: 0;
-        transform: scale(0.8) translateY(-50px);
+        transform: scale(0.9) translateY(-30px);
     }
-    50% {
-        transform: scale(1.05) translateY(0);
+    60% {
+        transform: scale(1.02) translateY(0);
     }
     100% {
         opacity: 1;
@@ -460,230 +60,534 @@
     }
 }
 
-/* Celebration overlay container */
-.welcome-celebration {
+/* Warning state */
+.wm-card.warning {
+    border-color: rgba(245, 158, 11, 0.3);
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.08),
+        0 0 0 1px rgba(245, 158, 11, 0.2);
+}
+
+/* Urgent state */
+.wm-card.urgent {
+    border-color: rgba(239, 68, 68, 0.3);
+    box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.08),
+        0 0 0 1px rgba(239, 68, 68, 0.3);
+    animation: wm-enter 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+               wm-urgentPulse 2.5s ease-in-out infinite 0.5s;
+}
+
+@keyframes wm-urgentPulse {
+    0%, 100% {
+        box-shadow:
+            0 8px 32px rgba(0, 0, 0, 0.08),
+            0 0 0 1px rgba(239, 68, 68, 0.3);
+    }
+    50% {
+        box-shadow:
+            0 8px 32px rgba(239, 68, 68, 0.15),
+            0 0 0 2px rgba(239, 68, 68, 0.4);
+    }
+}
+
+/* ============================================================
+   CLOSE BUTTON
+   ============================================================ */
+
+.wm-close {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    pointer-events: none;
+    top: 14px;
+    right: 14px;
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.6);
+    transition: all 0.2s ease;
+    z-index: 5;
+}
+
+.wm-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+/* ============================================================
+   HEADER - Dark panel
+   ============================================================ */
+
+.wm-header {
+    position: relative;
+    background: var(--color-dark-bg-primary, #0F172A);
+    padding: 28px 28px 24px;
     overflow: hidden;
-    border-radius: 20px;
-    z-index: 10;
 }
 
-/* Confetti container */
-.confetti-container {
+/* Dot texture */
+.wm-header::before {
+    content: '';
     position: absolute;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 100%;
-    height: 100%;
+    inset: 0;
+    background-image: radial-gradient(rgba(0, 151, 167, 0.06) 1px, transparent 1px);
+    background-size: 16px 16px;
+    pointer-events: none;
 }
 
-/* Individual confetti pieces */
-.confetti-piece {
-    position: absolute;
-    top: -10px;
-    left: 50%;
-    width: 10px;
-    height: 10px;
-    border-radius: 2px;
-    opacity: 0;
-    animation: confettiFall 1.5s ease-out forwards;
-    animation-delay: var(--delay, 0s);
-    transform: translateX(var(--x-offset, 0)) rotate(var(--rotation, 0deg));
-}
-
-@keyframes confettiFall {
-    0% {
-        opacity: 1;
-        top: -10px;
-        transform: translateX(var(--x-offset, 0)) rotate(0deg) scale(1);
-    }
-    100% {
-        opacity: 0;
-        top: 110%;
-        transform: translateX(calc(var(--x-offset, 0) + 50px)) rotate(720deg) scale(0.5);
-    }
-}
-
-/* Sparkle container */
-.sparkle-container {
+/* Teal accent bar */
+.wm-header-accent {
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
-    bottom: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--wm-color, #0097A7), var(--color-accent, #00BCD4), var(--wm-color, #0097A7));
 }
 
-/* Individual sparkle stars */
-.sparkle-star {
-    position: absolute;
-    left: var(--x, 50%);
-    top: var(--y, 50%);
-    font-size: 20px;
-    opacity: 0;
-    animation: sparkleGlow 1s ease-out forwards;
-    animation-delay: calc(var(--delay, 0s) + 0.5s);
-    filter: drop-shadow(0 0 4px var(--celebration-color, #FFD700));
+.wm-greeting-row {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
 }
 
-@keyframes sparkleGlow {
-    0% {
+.wm-greeting-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.wm-greeting {
+    margin: 0 0 6px;
+    font-family: var(--font-display, 'boiga', 'Outfit', sans-serif);
+    font-size: 24px;
+    font-weight: 700;
+    color: #FFFFFF;
+    letter-spacing: -0.2px;
+    line-height: 1.2;
+}
+
+.wm-card.wm-celebrating .wm-greeting {
+    animation: wm-greetPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both;
+}
+
+@keyframes wm-greetPop {
+    from {
         opacity: 0;
-        transform: scale(0) rotate(0deg);
+        transform: scale(0.85);
     }
-    50% {
-        opacity: 1;
-        transform: scale(1.5) rotate(180deg);
-    }
-    100% {
-        opacity: 0;
-        transform: scale(0.5) rotate(360deg);
-    }
-}
-
-/* Welcome burst text */
-.welcome-burst {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    animation: burstIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.burst-text {
-    font-size: 32px;
-    font-weight: 900;
-    color: var(--celebration-color, #0066A1);
-    text-shadow:
-        0 2px 10px rgba(0, 0, 0, 0.1),
-        0 0 30px var(--celebration-color, rgba(0, 102, 161, 0.3));
-    opacity: 0;
-    animation: burstFade 1.2s ease-out forwards;
-}
-
-@keyframes burstIn {
-    0% {
-        transform: translate(-50%, -50%) scale(0);
-    }
-    50% {
-        transform: translate(-50%, -50%) scale(1.3);
-    }
-    100% {
-        transform: translate(-50%, -50%) scale(1);
-    }
-}
-
-@keyframes burstFade {
-    0% {
-        opacity: 0;
-        transform: scale(0.5);
-    }
-    30% {
-        opacity: 1;
-        transform: scale(1.1);
-    }
-    70% {
-        opacity: 1;
-        transform: scale(1);
-    }
-    100% {
-        opacity: 0;
-        transform: scale(0.8);
-    }
-}
-
-/* Animated greeting during celebration */
-.welcome-greeting.greeting-animated {
-    animation: greetingPop 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s both;
-}
-
-@keyframes greetingPop {
-    0% {
-        opacity: 0;
-        transform: scale(0.8);
-    }
-    100% {
+    to {
         opacity: 1;
         transform: scale(1);
     }
 }
 
-/* Celebration phase transitions */
-.celebration-phase-1 .welcome-burst {
-    opacity: 1;
+.wm-subtitle {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.55);
 }
 
-.celebration-phase-2 .welcome-burst {
-    opacity: 0;
-    transition: opacity 0.3s ease;
+.wm-subtitle strong {
+    color: rgba(0, 188, 212, 0.9);
+    font-weight: 600;
 }
 
-.celebration-phase-3 .welcome-celebration {
-    opacity: 0;
-    transition: opacity 0.5s ease;
+/* Clock */
+.wm-clock {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    font-family: var(--font-mono, 'new-astro-soft', 'JetBrains Mono', monospace);
+    font-size: 14px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.07);
+    padding: 5px 12px;
+    border-radius: 7px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    margin-top: 2px;
 }
 
-/* Glow effect during celebration */
-.welcome-message.celebrating .welcome-duty-card {
-    box-shadow: 0 0 30px var(--celebration-color, rgba(0, 102, 161, 0.3));
-    animation: cardGlow 2s ease-in-out infinite;
+.wm-clock-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #10B981;
+    animation: wm-pulse 2s ease-in-out infinite;
 }
 
-@keyframes cardGlow {
-    0%, 100% {
-        box-shadow: 0 0 20px var(--celebration-color, rgba(0, 102, 161, 0.2));
+@keyframes wm-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+}
+
+/* ============================================================
+   DUTY STRIP
+   ============================================================ */
+
+.wm-duty-strip {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px 28px;
+    background: #FAFBFC;
+    border-bottom: 1px solid #F1F5F9;
+}
+
+.wm-duty-badge {
+    flex-shrink: 0;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.08));
+}
+
+.wm-card.wm-celebrating .wm-duty-badge {
+    animation: wm-badgeBounce 0.5s ease-out 0.3s;
+}
+
+@keyframes wm-badgeBounce {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-6px) scale(1.1); }
+}
+
+.wm-duty-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.wm-duty-code {
+    font-family: var(--font-display, 'boiga', 'Outfit', sans-serif);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--color-text-primary, #0F172A);
+    letter-spacing: -0.1px;
+}
+
+.wm-duty-time {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono, 'new-astro-soft', 'JetBrains Mono', monospace);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--wm-color, #0097A7);
+}
+
+.wm-time-arrow {
+    opacity: 0.5;
+}
+
+/* Progress ring */
+.wm-progress {
+    position: relative;
+    flex-shrink: 0;
+    width: 56px;
+    height: 56px;
+}
+
+.wm-ring {
+    width: 56px;
+    height: 56px;
+    transform: rotate(-90deg);
+}
+
+.wm-ring-bg {
+    fill: none;
+    stroke: #F1F5F9;
+    stroke-width: 5;
+}
+
+.wm-ring-fill {
+    fill: none;
+    stroke-width: 5;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.8s ease;
+}
+
+.wm-progress-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-body, 'aileron', sans-serif);
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--color-text-primary, #0F172A);
+}
+
+/* ============================================================
+   PROGRESS BAR (thin)
+   ============================================================ */
+
+.wm-progress-bar {
+    height: 4px;
+    background: #F1F5F9;
+    overflow: hidden;
+}
+
+.wm-progress-fill {
+    height: 100%;
+    transition: width 0.8s ease;
+    position: relative;
+}
+
+.wm-progress-fill::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+    animation: wm-shimmer 2.5s ease infinite;
+}
+
+@keyframes wm-shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(200%); }
+}
+
+/* ============================================================
+   STATUS MESSAGE
+   ============================================================ */
+
+.wm-message {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 20px 24px 0;
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.wm-message-icon {
+    flex-shrink: 0;
+    display: flex;
+}
+
+.wm-message.normal {
+    background: rgba(16, 185, 129, 0.07);
+    color: #065F46;
+    border: 1px solid rgba(16, 185, 129, 0.15);
+}
+
+.wm-message.normal .wm-message-icon {
+    color: #10B981;
+}
+
+.wm-message.warning {
+    background: rgba(245, 158, 11, 0.08);
+    color: #92400E;
+    border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.wm-message.warning .wm-message-icon {
+    color: #F59E0B;
+}
+
+.wm-message.urgent {
+    background: rgba(239, 68, 68, 0.08);
+    color: #991B1B;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    animation: wm-msgPulse 1.5s ease-in-out infinite;
+}
+
+.wm-message.urgent .wm-message-icon {
+    color: #EF4444;
+}
+
+@keyframes wm-msgPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.01); }
+}
+
+/* ============================================================
+   QUICK ACTIONS
+   ============================================================ */
+
+.wm-actions {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    padding: 20px 24px 24px;
+}
+
+.wm-action {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 16px 12px 14px;
+    border: 1px solid #E8ECF1;
+    border-radius: 12px;
+    background: #FFFFFF;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s ease;
+}
+
+.wm-action:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+}
+
+.wm-action:active {
+    transform: translateY(-1px);
+}
+
+.wm-action-icon {
+    transition: color 0.2s ease;
+}
+
+.wm-action-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--color-text-primary, #0F172A);
+    text-align: center;
+    letter-spacing: 0.1px;
+}
+
+/* Breakdown */
+.wm-action-breakdown {
+    color: #94A3B8;
+}
+.wm-action-breakdown:hover {
+    border-color: #EF4444;
+    background: #FEF2F2;
+}
+.wm-action-breakdown:hover .wm-action-icon {
+    color: #EF4444;
+}
+
+/* Dashboard */
+.wm-action-dashboard {
+    color: #94A3B8;
+}
+.wm-action-dashboard:hover {
+    border-color: var(--color-primary, #0097A7);
+    background: rgba(0, 151, 167, 0.04);
+}
+.wm-action-dashboard:hover .wm-action-icon {
+    color: var(--color-primary, #0097A7);
+}
+
+/* Handover */
+.wm-action-handover {
+    color: #94A3B8;
+}
+.wm-action-handover:hover {
+    border-color: #10B981;
+    background: #F0FDF4;
+}
+.wm-action-handover:hover .wm-action-icon {
+    color: #10B981;
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+
+@media (max-width: 768px) {
+    .wm-card {
+        margin: 150px 16px 16px;
     }
-    50% {
-        box-shadow: 0 0 40px var(--celebration-color, rgba(0, 102, 161, 0.4));
+
+    .wm-header {
+        padding: 24px 20px 20px;
+    }
+
+    .wm-greeting {
+        font-size: 20px;
+    }
+
+    .wm-duty-strip {
+        padding: 16px 20px;
+    }
+
+    .wm-actions {
+        padding: 16px 20px 20px;
+        gap: 8px;
+    }
+
+    .wm-action {
+        padding: 14px 10px 12px;
+    }
+
+    .wm-message {
+        margin: 16px 20px 0;
     }
 }
 
-/* Duty icon bounce during celebration */
-.welcome-message.celebrating .duty-card-icon {
-    animation: iconBounce 0.6s ease-out 0.2s;
+@media (max-width: 480px) {
+    .wm-card {
+        margin: 140px 12px 12px;
+        border-radius: 14px;
+    }
+
+    .wm-greeting-row {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .wm-greeting {
+        font-size: 18px;
+    }
+
+    .wm-duty-strip {
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .wm-progress {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+    }
+
+    .wm-actions {
+        grid-template-columns: 1fr;
+    }
+
+    .wm-action {
+        flex-direction: row;
+        justify-content: flex-start;
+        padding: 14px 16px;
+        gap: 12px;
+    }
+
+    .wm-action-label {
+        font-size: 14px;
+        text-align: left;
+    }
 }
 
-@keyframes iconBounce {
-    0%, 100% {
-        transform: translateY(0) scale(1);
-    }
-    50% {
-        transform: translateY(-10px) scale(1.2);
-    }
-}
+/* ============================================================
+   REDUCED MOTION
+   ============================================================ */
 
-/* ==============================================
-   End Phase 8.3 Celebration Animations
-   ============================================== */
-
-/* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
-    .welcome-message,
-    .welcome-message.urgent,
-    .welcome-message.celebrating,
-    .welcome-message-text.urgent,
-    .welcome-progress-fill::after,
-    .confetti-piece,
-    .sparkle-star,
-    .welcome-burst,
-    .burst-text,
-    .welcome-greeting.greeting-animated,
-    .welcome-message.celebrating .welcome-duty-card,
-    .welcome-message.celebrating .duty-card-icon {
-        animation: none;
+    .wm-card,
+    .wm-card.wm-celebrating,
+    .wm-card.urgent,
+    .wm-card.wm-celebrating .wm-greeting,
+    .wm-card.wm-celebrating .wm-duty-badge,
+    .wm-message.urgent,
+    .wm-progress-fill::after {
+        animation: none !important;
     }
 
-    .quick-action-btn:hover {
+    .wm-action:hover {
         transform: none;
-    }
-
-    .celebration-phase-3 .welcome-celebration,
-    .celebration-phase-2 .welcome-burst {
-        transition: none;
     }
 }

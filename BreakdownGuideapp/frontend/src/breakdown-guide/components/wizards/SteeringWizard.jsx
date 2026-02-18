@@ -375,7 +375,7 @@ const SteeringWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                                         <li>DO NOT attempt to move vehicle</li>
                                         <li>Await engineering attendance</li>
                                         <li>Log as SAFETY-CRITICAL STOP decision</li>
-                                        <li>Record defect on their handheld device when stationary</li>
+                                        <li>Record the defect on their handheld device when stationary</li>
                                     </ol>
                                 </div>
                                 
@@ -586,7 +586,7 @@ const SteeringWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                                         <FileText className="w-4 h-4 flex-shrink-0 mt-0.5" />
                                         <span>
                                             This assessment has been logged with timestamp and supervisor details for compliance records.
-                                            Management Guidance: "Report to the depot management team if you feel a particular individual is persistently
+                                            Management Guidance: "Report to the depot management team if a particular individual appears to be persistently
                                             reporting steering problems that, when investigated by engineering, reveal no fault."
                                         </span>
                                     </p>

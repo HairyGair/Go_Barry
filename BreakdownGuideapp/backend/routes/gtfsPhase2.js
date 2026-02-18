@@ -601,33 +601,53 @@ router.get('/timetable/:routeId', async (req, res) => {
 
     const route = routeRows[0];
 
-    // Find available service_ids
+    // Discover available day types from service_id naming convention.
+    // Service IDs encode day: ...002MF260104... (MF=Mon-Fri, SA=Saturday, SU=Sunday)
     const serviceIds = await query(
-      `SELECT service_id, COUNT(*) as cnt
-       FROM gtfs_trips
-       WHERE route_id = ?
-       GROUP BY service_id
-       ORDER BY cnt DESC`,
+      `SELECT DISTINCT service_id FROM gtfs_trips WHERE route_id = ?`,
       [routeId]
     );
 
-    const availableServiceIds = (serviceIds || []).map(s => s.service_id);
-    const targetServiceId = service_id || (availableServiceIds[0] ?? null);
+    const dayCodeMap = { MF: 'Mon-Fri', SA: 'Saturday', SU: 'Sunday' };
+    const foundDayCodes = new Set();
+    for (const row of (serviceIds || [])) {
+      if (row.service_id.includes('MF')) foundDayCodes.add('MF');
+      if (row.service_id.includes('SA')) foundDayCodes.add('SA');
+      if (row.service_id.includes('SU')) foundDayCodes.add('SU');
+    }
 
-    if (!targetServiceId) {
+    // Ordered day types: MF, SA, SU
+    const availableDayTypes = ['MF', 'SA', 'SU'].filter(c => foundDayCodes.has(c));
+
+    // Default to today's day type
+    const dayOfWeek = new Date().getDay();
+    const todayCode = dayOfWeek === 0 ? 'SU' : dayOfWeek === 6 ? 'SA' : 'MF';
+
+    // Accept day code (MF/SA/SU) or full service_id as the service_id param
+    let targetDayCode;
+    if (['MF', 'SA', 'SU'].includes(service_id)) {
+      targetDayCode = service_id;
+    } else if (service_id) {
+      // Extract day code from a full service_id
+      targetDayCode = service_id.includes('SU') ? 'SU' : service_id.includes('SA') ? 'SA' : 'MF';
+    } else {
+      targetDayCode = availableDayTypes.includes(todayCode) ? todayCode : (availableDayTypes[0] || 'MF');
+    }
+
+    if (availableDayTypes.length === 0) {
       return res.json({
         success: true,
         route: { routeId: route.route_id, routeShortName: route.route_short_name, routeLongName: route.route_long_name },
         serviceId: null,
-        availableServiceIds,
+        availableServiceIds: [],
         directions: [],
         currentTime: currentTimeGTFS(),
       });
     }
 
-    // Get trips for this route + service_id
+    // Get trips matching the day type pattern (e.g. all Saturday trips)
     let dirFilter = '';
-    const tripParams = [routeId, targetServiceId];
+    const tripParams = [routeId, `%${targetDayCode}%`];
     if (direction_id !== undefined && direction_id !== '') {
       dirFilter = ' AND direction_id = ?';
       tripParams.push(parseInt(direction_id));
@@ -636,7 +656,7 @@ router.get('/timetable/:routeId', async (req, res) => {
     const trips = await query(
       `SELECT trip_id, trip_headsign, direction_id
        FROM gtfs_trips
-       WHERE route_id = ? AND service_id = ?${dirFilter}
+       WHERE route_id = ? AND service_id LIKE ?${dirFilter}
        ORDER BY direction_id, trip_id`,
       tripParams
     );
@@ -720,7 +740,7 @@ router.get('/timetable/:routeId', async (req, res) => {
       directions.push({
         directionId: parseInt(dir),
         headsign: dirData.headsign,
-        stops: stopSequence.map(s => s.stopName),
+        stops: stopSequence.map(s => ({ name: s.stopName, id: s.stopId })),
         trips: timetableTrips.map(t => ({
           tripId: t.tripId,
           departureTimes: t.departureTimes,
@@ -731,8 +751,8 @@ router.get('/timetable/:routeId', async (req, res) => {
     return res.json({
       success: true,
       route: { routeId: route.route_id, routeShortName: route.route_short_name, routeLongName: route.route_long_name },
-      serviceId: targetServiceId,
-      availableServiceIds,
+      serviceId: targetDayCode,
+      availableServiceIds: availableDayTypes,
       directions,
       currentTime: currentTimeGTFS(),
     });
@@ -782,12 +802,13 @@ router.get('/stops/search', async (req, res) => {
 
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
+    const safeLimit = Math.min(Math.max(parseInt(limit) || 50, 1), 200);
     const stops = await query(
       `SELECT s.stop_id, s.stop_name, s.stop_lat, s.stop_lon, s.stop_code
        FROM gtfs_stops s
        ${whereClause}
-       LIMIT ?`,
-      [...params, parseInt(limit)]
+       LIMIT ${safeLimit}`,
+      params
     );
 
     // If lat/lng provided, compute distance and sort
@@ -826,7 +847,7 @@ router.get('/stops/search', async (req, res) => {
 router.get('/stops/:stopId/departures', async (req, res) => {
   try {
     const { stopId } = req.params;
-    const { from_time, limit = 20 } = req.query;
+    const { from_time, limit = 50 } = req.query;
 
     const fromTime = from_time || currentTimeGTFS();
 
@@ -842,8 +863,15 @@ router.get('/stops/:stopId/departures', async (req, res) => {
 
     const stop = stopRows[0];
 
-    // Get upcoming departures
-    const departures = await query(
+    const userLimit = Math.min(Math.max(parseInt(limit) || 20, 1), 100);
+
+    // Day-of-week filtering via service_id naming convention.
+    // Service IDs encode day type: ...002MF260104... (MF=Mon-Fri, SA=Sat, SU=Sun)
+    const dayOfWeek = new Date().getDay(); // 0=Sun, 6=Sat
+    const dayCode = dayOfWeek === 0 ? 'SU' : dayOfWeek === 6 ? 'SA' : 'MF';
+
+    // Try today's schedule first
+    let departures = await query(
       `SELECT
          st.departure_time,
          t.trip_id,
@@ -857,14 +885,45 @@ router.get('/stops/:stopId/departures', async (req, res) => {
        JOIN gtfs_routes r ON t.route_id = r.route_id
        WHERE st.stop_id = ?
          AND st.departure_time >= ?
+         AND t.service_id LIKE ?
        ORDER BY st.departure_time ASC
-       LIMIT ?`,
-      [stopId, fromTime, parseInt(limit)]
+       LIMIT ${userLimit * 3}`,
+      [stopId, fromTime, `%${dayCode}%`]
     );
+
+    // Fall back to all schedules if day filter returned nothing
+    // (handles stops/routes that don't follow the MF/SA/SU naming convention)
+    if (!departures || departures.length === 0) {
+      departures = await query(
+        `SELECT
+           st.departure_time,
+           t.trip_id,
+           t.trip_headsign,
+           t.direction_id,
+           r.route_id,
+           r.route_short_name,
+           r.route_long_name
+         FROM gtfs_stop_times st
+         JOIN gtfs_trips t ON st.trip_id = t.trip_id
+         JOIN gtfs_routes r ON t.route_id = r.route_id
+         WHERE st.stop_id = ?
+           AND st.departure_time >= ?
+         ORDER BY st.departure_time ASC
+         LIMIT ${userLimit * 5}`,
+        [stopId, fromTime]
+      );
+    }
 
     const now = currentTimeGTFS();
 
-    const results = (departures || []).map(d => ({
+    // Deduplicate: keep only one departure per (route, departure_time) combo.
+    const seen = new Set();
+    const results = (departures || []).filter(d => {
+      const key = `${d.route_short_name}-${d.departure_time}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).slice(0, userLimit).map(d => ({
       departureTime: d.departure_time,
       minutesUntilDeparture: Math.max(0, Math.round(minutesBetween(now, d.departure_time))),
       tripId: d.trip_id,
@@ -890,6 +949,71 @@ router.get('/stops/:stopId/departures', async (req, res) => {
   } catch (error) {
     console.error('Error in stop departures:', error);
     return res.status(500).json({ success: false, error: 'Failed to fetch departures', details: error.message });
+  }
+});
+
+
+// ═══════════════════════════════════════════════════════════════
+// Route groupings by major interchange
+// GET /api/gtfs/routes/interchanges
+// ═══════════════════════════════════════════════════════════════
+
+let interchangeCache = null;
+
+router.get('/routes/interchanges', async (req, res) => {
+  try {
+    // Return cached result if available (cleared on server restart)
+    if (interchangeCache) {
+      return res.json({ success: true, interchanges: interchangeCache });
+    }
+
+    const interchanges = [
+      { name: 'Eldon Square', stopPattern: '%Eldon Square%' },
+      { name: 'Haymarket', stopPattern: '%Haymarket%' },
+      { name: 'Gateshead', stopPattern: '%Gateshead Interchange%' },
+      { name: 'Sunderland', stopPattern: '%Sunderland%' },
+      { name: 'Durham', stopPattern: '%Durham Bus Station%' },
+      { name: 'Washington', stopPattern: '%Washington Galleries%' },
+      { name: 'Jarrow', stopPattern: '%Jarrow Bus Station%' },
+      { name: 'Concord', stopPattern: '%Concord Bus Station%' },
+      { name: 'MetroCentre', stopPattern: '%MetroCentre%' },
+      { name: 'Percy Main', stopPattern: '%Redburn%' },
+      { name: 'Stanley', stopPattern: '%Stanley Bus Station%' },
+      { name: 'Consett', stopPattern: '%Consett Bus Station%' },
+      { name: 'Blaydon', stopPattern: '%Blaydon Bus Station%' },
+      { name: 'Heworth', stopPattern: '%Heworth%' },
+      { name: 'Chester-le-Street', stopPattern: '%Chester-le-Street%' },
+      { name: 'Peterlee', stopPattern: '%Peterlee Bus Station%' },
+      { name: 'Hexham', stopPattern: '%Hexham Bus Station%' },
+    ];
+
+    const results = [];
+    for (const ic of interchanges) {
+      const routes = await query(
+        `SELECT DISTINCT r.route_short_name, r.route_id
+         FROM gtfs_routes r
+         JOIN gtfs_trips t ON r.route_id = t.route_id
+         JOIN gtfs_stop_times st ON t.trip_id = st.trip_id
+         WHERE st.stop_id IN (
+           SELECT stop_id FROM gtfs_stops WHERE stop_name LIKE ?
+         )
+         ORDER BY r.route_short_name`,
+        [ic.stopPattern]
+      );
+
+      results.push({
+        name: ic.name,
+        routeIds: (routes || []).map(r => r.route_id),
+        routeShortNames: (routes || []).map(r => r.route_short_name),
+      });
+    }
+
+    interchangeCache = results;
+    return res.json({ success: true, interchanges: results });
+
+  } catch (error) {
+    console.error('Error fetching interchange routes:', error);
+    return res.status(500).json({ success: false, error: 'Failed to fetch interchange data', details: error.message });
   }
 });
 

@@ -40,7 +40,7 @@ const additionalFlows5 = {
                     'If the vehicle can safely continue, ensure a changeover is arranged at the earliest opportunity.',
                     'Ensure that all actions, including top-ups and changeovers, are communicated to the driver promptly.',
                     'Monitor the situation and provide updates to the driver as needed.',
-                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.'
+                    'Record any defects immediately on the reporting device when the bus is stationary and in a safe location.'
                 ]
             }
         ]
@@ -109,7 +109,7 @@ const additionalFlows5 = {
                     'If the vehicle can safely continue, ensure a changeover is arranged at the earliest opportunity.',
                     'Ensure that all actions, including top-ups and changeovers, are communicated to the driver promptly.',
                     'Monitor the situation and provide updates to the driver as needed.',
-                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.'
+                    'Record any defects immediately on the reporting device when the bus is stationary and in a safe location.'
                 ]
             },
             {
@@ -123,7 +123,7 @@ const additionalFlows5 = {
                     'If the vehicle can safely continue, ensure a changeover is arranged at the earliest opportunity.',
                     'Ensure that all actions, including top-ups and changeovers, are communicated to the driver promptly.',
                     'Monitor the situation and provide updates to the driver as needed.',
-                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.'
+                    'Record any defects immediately on the reporting device when the bus is stationary and in a safe location.'
                 ]
             }
         ]
@@ -192,7 +192,7 @@ const additionalFlows5 = {
                     'If the vehicle can safely continue, ensure a changeover is arranged at the earliest opportunity.',
                     'Ensure that all actions, including top-ups and changeovers, are communicated to the driver promptly.',
                     'Monitor the situation and provide updates to the driver as needed.',
-                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.'
+                    'Record any defects immediately on the reporting device when the bus is stationary and in a safe location.'
                 ]
             },
             {
@@ -234,7 +234,7 @@ const additionalFlows5 = {
                     'If the vehicle can safely continue, ensure a changeover is arranged at the earliest opportunity.',
                     'Ensure that all actions, including top-ups and changeovers, are communicated to the driver promptly.',
                     'Monitor the situation and provide updates to the driver as needed.',
-                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.'
+                    'Record any defects immediately on the reporting device when the bus is stationary and in a safe location.'
                 ]
             },
             {
@@ -247,7 +247,7 @@ const additionalFlows5 = {
                     'If the vehicle can safely continue, ensure a changeover is arranged at the earliest opportunity.',
                     'Ensure that all actions, including top-ups and changeovers, are communicated to the driver promptly.',
                     'Monitor the situation and provide updates to the driver as needed.',
-                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.'
+                    'Record any defects immediately on the reporting device when the bus is stationary and in a safe location.'
                 ]
             },
             {
@@ -261,7 +261,7 @@ const additionalFlows5 = {
                     'If the vehicle can safely continue, ensure a changeover is arranged at the earliest opportunity.',
                     'Ensure that all actions, including top-ups and changeovers, are communicated to the driver promptly.',
                     'Monitor the situation and provide updates to the driver as needed.',
-                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.'
+                    'Record any defects immediately on the reporting device when the bus is stationary and in a safe location.'
                 ]
             },
             {
@@ -274,7 +274,7 @@ const additionalFlows5 = {
                     'If the vehicle can safely continue, ensure a changeover is arranged at the earliest opportunity.',
                     'Ensure that all actions, including top-ups and changeovers, are communicated to the driver promptly.',
                     'Monitor the situation and provide updates to the driver as needed.',
-                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.'
+                    'Record any defects immediately on the reporting device when the bus is stationary and in a safe location.'
                 ]
             }
         ]
@@ -364,7 +364,7 @@ const additionalFlows5 = {
                     'If the vehicle can safely continue, ensure a changeover is arranged at the earliest opportunity.',
                     'Ensure that all actions, including top-ups and changeovers, are communicated to the driver promptly.',
                     'Monitor the situation and provide updates to the driver as needed.',
-                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.'
+                    'Record any defects immediately on the reporting device when the bus is stationary and in a safe location.'
                 ]
             },
             {
@@ -379,7 +379,7 @@ const additionalFlows5 = {
                     'If the vehicle can safely continue, ensure a changeover is arranged at the earliest opportunity.',
                     'Ensure that all actions, including top-ups and changeovers, are communicated to the driver promptly.',
                     'Monitor the situation and provide updates to the driver as needed.',
-                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.'
+                    'Record any defects immediately on the reporting device when the bus is stationary and in a safe location.'
                 ]
             },
             {
@@ -393,7 +393,7 @@ const additionalFlows5 = {
                     'If the vehicle can safely continue, ensure a changeover is arranged at the earliest opportunity.',
                     'Ensure that all actions, including top-ups and changeovers, are communicated to the driver promptly.',
                     'Monitor the situation and provide updates to the driver as needed.',
-                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.'
+                    'Record any defects immediately on the reporting device when the bus is stationary and in a safe location.'
                 ]
             },
             {
@@ -408,7 +408,7 @@ const additionalFlows5 = {
                     'If the vehicle can safely continue, ensure a changeover is arranged at the earliest opportunity.',
                     'Ensure that all actions, including top-ups and changeovers, are communicated to the driver promptly.',
                     'Monitor the situation and provide updates to the driver as needed.',
-                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.'
+                    'Record any defects immediately on the reporting device when the bus is stationary and in a safe location.'
                 ]
             }
         ]
@@ -486,7 +486,7 @@ const additionalFlows5 = {
                 stopReason: 'Impaired driver vision presents immediate safety risk to all road users.',
                 actions: [
                     'Ensure a planned changeover is arranged promptly for vehicles permitted to continue.',
-                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.',
+                    'Record any defects immediately on the reporting device when the bus is stationary and in a safe location.',
                     'Escalate persistent, unwarranted wiper-related reports to the depot management team. This ensures patterns of unnecessary service disruption are addressed appropriately.'
                 ]
             },
@@ -498,7 +498,7 @@ const additionalFlows5 = {
                 severity: 'warning',
                 actions: [
                     'Ensure a planned changeover is arranged promptly for vehicles permitted to continue.',
-                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.',
+                    'Record any defects immediately on the reporting device when the bus is stationary and in a safe location.',
                     'Escalate persistent, unwarranted wiper-related reports to the depot management team. This ensures patterns of unnecessary service disruption are addressed appropriately.'
                 ]
             }
@@ -605,7 +605,7 @@ const additionalFlows5 = {
                     'If the vehicle can safely continue, ensure a changeover is arranged at the earliest opportunity.',
                     'Ensure that all actions, including top-ups and changeovers, are communicated to the driver promptly.',
                     'Monitor the situation and provide updates to the driver as needed.',
-                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.'
+                    'Record any defects immediately on the reporting device when the bus is stationary and in a safe location.'
                 ]
             },
             {
@@ -619,7 +619,7 @@ const additionalFlows5 = {
                     'If the vehicle can safely continue, ensure a changeover is arranged at the earliest opportunity.',
                     'Ensure that all actions, including top-ups and changeovers, are communicated to the driver promptly.',
                     'Monitor the situation and provide updates to the driver as needed.',
-                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.'
+                    'Record any defects immediately on the reporting device when the bus is stationary and in a safe location.'
                 ]
             },
             {
@@ -634,7 +634,7 @@ const additionalFlows5 = {
                     'If the vehicle can safely continue, ensure a changeover is arranged at the earliest opportunity.',
                     'Ensure that all actions, including top-ups and changeovers, are communicated to the driver promptly.',
                     'Monitor the situation and provide updates to the driver as needed.',
-                    'Record any defects immediately on the the defect reporting system System when the bus is stationary and in a safe location.'
+                    'Record any defects immediately on the reporting device when the bus is stationary and in a safe location.'
                 ]
             }
         ]

@@ -10,7 +10,7 @@
  * - GET /api/analytics/depot-comparison - Compare depot performance
  * - GET /api/analytics/fleet-health - Fleet health overview
  * - GET /api/analytics/activity/feed - Activity feed
- * - GET /api/reports/tracerit - Tracerit report data
+ * - GET /api/reports/incident - Incident report data
  *
  * @author Anthony Gair
  * @version 2.0.0 (MySQL)
@@ -531,7 +531,8 @@ router.get('/fleet-health', async (req, res) => {
   }
 });
 
-// GET /api/reports/tracerit - Get Tracerit report data
+// GET /api/reports/incident - Get incident report data
+// Note: route kept as /tracerit for backwards compatibility
 router.get('/tracerit', async (req, res) => {
   try {
     const { period = 'today', depot, format = 'standard' } = req.query;
@@ -576,7 +577,7 @@ router.get('/tracerit', async (req, res) => {
       );
     }
 
-    // Format for Tracerit report
+    // Format for incident report
     const reportData = breakdowns.map(b => {
       // Parse location_coords if it's stored as JSON string
       let locationCoords = null;
@@ -591,7 +592,7 @@ router.get('/tracerit', async (req, res) => {
       }
 
       return {
-        // Tracerit required fields
+        // Incident report required fields
         incidentNumber: b.breakdown_id,
         vehicleNumber: b.fleet_no || 'Unknown',
         registration: b.registration || 'Unknown',
@@ -675,7 +676,7 @@ router.get('/tracerit', async (req, res) => {
 
       res.setHeader('Content-Type', 'text/csv');
       res.setHeader('Content-Disposition',
-        `attachment; filename="tracerit-report-${period}-${Date.now()}.csv"`);
+        `attachment; filename="incident-report-${period}-${Date.now()}.csv"`);
       res.send(`${csvHeaders}\n${csvData}`);
     } else {
       // Standard JSON response
@@ -698,10 +699,10 @@ router.get('/tracerit', async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('Error generating Tracerit report:', error);
+    console.error('Error generating incident report:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to generate Tracerit report'
+      error: 'Failed to generate incident report'
     });
   }
 });
@@ -731,17 +732,19 @@ function getTopIssues(reportData, limit = 5) {
 router.get('/activity/feed', async (req, res) => {
   try {
     const { limit = 20, offset = 0, depot } = req.query;
+    const isDemoUser = req.user?.badge_number === 'DEMO01';
+    const demoFilter = isDemoUser ? '' : " AND supervisor_badge != 'DEMO01'";
 
     // Get recent breakdowns with depot filter if specified
     let breakdowns;
     if (depot) {
       breakdowns = await query(
-        'SELECT * FROM breakdowns WHERE depot = ? ORDER BY created_at DESC LIMIT ? OFFSET ?',
+        `SELECT * FROM breakdowns WHERE depot = ?${demoFilter} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
         [depot, parseInt(limit), parseInt(offset)]
       );
     } else {
       breakdowns = await query(
-        'SELECT * FROM breakdowns ORDER BY created_at DESC LIMIT ? OFFSET ?',
+        `SELECT * FROM breakdowns WHERE 1=1${demoFilter} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
         [parseInt(limit), parseInt(offset)]
       );
     }
@@ -816,6 +819,7 @@ function formatBreakdownMessage(breakdown) {
 router.get('/shift-stats', async (req, res) => {
   try {
     const { duty_code, supervisor_badge, shift_start, shift_end } = req.query;
+    const isDemoUser = req.user?.badge_number === 'DEMO01';
 
     if (!shift_start || !shift_end) {
       return res.status(400).json({
@@ -829,24 +833,12 @@ router.get('/shift-stats', async (req, res) => {
     const shiftEndTime = new Date(shift_end);
 
     // Query breakdowns for this shift period
+    // Use SELECT * to avoid errors if optional columns (acknowledged_at, received_at) don't exist
+    const demoFilter = isDemoUser ? '' : " AND supervisor_badge != 'DEMO01'";
     let breakdownsQuery = `
-      SELECT
-        id,
-        breakdown_id,
-        fleet_no,
-        severity,
-        status,
-        duty_code,
-        supervisor_badge,
-        supervisor_name,
-        wizard_type,
-        wizard_decision,
-        created_at,
-        acknowledged_at,
-        resolved_at,
-        received_at
+      SELECT *
       FROM breakdowns
-      WHERE created_at >= ? AND created_at <= ?
+      WHERE created_at >= ? AND created_at <= ?${demoFilter}
     `;
     const queryParams = [shiftStartTime, shiftEndTime];
 
@@ -1537,6 +1529,9 @@ router.get('/coverage-alert', async (req, res) => {
 
     // Get active supervisors from recent activity (last 30 minutes)
     const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000);
+    const isDemoUser = req.user?.badge_number === 'DEMO01';
+    const demoSupervisorFilter = isDemoUser ? '' : " AND supervisor_badge != 'DEMO01'";
+    const demoActorFilter = isDemoUser ? '' : " AND actor_id != 'DEMO01'";
     let activeSupervisors = [];
 
     try {
@@ -1549,7 +1544,7 @@ router.get('/coverage-alert', async (req, res) => {
           depot,
           MAX(created_at) as last_active
         FROM activities
-        WHERE created_at >= ?
+        WHERE created_at >= ?${demoActorFilter}
         GROUP BY supervisor_badge, supervisor_name, duty_code, depot
         ORDER BY last_active DESC
       `, [thirtyMinutesAgo]);
@@ -1575,7 +1570,7 @@ router.get('/coverage-alert', async (req, res) => {
           depot,
           MAX(created_at) as last_active
         FROM breakdowns
-        WHERE created_at >= ?
+        WHERE created_at >= ?${demoSupervisorFilter}
         GROUP BY supervisor_badge, supervisor_name, duty_code, depot
         ORDER BY last_active DESC
       `, [thirtyMinutesAgo]);
@@ -1607,7 +1602,7 @@ router.get('/coverage-alert', async (req, res) => {
           supervisor_badge,
           COUNT(*) as active_count
         FROM breakdowns
-        WHERE status NOT IN ('resolved', 'cleared')
+        WHERE status NOT IN ('resolved', 'cleared')${demoSupervisorFilter}
         GROUP BY supervisor_badge
       `);
 
@@ -1629,7 +1624,7 @@ router.get('/coverage-alert', async (req, res) => {
           AVG(TIMESTAMPDIFF(MINUTE, created_at, resolved_at)) as avg_response_minutes
         FROM breakdowns
         WHERE resolved_at IS NOT NULL
-          AND DATE(created_at) = CURDATE()
+          AND DATE(created_at) = CURDATE()${demoSupervisorFilter}
         GROUP BY supervisor_badge
       `);
 

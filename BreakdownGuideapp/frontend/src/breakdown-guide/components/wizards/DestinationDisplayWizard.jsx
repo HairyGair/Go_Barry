@@ -241,7 +241,7 @@ const DestinationDisplayWizard = ({ currentStep, responses, updateResponse, onNe
                                                 <li>Make verbal announcements of route and destination</li>
                                                 <li>Consider using paper sign if available</li>
                                                 <li>Reassure passengers about correct route</li>
-                                                <li>Record defect on their handheld device when safe</li>
+                                                <li>Record the defect on their handheld device when safe</li>
                                             </ul>
                                         </div>
                                     </div>
@@ -260,7 +260,7 @@ const DestinationDisplayWizard = ({ currentStep, responses, updateResponse, onNe
                                             <h4 className="font-semibold text-green-200 mb-2">Driver Actions:</h4>
                                             <ul className="list-disc list-inside space-y-1 text-green-300/90 text-sm">
                                                 <li>Continue normal service operation</li>
-                                                <li>Record defect on their handheld device for engineering attention</li>
+                                                <li>Record the defect on their handheld device for engineering attention</li>
                                                 <li>No passenger announcements needed</li>
                                                 <li>Defect will be repaired during routine maintenance</li>
                                             </ul>
@@ -287,7 +287,7 @@ const DestinationDisplayWizard = ({ currentStep, responses, updateResponse, onNe
                             <div>
                                 <h4 className="font-semibold text-blue-200">Recording Reminder</h4>
                                 <p className="text-sm text-blue-300/90 mt-1">
-                                    Record this defect in defect reporting system when stationary and safe
+                                    Advise the driver to record this defect in their reporting device when stationary and safe
                                 </p>
                             </div>
                         </div>

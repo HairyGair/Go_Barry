@@ -6,7 +6,7 @@ import { supervisorBreakdownLogger } from '../../supervisorBreakdownLogger.js';
 // Road Traffic Incidents Wizard Component - Critical Incident Management
 // Uses icons and constants from common components
 // Follows operational safety procedures v1.3 - Road Traffic Incidents Section (Pages 4-5)
-// Integrated with the defect reporting system defect tracking system
+// Integrated with the reporting device defect tracking system
 
 const RoadTrafficIncidentsWizard = ({ currentStep, responses, updateResponse, onNext, onPrevious, onComplete, onWizardSelect }) => {
     // Get icons from global scope
@@ -844,25 +844,18 @@ const RoadTrafficIncidentsWizard = ({ currentStep, responses, updateResponse, on
                         </div>
                     </div>
 
-                    {/* Tracerit External Report Button */}
+                    {/* Incident Reporting Reminder */}
                     <div className="bg-purple-500/20 backdrop-blur-sm rounded-lg p-6 border border-purple-400/30">
-                        <h3 className="text-lg font-semibold text-purple-200 mb-4">📋 External Incident Reporting</h3>
+                        <h3 className="text-lg font-semibold text-purple-200 mb-4">📋 Incident Reporting</h3>
                         <p className="text-purple-300/80 text-sm mb-4">
-                            For detailed incident reporting and tracking, please complete the Tracerit incident form.
+                            Complete the incident report using your organisation's reporting system within 24 hours.
                         </p>
-                        <button
-                            onClick={() => window.open('https://secure.tracerit.com/gne/pages/incident.aspx?is_partial=True&mode=add&hm_id=hm_16&id=132&from=131', '_blank')}
-                            className="w-full px-6 py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition-colors flex items-center justify-center gap-2"
-                        >
-                            <FileText className="w-5 h-5" />
-                            Open Tracerit Incident Report Form
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                            </svg>
-                        </button>
-                        <p className="text-purple-300/60 text-xs mt-2">
-                            This will open in a new window. Remember to complete within 24 hours.
-                        </p>
+                        <div className="bg-purple-500/10 rounded-lg p-4 border border-purple-400/20">
+                            <div className="flex items-center gap-2 text-purple-200">
+                                <FileText className="w-5 h-5" />
+                                <span className="font-medium">Incident report required within 24 hours</span>
+                            </div>
+                        </div>
                     </div>
 
                     <div className="flex justify-between">
@@ -1127,7 +1120,7 @@ const RoadTrafficIncidentsWizard = ({ currentStep, responses, updateResponse, on
                         </p>
                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
                             <h4 className="font-semibold text-red-200 mb-2">If damage is reported:</h4>
-                            <p className="text-red-300/90 text-sm mb-2">Advise the driver to input it into the defect reporting system and consult a qualified engineering colleague.</p>
+                            <p className="text-red-300/90 text-sm mb-2">Advise the driver to input it into the reporting device and consult a qualified engineering colleague.</p>
                             <p className="text-red-300/90 text-sm">They'll decide whether the bus can:
                             • Continue in service
                             • Return to the depot out of service
@@ -1310,22 +1303,22 @@ const RoadTrafficIncidentsWizard = ({ currentStep, responses, updateResponse, on
                     </div>
                         
                     <div className="bg-purple-500/20 backdrop-blur-sm rounded-lg p-6 border border-purple-400/30">
-                        <h3 className="font-semibold text-purple-200 mb-3">the defect reporting system System Status</h3>
-                        <p className="text-purple-300/80 text-sm mb-4">Has the incident and any defects been recorded in the defect reporting system?</p>
+                        <h3 className="font-semibold text-purple-200 mb-3">Defect Reporting Status</h3>
+                        <p className="text-purple-300/80 text-sm mb-4">Has the incident and any defects been recorded on the reporting device?</p>
                         <div className="space-y-3">
                             <button
-                                onClick={() => updateResponse('tranzaura_recorded', 'already_recorded')}
+                                onClick={() => updateResponse('defect_recorded', 'already_recorded')}
                                 className={`w-full p-3 rounded-lg border-2 transition-all text-left ${
-                                    responses.tranzaura_recorded === 'already_recorded'
+                                    responses.defect_recorded === 'already_recorded'
                                         ? 'border-purple-400 bg-purple-400/20 text-purple-200'
                                         : 'border-white/30 bg-white/10 text-white hover:border-purple-400/50'
                                 }`}
                             >
                                 <div className="flex items-center space-x-3">
                                     <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                                        responses.tranzaura_recorded === 'already_recorded' ? 'border-purple-400 bg-purple-400' : 'border-white/50'
+                                        responses.defect_recorded === 'already_recorded' ? 'border-purple-400 bg-purple-400' : 'border-white/50'
                                     }`}>
-                                        {responses.tranzaura_recorded === 'already_recorded' && <div className="w-1.5 h-1.5 bg-white rounded-full"></div>}
+                                        {responses.defect_recorded === 'already_recorded' && <div className="w-1.5 h-1.5 bg-white rounded-full"></div>}
                                     </div>
                                     <div>
                                         <span className="font-medium">✅ Already recorded on their handheld device</span>
@@ -1334,18 +1327,18 @@ const RoadTrafficIncidentsWizard = ({ currentStep, responses, updateResponse, on
                                 </div>
                             </button>
                             <button
-                                onClick={() => updateResponse('tranzaura_recorded', 'needs_recording')}
+                                onClick={() => updateResponse('defect_recorded', 'needs_recording')}
                                 className={`w-full p-3 rounded-lg border-2 transition-all text-left ${
-                                    responses.tranzaura_recorded === 'needs_recording'
+                                    responses.defect_recorded === 'needs_recording'
                                         ? 'border-purple-400 bg-purple-400/20 text-purple-200'
                                         : 'border-white/30 bg-white/10 text-white hover:border-purple-400/50'
                                 }`}
                             >
                                 <div className="flex items-center space-x-3">
                                     <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                                        responses.tranzaura_recorded === 'needs_recording' ? 'border-purple-400 bg-purple-400' : 'border-white/50'
+                                        responses.defect_recorded === 'needs_recording' ? 'border-purple-400 bg-purple-400' : 'border-white/50'
                                     }`}>
-                                        {responses.tranzaura_recorded === 'needs_recording' && <div className="w-1.5 h-1.5 bg-white rounded-full"></div>}
+                                        {responses.defect_recorded === 'needs_recording' && <div className="w-1.5 h-1.5 bg-white rounded-full"></div>}
                                     </div>
                                     <div>
                                         <span className="font-medium">⚠️ Needs recording on their handheld device</span>
@@ -1393,7 +1386,7 @@ const RoadTrafficIncidentsWizard = ({ currentStep, responses, updateResponse, on
                         </button>
                         <button
                             onClick={onNext}
-                            disabled={!responses.vehicle_damage || !responses.operational_status || !responses.tranzaura_recorded}
+                            disabled={!responses.vehicle_damage || !responses.operational_status || !responses.defect_recorded}
                             className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                             Continue to Environmental Assessment
@@ -1662,8 +1655,8 @@ const RoadTrafficIncidentsWizard = ({ currentStep, responses, updateResponse, on
                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
                             <h4 className="font-semibold text-red-200 mb-2">Remind the driver to:</h4>
                             <ul className="list-disc list-inside space-y-1 text-red-300/90 text-sm">
-                                <li>Complete all necessary reports including a TracerIt report within 24 hours</li>
-                                <li>Record any defects immediately on the the defect reporting system System</li>
+                                <li>Complete all necessary reports including an incident report within 24 hours</li>
+                                <li>Record any defects immediately on the reporting device</li>
                                 <li>Provide reassurance and support</li>
                                 <li>Escalate to senior managers if required</li>
                                 <li>Report all personal injuries</li>
@@ -1679,11 +1672,11 @@ const RoadTrafficIncidentsWizard = ({ currentStep, responses, updateResponse, on
                             <label className="flex items-center space-x-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
                                 <input
                                     type="checkbox"
-                                    checked={responses.tracerit_report || false}
-                                    onChange={(e) => updateResponse('tracerit_report', e.target.checked)}
+                                    checked={responses.incident_report || false}
+                                    onChange={(e) => updateResponse('incident_report', e.target.checked)}
                                     className="w-5 h-5 rounded border-white/30 bg-white/10 text-green-400 focus:ring-green-400"
                                 />
-                                <span className="text-white">TracerIt report to be completed within 24 hours</span>
+                                <span className="text-white">Incident report to be completed within 24 hours</span>
                             </label>
                             <label className="flex items-center space-x-3 p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
                                 <input
@@ -1804,25 +1797,18 @@ const RoadTrafficIncidentsWizard = ({ currentStep, responses, updateResponse, on
                         />
                     </div>
 
-                    {/* Tracerit External Report Button */}
+                    {/* Incident Reporting Reminder */}
                     <div className="bg-purple-500/20 backdrop-blur-sm rounded-lg p-6 border border-purple-400/30">
-                        <h3 className="text-lg font-semibold text-purple-200 mb-4">📋 External Incident Reporting</h3>
+                        <h3 className="text-lg font-semibold text-purple-200 mb-4">📋 Incident Reporting</h3>
                         <p className="text-purple-300/80 text-sm mb-4">
-                            For detailed incident reporting and tracking, please complete the Tracerit incident form.
+                            Complete the incident report using your organisation's reporting system within 24 hours.
                         </p>
-                        <button
-                            onClick={() => window.open('https://secure.tracerit.com/gne/pages/incident.aspx?is_partial=True&mode=add&hm_id=hm_16&id=132&from=131', '_blank')}
-                            className="w-full px-6 py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition-colors flex items-center justify-center gap-2"
-                        >
-                            <FileText className="w-5 h-5" />
-                            Open Tracerit Incident Report Form
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                            </svg>
-                        </button>
-                        <p className="text-purple-300/60 text-xs mt-2">
-                            This will open in a new window. Remember to complete within 24 hours.
-                        </p>
+                        <div className="bg-purple-500/10 rounded-lg p-4 border border-purple-400/20">
+                            <div className="flex items-center gap-2 text-purple-200">
+                                <FileText className="w-5 h-5" />
+                                <span className="font-medium">Incident report required within 24 hours</span>
+                            </div>
+                        </div>
                     </div>
 
                     {/* Incident Summary */}

@@ -220,6 +220,7 @@ import dutyBreaksRoutes from './routes/dutyBreaks.js';
 import dutyExtensionsRoutes from './routes/dutyExtensions.js';
 import systemSettingsRoutes from './routes/systemSettings.js';
 import mileageRoutes from './routes/mileage.js';
+import engineerManagementRoutes from './routes/engineerManagement.js';
 import webSocketHandler from './routes/webSocketHandler.js';
 
 // Root API documentation endpoint
@@ -624,6 +625,7 @@ app.use('/api/breakdowns', authenticateSupervisor, breakdownRoutes);
 app.use('/api/fleet', authenticateSupervisor, fleetRoutes);
 app.use('/api/wizards', authenticateSupervisor, wizardRoutes);
 app.use('/api/engineering', authenticateSupervisor, engineeringRoutes);
+app.use('/api/engineer-management', authenticateSupervisor, engineerManagementRoutes);
 app.use('/api/analytics', authenticateSupervisor, analyticsRoutes);
 app.use('/api/analytics', authenticateSupervisor, loginAnalyticsRoutes);
 app.use('/api/reports', authenticateSupervisor, analyticsRoutes); // Reports also use analytics routes

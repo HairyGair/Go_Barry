@@ -22,7 +22,7 @@ window.BreakdownAnalytics = {
     'wing_mirrors': 'Other',
     'cutting_out_fuel': 'Engine',
     'road_traffic_incidents': 'Other',
-    'tracerit_helper': 'Other',
+    'incident_report_helper': 'Other',
     'repeat_defects': 'Other',
     'interior_lights': 'Electrical',
     'exterior_lights': 'Electrical',
@@ -222,8 +222,8 @@ window.BreakdownAnalytics = {
         source: 'GO_BARRY',
         barry_wizard_used: wizardType,
         
-        // the defect reporting system reference if created
-        tranzaura_ref: responses.tranzauraRef
+        // Defect reporting reference if created
+        defect_report_ref: responses.defectReportRef
       };
       
       // Send to API

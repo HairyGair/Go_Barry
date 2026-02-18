@@ -562,6 +562,26 @@ const LiveRouteStatusDashboard = () => {
             );
           })}
 
+          {/* All Routes Operational Banner */}
+          {!loading && !searchQuery && (groupedRoutes.RED?.length || 0) === 0 && (groupedRoutes.AMBER?.length || 0) === 0 && !showGreenRoutes && (
+            <div className="lrs-all-clear">
+              <div className="lrs-all-clear__icon">
+                <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="var(--color-success, #10B981)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                  <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+              </div>
+              <h3 className="lrs-all-clear__title">All {routes.length} Routes Operational</h3>
+              <p className="lrs-all-clear__subtitle">No active breakdowns affecting any routes right now</p>
+              <button
+                className="lrs-all-clear__show-btn"
+                onClick={() => setShowGreenRoutes(true)}
+              >
+                Show all routes
+              </button>
+            </div>
+          )}
+
           {/* No Results */}
           {filteredRoutes.length === 0 && !loading && (
             <div className="lrs-empty">

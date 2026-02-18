@@ -11,6 +11,7 @@ import './DepotStatusGrid.css';
 const DEPOTS = [
   { id: 'Washington', name: 'Washington', icon: '🏭' },
   { id: 'Riverside', name: 'Riverside', icon: '🏭' },
+  { id: 'Consett', name: 'Consett', icon: '🏭' },
   { id: 'Deptford', name: 'Deptford', icon: '🏭' },
   { id: 'Percy Main', name: 'Percy Main', icon: '🏭' },
   { id: 'Hexham', name: 'Hexham', icon: '🏭' }

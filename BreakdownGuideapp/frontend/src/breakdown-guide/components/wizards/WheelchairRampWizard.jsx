@@ -16,7 +16,7 @@ const WheelchairRampWizard = ({ currentStep, responses, updateResponse, onNext, 
                 <div className="bg-white rounded-lg shadow-sm p-6">
                     <div className="mb-6">
                         <h2 className="text-xl font-semibold text-gray-900 mb-2">♿ Wheelchair Ramp Assessment</h2>
-                        <p className="text-gray-600">Following standard operational safety checks guidance for wheelchair ramp systems - ensuring safe operation and compliance with disability access requirements.</p>
+                        <p className="text-gray-600">Following standard operational safety procedures for wheelchair ramp systems - ensuring safe operation and compliance with disability access requirements.</p>
                     </div>
                     
                     <div className="bg-blue-50 border-l-4 border-blue-600 p-6 mb-6">
@@ -137,7 +137,7 @@ const WheelchairRampWizard = ({ currentStep, responses, updateResponse, onNext, 
                                                 <ul className="list-disc list-inside space-y-1 text-red-700">
                                                     <li>Cannot refuse wheelchair user due to ramp defect</li>
                                                     <li>Must provide accessibility or arrange immediate alternative</li>
-                                                    <li>Contact engineering immediately if ramp not functional</li>
+                                                    <li>Contact the engineering team immediately if ramp not functional</li>
                                                     <li>Consider alternative accessible vehicle if available</li>
                                                 </ul>
                                             </div>
@@ -169,7 +169,7 @@ const WheelchairRampWizard = ({ currentStep, responses, updateResponse, onNext, 
                     <div className="bg-white rounded-lg shadow-sm p-6">
                         <div className="mb-6">
                             <h2 className="text-xl font-semibold text-gray-900 mb-2">🔧 Ramp Stuck Out - Initial Troubleshooting</h2>
-                            <p className="text-gray-600">Following standard operational safety checks procedures for stuck ramp resolution.</p>
+                            <p className="text-gray-600">Following standard operational safety procedures for stuck ramp resolution.</p>
                         </div>
                         
                         <div className="bg-orange-50 border-l-4 border-orange-600 p-6 mb-6">
@@ -546,7 +546,7 @@ const WheelchairRampWizard = ({ currentStep, responses, updateResponse, onNext, 
                                                     <li>Do NOT attempt unauthorised manual intervention</li>
                                                     <li>Remain stationary and await engineering</li>
                                                     <li>If wheelchair user waiting, arrange alternative accessible vehicle</li>
-                                                    <li>Record defect on their handheld device immediately</li>
+                                                    <li>Record the defect on their handheld device immediately</li>
                                                     <li>Inform control of vehicle status</li>
                                                 </ul>
                                             </div>
@@ -604,7 +604,7 @@ const WheelchairRampWizard = ({ currentStep, responses, updateResponse, onNext, 
                                                     <li>Continue to next convenient changeover point</li>
                                                     <li>Avoid picking up wheelchair users if possible</li>
                                                     <li>If wheelchair user boards, test ramp first</li>
-                                                    <li>Record defect on their handheld device</li>
+                                                    <li>Record the defect on their handheld device</li>
                                                     <li>Arrange changeover at earliest opportunity</li>
                                                 </ul>
                                             </div>
@@ -620,7 +620,7 @@ const WheelchairRampWizard = ({ currentStep, responses, updateResponse, onNext, 
                                 <FileText className="w-6 h-6 text-blue-600 mt-1 mr-3" />
                                 <div>
                                     <h3 className="text-lg font-semibold text-blue-800 mb-2">📝 Record on their handheld device</h3>
-                                    <p className="text-blue-700">All wheelchair ramp defects must be recorded in the defect reporting system immediately, including:</p>
+                                    <p className="text-blue-700">All wheelchair ramp defects must be recorded in the reporting device immediately, including:</p>
                                     <ul className="list-disc list-inside mt-2 text-blue-700">
                                         <li>Nature of the defect</li>
                                         <li>Actions taken (reset attempts, manual intervention)</li>

@@ -1022,6 +1022,106 @@
   box-shadow: 0 4px 12px rgba(0, 151, 167, 0.3);
 }
 
+.btn-replacement {
+  background: linear-gradient(135deg, #7c3aed, #6d28d9);
+  color: white;
+}
+
+.btn-replacement:hover {
+  background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
+}
+
+.btn-return-service {
+  background: linear-gradient(135deg, #10B981, #059669);
+  color: white;
+}
+
+.btn-return-service:hover {
+  background: linear-gradient(135deg, #34d399, #10B981);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+/* ====================================
+   REPLACEMENT VEHICLE INFO SECTION
+   ==================================== */
+.rv-info-section {
+  margin-top: 12px;
+  padding: 12px;
+  background: rgba(124, 58, 237, 0.06);
+  border: 1px solid rgba(124, 58, 237, 0.15);
+  border-radius: var(--radius-lg);
+}
+
+.rv-info-header {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #7c3aed;
+  margin-bottom: 8px;
+}
+
+.rv-info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.rv-info-item {
+  text-align: center;
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 8px;
+}
+
+.rv-info-item.rv-info-total {
+  background: rgba(124, 58, 237, 0.1);
+  border: 1px solid rgba(124, 58, 237, 0.2);
+}
+
+.rv-info-label {
+  display: block;
+  font-size: 10px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.rv-info-value {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  color: #333;
+}
+
+.rv-info-total .rv-info-value {
+  color: #7c3aed;
+}
+
+.rv-status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rv-status-dispatched {
+  background: rgba(245, 158, 11, 0.15);
+  color: #d97706;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.rv-status-in_service {
+  background: rgba(16, 185, 129, 0.15);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
 /* ====================================
    QUICK DECISION SECTION (ENHANCED CARD)
    ==================================== */

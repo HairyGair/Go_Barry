@@ -132,7 +132,7 @@ function DoorsWizard({ currentStep, responses, updateResponse, onNext, onPreviou
                   <div>
                     <h4 className="font-semibold text-blue-200">Recording Reminder</h4>
                     <p className="text-sm text-gray-300 mt-1">
-                      Log this incident in defect reporting system when stationary and in a safe location
+                      Advise the driver to log this incident in their reporting device when stationary and in a safe location
                     </p>
                   </div>
                 </div>
@@ -288,7 +288,7 @@ function DoorsWizard({ currentStep, responses, updateResponse, onNext, onPreviou
                   <div>
                     <h4 className="font-semibold text-blue-200">Recording Reminder</h4>
                     <p className="text-sm text-gray-300 mt-1">
-                      Log this incident in defect reporting system when stationary and in a safe location
+                      Advise the driver to log this incident in their reporting device when stationary and in a safe location
                     </p>
                   </div>
                 </div>
@@ -447,7 +447,7 @@ function DoorsWizard({ currentStep, responses, updateResponse, onNext, onPreviou
                 <div>
                   <h4 className="font-semibold text-blue-200">Recording Reminder</h4>
                   <p className="text-sm text-gray-300 mt-1">
-                    Log this incident in defect reporting system when stationary and in a safe location
+                    Advise the driver to log this incident in their reporting device when stationary and in a safe location
                   </p>
                 </div>
               </div>

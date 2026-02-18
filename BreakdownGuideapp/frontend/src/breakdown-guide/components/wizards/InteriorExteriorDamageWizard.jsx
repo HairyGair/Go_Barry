@@ -18,7 +18,7 @@ const InteriorExteriorDamageWizard = ({ currentStep, responses, updateResponse, 
                             <AlertTriangle className="w-8 h-8 text-orange-400" />
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">🔨 Interior/Exterior Damage Assessment</h2>
-                        <p className="text-gray-300">Following standard operational safety checks guidance for vehicle damage assessment - prioritizing safety and operational requirements.</p>
+                        <p className="text-gray-300">Following standard operational safety procedures for vehicle damage assessment - prioritizing safety and operational requirements.</p>
                     </div>
                     
                     <div className="bg-red-500/20 backdrop-blur-sm rounded-lg p-6 border border-red-400/30">
@@ -484,11 +484,13 @@ const InteriorExteriorDamageWizard = ({ currentStep, responses, updateResponse, 
             
             let decision, decisionClass, instructions, urgency;
             
+            const isPassengerSeats = responses.damage_type === 'passenger_seats';
+
             if (isRegistrationPlate) {
                 decision = "CONTINUE IN SERVICE";
                 decisionClass = "text-blue-500";
                 urgency = "Non-Critical";
-                instructions = "Registration plate issues can be recorded on the defect reporting system. The vehicle can continue in service, but arrange replacement/repair when possible.";
+                instructions = "Registration plate issues can be recorded on the reporting device. The vehicle can continue in service. Arrange replacement/repair when possible and changeover as soon as feasible.";
             } else if (affectsControl) {
                 decision = "STOP AND AWAIT ENGINEERING";
                 decisionClass = "text-red-500";
@@ -503,7 +505,9 @@ const InteriorExteriorDamageWizard = ({ currentStep, responses, updateResponse, 
                 decision = "SECURE AND CONTINUE TO CHANGEOVER";
                 decisionClass = "text-orange-500";
                 urgency = "High Priority";
-                instructions = "Attempt to secure the damaged area if safe to do so. Continue to the next convenient changeover point.";
+                instructions = isPassengerSeats
+                    ? "Driver may try to secure the seat. If successful, continue to the next suitable changeover point and arrange a change within 1 hour."
+                    : "Attempt to secure the damaged area if safe to do so. Continue to the next convenient changeover point.";
             } else {
                 decision = "CONTINUE TO CHANGEOVER POINT";
                 decisionClass = "text-orange-500";
@@ -566,7 +570,7 @@ const InteriorExteriorDamageWizard = ({ currentStep, responses, updateResponse, 
                                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mt-4">
                                             <h4 className="font-semibold text-blue-200 mb-2">Required Actions:</h4>
                                             <ul className="list-disc list-inside space-y-1 text-blue-300/90 text-sm">
-                                                <li>Record issue in defect reporting system</li>
+                                                <li>Record issue in their reporting device</li>
                                                 <li>Arrange repair when feasible</li>
                                                 <li>Monitor throughout service</li>
                                             </ul>
@@ -616,7 +620,7 @@ const InteriorExteriorDamageWizard = ({ currentStep, responses, updateResponse, 
                                                 <li>Arrange vehicle change</li>
                                                 <li>Monitor damage during journey</li>
                                                 <li>Stop if situation worsens</li>
-                                                <li>Record in defect reporting system</li>
+                                                <li>Record in their reporting device</li>
                                             </ul>
                                         </div>
                                     </div>
@@ -650,7 +654,7 @@ const InteriorExteriorDamageWizard = ({ currentStep, responses, updateResponse, 
                             <CheckCircle className="w-8 h-8 text-green-400" />
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">📊 Assessment Complete</h2>
-                        <p className="text-gray-300">Interior/exterior damage assessment completed following operational safety procedures procedures.</p>
+                        <p className="text-gray-300">Interior/exterior damage assessment completed following operational safety procedures.</p>
                     </div>
                     
                     <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 border border-white/20">
@@ -681,7 +685,7 @@ const InteriorExteriorDamageWizard = ({ currentStep, responses, updateResponse, 
                             <div>
                                 <h4 className="font-semibold text-blue-200 mb-2">Defect Documentation Required</h4>
                                 <ul className="text-sm text-blue-300/90 space-y-1">
-                                    <li>• Record all damage details in defect reporting system</li>
+                                    <li>• Record all damage details in their reporting device</li>
                                     <li>• Include photographs if possible and safe to take</li>
                                     <li>• Note any temporary securing measures taken</li>
                                     <li>• Document safety decision and reasoning</li>

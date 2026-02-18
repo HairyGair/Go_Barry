@@ -8,6 +8,7 @@ const router = express.Router();
 router.get('/feed', async (req, res) => {
   try {
     const { limit = 50, offset = 0, depot, actor_id, activity_type, severity, source, duty_code } = req.query;
+    const isDemoUser = req.user?.badge_number === 'DEMO01';
 
     // Use the new activity logger service
     const result = await activityLogger.getRecentActivities(parseInt(limit), parseInt(offset), {
@@ -25,6 +26,12 @@ router.get('/feed', async (req, res) => {
         error: result.error,
         activities: []
       });
+    }
+
+    // Filter out demo activities for non-demo users
+    if (!isDemoUser && result.activities) {
+      result.activities = result.activities.filter(a => a.actor_id !== 'DEMO01');
+      result.count = result.activities.length;
     }
 
     // Format activities for frontend compatibility
@@ -77,6 +84,7 @@ router.get('/feed', async (req, res) => {
 router.get('/feed/legacy', async (req, res) => {
   try {
     const { limit = 20, offset = 0, depot } = req.query;
+    const isDemoUser = req.user?.badge_number === 'DEMO01';
 
     // Get recent breakdowns with supervisor info
     let breakdownQuery = from('breakdowns')
@@ -84,6 +92,9 @@ router.get('/feed/legacy', async (req, res) => {
       .order('created_at', 'DESC')
       .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
 
+    if (!isDemoUser) {
+      breakdownQuery = breakdownQuery.neq('supervisor_badge', 'DEMO01');
+    }
     if (depot) {
       breakdownQuery = breakdownQuery.eq('depot', depot);
     }
@@ -92,6 +103,7 @@ router.get('/feed/legacy', async (req, res) => {
     if (breakdownError) throw breakdownError;
     
     // Get recent breakdown events with JOIN to breakdowns table
+    const demoEventFilter = isDemoUser ? '' : " AND b.supervisor_badge != 'DEMO01'";
     const eventsSql = `
       SELECT
         be.*,
@@ -103,6 +115,7 @@ router.get('/feed/legacy', async (req, res) => {
         b.depot
       FROM breakdown_events be
       LEFT JOIN breakdowns b ON be.breakdown_id = b.breakdown_id
+      WHERE 1=1${demoEventFilter}
       ORDER BY be.created_at DESC
       LIMIT ?
     `;
@@ -182,15 +195,21 @@ router.get('/feed/legacy', async (req, res) => {
 router.get('/live', async (req, res) => {
   try {
     const { since, limit = 25 } = req.query;
+    const isDemoUser = req.user?.badge_number === 'DEMO01';
     const sinceTime = since || new Date(Date.now() - 5 * 60 * 1000).toISOString(); // Last 5 minutes by default
 
     // Get activities from unified table since the specified time
-    const { data: activities, error } = await from('activities')
+    let liveQuery = from('activities')
       .select('*')
       .gte('created_at', sinceTime)
       .order('created_at', 'DESC')
-      .limit(parseInt(limit))
-      .execute();
+      .limit(parseInt(limit));
+
+    if (!isDemoUser) {
+      liveQuery = liveQuery.neq('actor_id', 'DEMO01');
+    }
+
+    const { data: activities, error } = await liveQuery.execute();
 
     if (error) throw error;
 
@@ -244,18 +263,25 @@ router.get('/live', async (req, res) => {
 router.get('/live/legacy', async (req, res) => {
   try {
     const { since } = req.query;
+    const isDemoUser = req.user?.badge_number === 'DEMO01';
     const sinceTime = since || new Date(Date.now() - 5 * 60 * 1000).toISOString(); // Last 5 minutes by default
 
     // Get recent breakdowns
-    const { data: breakdowns, error: breakdownError } = await from('breakdowns')
+    let legacyQuery = from('breakdowns')
       .select('*')
       .gte('created_at', sinceTime)
-      .order('created_at', 'DESC')
-      .execute();
+      .order('created_at', 'DESC');
+
+    if (!isDemoUser) {
+      legacyQuery = legacyQuery.neq('supervisor_badge', 'DEMO01');
+    }
+
+    const { data: breakdowns, error: breakdownError } = await legacyQuery.execute();
 
     if (breakdownError) throw breakdownError;
 
     // Get recent events with JOIN
+    const demoLegacyFilter = isDemoUser ? '' : " AND b.supervisor_badge != 'DEMO01'";
     const eventsSql = `
       SELECT
         be.*,
@@ -267,7 +293,7 @@ router.get('/live/legacy', async (req, res) => {
         b.depot
       FROM breakdown_events be
       LEFT JOIN breakdowns b ON be.breakdown_id = b.breakdown_id
-      WHERE be.created_at >= ?
+      WHERE be.created_at >= ?${demoLegacyFilter}
       ORDER BY be.created_at DESC
     `;
 
@@ -524,6 +550,7 @@ function formatTime(timestamp) {
 router.get('/breakdown-guide', async (req, res) => {
   try {
     const { limit = 20, offset = 0, supervisor_badge } = req.query;
+    const isDemoUser = req.user?.badge_number === 'DEMO01';
 
     // Get breakdowns that were created through the wizard/guide
     let breakdownQuery = from('breakdowns')
@@ -532,6 +559,9 @@ router.get('/breakdown-guide', async (req, res) => {
       .order('created_at', 'DESC')
       .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
 
+    if (!isDemoUser) {
+      breakdownQuery = breakdownQuery.neq('supervisor_badge', 'DEMO01');
+    }
     if (supervisor_badge) {
       breakdownQuery = breakdownQuery.eq('supervisor_badge', supervisor_badge);
     }
@@ -540,6 +570,7 @@ router.get('/breakdown-guide', async (req, res) => {
     if (wizardError) throw wizardError;
 
     // Get wizard assessment events with JOIN
+    const demoGuideFilter = isDemoUser ? '' : " AND b.supervisor_badge != 'DEMO01'";
     const eventsSql = `
       SELECT
         be.*,
@@ -554,7 +585,7 @@ router.get('/breakdown-guide', async (req, res) => {
         b.wizard_decision
       FROM breakdown_events be
       LEFT JOIN breakdowns b ON be.breakdown_id = b.breakdown_id
-      WHERE be.event_type = ?
+      WHERE be.event_type = ?${demoGuideFilter}
       ORDER BY be.created_at DESC
       LIMIT ?
     `;
@@ -803,6 +834,7 @@ router.get('/search', async (req, res) => {
 router.get('/stats', async (req, res) => {
   try {
     const { period = '24h', depot, actor_id } = req.query;
+    const isDemoUser = req.user?.badge_number === 'DEMO01';
 
     let timeFilter;
     switch (period) {
@@ -823,6 +855,9 @@ router.get('/stats', async (req, res) => {
       .select('activity_type, severity, actor_type, depot, created_at')
       .gte('created_at', timeFilter);
 
+    if (!isDemoUser) {
+      activitiesQuery = activitiesQuery.neq('actor_id', 'DEMO01');
+    }
     if (depot) {
       activitiesQuery = activitiesQuery.eq('depot', depot);
     }

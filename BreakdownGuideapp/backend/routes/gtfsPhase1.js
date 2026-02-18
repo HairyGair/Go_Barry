@@ -306,8 +306,8 @@ router.get('/breakdowns/heatmap', async (req, res) => {
       params.push(latNum, lngNum, radiusKm);
     }
 
-    sqlQuery += ` ORDER BY created_at DESC LIMIT ?`;
-    params.push(parseInt(limit) || 1000);
+    const safeLimit = Math.min(Math.max(parseInt(limit) || 1000, 1), 5000);
+    sqlQuery += ` ORDER BY created_at DESC LIMIT ${safeLimit}`;
 
     const breakdowns = await query(sqlQuery, params);
 

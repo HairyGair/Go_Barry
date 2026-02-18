@@ -493,9 +493,11 @@ const OilWarningLightWizard = ({ currentStep, responses, updateResponse, onNext,
             const lightIntermittent = responses.lightStatus === 'intermittent';
             const idleOnly = responses.lightStatus === 'idle_only';
             
-            // In line with standard control-room procedure page 22 - any oil light on or intermittent while moving = STOP
+            // Guide v6 - Oil Warning Light: Step 3 states "Oil Warning Light On or Intermittent:
+            // Instruct the driver to STOP immediately and seek assistance from engineering."
+            // This covers ALL oil warning light states - constant, intermittent, or idle-only.
             // DVSA categorisation: Oil leak likely to deposit on road or cause danger = Immediate prohibition
-            const mustStop = hasLeak || lightConstant || lightIntermittent || cannotCheckLeak;
+            const mustStop = hasLeak || lightConstant || lightIntermittent || idleOnly || cannotCheckLeak;
             
             return (
                 <div className="space-y-6">
@@ -550,7 +552,7 @@ const OilWarningLightWizard = ({ currentStep, responses, updateResponse, onNext,
                                         <li>Switch off engine immediately and do NOT restart</li>
                                         <li>Do NOT attempt to move vehicle under any circumstances</li>
                                         <li>Await assistance from engineering</li>
-                                        <li>Record defect immediately in defect reporting system</li>
+                                        <li>Record defect immediately in their reporting device</li>
                                         <li>If oil poses fire/hazard risk - escalate as potential PG9 issue</li>
                                         <li>Coordinate replacement vehicle to minimise service disruption</li>
                                     </ol>
@@ -570,32 +572,7 @@ const OilWarningLightWizard = ({ currentStep, responses, updateResponse, onNext,
                                 )}
                             </div>
                         </div>
-                    ) : (
-                        <div className="bg-amber-500/20 backdrop-blur-sm rounded-lg p-6 border border-amber-400/30">
-                            <div className="text-center">
-                                <div className="text-6xl mb-4">⚠️</div>
-                                <h3 className="text-2xl font-bold text-amber-200 mb-2">MONITOR CLOSELY - ENGINEERING REQUIRED</h3>
-                                <p className="text-amber-300/90 text-sm mb-6">
-                                    Oil light only at idle - not currently covered by Step 3 criteria
-                                </p>
-                            </div>
-                            
-                            <div className="text-left">
-                                <div className="bg-white/10 backdrop-blur-sm rounded p-4">
-                                    <h4 className="font-semibold text-amber-200 mb-3">Precautionary Actions:</h4>
-                                    <ol className="list-decimal ml-6 space-y-2 text-amber-300/90 text-sm">
-                                        <li>Stop at next safe opportunity for oil level check</li>
-                                        <li>Check oil level when engine is cool (if trained to do so)</li>
-                                        <li>Do NOT continue if light appears while moving</li>
-                                        <li>If light becomes constant/intermittent while moving - STOP immediately</li>
-                                        <li>Arrange engineering inspection at earliest opportunity</li>
-                                        <li>Record in defect reporting system for tracking</li>
-                                        <li>Monitor for any change that triggers Step 3 criteria</li>
-                                    </ol>
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                    ) : null}
                     
                     {/* Documentation requirements */}
                     <div className="bg-blue-500/20 backdrop-blur-sm rounded-lg p-6 border border-blue-400/30">
@@ -641,16 +618,17 @@ const OilWarningLightWizard = ({ currentStep, responses, updateResponse, onNext,
                         <button
                             onClick={async () => {
                                 // Determine final decision based on assessment
-                                const finalDecision = mustStop ? 'STOP' : 'AMBER';
+                                // Guide v6: ALL oil warning light states = STOP
+                                const finalDecision = 'STOP';
 
                                 // Build assessment notes
-                                const assessmentNotes = mustStop
-                                    ? `STOP REQUIRED - Oil warning assessment: ${
-                                        hasLeak ? 'Visible oil leak detected. ' : ''
-                                      }${lightConstant ? 'Oil light constantly on while moving. ' : ''}${
-                                        lightIntermittent ? 'Oil light intermittent while moving. ' : ''
-                                      }${cannotCheckLeak ? 'Unable to verify oil leak status. ' : ''}In line with standard control-room procedure Page 22 - Vehicle must remain stopped, engine OFF, await engineering assistance.`
-                                    : `AMBER - Monitor closely. Oil light only at idle. In line with standard control-room procedure - not currently covered by Step 3 criteria. Stop at next safe opportunity for oil level check. Arrange engineering inspection ASAP.`;
+                                const assessmentNotes = `STOP REQUIRED - Oil warning assessment: ${
+                                    hasLeak ? 'Visible oil leak detected. ' : ''
+                                  }${lightConstant ? 'Oil light constantly on while moving. ' : ''}${
+                                    lightIntermittent ? 'Oil light intermittent while moving. ' : ''
+                                  }${idleOnly ? 'Oil light on at idle. ' : ''}${
+                                    cannotCheckLeak ? 'Unable to verify oil leak status. ' : ''
+                                  }Per Guide v6 - Vehicle must remain stopped, engine OFF, await engineering assistance.`;
 
                                 console.log('🛢️ Oil Warning Assessment Complete:', {
                                     decision: finalDecision,
@@ -682,13 +660,9 @@ const OilWarningLightWizard = ({ currentStep, responses, updateResponse, onNext,
                                 // Pass decision and notes to onComplete
                                 onComplete(finalDecision, assessmentNotes);
                             }}
-                            className={`flex items-center px-6 py-2 text-white rounded-lg transition-colors ${
-                                mustStop
-                                    ? 'bg-red-600 hover:bg-red-700'
-                                    : 'bg-amber-600 hover:bg-amber-700'
-                            }`}
+                            className="flex items-center px-6 py-2 text-white rounded-lg transition-colors bg-red-600 hover:bg-red-700"
                         >
-                            <CheckCircle className="w-4 h-4 mr-2" />Complete Assessment - {mustStop ? 'STOP' : 'AMBER'}
+                            <CheckCircle className="w-4 h-4 mr-2" />Complete Assessment - STOP
                         </button>
                     </div>
                 </div>

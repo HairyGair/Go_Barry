@@ -23,8 +23,10 @@ const MinimalUserMenu = ({ currentDuty, onDutyClick }) => {
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
 
+  const isEngineeringManager = currentUser?.role === 'engineering_manager';
+
   // Navigation items (Breakdown Guide removed - use Report Breakdown button instead)
-  const navigationItems = [
+  const allNavigationItems = [
     {
       path: '/',
       label: 'Home',
@@ -50,13 +52,8 @@ const MinimalUserMenu = ({ currentDuty, onDutyClick }) => {
       description: 'Engineering dispatch',
       hasSubmenu: true,
       submenu: [
-        { path: '/dashboards/engineering/display', label: 'All Depots', icon: '🏭', external: true },
-        { path: '/dashboards/engineering/display?depot=Washington', label: 'Washington', icon: '🔧', external: true },
-        { path: '/dashboards/engineering/display?depot=Riverside', label: 'Riverside', icon: '🔧', external: true },
-        { path: '/dashboards/engineering/display?depot=Consett', label: 'Consett', icon: '🔧', external: true },
-        { path: '/dashboards/engineering/display?depot=Deptford', label: 'Deptford', icon: '🔧', external: true },
-        { path: '/dashboards/engineering/display?depot=Percy%20Main', label: 'Percy Main', icon: '🔧', external: true },
-        { path: '/dashboards/engineering/display?depot=Hexham', label: 'Hexham', icon: '🔧', external: true }
+        { path: '/dashboards/engineering/display', label: 'All Depots Display', icon: '🏭', external: true },
+        { path: '/dashboards/engineering/manage', label: 'Manage Engineers', icon: '👷' }
       ]
     },
     {
@@ -84,6 +81,11 @@ const MinimalUserMenu = ({ currentDuty, onDutyClick }) => {
       description: 'Search stops & departures'
     }
   ];
+
+  // Engineering managers only see engineering-related navigation
+  const navigationItems = isEngineeringManager
+    ? allNavigationItems.filter(item => item.path.startsWith('/dashboards/engineering'))
+    : allNavigationItems;
 
   // Update time every minute
   useEffect(() => {
@@ -236,17 +238,19 @@ const MinimalUserMenu = ({ currentDuty, onDutyClick }) => {
               </button>
             )}
 
-            {/* Quick Action */}
-            <button
-              className="quick-action-btn"
-              onClick={() => {
-                navigate('/breakdown-guide');
-                setIsMenuOpen(false);
-              }}
-            >
-              <span>🚨</span>
-              <span>Report Breakdown</span>
-            </button>
+            {/* Quick Action - hidden for engineering managers */}
+            {!isEngineeringManager && (
+              <button
+                className="quick-action-btn"
+                onClick={() => {
+                  navigate('/breakdown-guide');
+                  setIsMenuOpen(false);
+                }}
+              >
+                <span>🚨</span>
+                <span>Report Breakdown</span>
+              </button>
+            )}
 
             {/* Navigation Section */}
             <div className="menu-section">

@@ -212,17 +212,17 @@ const RepeatDefectsWizard = ({ currentStep, responses, updateResponse, onNext, o
                         <div className="space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-yellow-200 mb-2">
-                                    the defect reporting system Reference Numbers
+                                    Defect Report Reference Numbers
                                 </label>
                                 <input
                                     type="text"
                                     className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white placeholder-gray-400 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-400/20 transition-all"
                                     value={responses.goCheckRefs || ''}
                                     onChange={(e) => updateResponse('goCheckRefs', e.target.value)}
-                                    placeholder="Enter the defect reporting system reference numbers (comma separated)"
+                                    placeholder="Enter defect report reference numbers (comma separated)"
                                 />
                                 <p className="text-yellow-300/80 text-sm mt-2">
-                                    Include all relevant the defect reporting system references for tracking and audit trail
+                                    Include all relevant defect report references for tracking and audit trail
                                 </p>
                             </div>
                         </div>
@@ -290,7 +290,7 @@ const RepeatDefectsWizard = ({ currentStep, responses, updateResponse, onNext, o
                                         <p><strong className="text-blue-200">Days Persisted:</strong> <span className="text-white">{responses.daysPersisted}</span></p>
                                     )}
                                     {responses.goCheckRefs && (
-                                        <p><strong className="text-blue-200">the defect reporting system Refs:</strong> <span className="text-white">{responses.goCheckRefs}</span></p>
+                                        <p><strong className="text-blue-200">Defect Report Refs:</strong> <span className="text-white">{responses.goCheckRefs}</span></p>
                                     )}
                                 </div>
                             </div>
@@ -387,7 +387,7 @@ const RepeatDefectsWizard = ({ currentStep, responses, updateResponse, onNext, o
                                 </div>
                                 <div className="space-y-2">
                                     <p className="text-green-300/90">✅ Complete defect documentation</p>
-                                    <p className="text-green-300/90">✅ the defect reporting system audit trail established</p>
+                                    <p className="text-green-300/90">✅ the reporting device audit trail established</p>
                                     <p className="text-green-300/90">✅ Management accountability activated</p>
                                 </div>
                             </div>

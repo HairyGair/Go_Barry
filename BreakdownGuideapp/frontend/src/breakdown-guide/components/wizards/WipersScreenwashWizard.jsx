@@ -52,7 +52,7 @@ const WipersScreenwashWizard = ({ currentStep, responses, updateResponse, onNext
                 notes += `Washers ${responses.washers_working}. `;
             }
             
-            notes += 'Monitor conditions closely - stop immediately if vision becomes impaired. Record defect on their handheld device.';
+            notes += 'Monitor conditions closely - stop immediately if vision becomes impaired. Record the defect on their handheld device.';
         }
         
         onComplete(finalDecision, notes);

@@ -41,7 +41,7 @@ function EVLowChargeWizard({ currentStep, responses, updateResponse, onNext, onP
             'Arrange changeover at the nearest suitable point',
             'Advise the driver to minimise unnecessary electrical load (heating, USB charging)',
             'Notify engineering of the incoming vehicle for recharging',
-            'Record on their handheld device as low charge requiring changeover'
+            'Advise the driver to record on their handheld device as low charge requiring changeover'
           ]
         };
       }
@@ -56,7 +56,7 @@ function EVLowChargeWizard({ currentStep, responses, updateResponse, onNext, onP
           'Send a changeover vehicle to the driver\'s current location',
           'Advise the driver to reduce speed and minimise electrical load',
           'Notify engineering of the situation',
-          'Record on their handheld device as low charge requiring roadside changeover'
+          'Advise the driver to record on their handheld device as low charge requiring roadside changeover'
         ]
       };
     }
@@ -74,7 +74,7 @@ function EVLowChargeWizard({ currentStep, responses, updateResponse, onNext, onP
             'Arrange urgent changeover at the nearest possible point',
             'Advise the driver to switch off all non-essential electrical systems immediately',
             'Notify engineering as priority for recharging',
-            'Record on their handheld device as urgent low charge changeover'
+            'Advise the driver to record on their handheld device as urgent low charge changeover'
           ]
         };
       }
@@ -90,7 +90,7 @@ function EVLowChargeWizard({ currentStep, responses, updateResponse, onNext, onP
           'Advise the driver to switch off all non-essential electrical systems',
           'Advise the driver to pull over at the next safe location if charge drops further',
           'Notify engineering as priority',
-          'Record on their handheld device as urgent low charge roadside changeover'
+          'Advise the driver to record on their handheld device as urgent low charge roadside changeover'
         ]
       };
     }
@@ -109,7 +109,7 @@ function EVLowChargeWizard({ currentStep, responses, updateResponse, onNext, onP
             'Advise the driver to switch off ALL non-essential electrical systems now',
             'Advise the driver to reduce speed to maximise remaining range',
             'Notify engineering immediately for priority recharging',
-            'Record on their handheld device as critical low charge'
+            'Advise the driver to record on their handheld device as critical low charge'
           ]
         };
       }
@@ -125,7 +125,7 @@ function EVLowChargeWizard({ currentStep, responses, updateResponse, onNext, onP
           'Arrange recovery or a changeover vehicle to the driver\'s location',
           'Notify engineering immediately',
           'Arrange passenger transfer if required',
-          'Record on their handheld device as critical - vehicle immobilised due to low charge'
+          'Advise the driver to record on their handheld device as critical - vehicle immobilised due to low charge'
         ]
       };
     }

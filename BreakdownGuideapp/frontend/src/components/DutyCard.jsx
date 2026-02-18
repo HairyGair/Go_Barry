@@ -42,6 +42,12 @@ const DUTY_CONFIG = {
     color: '#8B5CF6',
     gradient: 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
     bgGradient: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(167, 139, 250, 0.08))'
+  },
+  'ENG': {
+    name: 'Engineering Manager',
+    color: '#0097A7',
+    gradient: 'linear-gradient(135deg, #0097A7, #00BCD4)',
+    bgGradient: 'linear-gradient(135deg, rgba(0, 151, 167, 0.15), rgba(0, 188, 212, 0.08))'
   }
 };
 

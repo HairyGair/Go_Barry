@@ -40,7 +40,7 @@ const ExcessiveSmokeWizard = ({ currentStep, responses, updateResponse, onNext, 
             finalDecision = 'AMBER';
             notes += 'Continue to next changeover point with caution. ';
             notes += `Smoke type: ${smokeType}. Monitor situation closely and arrange replacement vehicle. `;
-            notes += 'Record defect on their handheld device and report to engineering for depot assessment.';
+            notes += 'Record the defect on their handheld device and report to engineering for depot assessment.';
         }
         
         // Add duration information
@@ -78,7 +78,7 @@ const ExcessiveSmokeWizard = ({ currentStep, responses, updateResponse, onNext, 
                         </div>
 
                         <div className="bg-slate-800/50 rounded-lg p-6 space-y-4">
-                            <h3 className="text-white font-semibold mb-4">What type of smoke are you experiencing?</h3>
+                            <h3 className="text-white font-semibold mb-4">What type of smoke is the driver experiencing?</h3>
                             <div className="space-y-3">
                                 {[
                                     { value: 'dense_blue', label: 'Dense blue smoke (continuous stream)' },
@@ -130,7 +130,7 @@ const ExcessiveSmokeWizard = ({ currentStep, responses, updateResponse, onNext, 
                                 <h3 className="text-white font-semibold">Is the smoke affecting visibility or creating danger for other road users?</h3>
                                 <div className="space-y-2">
                                     {[
-                                        { value: 'yes_visibility', label: 'Yes - Smoke is obscuring vision for myself or other drivers' },
+                                        { value: 'yes_visibility', label: 'Yes - Smoke is obscuring vision for the driver or other road users' },
                                         { value: 'no_visibility', label: 'No - Visibility is not significantly affected' },
                                         { value: 'unsure_visibility', label: 'Unsure - Difficult to determine' }
                                     ].map(option => (
@@ -208,7 +208,7 @@ const ExcessiveSmokeWizard = ({ currentStep, responses, updateResponse, onNext, 
                         <div className="text-center">
                             <h2 className="text-2xl font-bold text-white mb-2">Action Required</h2>
                             <p className="text-gray-300">
-                                Based on your responses, here's what you need to do:
+                                Based on the assessment, here is the recommended action:
                             </p>
                         </div>
 
@@ -219,14 +219,14 @@ const ExcessiveSmokeWizard = ({ currentStep, responses, updateResponse, onNext, 
                                     STOP IMMEDIATELY
                                 </h3>
                                 <div className="space-y-4 text-red-200">
-                                    <p className="font-semibold">You must stop the vehicle and await engineering assistance.</p>
+                                    <p className="font-semibold">Advise the driver to stop the vehicle immediately and await engineering assistance.</p>
                                     <div className="space-y-2">
                                         <p className="font-medium">Immediate Actions:</p>
                                         <ul className="list-disc list-inside space-y-1 ml-4">
-                                            <li>Stop the vehicle in a safe location as soon as possible</li>
+                                            <li>Advise the driver to stop the vehicle in a safe location as soon as possible</li>
                                             <li>Turn off the engine</li>
                                             <li>Ensure passenger safety - consider evacuation if fumes are present</li>
-                                            <li>Contact engineering immediately</li>
+                                            <li>Contact the engineering team immediately</li>
                                             <li>Do NOT attempt to continue driving</li>
                                         </ul>
                                     </div>
@@ -249,12 +249,12 @@ const ExcessiveSmokeWizard = ({ currentStep, responses, updateResponse, onNext, 
                                     CONTINUE WITH CAUTION
                                 </h3>
                                 <div className="space-y-4 text-amber-200">
-                                    <p className="font-semibold">You may continue to the next convenient changeover point.</p>
+                                    <p className="font-semibold">The driver may continue to the next convenient changeover point.</p>
                                     <div className="space-y-2">
                                         <p className="font-medium">Instructions:</p>
                                         <ul className="list-disc list-inside space-y-1 ml-4">
                                             <li>Arrange for a vehicle changeover at the earliest opportunity</li>
-                                            <li>Monitor the situation closely - if it worsens, stop immediately</li>
+                                            <li>Advise the driver to monitor the situation closely - if it worsens, stop immediately</li>
                                             <li>Record the defect on their handheld device when safe to do so</li>
                                             <li>Report to engineering for assessment at depot</li>
                                         </ul>
@@ -313,7 +313,7 @@ const ExcessiveSmokeWizard = ({ currentStep, responses, updateResponse, onNext, 
                             </div>
                             <h2 className="text-2xl font-bold text-white mb-2">Assessment Complete</h2>
                             <p className="text-gray-300">
-                                Summary of your excessive smoke assessment and next steps.
+                                Summary of the excessive smoke assessment and next steps.
                             </p>
                         </div>
 

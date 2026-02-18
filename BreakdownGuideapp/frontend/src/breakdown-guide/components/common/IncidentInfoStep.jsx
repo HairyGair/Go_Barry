@@ -242,25 +242,21 @@ const IncidentInfoStep = ({ responses, updateResponse, onNext, onPrevious }) => 
                 </div>
             </div>
             
-            {/* Tracerit External Report Button */}
+            {/* Incident Reporting Reminder */}
             <div className="bg-purple-500/20 backdrop-blur-sm rounded-lg p-6 border border-purple-400/30">
-                <h3 className="text-lg font-semibold text-purple-200 mb-3">📋 External Incident Reporting</h3>
+                <h3 className="text-lg font-semibold text-purple-200 mb-3">📋 Incident Reporting</h3>
                 <p className="text-purple-300/80 text-sm mb-4">
-                    For detailed incident reporting and tracking, complete the Tracerit form.
+                    For detailed incident reporting and tracking, complete the incident report using your reporting system.
                 </p>
-                <button
-                    onClick={() => window.open('https://secure.tracerit.com/gne/pages/incident.aspx?is_partial=True&mode=add&hm_id=hm_16&id=132&from=131', '_blank')}
-                    className="w-full px-6 py-3 bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition-colors flex items-center justify-center gap-2"
-                >
-                    <FileText className="w-5 h-5" />
-                    Open Tracerit Incident Report
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
-                </button>
-                <p className="text-purple-300/60 text-xs mt-2">
-                    Opens in a new window. Complete within 24 hours.
-                </p>
+                <div className="bg-purple-500/10 rounded-lg p-4 border border-purple-400/20">
+                    <div className="flex items-center gap-2 text-purple-200">
+                        <FileText className="w-5 h-5" />
+                        <span className="font-medium">Complete incident report within 24 hours</span>
+                    </div>
+                    <p className="text-purple-300/60 text-xs mt-2">
+                        Use your organisation's incident reporting system to log this incident.
+                    </p>
+                </div>
             </div>
             
             {/* Navigation buttons */}

@@ -18,7 +18,7 @@ const InteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, 
                             <FileText className="w-8 h-8 text-blue-400" />
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">🔦 Interior Lights Assessment</h2>
-                        <p className="text-gray-300">Following standard operational safety checks guidance for interior lighting issues - 50% illumination rule and step light requirements.</p>
+                        <p className="text-gray-300">Following standard operational safety procedures for interior lighting issues - 50% illumination rule and step light requirements.</p>
                     </div>
                     
                     <div className="bg-yellow-500/20 backdrop-blur-sm rounded-lg p-6 border border-yellow-400/30">
@@ -534,8 +534,12 @@ const InteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, 
             const fiftyPercentPassed = checkFiftyPercentRule();
             const stepLightOk = responses.step_light_function === 'working_correctly' || responses.step_light_function === 'no_step_light';
             
+            // Guide v6: Vehicle may continue if BOTH conditions met (50% rule AND step light)
+            // "but change the bus over at the earliest opportunity, especially if operating during darkness"
+            // Darkness does NOT force immediate changeover if both criteria pass
             const canContinueService = fiftyPercentPassed && stepLightOk;
-            const needsChangeover = !fiftyPercentPassed || !stepLightOk || responses.operating_conditions === 'hours_of_darkness';
+            const needsChangeover = !fiftyPercentPassed || !stepLightOk;
+            const isDarkness = responses.operating_conditions === 'hours_of_darkness' || responses.operating_conditions === 'approaching_darkness';
 
             return (
                 <div className="space-y-6">
@@ -573,21 +577,28 @@ const InteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, 
                         </div>
                     </div>
 
-                    {canContinueService && responses.operating_conditions !== 'hours_of_darkness' ? (
-                        <div className="bg-green-500/20 backdrop-blur-sm rounded-lg p-6 border border-green-400/30">
+                    {canContinueService ? (
+                        <div className={`${isDarkness ? 'bg-orange-500/20 border-orange-400/30' : 'bg-green-500/20 border-green-400/30'} backdrop-blur-sm rounded-lg p-6 border`}>
                             <div className="flex items-start">
-                                <CheckCircle className="w-8 h-8 text-green-400 mt-1 mr-4" />
+                                <CheckCircle className={`w-8 h-8 ${isDarkness ? 'text-orange-400' : 'text-green-400'} mt-1 mr-4`} />
                                 <div className="flex-1">
-                                    <h3 className="text-xl font-bold text-green-200 mb-3">✅ CONTINUE IN SERVICE</h3>
-                                    <div className="text-green-300/90 space-y-2">
-                                        <p className="font-semibold">Vehicle meets minimum lighting requirements and can continue in service</p>
+                                    <h3 className={`text-xl font-bold ${isDarkness ? 'text-orange-200' : 'text-green-200'} mb-3`}>
+                                        {isDarkness ? '⚠️ CONTINUE - CHANGEOVER ASAP' : '✅ CONTINUE IN SERVICE'}
+                                    </h3>
+                                    <div className={`${isDarkness ? 'text-orange-300/90' : 'text-green-300/90'} space-y-2`}>
+                                        <p className="font-semibold">
+                                            {isDarkness
+                                                ? 'Vehicle meets minimum lighting requirements but changeover should be arranged as soon as possible during hours of darkness'
+                                                : 'Vehicle meets minimum lighting requirements and can continue in service'}
+                                        </p>
                                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mt-4">
-                                            <h4 className="font-semibold text-green-200 mb-2">Actions Required:</h4>
-                                            <ul className="list-disc list-inside space-y-1 text-green-300/90 text-sm">
-                                                <li>Record defect details in defect reporting system</li>
+                                            <h4 className={`font-semibold ${isDarkness ? 'text-orange-200' : 'text-green-200'} mb-2`}>Actions Required:</h4>
+                                            <ul className={`list-disc list-inside space-y-1 ${isDarkness ? 'text-orange-300/90' : 'text-green-300/90'} text-sm`}>
+                                                {isDarkness && <li><strong>Arrange changeover as soon as possible</strong> (operating during darkness)</li>}
+                                                {!isDarkness && <li>Arrange changeover at earliest opportunity</li>}
+                                                <li>Record defect details in their reporting device</li>
                                                 <li>Monitor lighting functionality throughout shift</li>
                                                 <li>Report for workshop attention at next opportunity</li>
-                                                <li>Maintain awareness of lighting status</li>
                                             </ul>
                                         </div>
                                     </div>
@@ -599,21 +610,19 @@ const InteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, 
                             <div className="flex items-start">
                                 <XCircle className="w-8 h-8 text-red-400 mt-1 mr-4" />
                                 <div className="flex-1">
-                                    <h3 className="text-xl font-bold text-red-200 mb-3">🚫 CHANGEOVER REQUIRED</h3>
+                                    <h3 className="text-xl font-bold text-red-200 mb-3">CHANGEOVER IMMEDIATELY</h3>
                                     <div className="text-red-300/90 space-y-2">
                                         <p className="font-semibold">Vehicle does not meet minimum lighting requirements</p>
                                         <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mt-4">
                                             <h4 className="font-semibold text-red-200 mb-2">Reasons for Changeover:</h4>
                                             <ul className="list-disc list-inside space-y-1 text-red-300/90 text-sm">
-                                                {!fiftyPercentPassed && <li>Less than 50% of interior lights working</li>}
+                                                {!fiftyPercentPassed && <li>Less than 50% of interior lights working on one or more decks</li>}
                                                 {!stepLightOk && <li>Step light not functioning correctly</li>}
-                                                {responses.operating_conditions === 'hours_of_darkness' && <li>Operating during hours of darkness with lighting defects</li>}
                                             </ul>
                                             <h4 className="font-semibold text-red-200 mb-2 mt-4">Actions Required:</h4>
                                             <ul className="list-disc list-inside space-y-1 text-red-300/90 text-sm">
-                                                <li>Arrange immediate changeover</li>
-                                                <li>Record defect on their handheld device</li>
-                                                <li>Do not continue in service</li>
+                                                <li>Arrange changeover immediately</li>
+                                                <li>Record the defect on their handheld device</li>
                                                 <li>Ensure passenger safety during changeover</li>
                                             </ul>
                                         </div>
@@ -629,7 +638,7 @@ const InteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, 
                             <div>
                                 <h4 className="font-semibold text-blue-200">Recording Reminder</h4>
                                 <p className="text-sm text-blue-300/90 mt-1">
-                                    Log this incident in defect reporting system when stationary and in a safe location
+                                    Advise the driver to log this incident in their reporting device when stationary and in a safe location
                                 </p>
                             </div>
                         </div>

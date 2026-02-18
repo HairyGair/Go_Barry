@@ -655,7 +655,7 @@ const CuttingOutFuelWizard = ({ currentStep, responses, updateResponse, onNext, 
                                                 <li>Document all cutting out incidents for engineers</li>
                                             </>
                                         )}
-                                        <li>Log as CRITICAL priority in defect reporting system</li>
+                                        <li>Advise the driver to log this as CRITICAL priority in their reporting device</li>
                                     </ol>
                                 </div>
                             </div>
@@ -706,7 +706,7 @@ const CuttingOutFuelWizard = ({ currentStep, responses, updateResponse, onNext, 
                                         <li>Continue to convenient changeover point</li>
                                         <li>Monitor engine performance closely</li>
                                         <li>If vehicle cuts out again, arrange immediate changeover</li>
-                                        <li>Log the initial incident in defect reporting system</li>
+                                        <li>Advise the driver to log the initial incident in their reporting device</li>
                                         <li>Report for routine maintenance attention</li>
                                         <li>Driver should report any recurrence immediately</li>
                                     </ol>
@@ -734,7 +734,7 @@ const CuttingOutFuelWizard = ({ currentStep, responses, updateResponse, onNext, 
                             <div>
                                 <h4 className="font-semibold text-purple-200 mb-2">📱 Defect Documentation Required</h4>
                                 <p className="text-purple-300/80 text-sm">
-                                    Record this fuel system assessment in the defect reporting system immediately when vehicle is stationary and in a safe location. 
+                                    Record this fuel system assessment in the reporting device immediately when vehicle is stationary and in a safe location. 
                                     Include details of any fuel leaks, cutting out frequency, and all safety actions taken.
                                 </p>
                             </div>

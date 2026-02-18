@@ -609,7 +609,7 @@ export const WIZARD_TYPE_MAPPING = {
 
   // Special Systems
   'tracer-it-helper': {
-    displayName: 'TracerIT System Issues',
+    displayName: 'Incident Reporting Helper',
     category: 'Information Systems',
     icon: '📡',
     priority: 'low',

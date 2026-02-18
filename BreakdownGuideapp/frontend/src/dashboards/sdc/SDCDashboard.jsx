@@ -26,6 +26,8 @@ import AssessmentProgressTracker from './AssessmentProgressTracker';
 import AssessmentProgressCard from './AssessmentProgressCard';
 import EngineeringTimerAlert from './EngineeringTimerAlert';
 import BreakdownResolutionDialog from './components/BreakdownResolutionDialog';
+import DispatchReplacementModal from './components/DispatchReplacementModal';
+import ReturnToServiceModal from './components/ReturnToServiceModal';
 import DepotContactModal from '../../components/DepotContactModal';
 import { apiClient } from '../../services/api-client';
 import { fetchAllActivities } from '../../api/activityAggregator';
@@ -72,6 +74,18 @@ const SDCDashboard = () => {
 
   // Contact modal state
   const [contactModal, setContactModal] = useState({
+    isOpen: false,
+    breakdown: null
+  });
+
+  // Replacement vehicle modal state
+  const [replacementModal, setReplacementModal] = useState({
+    isOpen: false,
+    breakdown: null
+  });
+
+  // Return to service modal state
+  const [returnToServiceModal, setReturnToServiceModal] = useState({
     isOpen: false,
     breakdown: null
   });
@@ -1264,6 +1278,51 @@ const SDCDashboard = () => {
     });
   }, []);
 
+  // Handle dispatch replacement
+  const handleDispatchReplacement = useCallback((breakdown) => {
+    setReplacementModal({ isOpen: true, breakdown });
+  }, []);
+
+  // Handle return to service
+  const handleReturnToService = useCallback((breakdown) => {
+    setReturnToServiceModal({ isOpen: true, breakdown });
+  }, []);
+
+  // Handle replacement dispatch success - update local state
+  const handleReplacementSuccess = useCallback((result) => {
+    setBreakdowns(prev => prev.map(b =>
+      b.breakdown_id === result.breakdown_id
+        ? {
+            ...b,
+            replacement_vehicle: {
+              replacement_fleet_no: result.replacement_fleet_no,
+              sending_depot_name: result.sending_depot,
+              dead_miles: result.dead_miles,
+              status: 'dispatched'
+            }
+          }
+        : b
+    ));
+  }, []);
+
+  // Handle return to service success - update local state
+  const handleReturnToServiceSuccess = useCallback((result) => {
+    setBreakdowns(prev => prev.map(b =>
+      b.breakdown_id === result.breakdown_id
+        ? {
+            ...b,
+            replacement_vehicle: {
+              ...b.replacement_vehicle,
+              pickup_miles: result.pickup_miles,
+              total_dead_miles: result.total_dead_miles,
+              status: 'in_service',
+              return_to_service_location: result.return_to_service_location
+            }
+          }
+        : b
+    ));
+  }, []);
+
   const handleAcknowledge = async (breakdownId) => {
     try {
       // Optimistic update
@@ -1726,6 +1785,8 @@ const SDCDashboard = () => {
                       onViewGuide={handleViewGuide}
                       onAddNote={handleAddNote}
                       onContact={handleContact}
+                      onDispatchReplacement={handleDispatchReplacement}
+                      onReturnToService={handleReturnToService}
                     />
                   </div>
                 );
@@ -1896,6 +1957,22 @@ const SDCDashboard = () => {
         isOpen={contactModal.isOpen}
         onClose={() => setContactModal({ isOpen: false, breakdown: null })}
         breakdown={contactModal.breakdown}
+      />
+
+      {/* Dispatch Replacement Vehicle Modal */}
+      <DispatchReplacementModal
+        breakdown={replacementModal.breakdown}
+        isOpen={replacementModal.isOpen}
+        onClose={() => setReplacementModal({ isOpen: false, breakdown: null })}
+        onSuccess={handleReplacementSuccess}
+      />
+
+      {/* Return to Service Modal */}
+      <ReturnToServiceModal
+        breakdown={returnToServiceModal.breakdown}
+        isOpen={returnToServiceModal.isOpen}
+        onClose={() => setReturnToServiceModal({ isOpen: false, breakdown: null })}
+        onSuccess={handleReturnToServiceSuccess}
       />
 
       <style>{`

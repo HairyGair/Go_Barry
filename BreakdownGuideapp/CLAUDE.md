@@ -2,7 +2,7 @@
 
 **Last Updated:** February 2026
 **System Status:** Production-Ready
-**Version:** 4.1.0
+**Version:** 4.2.0
 
 ---
 
@@ -50,9 +50,12 @@
 - When the app says "advise the driver to record on their handheld device", this means the supervisor tells the driver to use the driver's own defect reporting device
 
 ### Language Guidelines
-- Use "the driver" not "you" when referring to driver actions
+- Use "the driver" not "you" when referring to driver actions (exception: "Suggested Script" dialog text read aloud to drivers)
 - Use "advise the driver to..." for instructions meant for drivers
 - Use "their handheld device" not "your device" (refers to the driver's device)
+- Use "their reporting device" not bare "reporting device" (always include possessive)
+- Use "the engineering team" not bare "engineering" when referring to contacting them
+- Use "Record the defect" not "Record defect" (always include the article)
 - Write from the supervisor's perspective, giving guidance TO drivers
 - Avoid mobile-focused language (this is a desktop app)
 - Avoid brand names for devices/systems - use generic terms like "handheld device" or "defect reporting system"
@@ -663,6 +666,15 @@ Fixed critical vulnerabilities:
 - Removed exposed password from `AuthContext.jsx` comments
 - Added SQL injection protection to QueryBuilder
 - Deprecated `auth-service.js` (use AuthContext instead)
+
+### Wizard Wording Audit (February 2026)
+Audited all 30+ diagnostic wizards for text quality:
+- Fixed wrong perspective ("you/your") to supervisor voice ("advise the driver to...")
+- Fixed duplicate words ("procedures procedures"), grammar ("states" → "state")
+- Added missing articles ("Record defect" → "Record the defect", "in reporting device" → "in their reporting device")
+- Standardised "safety checks guidance/procedure" → "safety procedures" across all wizards
+- Added "Advise the driver to..." framing to bare imperative instructions
+- Fixed informal language ("steer clear" → "keep clear") and subjective phrasing
 
 ---
 

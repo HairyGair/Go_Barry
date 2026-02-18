@@ -15,10 +15,13 @@ const DemistersHeatersWizard = ({ currentStep, responses, updateResponse, onNext
         let notes = 'Demisters/Heaters assessment completed per standard operational procedures. ';
         
         // Decision logic based on driver vision impact
-        if (responses.driver_vision_affected === 'vision_severely_impaired') {
+        // Note: key is driver_visibility_affected (set in step 1), values are vision_affected / vision_not_affected
+        // If vision_affected, the wizard early-exits via onComplete before reaching handleCompleteAssessment.
+        // This check is a safety fallback in case that flow changes.
+        if (responses.driver_visibility_affected === 'vision_affected') {
             finalDecision = 'STOP';
-            notes += 'Driver vision severely impaired by demister failure. Vehicle must stop immediately and await engineering assistance.';
-        } else if (responses.driver_vision_affected === 'vision_mildly_impaired' || responses.demister_air_flow === 'not_blowing_at_all') {
+            notes += 'Driver vision affected by demister failure. Vehicle must stop immediately and await engineering assistance.';
+        } else if (responses.demister_air_flow === 'not_blowing_at_all') {
             finalDecision = 'AMBER';
             notes += 'Vision impairment or demister failure detected. Arrange changeover at earliest convenient location.';
         } else if (responses.demister_air_flow === 'blowing_cold_air_only') {
@@ -29,7 +32,7 @@ const DemistersHeatersWizard = ({ currentStep, responses, updateResponse, onNext
             notes += 'Minor demister issue identified. Vehicle may continue with monitoring.';
         }
         
-        notes += ' Record defect on their handheld device when stationary and safe.';
+        notes += ' Record the defect on their handheld device when stationary and safe.';
         
         onComplete(finalDecision, notes);
     };
@@ -44,7 +47,7 @@ const DemistersHeatersWizard = ({ currentStep, responses, updateResponse, onNext
                             <Wind className="w-8 h-8 text-blue-400" />
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">❄️ Demisters / Heaters Assessment</h2>
-                        <p className="text-gray-300">Following standard operational safety checks guidance Step 1: Check if the Demisters are Blowing - driver's vision is THE priority.</p>
+                        <p className="text-gray-300">Following standard operational safety procedures Step 1: Check if the Demisters are Blowing - driver's vision is THE priority.</p>
                     </div>
                     
                     <div className="bg-red-500/20 backdrop-blur-sm rounded-lg p-6 border border-red-400/30">
@@ -395,7 +398,7 @@ const DemistersHeatersWizard = ({ currentStep, responses, updateResponse, onNext
                                                 <li>Continue in service until replacement available</li>
                                                 <li>Changeover is not urgent</li>
                                                 <li>Monitor passenger comfort throughout journey</li>
-                                                <li>Record defect on their handheld device</li>
+                                                <li>Record the defect on their handheld device</li>
                                             </ul>
                                         </div>
                                     </div>
@@ -410,7 +413,7 @@ const DemistersHeatersWizard = ({ currentStep, responses, updateResponse, onNext
                             <div>
                                 <h4 className="font-semibold text-blue-200">Recording Reminder</h4>
                                 <p className="text-sm text-blue-300/90 mt-1">
-                                    Log this incident in defect reporting system when stationary and in a safe location
+                                    Advise the driver to log this incident in their reporting device when stationary and in a safe location
                                 </p>
                             </div>
                         </div>

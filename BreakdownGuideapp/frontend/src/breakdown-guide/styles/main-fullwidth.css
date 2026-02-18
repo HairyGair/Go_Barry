@@ -156,7 +156,7 @@ body {
   margin-left: 20px;
 }
 
-.tranzaura-button,
+.reporting-button,
 .dashboard-button,
 .signout-button {
   padding: 8px 16px;
@@ -172,11 +172,11 @@ body {
   gap: 6px;
 }
 
-.tranzaura-button {
+.reporting-button {
   background: #28a745;
 }
 
-.tranzaura-button:hover {
+.reporting-button:hover {
   background: #218838;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);

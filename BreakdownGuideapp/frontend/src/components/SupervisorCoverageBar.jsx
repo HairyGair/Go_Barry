@@ -102,7 +102,7 @@ const SupervisorCoverageBar = ({ refreshInterval = 60000 }) => {
               className={`coverage-bar__duty-pill ${duty.isCovered ? 'covered' : 'uncovered'}`}
               style={{ '--duty-color': duty.color }}
             >
-              {duty.isCovered ? '✓' : '✗'} {duty.code}
+              Duty {duty.code}
             </span>
           ))}
         </div>

@@ -835,6 +835,61 @@
   background: rgba(0, 151, 167, 0.2);
 }
 
+/* ---- All Routes Operational Banner ---- */
+.lrs-all-clear {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  gap: var(--spacing-md);
+  text-align: center;
+}
+
+.lrs-all-clear__icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.1);
+  border: 2px solid rgba(16, 185, 129, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--spacing-sm);
+}
+
+.lrs-all-clear__title {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--color-success, #10B981);
+  letter-spacing: -0.01em;
+}
+
+.lrs-all-clear__subtitle {
+  margin: 0;
+  font-size: var(--text-base);
+  color: var(--color-dark-text-tertiary);
+}
+
+.lrs-all-clear__show-btn {
+  margin-top: var(--spacing-sm);
+  padding: 8px 20px;
+  background: rgba(0, 151, 167, 0.1);
+  border: 1px solid rgba(0, 151, 167, 0.25);
+  border-radius: var(--radius-md);
+  color: var(--color-primary-400, #0097A7);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.lrs-all-clear__show-btn:hover {
+  background: rgba(0, 151, 167, 0.2);
+  border-color: rgba(0, 151, 167, 0.4);
+}
+
 /* ---- Footer ---- */
 .lrs-footer {
   display: flex;

@@ -419,7 +419,7 @@ const PunctureWizardStep4 = ({ responses, updateResponse, onPrevious, onComplete
                             </div>
                             <div>
                                 <span className="font-medium">❌ No - Not yet contacted</span>
-                                <p className="text-sm text-gray-300 mt-1">Contact engineering immediately with position details</p>
+                                <p className="text-sm text-gray-300 mt-1">Contact the engineering team immediately with position details</p>
                             </div>
                         </div>
                     </button>

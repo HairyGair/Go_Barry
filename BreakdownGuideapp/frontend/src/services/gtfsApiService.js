@@ -146,7 +146,7 @@ export const gtfsApiService = {
     }
   },
 
-  async searchStops({ q, lat, lng, radius_km = 1, limit = 50 }) {
+  async searchStops({ q, lat, lng, radius_km = 1, limit = 50, signal } = {}) {
     try {
       const params = new URLSearchParams();
       if (q) params.set('q', q);
@@ -154,21 +154,34 @@ export const gtfsApiService = {
       if (lng) params.set('lng', lng);
       if (radius_km) params.set('radius_km', radius_km);
       if (limit) params.set('limit', limit);
-      return await apiClient.get(`${GTFS_API_BASE}/stops/search?${params}`);
+      const opts = signal ? { signal, retries: 1 } : {};
+      return await apiClient.get(`${GTFS_API_BASE}/stops/search?${params}`, opts);
     } catch (error) {
+      if (error.name === 'AbortError') throw error;
       console.error('Error searching stops:', error);
       throw error;
     }
   },
 
-  async getStopDepartures(stopId, { from_time, limit = 20 } = {}) {
+  async getRouteInterchanges() {
+    try {
+      return await apiClient.get(`${GTFS_API_BASE}/routes/interchanges`);
+    } catch (error) {
+      console.error('Error fetching interchange routes:', error);
+      return { success: false, interchanges: [] };
+    }
+  },
+
+  async getStopDepartures(stopId, { from_time, limit = 20, signal } = {}) {
     try {
       const params = new URLSearchParams();
       if (from_time) params.set('from_time', from_time);
       if (limit) params.set('limit', limit);
       const qs = params.toString();
-      return await apiClient.get(`${GTFS_API_BASE}/stops/${stopId}/departures${qs ? '?' + qs : ''}`);
+      const opts = signal ? { signal, retries: 1 } : {};
+      return await apiClient.get(`${GTFS_API_BASE}/stops/${stopId}/departures${qs ? '?' + qs : ''}`, opts);
     } catch (error) {
+      if (error.name === 'AbortError') throw error;
       console.error('Error fetching stop departures:', error);
       throw error;
     }

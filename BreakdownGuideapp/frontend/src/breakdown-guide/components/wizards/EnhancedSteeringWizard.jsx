@@ -283,7 +283,7 @@ const EnhancedSteeringWizard = ({ currentStep, responses, updateResponse, onNext
                                         <h4 className="font-bold text-red-200 mb-2">🛑 IMMEDIATE ACTION REQUIRED</h4>
                                         <ul className="list-disc list-inside space-y-1 text-red-300 text-sm">
                                             <li>Vehicle MUST NOT continue in service</li>
-                                            <li>Contact engineering immediately</li>
+                                            <li>Contact the engineering team immediately</li>
                                             <li>Document exact play measurement if possible</li>
                                             <li>Ensure driver and passengers are safe</li>
                                         </ul>

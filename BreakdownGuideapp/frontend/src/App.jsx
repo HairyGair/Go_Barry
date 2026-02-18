@@ -13,7 +13,7 @@
  * @license Proprietary
  */
 
-import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import './App.css'
 
@@ -294,7 +294,12 @@ const AppContent = () => {
   const [acknowledgedWarnings, setAcknowledgedWarnings] = useState(new Set())
   const [showShiftSummary, setShowShiftSummary] = useState(false) // Phase 8.4
   const [shiftStats, setShiftStats] = useState({}) // Phase 8.4 - aggregated stats
+  const [showDemoBanner, setShowDemoBanner] = useState(true) // Demo mode banner visibility
   const location = useLocation()
+  const navigate = useNavigate()
+
+  // Detect demo user
+  const isDemoUser = currentUser?.badge_number === 'DEMO01' || currentUser?.is_demo === true
 
   // Check for existing duty on mount and validate expiration
   useEffect(() => {
@@ -330,15 +335,45 @@ const AppContent = () => {
     }
   }, [])
 
-  // Show duty modal IMMEDIATELY after login if no valid duty exists
+  const isEngineeringManager = currentUser?.role === 'engineering_manager'
+
+  // Auto-set Day Shift for demo users (skip duty selection entirely)
   useEffect(() => {
-    if (isAuthenticated && !isSessionChecking && !currentDuty) {
+    if (isAuthenticated && !isSessionChecking && isDemoUser && !currentDuty) {
+      console.log('🎭 Demo user detected - auto-setting Day Shift (Duty 200)')
+      const demoDuty = {
+        code: '200',
+        name: 'Day Shift',
+        startTime: '07:30',
+        endTime: '17:00',
+        shiftStart: new Date().toISOString(),
+        shiftEnd: new Date(Date.now() + 9.5 * 60 * 60 * 1000).toISOString(),
+        isDemo: true
+      }
+      setCurrentDuty(demoDuty)
+      sessionStorage.setItem('currentDuty', JSON.stringify(demoDuty))
+      sessionStorage.removeItem('showDutyModal')
+      setShowDemoBanner(true)
+    }
+  }, [isAuthenticated, isSessionChecking, isDemoUser, currentDuty])
+
+  // Show duty modal IMMEDIATELY after login if no valid duty exists
+  // Engineering managers and demo users skip duty selection entirely
+  useEffect(() => {
+    if (isAuthenticated && !isSessionChecking && !currentDuty && !isEngineeringManager && !isDemoUser) {
       console.log('🔔 Authenticated with no duty - showing duty modal')
       setShowDutyModal(true)
       // Clear the flag now that we're showing the modal
       sessionStorage.removeItem('showDutyModal')
     }
-  }, [isAuthenticated, isSessionChecking, currentDuty])
+  }, [isAuthenticated, isSessionChecking, currentDuty, isEngineeringManager, isDemoUser])
+
+  // Redirect engineering_manager to their landing page
+  useEffect(() => {
+    if (isAuthenticated && !isSessionChecking && isEngineeringManager && location.pathname === '/') {
+      navigate('/dashboards/engineering/manage', { replace: true })
+    }
+  }, [isAuthenticated, isSessionChecking, isEngineeringManager, location.pathname, navigate])
 
   // Monitor shift time for end-of-shift warnings (30/15/5/0 minutes)
   useEffect(() => {
@@ -588,7 +623,7 @@ const AppContent = () => {
   }
 
   return (
-    <div className={`app ${!isOnline ? 'offline' : ''}`}>
+    <div className={`app ${!isOnline ? 'offline' : ''} ${isDemoUser && showDemoBanner ? 'demo-mode' : ''}`}>
       {useModernHeader ? (
         // Minimal User Menu - Floating dropdown in top-right
         !hideNav && (
@@ -609,7 +644,23 @@ const AppContent = () => {
 
       {!isOnline && (
         <div className="offline-banner">
-          ⚠️ You are currently offline. Some features may be limited.
+          You are currently offline. Some features may be limited.
+        </div>
+      )}
+
+      {/* Demo Mode Banner */}
+      {isDemoUser && showDemoBanner && (
+        <div className="demo-mode-banner">
+          <span className="demo-mode-banner-text">
+            Demo Mode - Exploring with sample data
+          </span>
+          <button
+            className="demo-mode-hide-btn"
+            onClick={() => setShowDemoBanner(false)}
+            title="Hide banner (for screenshots)"
+          >
+            Hide
+          </button>
         </div>
       )}
 
@@ -632,7 +683,7 @@ const AppContent = () => {
 
       <main className={`main-container ${hideNav ? 'no-nav' : ''}`}>
         <Routes>
-          <Route path="/" element={<HomePage onStatsChange={handleStatsChange} />} />
+          <Route path="/" element={<HomePage onStatsChange={handleStatsChange} currentDuty={currentDuty} />} />
           <Route path="/breakdown-guide/*" element={<BreakdownGuide />} />
           <Route path="/dashboards/*" element={<DashboardRouter />} />
           <Route path="/fleet-intelligence" element={<FleetIntelligenceDashboard />} />
@@ -657,8 +708,8 @@ const AppContent = () => {
         </Routes>
       </main>
 
-      {/* App Footer - GairWare Branding */}
-      {!hideNav && <AppFooter variant="default" />}
+      {/* App Footer - GairWare Branding - Always visible */}
+      <AppFooter variant={hideNav ? 'dark' : 'default'} />
 
       {/* Quick Feedback Widget - Always visible when logged in (hidden on Control Room Display) */}
       {isAuthenticated && !hideNav && <QuickFeedback />}

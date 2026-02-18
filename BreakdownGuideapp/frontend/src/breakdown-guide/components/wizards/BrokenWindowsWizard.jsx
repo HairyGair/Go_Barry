@@ -64,7 +64,7 @@ const BrokenWindowsWizard = ({ currentStep, responses, updateResponse, onNext, o
             finalDecision = 'AMBER';
             notes += 'Vehicle may continue to changeover point with driver vigilance. ';
             notes += `Damage extent: ${responses.damage_extent}. `;
-            notes += 'Monitor situation and arrange replacement vehicle. Record defect on their handheld device.';
+            notes += 'Monitor situation and arrange replacement vehicle. Record the defect on their handheld device.';
         } else {
             finalDecision = 'AMBER';
             notes += 'Complex situation requiring professional evaluation. Contact engineering for guidance.';
@@ -83,7 +83,7 @@ const BrokenWindowsWizard = ({ currentStep, responses, updateResponse, onNext, o
                             <AlertTriangle className="w-8 h-8 text-red-400" />
                         </div>
                         <h2 className="text-2xl font-bold text-white mb-2">🪟 BROKEN WINDOWS - SAFETY ASSESSMENT</h2>
-                        <p className="text-gray-300">Following standard operational safety checks procedure for broken windows evaluation.</p>
+                        <p className="text-gray-300">Following standard operational safety procedures for broken windows evaluation.</p>
                     </div>
                     
                     <div className="bg-red-500/30 backdrop-blur-sm rounded-lg p-6 border border-red-400/50">
@@ -423,7 +423,7 @@ const BrokenWindowsWizard = ({ currentStep, responses, updateResponse, onNext, o
                 <div className="space-y-6">
                     <div className="text-center">
                         <h2 className="text-2xl font-bold text-white mb-2">📋 BROKEN WINDOWS - FINAL DECISION</h2>
-                        <p className="text-gray-300">compliant safety decision and action plan.</p>
+                        <p className="text-gray-300">Safety decision and action plan per operational procedures.</p>
                     </div>
                     
                     {mustStop ? (

@@ -346,7 +346,7 @@ const MobileGeneralAssessmentWizard = ({ currentStep, responses, updateResponse,
                                 icon={<span className="text-xl">📋</span>}
                             >
                                 <div>
-                                    <div className="font-semibold">Logged in defect reporting system</div>
+                                    <div className="font-semibold">Logged in their reporting device</div>
                                     <div className="text-sm opacity-80 mt-1">Defect properly documented</div>
                                 </div>
                             </MobileTouchButton>
