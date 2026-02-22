@@ -31,8 +31,13 @@
 
     <title>Go BARRY - Breakdown Management</title>
 
-    <!-- Adobe Fonts - Brand Typography -->
-    <link rel="stylesheet" href="https://use.typekit.net/jug1pdv.css">
+    <!-- Preconnect to font CDN early -->
+    <link rel="preconnect" href="https://use.typekit.net" crossorigin>
+    <link rel="preconnect" href="https://p.typekit.net" crossorigin>
+
+    <!-- Adobe Fonts - loaded async to avoid render-blocking -->
+    <link rel="preload" href="https://use.typekit.net/jug1pdv.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://use.typekit.net/jug1pdv.css"></noscript>
 
     <!-- Preconnect to backend API -->
     <link rel="preconnect" href="https://api.breakdowns.gobarry.co.uk">

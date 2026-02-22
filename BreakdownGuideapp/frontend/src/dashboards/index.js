@@ -6,9 +6,3 @@ export { default as FilterBar } from './components/FilterBar';
 
 // Dashboard Router
 export { default as DashboardRouter } from './DashboardRouter';
-
-// Individual Dashboards
-export { default as ControlRoomDisplay } from './control-room/ControlRoomDisplay';
-export { default as SDCDashboard } from './sdc/SDCDashboard';
-export { default as EngineeringDashboard } from './engineering/EngineeringDashboard';
-export { default as ManagementDashboard } from './management/ManagementDashboard';

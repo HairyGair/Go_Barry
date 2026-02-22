@@ -15,7 +15,7 @@
  * For licensing enquiries, contact: anthony@gobarry.co.uk
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 
 // Import styles
@@ -43,41 +43,41 @@ import AssessmentSummary from './components/common/AssessmentSummary.jsx';
 import WizardProgressBar from './components/common/WizardProgressBar.jsx';
 import WizardContextHeader from './components/common/WizardContextHeader.jsx';
 
-// Import all wizards
-import SteeringWizard from './components/wizards/SteeringWizard.jsx';
-import BrakesWizard from './components/wizards/BrakesWizard.jsx';
-import ABSLightWizard from './components/wizards/ABSLightWizard.jsx';
-import BatteryWizard from './components/wizards/BatteryWizard.jsx';
-import BrokenWindowsWizard from './components/wizards/BrokenWindowsWizard.jsx';
-import BuzzersWizard from './components/wizards/BuzzersWizard.jsx';
-import CoolingSystemWizard from './components/wizards/CoolingSystemWizard.jsx';
-import CuttingOutFuelWizard from './components/wizards/CuttingOutFuelWizard.jsx';
-import DemistersHeatersWizard from './components/wizards/DemistersHeatersWizard.jsx';
-import DoorsWizard from './components/wizards/DoorsWizard.jsx';
-import ExcessiveSmokeWizard from './components/wizards/ExcessiveSmokeWizard.jsx';
-import ExteriorLightsWizard from './components/wizards/ExteriorLightsWizard.jsx';
-import GearSelectionWizard from './components/wizards/GearSelectionWizard.jsx';
-import GearboxWizard from './components/wizards/GearboxWizard.jsx';
-import InteriorExteriorDamageWizard from './components/wizards/InteriorExteriorDamageWizard.jsx';
-import InteriorLightsWizard from './components/wizards/InteriorLightsWizard.jsx';
-import LooseWheelNutsWizard from './components/wizards/LooseWheelNutsWizard.jsx';
-import LowWaterWizard from './components/wizards/LowWaterWizard.jsx';
-import NonStarterWizard from './components/wizards/NonStarterWizard.jsx';
-import OilWarningLightWizard from './components/wizards/OilWarningLightWizard.jsx';
-import PunctureWizard from './components/wizards/PunctureWizard.jsx';
-import RepeatDefectsWizard from './components/wizards/RepeatDefectsWizard.jsx';
-import RoadTrafficIncidentsWizardWrapper from './components/wizards/RoadTrafficIncidentsWizardWrapper.jsx';
-import SpeedoWizard from './components/wizards/SpeedoWizard.jsx';
-import SuspensionWizard from './components/wizards/SuspensionWizard.jsx';
-import WarningLightsWizard from './components/wizards/WarningLightsWizard.jsx';
-import WheelchairRampWizard from './components/wizards/WheelchairRampWizard.jsx';
-import WingMirrorsWizard from './components/wizards/WingMirrorsWizard.jsx';
-import WipersScreenwashWizard from './components/wizards/WipersScreenwashWizard.jsx';
-import DestinationDisplayWizard from './components/wizards/DestinationDisplayWizard.jsx';
-import EVLowChargeWizard from './components/wizards/EVLowChargeWizard.jsx';
-import Step3InitialAssessment from './components/Step3InitialAssessment.jsx';
-import Step5IssueDetails from './components/Step5IssueDetails.jsx';
-import Step7Submit from './components/Step7Submit.jsx';
+// Lazy-loaded wizard components
+const SteeringWizard = lazy(() => import('./components/wizards/SteeringWizard.jsx'));
+const BrakesWizard = lazy(() => import('./components/wizards/BrakesWizard.jsx'));
+const ABSLightWizard = lazy(() => import('./components/wizards/ABSLightWizard.jsx'));
+const BatteryWizard = lazy(() => import('./components/wizards/BatteryWizard.jsx'));
+const BrokenWindowsWizard = lazy(() => import('./components/wizards/BrokenWindowsWizard.jsx'));
+const BuzzersWizard = lazy(() => import('./components/wizards/BuzzersWizard.jsx'));
+const CoolingSystemWizard = lazy(() => import('./components/wizards/CoolingSystemWizard.jsx'));
+const CuttingOutFuelWizard = lazy(() => import('./components/wizards/CuttingOutFuelWizard.jsx'));
+const DemistersHeatersWizard = lazy(() => import('./components/wizards/DemistersHeatersWizard.jsx'));
+const DoorsWizard = lazy(() => import('./components/wizards/DoorsWizard.jsx'));
+const ExcessiveSmokeWizard = lazy(() => import('./components/wizards/ExcessiveSmokeWizard.jsx'));
+const ExteriorLightsWizard = lazy(() => import('./components/wizards/ExteriorLightsWizard.jsx'));
+const GearSelectionWizard = lazy(() => import('./components/wizards/GearSelectionWizard.jsx'));
+const GearboxWizard = lazy(() => import('./components/wizards/GearboxWizard.jsx'));
+const InteriorExteriorDamageWizard = lazy(() => import('./components/wizards/InteriorExteriorDamageWizard.jsx'));
+const InteriorLightsWizard = lazy(() => import('./components/wizards/InteriorLightsWizard.jsx'));
+const LooseWheelNutsWizard = lazy(() => import('./components/wizards/LooseWheelNutsWizard.jsx'));
+const LowWaterWizard = lazy(() => import('./components/wizards/LowWaterWizard.jsx'));
+const NonStarterWizard = lazy(() => import('./components/wizards/NonStarterWizard.jsx'));
+const OilWarningLightWizard = lazy(() => import('./components/wizards/OilWarningLightWizard.jsx'));
+const PunctureWizard = lazy(() => import('./components/wizards/PunctureWizard.jsx'));
+const RepeatDefectsWizard = lazy(() => import('./components/wizards/RepeatDefectsWizard.jsx'));
+const RoadTrafficIncidentsWizardWrapper = lazy(() => import('./components/wizards/RoadTrafficIncidentsWizardWrapper.jsx'));
+const SpeedoWizard = lazy(() => import('./components/wizards/SpeedoWizard.jsx'));
+const SuspensionWizard = lazy(() => import('./components/wizards/SuspensionWizard.jsx'));
+const WarningLightsWizard = lazy(() => import('./components/wizards/WarningLightsWizard.jsx'));
+const WheelchairRampWizard = lazy(() => import('./components/wizards/WheelchairRampWizard.jsx'));
+const WingMirrorsWizard = lazy(() => import('./components/wizards/WingMirrorsWizard.jsx'));
+const WipersScreenwashWizard = lazy(() => import('./components/wizards/WipersScreenwashWizard.jsx'));
+const DestinationDisplayWizard = lazy(() => import('./components/wizards/DestinationDisplayWizard.jsx'));
+const EVLowChargeWizard = lazy(() => import('./components/wizards/EVLowChargeWizard.jsx'));
+const Step3InitialAssessment = lazy(() => import('./components/Step3InitialAssessment.jsx'));
+const Step5IssueDetails = lazy(() => import('./components/Step5IssueDetails.jsx'));
+const Step7Submit = lazy(() => import('./components/Step7Submit.jsx'));
 
 // Import diagnostic flows (from src/data)
 import { wizards } from '@data/diagnostic-flows-complete.js';
@@ -868,8 +868,10 @@ const App = () => {
                             onSelectVehicle={handleFleetSelection}
                         />
                     )}
-                    
-                    {currentWizard ? renderWizard() : <Dashboard />}
+
+                    <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div><p>Loading...</p></div>}>
+                        {currentWizard ? renderWizard() : <Dashboard />}
+                    </Suspense>
                 </>
             } />
         </Routes>

@@ -14,7 +14,7 @@
  */
 
 import { BrowserRouter as Router, Routes, Route, Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } from 'react'
 import './App.css'
 
 // Phase 6.4: Global accessibility styles for touch targets
@@ -38,25 +38,18 @@ import { GoBarryBanner } from './components/GoBarryLogo.jsx'
 // Import Footer Component
 import AppFooter from './components/AppFooter.jsx'
 
-// Import BreakdownGuide
-import BreakdownGuideApp from './breakdown-guide/App.jsx'
+// Lazy-loaded heavy components
+const BreakdownGuideApp = lazy(() => import('./breakdown-guide/App.jsx'))
+const FleetIntelligenceDashboard = lazy(() => import('./dashboards/fleet-intelligence/FleetIntelligenceDashboard'))
+const EngineeringDisplay = lazy(() => import('./dashboards/engineering/EngineeringDisplay'))
+const HomePage = lazy(() => import('./components/HomePage.jsx'))
+const SettingsPage = lazy(() => import('./components/SettingsPage.jsx'))
 
-// Import Dashboard Router
+// Import Dashboard Router (itself lazy-loads dashboards internally)
 import { DashboardRouter } from './dashboards'
-
-// Import Fleet Intelligence Dashboard
-import FleetIntelligenceDashboard from './dashboards/fleet-intelligence/FleetIntelligenceDashboard'
-
-// Import Engineering Display (public standalone route)
-import EngineeringDisplay from './dashboards/engineering/EngineeringDisplay'
-
-// Import HomePage
-import HomePage from './components/HomePage.jsx'
 
 // Import NotificationPanel
 import NotificationPanel from './components/NotificationPanel.jsx'
-// Import Settings Page
-import SettingsPage from './components/SettingsPage.jsx'
 
 // Import QuickFeedback and ErrorBoundary
 import QuickFeedback from './components/QuickFeedback.jsx'
@@ -682,30 +675,32 @@ const AppContent = () => {
       )}
 
       <main className={`main-container ${hideNav ? 'no-nav' : ''}`}>
-        <Routes>
-          <Route path="/" element={<HomePage onStatsChange={handleStatsChange} currentDuty={currentDuty} />} />
-          <Route path="/breakdown-guide/*" element={<BreakdownGuide />} />
-          <Route path="/dashboards/*" element={<DashboardRouter />} />
-          <Route path="/fleet-intelligence" element={<FleetIntelligenceDashboard />} />
-          <Route path="/management" element={<ComingSoon title="Management Portal" />} />
-          <Route path="/sdc-operations" element={<Navigate to="/dashboards/sdc" replace />} />
-          <Route path="/profile" element={<Navigate to="/settings" replace />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route
-            path="/help"
-            element={<ComingSoon title="Help & Support" />}
-          />
-          <Route
-            path="*"
-            element={
-              <div className="not-found">
-                <h2>404 - Page Not Found</h2>
-                <p>The page you're looking for doesn't exist.</p>
-                <Link to="/">Go back home</Link>
-              </div>
-            }
-          />
-        </Routes>
+        <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div><p>Loading...</p></div>}>
+          <Routes>
+            <Route path="/" element={<HomePage onStatsChange={handleStatsChange} currentDuty={currentDuty} />} />
+            <Route path="/breakdown-guide/*" element={<BreakdownGuide />} />
+            <Route path="/dashboards/*" element={<DashboardRouter />} />
+            <Route path="/fleet-intelligence" element={<FleetIntelligenceDashboard />} />
+            <Route path="/management" element={<ComingSoon title="Management Portal" />} />
+            <Route path="/sdc-operations" element={<Navigate to="/dashboards/sdc" replace />} />
+            <Route path="/profile" element={<Navigate to="/settings" replace />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route
+              path="/help"
+              element={<ComingSoon title="Help & Support" />}
+            />
+            <Route
+              path="*"
+              element={
+                <div className="not-found">
+                  <h2>404 - Page Not Found</h2>
+                  <p>The page you're looking for doesn't exist.</p>
+                  <Link to="/">Go back home</Link>
+                </div>
+              }
+            />
+          </Routes>
+        </Suspense>
       </main>
 
       {/* App Footer - GairWare Branding - Always visible */}
@@ -787,12 +782,14 @@ function App() {
       <AuthProvider>
         <DutyThemeProvider>
           <Router>
-            <Routes>
-              {/* Public routes - no authentication required */}
-              <Route path="/dashboards/engineering/display" element={<EngineeringDisplay />} />
-              {/* All other routes require authentication */}
-              <Route path="*" element={<AppContent />} />
-            </Routes>
+            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div><p>Loading...</p></div>}>
+              <Routes>
+                {/* Public routes - no authentication required */}
+                <Route path="/dashboards/engineering/display" element={<EngineeringDisplay />} />
+                {/* All other routes require authentication */}
+                <Route path="*" element={<AppContent />} />
+              </Routes>
+            </Suspense>
           </Router>
         </DutyThemeProvider>
       </AuthProvider>
