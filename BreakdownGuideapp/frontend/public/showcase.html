@@ -635,7 +635,7 @@ body {
 
 .steps {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(3, 1fr);
   gap: 32px;
   margin-top: 64px;
   counter-reset: step;
@@ -965,7 +965,7 @@ body {
   }
 
   .steps {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .stats-grid {
@@ -1240,6 +1240,14 @@ body {
       <div class="step reveal reveal-delay-4">
         <h3>Replacement sent</h3>
         <p>If needed, dispatch a replacement from the nearest depot. Dead mileage is calculated via road distance for BSOG reporting. Return-to-service tracking completes the picture.</p>
+      </div>
+      <div class="step reveal reveal-delay-5">
+        <h3>Live dashboards update</h3>
+        <p>Every breakdown pushes to Operations, Engineering, and depot Display screens in real-time via WebSocket. Engineer ETA counts down live. Nothing falls through the cracks.</p>
+      </div>
+      <div class="step reveal">
+        <h3>Resolved &amp; reported</h3>
+        <p>Mark the breakdown resolved when the vehicle is back in service. The full timeline is logged to the activity feed. Analytics and KPIs update automatically.</p>
       </div>
     </div>
   </div>
