@@ -619,6 +619,51 @@
     font-weight: 500;
 }
 
+/* ── Nav "Learn More" link ── */
+.lp-nav-learn-more {
+    color: var(--lp-text-secondary);
+    font-family: 'aileron', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    letter-spacing: 0.3px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    transition: all var(--lp-transition);
+}
+
+.lp-nav-learn-more:hover {
+    color: var(--lp-teal-light);
+    background: rgba(0, 151, 167, 0.08);
+}
+
+/* ── Hero "See The Full Platform" button ── */
+.lp-learn-more-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 28px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: var(--lp-radius);
+    color: var(--lp-text);
+    font-family: 'aileron', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all var(--lp-transition);
+    letter-spacing: 0.3px;
+}
+
+.lp-learn-more-btn:hover {
+    background: rgba(0, 151, 167, 0.08);
+    border-color: rgba(0, 151, 167, 0.35);
+    color: var(--lp-white);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 151, 167, 0.15);
+}
+
 /* ============================================
    STATS STRIP
    ============================================ */

@@ -190,6 +190,7 @@ const MySQLLoginPage = () => {
                         <GoBarryLogo size="md" variant="compact" theme="dark" />
                     </div>
                     <div className="lp-nav-actions" ref={loginPanelRef}>
+                        <a href="/showcase.html" className="lp-nav-learn-more">Learn More</a>
                         <button
                             className={`lp-nav-signin ${loginOpen ? 'active' : ''}`}
                             onClick={() => setLoginOpen(!loginOpen)}
@@ -340,6 +341,12 @@ const MySQLLoginPage = () => {
                                     </>
                                 )}
                             </button>
+                            <a href="/showcase.html" className="lp-learn-more-btn">
+                                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                                    <path d="M3 9h12m0 0L11 5m4 4L11 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                </svg>
+                                See The Full Platform
+                            </a>
                             <span className="lp-demo-hint">No account needed</span>
                         </div>
                     </div>

@@ -1,0 +1,1453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Go BARRY - Real-Time Bus Operations Intelligence</title>
+<meta name="description" content="Go BARRY: Bus Alerts and Roadworks Reporting for You. A real-time traffic intelligence and breakdown management platform built for bus operations.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300;12..96,400;12..96,600;12..96,700;12..96,800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300;12..96,400;12..96,600;12..96,700;12..96,800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet"></noscript>
+<style>
+/* ═══════════════════════════════════════════════════
+   GO BARRY SHOWCASE - Dark Editorial Transport Theme
+   ═══════════════════════════════════════════════════ */
+
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --teal: #0097A7;
+  --teal-light: #00BCD4;
+  --teal-bright: #00D4FF;
+  --teal-dark: #00838F;
+  --teal-deep: #006064;
+  --navy: #0A2540;
+  --slate-900: #0B1120;
+  --slate-850: #0F172A;
+  --slate-800: #1E293B;
+  --slate-700: #334155;
+  --slate-500: #64748B;
+  --slate-400: #94A3B8;
+  --slate-300: #CBD5E1;
+  --slate-100: #F1F5F9;
+  --white: #FFFFFF;
+  --red: #D32F2F;
+  --amber: #F59E0B;
+  --green: #10B981;
+  --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
+  --font-body: 'DM Sans', system-ui, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--slate-900);
+  color: var(--slate-300);
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: rgba(0, 151, 167, 0.4);
+  color: var(--white);
+}
+
+/* ── Utility ──────────────────────────── */
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 clamp(24px, 5vw, 64px);
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(40px);
+  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.reveal-delay-1 { transition-delay: 0.1s; }
+.reveal-delay-2 { transition-delay: 0.2s; }
+.reveal-delay-3 { transition-delay: 0.3s; }
+.reveal-delay-4 { transition-delay: 0.4s; }
+.reveal-delay-5 { transition-delay: 0.5s; }
+
+/* ── Navigation ──────────────────────── */
+
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  padding: 20px 0;
+  transition: all 0.4s ease;
+}
+
+.nav.scrolled {
+  background: rgba(11, 17, 32, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(0, 151, 167, 0.1);
+  padding: 14px 0;
+}
+
+.nav-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-decoration: none;
+}
+
+.nav-logo svg {
+  height: 40px;
+  width: auto;
+}
+
+.nav-logo-text {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.nav-logo-text .go { color: var(--teal-bright); }
+.nav-logo-text .barry { color: var(--white); }
+
+.nav-links {
+  display: flex;
+  gap: 32px;
+  list-style: none;
+}
+
+.nav-links a {
+  color: var(--slate-400);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  transition: color 0.2s;
+}
+
+.nav-links a:hover { color: var(--teal-light); }
+
+.nav-cta {
+  padding: 10px 24px;
+  background: linear-gradient(135deg, var(--teal) 0%, var(--teal-dark) 100%);
+  color: var(--white) !important;
+  border-radius: 8px;
+  font-weight: 600 !important;
+  transition: transform 0.2s, box-shadow 0.2s !important;
+}
+
+.nav-cta:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(0, 151, 167, 0.3);
+}
+
+/* ── Hero ─────────────────────────────── */
+
+.hero {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 40%, rgba(0, 151, 167, 0.12) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 80% 60%, rgba(0, 131, 143, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse 40% 40% at 50% 10%, rgba(0, 212, 255, 0.06) 0%, transparent 40%),
+    var(--slate-900);
+}
+
+.hero-grid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0, 151, 167, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 151, 167, 0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, black 20%, transparent 70%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, black 20%, transparent 70%);
+}
+
+.hero-pulse {
+  position: absolute;
+  bottom: 15%;
+  left: 0;
+  right: 0;
+  height: 80px;
+  opacity: 0.08;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 2;
+  padding-top: 120px;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border: 1px solid rgba(0, 151, 167, 0.3);
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--teal-light);
+  letter-spacing: 0.04em;
+  margin-bottom: 32px;
+  background: rgba(0, 151, 167, 0.06);
+}
+
+.hero-badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--teal-light);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(0, 188, 212, 0.4); }
+  50% { opacity: 0.8; box-shadow: 0 0 0 6px rgba(0, 188, 212, 0); }
+}
+
+.hero-headline {
+  font-family: var(--font-display);
+  font-size: clamp(48px, 7vw, 88px);
+  font-weight: 800;
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+  color: var(--white);
+  max-width: 900px;
+  margin-bottom: 28px;
+}
+
+.hero-headline .accent {
+  background: linear-gradient(135deg, var(--teal-bright) 0%, var(--teal) 60%, var(--teal-dark) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero-sub {
+  font-size: clamp(18px, 2.2vw, 22px);
+  color: var(--slate-400);
+  max-width: 600px;
+  line-height: 1.6;
+  margin-bottom: 48px;
+}
+
+.hero-sub strong {
+  color: var(--slate-100);
+  font-weight: 500;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 32px;
+  background: linear-gradient(135deg, var(--teal) 0%, var(--teal-dark) 100%);
+  color: var(--white);
+  font-family: var(--font-body);
+  font-size: 16px;
+  font-weight: 600;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: transform 0.2s, box-shadow 0.3s;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(0, 151, 167, 0.35);
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 32px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--slate-300);
+  font-family: var(--font-body);
+  font-size: 16px;
+  font-weight: 500;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(0, 151, 167, 0.3);
+  color: var(--white);
+}
+
+.hero-visual {
+  position: absolute;
+  right: -5%;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 45%;
+  max-width: 580px;
+  opacity: 0.12;
+  pointer-events: none;
+}
+
+/* ── Scroll indicator ────────────────── */
+
+.scroll-hint {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--slate-500);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  animation: float 3s ease-in-out infinite;
+}
+
+.scroll-line {
+  width: 1px;
+  height: 40px;
+  background: linear-gradient(to bottom, var(--teal), transparent);
+  animation: scroll-line 2s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(-8px); }
+}
+
+@keyframes scroll-line {
+  0% { opacity: 0; transform: scaleY(0); transform-origin: top; }
+  50% { opacity: 1; transform: scaleY(1); transform-origin: top; }
+  100% { opacity: 0; transform: scaleY(1); transform-origin: bottom; }
+}
+
+/* ── Section headers ─────────────────── */
+
+.section {
+  padding: clamp(80px, 12vw, 140px) 0;
+  position: relative;
+}
+
+.section-label {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--teal);
+  margin-bottom: 16px;
+}
+
+.section-title {
+  font-family: var(--font-display);
+  font-size: clamp(32px, 4.5vw, 56px);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  color: var(--white);
+  margin-bottom: 20px;
+}
+
+.section-desc {
+  font-size: clamp(17px, 2vw, 20px);
+  color: var(--slate-400);
+  max-width: 640px;
+  line-height: 1.65;
+}
+
+/* ── Problem section ─────────────────── */
+
+.problem { background: var(--slate-900); }
+
+.problem-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+  margin-top: 64px;
+}
+
+.problem-card {
+  padding: 36px 32px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.problem-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--red), var(--amber));
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.problem-card:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(211, 47, 47, 0.2);
+  transform: translateY(-2px);
+}
+
+.problem-card:hover::before { opacity: 1; }
+
+.problem-icon {
+  font-size: 28px;
+  margin-bottom: 20px;
+  display: block;
+  width: 52px;
+  height: 52px;
+  line-height: 52px;
+  text-align: center;
+  background: rgba(211, 47, 47, 0.08);
+  border-radius: 12px;
+}
+
+.problem-card h3 {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 12px;
+}
+
+.problem-card p {
+  font-size: 15px;
+  color: var(--slate-400);
+  line-height: 1.65;
+}
+
+/* ── Solution section ────────────────── */
+
+.solution {
+  background: linear-gradient(180deg, var(--slate-900) 0%, var(--slate-850) 100%);
+}
+
+.solution-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  margin-top: 72px;
+}
+
+.pillar {
+  position: relative;
+}
+
+.pillar-number {
+  font-family: var(--font-display);
+  font-size: 120px;
+  font-weight: 800;
+  color: rgba(0, 151, 167, 0.06);
+  position: absolute;
+  top: -40px;
+  left: -10px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.pillar-tag {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 20px;
+}
+
+.pillar-tag.traffic {
+  background: rgba(0, 151, 167, 0.1);
+  color: var(--teal-light);
+  border: 1px solid rgba(0, 151, 167, 0.2);
+}
+
+.pillar-tag.breakdown {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--amber);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.pillar h3 {
+  font-family: var(--font-display);
+  font-size: clamp(26px, 3vw, 34px);
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 16px;
+  letter-spacing: -0.02em;
+}
+
+.pillar > p {
+  font-size: 16px;
+  color: var(--slate-400);
+  line-height: 1.7;
+  margin-bottom: 32px;
+}
+
+.feature-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.feature-list li {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  font-size: 15px;
+  color: var(--slate-300);
+  line-height: 1.55;
+}
+
+.feature-list .check {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+  font-size: 12px;
+}
+
+.traffic .feature-list .check {
+  background: rgba(0, 151, 167, 0.12);
+  color: var(--teal-light);
+}
+
+.breakdown .feature-list .check {
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--amber);
+}
+
+/* ── Stats section ───────────────────── */
+
+.stats {
+  padding: clamp(60px, 10vw, 100px) 0;
+  background: var(--slate-850);
+  border-top: 1px solid rgba(0, 151, 167, 0.08);
+  border-bottom: 1px solid rgba(0, 151, 167, 0.08);
+  position: relative;
+  overflow: hidden;
+}
+
+.stats::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 60% 80% at 50% 50%, rgba(0, 151, 167, 0.04) 0%, transparent 60%);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 48px;
+  position: relative;
+}
+
+.stat {
+  text-align: center;
+}
+
+.stat-value {
+  font-family: var(--font-display);
+  font-size: clamp(40px, 5vw, 64px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  background: linear-gradient(135deg, var(--teal-bright) 0%, var(--teal) 50%, var(--teal-dark) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 8px;
+}
+
+.stat-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--slate-400);
+  letter-spacing: 0.02em;
+}
+
+/* ── How it works ────────────────────── */
+
+.how-it-works {
+  background: var(--slate-900);
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 32px;
+  margin-top: 64px;
+  counter-reset: step;
+}
+
+.step {
+  padding: 40px 32px;
+  background: linear-gradient(135deg, rgba(0, 151, 167, 0.04) 0%, rgba(0, 131, 143, 0.02) 100%);
+  border: 1px solid rgba(0, 151, 167, 0.08);
+  border-radius: 16px;
+  position: relative;
+  transition: all 0.3s;
+  counter-increment: step;
+}
+
+.step:hover {
+  border-color: rgba(0, 151, 167, 0.2);
+  background: linear-gradient(135deg, rgba(0, 151, 167, 0.06) 0%, rgba(0, 131, 143, 0.03) 100%);
+  transform: translateY(-3px);
+}
+
+.step::before {
+  content: counter(step, decimal-leading-zero);
+  font-family: var(--font-display);
+  font-size: 48px;
+  font-weight: 800;
+  color: rgba(0, 151, 167, 0.1);
+  position: absolute;
+  top: 24px;
+  right: 28px;
+  line-height: 1;
+}
+
+.step h3 {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 12px;
+}
+
+.step p {
+  font-size: 15px;
+  color: var(--slate-400);
+  line-height: 1.65;
+}
+
+/* ── Integration sources ─────────────── */
+
+.integrations {
+  background: var(--slate-850);
+}
+
+.source-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-top: 48px;
+  max-width: 720px;
+}
+
+.source {
+  padding: 28px 24px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  text-align: center;
+  transition: all 0.3s;
+}
+
+.source:hover {
+  border-color: rgba(0, 151, 167, 0.2);
+  background: rgba(0, 151, 167, 0.04);
+}
+
+.source-icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+  display: block;
+}
+
+.source h3 {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--white);
+  margin-bottom: 6px;
+}
+
+.source p {
+  font-size: 13px;
+  color: var(--slate-500);
+}
+
+/* ── Story section ───────────────────── */
+
+.story {
+  background: var(--slate-900);
+  position: relative;
+}
+
+.story-inner {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 80px;
+  align-items: center;
+}
+
+.story-visual {
+  position: relative;
+}
+
+.story-quote-block {
+  padding: 48px;
+  background: linear-gradient(135deg, rgba(0, 151, 167, 0.06) 0%, rgba(0, 131, 143, 0.03) 100%);
+  border: 1px solid rgba(0, 151, 167, 0.12);
+  border-radius: 20px;
+  position: relative;
+}
+
+.story-quote-block::before {
+  content: '\201C';
+  font-family: var(--font-display);
+  font-size: 120px;
+  color: rgba(0, 151, 167, 0.12);
+  position: absolute;
+  top: -10px;
+  left: 24px;
+  line-height: 1;
+}
+
+.story-quote {
+  font-size: 20px;
+  font-style: italic;
+  color: var(--slate-300);
+  line-height: 1.7;
+  position: relative;
+  z-index: 1;
+}
+
+.story-attribution {
+  margin-top: 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  position: relative;
+  z-index: 1;
+}
+
+.story-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--teal) 0%, var(--teal-dark) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--white);
+}
+
+.story-name {
+  font-weight: 600;
+  color: var(--white);
+  font-size: 16px;
+}
+
+.story-role {
+  color: var(--slate-500);
+  font-size: 14px;
+}
+
+.story-text h3 {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 3.5vw, 40px);
+  font-weight: 700;
+  color: var(--white);
+  margin-bottom: 24px;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.story-text p {
+  font-size: 17px;
+  color: var(--slate-400);
+  line-height: 1.75;
+  margin-bottom: 20px;
+}
+
+.story-text p strong {
+  color: var(--slate-100);
+  font-weight: 500;
+}
+
+.story-highlight {
+  margin-top: 36px;
+  padding: 24px 28px;
+  background: rgba(0, 151, 167, 0.06);
+  border-left: 3px solid var(--teal);
+  border-radius: 0 12px 12px 0;
+}
+
+.story-highlight p {
+  font-size: 15px;
+  color: var(--teal-light);
+  margin: 0;
+  font-weight: 500;
+}
+
+/* ── CTA section ─────────────────────── */
+
+.cta-section {
+  padding: clamp(100px, 14vw, 160px) 0;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  background: var(--slate-850);
+}
+
+.cta-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 50% 60% at 50% 50%, rgba(0, 151, 167, 0.08) 0%, transparent 60%);
+}
+
+.cta-content {
+  position: relative;
+  z-index: 2;
+}
+
+.cta-title {
+  font-family: var(--font-display);
+  font-size: clamp(36px, 5vw, 60px);
+  font-weight: 800;
+  color: var(--white);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  margin-bottom: 20px;
+}
+
+.cta-desc {
+  font-size: clamp(17px, 2vw, 20px);
+  color: var(--slate-400);
+  max-width: 560px;
+  margin: 0 auto 40px;
+  line-height: 1.65;
+}
+
+.cta-buttons {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ── Footer ──────────────────────────── */
+
+.footer {
+  padding: 48px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--slate-900);
+}
+
+.footer-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.footer-brand svg { height: 32px; width: auto; }
+
+.footer-brand span {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.footer-brand .go { color: var(--teal-bright); }
+.footer-brand .barry { color: var(--white); }
+
+.footer-text {
+  font-size: 14px;
+  color: var(--slate-400);
+}
+
+.footer-abbr {
+  font-size: 12px;
+  color: var(--slate-400);
+  font-style: italic;
+}
+
+/* ── Responsive ──────────────────────── */
+
+@media (max-width: 1024px) {
+  .solution-split {
+    grid-template-columns: 1fr;
+    gap: 60px;
+  }
+
+  .story-inner {
+    grid-template-columns: 1fr;
+    gap: 48px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 40px;
+  }
+
+  .hero-visual { display: none; }
+}
+
+@media (max-width: 768px) {
+  .nav-links { display: none; }
+
+  .problem-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .steps {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 32px;
+  }
+
+  .hero-actions {
+    flex-direction: column;
+  }
+
+  .btn-primary, .btn-secondary {
+    justify-content: center;
+  }
+
+  .cta-buttons {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .footer-inner {
+    flex-direction: column;
+    gap: 16px;
+    text-align: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+
+  .source-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ Navigation ═══ -->
+<nav class="nav" id="nav">
+  <div class="container nav-inner">
+    <a href="#" class="nav-logo">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 80" width="64" height="80">
+        <defs>
+          <linearGradient id="pinGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#00D4FF;stop-opacity:1" />
+            <stop offset="50%" style="stop-color:#00A8E8;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#0077B6;stop-opacity:1" />
+          </linearGradient>
+          <linearGradient id="pinGradientDark" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#00A8E8;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#005F8A;stop-opacity:1" />
+          </linearGradient>
+        </defs>
+        <path d="M32 2C17.088 2 5 14.088 5 29c0 20.25 24.5 47 26 48.5.5.5 1.5.5 2 0C34.5 76 59 49.25 59 29 59 14.088 46.912 2 32 2z" fill="url(#pinGradient)"/>
+        <path d="M32 5C18.745 5 8 15.745 8 29c0 17.5 21.5 41 24 43.5 2.5-2.5 24-26 24-43.5C56 15.745 45.255 5 32 5z" fill="url(#pinGradientDark)" opacity="0.3"/>
+        <rect x="18" y="16" width="28" height="24" rx="4" ry="4" fill="#0A2540"/>
+        <rect x="21" y="19" width="22" height="10" rx="2" ry="2" fill="#FFFFFF"/>
+        <rect x="21" y="32" width="22" height="3" rx="1" fill="#00D4FF"/>
+        <circle cx="24" cy="38" r="2" fill="#FFFFFF"/>
+        <circle cx="40" cy="38" r="2" fill="#FFFFFF"/>
+        <polyline points="12,52 20,52 24,46 28,58 32,48 36,56 40,52 52,52" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="nav-logo-text"><span class="go">Go</span><span class="barry">BARRY</span></span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="#problem">The Problem</a></li>
+      <li><a href="#solution">The Platform</a></li>
+      <li><a href="#how">How It Works</a></li>
+      <li><a href="#story">The Story</a></li>
+      <li><a href="#contact" class="nav-cta">Get In Touch</a></li>
+      <li><a href="/" class="nav-cta" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);">Sign In</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- ═══ Hero ═══ -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-grid"></div>
+
+  <!-- Subtle heartbeat pulse line in background -->
+  <svg class="hero-pulse" viewBox="0 0 1200 80" preserveAspectRatio="none">
+    <polyline points="0,40 200,40 280,40 320,15 360,65 400,30 440,50 480,40 1200,40"
+              fill="none" stroke="#0097A7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+
+  <div class="container hero-content">
+    <div class="hero-badge reveal">Real-Time Bus Operations Intelligence</div>
+
+    <h1 class="hero-headline reveal reveal-delay-1">
+      The control room<br>
+      <span class="accent">finally caught up.</span>
+    </h1>
+
+    <p class="hero-sub reveal reveal-delay-2">
+      <strong>Go BARRY</strong> replaces paper logs, radio guesswork, and scattered spreadsheets with a single real-time platform for managing disruptions, breakdowns, and everything in between.
+    </p>
+
+    <div class="hero-actions reveal reveal-delay-3">
+      <a href="#solution" class="btn-primary">
+        See What It Does
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 3v10m0 0l4-4m-4 4L4 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+      <a href="#contact" class="btn-secondary">
+        Request Access
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10m0 0L9 4m4 4L9 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+    </div>
+  </div>
+
+  <div class="scroll-hint">
+    <span>Scroll</span>
+    <div class="scroll-line"></div>
+  </div>
+</section>
+
+<!-- ═══ Problem ═══ -->
+<section class="section problem" id="problem">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-label">The Problem</div>
+      <h2 class="section-title">The industry is running<br>on yesterday's tools.</h2>
+      <p class="section-desc">Most bus operators still manage disruptions the same way they did twenty years ago. When something goes wrong, the information chain breaks before the bus does.</p>
+    </div>
+
+    <div class="problem-grid">
+      <div class="problem-card reveal reveal-delay-1">
+        <span class="problem-icon">&#128221;</span>
+        <h3>Paper Logs & Radio</h3>
+        <p>Incidents recorded on paper. Updates passed by radio. Critical information trapped in notebooks that go home at shift end.</p>
+      </div>
+      <div class="problem-card reveal reveal-delay-2">
+        <span class="problem-icon">&#128202;</span>
+        <h3>Scattered Spreadsheets</h3>
+        <p>Breakdown data in one spreadsheet, roadworks in another, mileage figures in a third. Nothing connected, nothing live.</p>
+      </div>
+      <div class="problem-card reveal reveal-delay-3">
+        <span class="problem-icon">&#9201;</span>
+        <h3>Slow Handovers</h3>
+        <p>Shift changes mean starting from scratch. If the right person isn't on, or the handover isn't perfect, you lose time straight away.</p>
+      </div>
+      <div class="problem-card reveal reveal-delay-4">
+        <span class="problem-icon">&#128274;</span>
+        <h3>Siloed Departments</h3>
+        <p>Control, engineering, and operations all working from different information. Decisions made on incomplete pictures.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ Stats ═══ -->
+<section class="stats" id="stats">
+  <div class="container">
+    <div class="stats-grid">
+      <div class="stat reveal">
+        <div class="stat-value" data-count="100" data-suffix="%">0</div>
+        <div class="stat-label">Shaped Around Your Operation</div>
+      </div>
+      <div class="stat reveal reveal-delay-1">
+        <div class="stat-value" data-text="Any">Any</div>
+        <div class="stat-label">Route Network, Any Size</div>
+      </div>
+      <div class="stat reveal reveal-delay-2">
+        <div class="stat-value" data-count="20" data-suffix="+">0</div>
+        <div class="stat-label">Customisable Diagnostic Flows</div>
+      </div>
+      <div class="stat reveal reveal-delay-3">
+        <div class="stat-value" data-count="0">0</div>
+        <div class="stat-label">Off-The-Shelf Compromises</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ Solution ═══ -->
+<section class="section solution" id="solution">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-label">The Platform</div>
+      <h2 class="section-title">Two systems. One control room.</h2>
+      <p class="section-desc">Go BARRY brings real-time traffic intelligence and structured breakdown management into a single platform, purpose-built for how supervisors actually work.</p>
+    </div>
+
+    <div class="solution-split">
+      <div class="pillar traffic reveal">
+        <div class="pillar-number">01</div>
+        <span class="pillar-tag traffic">Traffic Intelligence</span>
+        <h3>Every disruption, one screen</h3>
+        <p>Live data from six sources, automatically matched against your route network. See what's affecting your services right now, not what someone remembered to tell you about.</p>
+        <ul class="feature-list">
+          <li>
+            <span class="check">&#10003;</span>
+            <span>Live roadworks from Street Manager, matched to your routes</span>
+          </li>
+          <li>
+            <span class="check">&#10003;</span>
+            <span>Motorway and trunk road incidents from National Highways</span>
+          </li>
+          <li>
+            <span class="check">&#10003;</span>
+            <span>Real-time traffic flow data from TomTom</span>
+          </li>
+          <li>
+            <span class="check">&#10003;</span>
+            <span>Automatic severity assessment and route impact scoring</span>
+          </li>
+          <li>
+            <span class="check">&#10003;</span>
+            <span>GTFS-based route status dashboard across 231 routes</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="pillar breakdown reveal reveal-delay-2">
+        <div class="pillar-number">02</div>
+        <span class="pillar-tag breakdown">Breakdown Management</span>
+        <h3>Guided, not guessed</h3>
+        <p>Structured diagnostic workflows that help supervisors make consistent decisions, regardless of who's on shift. Not just a log - a guided process from first call to resolution.</p>
+        <ul class="feature-list">
+          <li>
+            <span class="check">&#10003;</span>
+            <span>20+ diagnostic wizards for consistent fault assessment</span>
+          </li>
+          <li>
+            <span class="check">&#10003;</span>
+            <span>Engineer dispatch with live ETA tracking via road distance</span>
+          </li>
+          <li>
+            <span class="check">&#10003;</span>
+            <span>Replacement vehicle coordination across depots</span>
+          </li>
+          <li>
+            <span class="check">&#10003;</span>
+            <span>Automatic BSOG dead mileage calculation</span>
+          </li>
+          <li>
+            <span class="check">&#10003;</span>
+            <span>Real-time dashboards for engineering, operations, and depot displays</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ How it works ═══ -->
+<section class="section how-it-works" id="how">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-label">How It Works</div>
+      <h2 class="section-title">From call to resolution.</h2>
+      <p class="section-desc">A breakdown comes in. Here's what happens next.</p>
+    </div>
+
+    <div class="steps">
+      <div class="step reveal reveal-delay-1">
+        <h3>Driver calls in</h3>
+        <p>Supervisor opens Go BARRY and starts a new breakdown. Fleet number, location, and GPS are captured immediately. Smart route matching suggests affected services.</p>
+      </div>
+      <div class="step reveal reveal-delay-2">
+        <h3>Guided diagnosis</h3>
+        <p>The diagnostic wizard walks through a structured assessment. Consistent questions, consistent outcomes - no matter who's on shift. The system recommends whether the vehicle can continue or needs recovery.</p>
+      </div>
+      <div class="step reveal reveal-delay-3">
+        <h3>Engineer dispatched</h3>
+        <p>Select an on-shift engineer. The system calculates road distance and ETA automatically. A live countdown appears on engineering and operations dashboards.</p>
+      </div>
+      <div class="step reveal reveal-delay-4">
+        <h3>Replacement sent</h3>
+        <p>If needed, dispatch a replacement from the nearest depot. Dead mileage is calculated via road distance for BSOG reporting. Return-to-service tracking completes the picture.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ Integrations ═══ -->
+<section class="section integrations" id="integrations">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-label">Integrations</div>
+      <h2 class="section-title">Six integrations. One platform.</h2>
+      <p class="section-desc">Go BARRY connects databases, mapping, route intelligence, and real-time comms into a single breakdown management system.</p>
+    </div>
+
+    <div class="source-grid">
+      <div class="source reveal reveal-delay-1">
+        <span class="source-icon">&#128450;</span>
+        <h3>MySQL</h3>
+        <p>Breakdowns, fleet &amp; supervisors</p>
+      </div>
+      <div class="source reveal reveal-delay-2">
+        <span class="source-icon">&#128652;</span>
+        <h3>GTFS</h3>
+        <p>240 routes, 15K stops &amp; timetables</p>
+      </div>
+      <div class="source reveal reveal-delay-3">
+        <span class="source-icon">&#127758;</span>
+        <h3>Google Maps Platform</h3>
+        <p>Directions, Geocoding, Static Maps &amp; Places</p>
+      </div>
+      <div class="source reveal reveal-delay-4">
+        <span class="source-icon">&#128506;</span>
+        <h3>Leaflet</h3>
+        <p>Interactive maps &amp; heatmaps</p>
+      </div>
+      <div class="source reveal reveal-delay-5">
+        <span class="source-icon">&#128268;</span>
+        <h3>WebSocket</h3>
+        <p>Real-time push to all dashboards</p>
+      </div>
+      <div class="source reveal">
+        <span class="source-icon">&#9993;</span>
+        <h3>SMTP Email</h3>
+        <p>Breakdown &amp; defect notifications</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ Story ═══ -->
+<section class="section story" id="story">
+  <div class="container">
+    <div class="story-inner">
+      <div class="story-visual reveal">
+        <div class="story-quote-block">
+          <p class="story-quote">I built this because I could see the gap between what we need in the control room and what the tools on the market actually give you.</p>
+          <div class="story-attribution">
+            <div class="story-avatar">AG</div>
+            <div>
+              <div class="story-name">Anthony Gair</div>
+              <div class="story-role">Service Delivery Supervisor</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="story-text reveal reveal-delay-2">
+        <h3>Built from the front&nbsp;line, not the boardroom.</h3>
+        <p>Go BARRY wasn't designed in a software house. It was built by a working supervisor with <strong>12 years in the bus industry</strong> who got tired of watching the same problems repeat themselves shift after shift.</p>
+        <p><strong>Completely self-taught on the technology side</strong>, Anthony started building because the off-the-shelf solutions didn't reflect the reality of the job - the 4am starts, the multiple depots, the five things happening at once.</p>
+        <p>The result is a platform shaped by thousands of real shifts, real breakdowns, and real handovers. Not a tech product looking for a problem, but an operational solution built by someone who lives it.</p>
+
+        <div class="story-highlight">
+          <p>Go BARRY is designed to adapt to any operator. The platform is built to be configured around how your operation works - your depots, your routes, your team structure.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ CTA ═══ -->
+<section class="cta-section" id="contact">
+  <div class="cta-bg"></div>
+  <div class="container cta-content">
+    <h2 class="cta-title reveal">Interested?<br>Let's talk.</h2>
+    <p class="cta-desc reveal reveal-delay-1">Whether you're an operator looking to modernise your control room, or you just want to see Go BARRY in action, get in touch.</p>
+    <div class="cta-buttons reveal reveal-delay-2">
+      <a href="mailto:gair@gairware.com" class="btn-primary">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        gair@gairware.com
+      </a>
+      <a href="https://breakdowns.gobarry.co.uk" target="_blank" class="btn-secondary">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        View Live Platform
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ Footer ═══ -->
+<footer class="footer">
+  <div class="container footer-inner">
+    <div class="footer-brand">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 80" width="64" height="80">
+        <defs>
+          <linearGradient id="footerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#00D4FF" />
+            <stop offset="100%" style="stop-color:#0077B6" />
+          </linearGradient>
+        </defs>
+        <path d="M32 2C17.088 2 5 14.088 5 29c0 20.25 24.5 47 26 48.5.5.5 1.5.5 2 0C34.5 76 59 49.25 59 29 59 14.088 46.912 2 32 2z" fill="url(#footerGrad)"/>
+        <rect x="18" y="16" width="28" height="24" rx="4" ry="4" fill="#0A2540"/>
+        <rect x="21" y="19" width="22" height="10" rx="2" ry="2" fill="#FFFFFF"/>
+        <rect x="21" y="32" width="22" height="3" rx="1" fill="#00D4FF"/>
+        <circle cx="24" cy="38" r="2" fill="#FFFFFF"/>
+        <circle cx="40" cy="38" r="2" fill="#FFFFFF"/>
+        <polyline points="12,52 20,52 24,46 28,58 32,48 36,56 40,52 52,52" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span><span class="go">Go</span><span class="barry">BARRY</span></span>
+    </div>
+    <div>
+      <div class="footer-text">Bus Alerts and Roadworks Reporting for You</div>
+      <div class="footer-abbr">Built by a supervisor, for supervisors.</div>
+    </div>
+  </div>
+</footer>
+
+<!-- ═══ Scripts ═══ -->
+<script>
+// Scroll reveal
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('visible');
+    }
+  });
+}, {
+  threshold: 0.1,
+  rootMargin: '0px 0px -60px 0px'
+});
+
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+// Nav scroll effect
+const nav = document.getElementById('nav');
+let lastScroll = 0;
+
+window.addEventListener('scroll', () => {
+  const scrollY = window.scrollY;
+  nav.classList.toggle('scrolled', scrollY > 80);
+  lastScroll = scrollY;
+}, { passive: true });
+
+// Stat counter animation
+const statObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const el = entry.target;
+
+      // Text-only values (no animation needed)
+      if (el.dataset.text) {
+        el.textContent = el.dataset.text;
+        statObserver.unobserve(el);
+        return;
+      }
+
+      const target = parseInt(el.dataset.count);
+      const suffix = el.dataset.suffix || '';
+
+      // Zero stays as zero (no animation)
+      if (target === 0) {
+        el.textContent = '0';
+        statObserver.unobserve(el);
+        return;
+      }
+
+      let current = 0;
+      const duration = 1800;
+      const step = target / (duration / 16);
+
+      const tick = () => {
+        current += step;
+        if (current >= target) {
+          el.textContent = target + suffix;
+        } else {
+          el.textContent = Math.floor(current) + suffix;
+          requestAnimationFrame(tick);
+        }
+      };
+
+      requestAnimationFrame(tick);
+      statObserver.unobserve(el);
+    }
+  });
+}, { threshold: 0.5 });
+
+document.querySelectorAll('.stat-value').forEach(el => statObserver.observe(el));
+
+// Smooth scroll for anchor links
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+  anchor.addEventListener('click', function(e) {
+    e.preventDefault();
+    const target = document.querySelector(this.getAttribute('href'));
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+});
+</script>
+</body>
+</html>

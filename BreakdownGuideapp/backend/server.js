@@ -542,8 +542,8 @@ app.get('/', (req, res) => {
 app.get('/health', healthCheck);
 app.get('/api/health', healthCheck);
 
-// Diagnostic endpoint (inline - no external import needed)
-app.get('/api/diagnostics', async (req, res) => {
+// Diagnostic endpoint (admin only - exposes server config)
+app.get('/api/diagnostics', authenticateAdmin, async (req, res) => {
   try {
     const diagnostics = {
       timestamp: new Date().toISOString(),
@@ -604,8 +604,7 @@ app.get('/api/diagnostics', async (req, res) => {
     res.json(diagnostics);
   } catch (error) {
     res.status(500).json({
-      error: error.message,
-      stack: error.stack
+      error: 'Diagnostics check failed'
     });
   }
 });
