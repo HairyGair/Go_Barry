@@ -2,7 +2,7 @@
 
 **Last Updated:** February 2026
 **System Status:** Production-Ready
-**Version:** 4.2.0
+**Version:** 4.3.0
 
 ---
 
@@ -20,7 +20,7 @@
 
 - **Supervisors:** Multiple supervisors across depots
 - **Fleet:** Large vehicle fleet
-- **Wizards:** 20+ diagnostic assessment flows
+- **Wizards:** 31 diagnostic assessment flows
 
 ### Production URLs
 - **Frontend:** https://breakdowns.gobarry.co.uk
@@ -71,6 +71,7 @@
 | Database | MySQL 8.0+ |
 | Auth | JWT + bcrypt |
 | Real-time | WebSocket (ws) |
+| Maps | Google Maps Platform + Leaflet |
 | Hosting | cPanel + PM2 |
 
 ---
@@ -635,7 +636,7 @@ Check PM2 logs, verify nginx proxy headers for WebSocket upgrade.
 - Validate all user input
 - bcrypt for passwords (10+ rounds)
 - HTTPS in production
-- Use AuthContext for authentication (NOT auth-service.js)
+- Use AuthContext for authentication (`auth-service.js` has been deleted)
 
 ### CSRF Protection
 CSRF tokens are required for all POST/PUT/DELETE requests:
@@ -662,10 +663,12 @@ The `backend/utils/queryHelpers.js` includes:
 
 ### Security Audit (February 2026)
 Fixed critical vulnerabilities:
-- Removed hardcoded credentials from `auth-service.js`
+- Deleted `auth-service.js` (contained hardcoded credentials) - use AuthContext instead
+- Deleted `generate-password-sql.js` and `setup-supervisor-passwords.js` (contained plaintext passwords)
 - Removed exposed password from `AuthContext.jsx` comments
 - Added SQL injection protection to QueryBuilder
-- Deprecated `auth-service.js` (use AuthContext instead)
+- Locked `/api/diagnostics` endpoint behind admin auth
+- Removed stack trace from error responses
 
 ### Wizard Wording Audit (February 2026)
 Audited all 30+ diagnostic wizards for text quality:
@@ -675,6 +678,15 @@ Audited all 30+ diagnostic wizards for text quality:
 - Standardised "safety checks guidance/procedure" → "safety procedures" across all wizards
 - Added "Advise the driver to..." framing to bare imperative instructions
 - Fixed informal language ("steer clear" → "keep clear") and subjective phrasing
+
+### Performance Optimisation (February 2026)
+Code splitting with `React.lazy` reduced initial JS bundle from 2,639 kB to 412 kB (84%):
+- **DashboardRouter.jsx** - All 9 dashboards lazy-loaded with `<Suspense>` fallback
+- **App.jsx** - 5 heavy route components lazy-loaded (BreakdownGuideApp, FleetIntelligenceDashboard, EngineeringDisplay, HomePage, SettingsPage)
+- **breakdown-guide/App.jsx** - All 31 wizard components lazy-loaded
+- **dashboards/index.js** - Removed eager dashboard re-exports that defeated lazy loading
+- **index.html** - TypeKit fonts loaded async via `<link rel="preload">` (eliminates 600ms render block)
+- **.htaccess** - Aggressive caching (1 year for hashed assets, fonts, images), gzip for all text types
 
 ---
 
@@ -710,6 +722,7 @@ Audited all 30+ diagnostic wizards for text quality:
 | Go BARRY logo | `/frontend/src/components/GoBarryLogo.jsx` |
 | Admin settings (roles) | `/frontend/src/components/settings/AdminSettings.jsx` |
 | Backend deploy script | `/backend/scripts/build-deploy.sh` |
+| Showcase page | `/frontend/public/showcase.html` |
 
 ---
 
