@@ -257,8 +257,9 @@ router.get('/handovers', async (req, res) => {
       params.push(new Date(date_to));
     }
 
-    sql += ' ORDER BY handover_time DESC LIMIT ? OFFSET ?';
-    params.push(parseInt(limit), parseInt(offset));
+    const safeLimit = parseInt(limit) || 50;
+    const safeOffset = parseInt(offset) || 0;
+    sql += ` ORDER BY handover_time DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`;
 
     const handovers = await query(sql, params);
 

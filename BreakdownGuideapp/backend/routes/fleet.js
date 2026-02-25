@@ -54,8 +54,9 @@ router.get('/', async (req, res) => {
       }
 
       // Add order, limit, offset
-      sql += ' ORDER BY fleet_no ASC LIMIT ? OFFSET ?';
-      params.push(pageLimit, offset);
+      const safeLimit = parseInt(pageLimit) || 50;
+      const safeOffset = parseInt(offset) || 0;
+      sql += ` ORDER BY fleet_no ASC LIMIT ${safeLimit} OFFSET ${safeOffset}`;
 
       const data = await query(sql, params);
 
@@ -182,8 +183,9 @@ router.get('/vehicles', async (req, res) => {
       }
 
       // Add order, limit, offset
-      sql += ' ORDER BY fleet_no ASC LIMIT ? OFFSET ?';
-      params.push(pageLimit, offset);
+      const safeLimit = parseInt(pageLimit) || 50;
+      const safeOffset = parseInt(offset) || 0;
+      sql += ` ORDER BY fleet_no ASC LIMIT ${safeLimit} OFFSET ${safeOffset}`;
 
       const data = await query(sql, params);
 

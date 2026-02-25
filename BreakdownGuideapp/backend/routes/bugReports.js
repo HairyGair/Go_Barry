@@ -194,8 +194,9 @@ router.get('/', verifyToken, async (req, res) => {
       params.push(type);
     }
 
-    query += ' ORDER BY br.created_at DESC LIMIT ? OFFSET ?';
-    params.push(parseInt(limit), parseInt(offset));
+    const safeLimit = parseInt(limit) || 50;
+    const safeOffset = parseInt(offset) || 0;
+    query += ` ORDER BY br.created_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`;
 
     const reports = await db.query(query, params);
 

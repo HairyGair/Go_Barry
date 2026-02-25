@@ -117,13 +117,13 @@ router.get('/feed/legacy', async (req, res) => {
       LEFT JOIN breakdowns b ON be.breakdown_id = b.breakdown_id
       WHERE 1=1${demoEventFilter}
       ORDER BY be.created_at DESC
-      LIMIT ?
+      LIMIT ${parseInt(limit) || 50}
     `;
 
     let events = [];
     let eventsError = null;
     try {
-      events = await query(eventsSql, [parseInt(limit)]);
+      events = await query(eventsSql, []);
     } catch (error) {
       eventsError = error;
     }
@@ -587,13 +587,13 @@ router.get('/breakdown-guide', async (req, res) => {
       LEFT JOIN breakdowns b ON be.breakdown_id = b.breakdown_id
       WHERE be.event_type = ?${demoGuideFilter}
       ORDER BY be.created_at DESC
-      LIMIT ?
+      LIMIT ${parseInt(limit) || 50}
     `;
 
     let assessmentEvents = [];
     let eventsError = null;
     try {
-      assessmentEvents = await query(eventsSql, ['wizard_assessment_completed', parseInt(limit)]);
+      assessmentEvents = await query(eventsSql, ['wizard_assessment_completed']);
     } catch (error) {
       eventsError = error;
     }

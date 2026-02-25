@@ -701,20 +701,20 @@ class ActivityLoggerService {
     try {
       // MySQL full-text search using LIKE for now
       // For production, consider adding FULLTEXT indexes
+      const safeLimit = parseInt(limit) || 20;
+      const safeOffset = parseInt(offset) || 0;
       const searchSql = `
         SELECT * FROM activities
         WHERE message LIKE ? OR action LIKE ? OR actor_name LIKE ?
         ORDER BY created_at DESC
-        LIMIT ? OFFSET ?
+        LIMIT ${safeLimit} OFFSET ${safeOffset}
       `;
 
       const searchPattern = `%${searchTerm}%`;
       const data = await query(searchSql, [
         searchPattern,
         searchPattern,
-        searchPattern,
-        parseInt(limit),
-        parseInt(offset)
+        searchPattern
       ]);
 
       return {

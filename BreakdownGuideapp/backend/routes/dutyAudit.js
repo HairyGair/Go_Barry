@@ -174,8 +174,8 @@ router.get('/recent', async (req, res) => {
       FROM duty_audit_log
       WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? HOUR)
       ORDER BY created_at DESC
-      LIMIT ?`,
-      [parseInt(hours), parseInt(limit)]
+      LIMIT ${parseInt(limit) || 100}`,
+      [parseInt(hours)]
     );
 
     res.json({
@@ -215,8 +215,8 @@ router.get('/supervisor/:badge', async (req, res) => {
       WHERE supervisor_badge = ?
         AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
       ORDER BY created_at DESC
-      LIMIT ?`,
-      [badge, parseInt(days), parseInt(limit)]
+      LIMIT ${parseInt(limit) || 500}`,
+      [badge, parseInt(days)]
     );
 
     // Calculate summary stats
@@ -400,8 +400,7 @@ router.get('/search', async (req, res) => {
       params.push(endDate);
     }
 
-    query += ` ORDER BY created_at DESC LIMIT ?`;
-    params.push(parseInt(limit));
+    query += ` ORDER BY created_at DESC LIMIT ${parseInt(limit) || 500}`;
 
     const [entries] = await pool.query(query, params);
 

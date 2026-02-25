@@ -84,9 +84,10 @@ router.get('/schedules', async (req, res) => {
       params.push(status);
     }
 
+    const safeLimit = parseInt(limit) || 50;
+    const safeOffset = parseInt(offset) || 0;
     query += ' ORDER BY ds.schedule_date ASC, ds.start_time ASC';
-    query += ' LIMIT ? OFFSET ?';
-    params.push(parseInt(limit), parseInt(offset));
+    query += ` LIMIT ${safeLimit} OFFSET ${safeOffset}`;
 
     const [schedules] = await db.query(query, params);
 

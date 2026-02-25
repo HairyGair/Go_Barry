@@ -364,8 +364,7 @@ router.get('/failed-logins', authenticateAdmin, async (req, res) => {
       params.push(email);
     }
 
-    queryStr += ' ORDER BY login_time DESC LIMIT ?';
-    params.push(parseInt(limit));
+    queryStr += ` ORDER BY login_time DESC LIMIT ${parseInt(limit) || 100}`;
 
     const failedLogins = await query(queryStr, params);
 
@@ -426,8 +425,8 @@ router.get('/user/:email', authenticateAdmin, async (req, res) => {
       FROM login_analytics
       WHERE email = ?
       ORDER BY login_time DESC
-      LIMIT ?
-    `, [email, parseInt(limit)]);
+      LIMIT ${parseInt(limit) || 50}
+    `, [email]);
 
     // User statistics
     const [stats] = await query(`

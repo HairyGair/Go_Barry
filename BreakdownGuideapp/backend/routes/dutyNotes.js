@@ -177,8 +177,9 @@ router.get('/notes', async (req, res) => {
     }
 
     // Order and pagination
-    sql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
-    params.push(parseInt(limit), parseInt(offset));
+    const safeLimit = parseInt(limit) || 50;
+    const safeOffset = parseInt(offset) || 0;
+    sql += ` ORDER BY created_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`;
 
     const notes = await query(sql, params);
 
@@ -466,8 +467,8 @@ router.get('/notes/search', async (req, res) => {
       params.push(duty_code);
     }
 
-    sql += ' ORDER BY created_at DESC LIMIT ?';
-    params.push(parseInt(limit));
+    const safeLimitSearch = parseInt(limit) || 50;
+    sql += ` ORDER BY created_at DESC LIMIT ${safeLimitSearch}`;
 
     const notes = await query(sql, params);
 

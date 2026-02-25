@@ -318,10 +318,10 @@ router.get('/search', async (req, res) => {
       )
       AND is_active = true
       ORDER BY name ASC
-      LIMIT ?
+      LIMIT ${parseInt(limit) || 20}
     `;
 
-    const results = await query(sql, [searchTerm, searchTerm, searchTerm, parseInt(limit)]);
+    const results = await query(sql, [searchTerm, searchTerm, searchTerm]);
 
     res.json({
       success: true,

@@ -756,10 +756,10 @@ router.post('/', async (req, res) => {
 
         if (mileageResult.success) {
           // Update breakdown with mileage data
-          await update('breakdowns', { id: data.id }, {
+          await update('breakdowns', {
             estimated_mileage_lost: mileageResult.mileageLost.totalMiles,
             mileage_calculation_data: JSON.stringify(mileageResult)
-          });
+          }, { id: data.id });
           console.log(`📏 Mileage calculated for ${data.breakdown_id}: ${mileageResult.mileageLost.totalMiles} miles`);
         }
       } catch (mileageError) {

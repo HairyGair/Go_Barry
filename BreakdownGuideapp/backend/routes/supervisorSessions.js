@@ -91,8 +91,9 @@ router.get('/all', authenticateAdmin, async (req, res) => {
       params.push(dutyCode);
     }
 
-    sql += ' ORDER BY ss.login_time DESC LIMIT ? OFFSET ?';
-    params.push(parseInt(limit), parseInt(offset));
+    const safeLimit = parseInt(limit) || 50;
+    const safeOffset = parseInt(offset) || 0;
+    sql += ` ORDER BY ss.login_time DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`;
 
     const sessions = await query(sql, params);
 

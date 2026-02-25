@@ -1561,9 +1561,9 @@ router.get('/vehicle-history/:fleet_no', async (req, res) => {
       SELECT * FROM breakdowns
       WHERE fleet_no = ?
       ORDER BY created_at DESC
-      LIMIT ?
+      LIMIT ${parseInt(limit) || 20}
     `;
-    const breakdowns = await query(sql, [fleet_no, parseInt(limit)]);
+    const breakdowns = await query(sql, [fleet_no]);
 
     // Calculate statistics
     const totalBreakdowns = breakdowns.length;

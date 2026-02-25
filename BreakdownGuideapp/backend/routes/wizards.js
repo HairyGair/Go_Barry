@@ -273,8 +273,8 @@ router.get('/recent', async (req, res) => {
 
     // Use the wizard_recent_assessments view for better performance
     const results = await query(
-      `SELECT * FROM wizard_recent_assessments LIMIT ?`,
-      [parseInt(limit)]
+      `SELECT * FROM wizard_recent_assessments LIMIT ${parseInt(limit) || 10}`,
+      []
     );
 
     res.json({

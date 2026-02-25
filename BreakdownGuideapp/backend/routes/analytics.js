@@ -736,16 +736,18 @@ router.get('/activity/feed', async (req, res) => {
     const demoFilter = isDemoUser ? '' : " AND supervisor_badge != 'DEMO01'";
 
     // Get recent breakdowns with depot filter if specified
+    const safeLimit = parseInt(limit) || 20;
+    const safeOffset = parseInt(offset) || 0;
     let breakdowns;
     if (depot) {
       breakdowns = await query(
-        `SELECT * FROM breakdowns WHERE depot = ?${demoFilter} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
-        [depot, parseInt(limit), parseInt(offset)]
+        `SELECT * FROM breakdowns WHERE depot = ?${demoFilter} ORDER BY created_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`,
+        [depot]
       );
     } else {
       breakdowns = await query(
-        `SELECT * FROM breakdowns WHERE 1=1${demoFilter} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
-        [parseInt(limit), parseInt(offset)]
+        `SELECT * FROM breakdowns WHERE 1=1${demoFilter} ORDER BY created_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`,
+        []
       );
     }
 

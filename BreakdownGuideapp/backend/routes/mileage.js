@@ -487,8 +487,8 @@ router.post('/recalculate-all', async (req, res) => {
       WHERE route_id IS NOT NULL
       AND estimated_mileage_lost IS NULL
       ORDER BY created_at DESC
-      LIMIT ?
-    `, [parseInt(limit)]);
+      LIMIT ${parseInt(limit) || 100}
+    `, []);
 
     if (!breakdowns || breakdowns.length === 0) {
       return res.json({
@@ -622,8 +622,6 @@ router.get('/detailed-analysis', async (req, res) => {
       orderBy = 'duration_minutes DESC';
     }
 
-    params.push(numLimit);
-
     // Get detailed breakdown data
     const breakdowns = await query(`
       SELECT
@@ -652,7 +650,7 @@ router.get('/detailed-analysis', async (req, res) => {
       AND b.estimated_mileage_lost IS NOT NULL
       AND b.estimated_mileage_lost > 0
       ORDER BY ${orderBy}
-      LIMIT ?
+      LIMIT ${numLimit}
     `, params);
 
     // Parse mileage_calculation_data JSON for each breakdown
@@ -906,8 +904,8 @@ router.get('/top-routes', async (req, res) => {
       AND b.route_id IS NOT NULL
       GROUP BY b.route_id, r.route_short_name, r.route_long_name
       ORDER BY total_mileage_lost DESC
-      LIMIT ?
-    `, [parseInt(days), parseInt(limit)]);
+      LIMIT ${parseInt(limit) || 20}
+    `, [parseInt(days)]);
 
     return res.json({
       success: true,
