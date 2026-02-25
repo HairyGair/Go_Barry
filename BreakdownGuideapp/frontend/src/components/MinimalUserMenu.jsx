@@ -63,6 +63,12 @@ const MinimalUserMenu = ({ currentDuty, onDutyClick }) => {
       description: 'Fleet analytics'
     },
     {
+      path: '/dashboards/ev-charges',
+      label: 'EV Charges',
+      icon: '🔋',
+      description: 'EV fleet charge levels'
+    },
+    {
       path: '/dashboards/gtfs/routes',
       label: 'Route Status',
       icon: '🚌',

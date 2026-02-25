@@ -12,6 +12,7 @@ const RouteTimetableViewer = lazy(() => import('./gtfs/RouteTimetableViewer'));
 const StopFinder = lazy(() => import('./gtfs/StopFinder'));
 const FleetIntelligenceDashboard = lazy(() => import('./fleet-intelligence/FleetIntelligenceDashboard'));
 const EngineerManagementPage = lazy(() => import('./engineering/EngineerManagementPage'));
+const EVChargesDashboard = lazy(() => import('./ev-charges/EVChargesDashboard'));
 
 const DashboardFallback = () => (
   <div className="loading-container">
@@ -49,6 +50,7 @@ const DashboardRouter = () => {
         <Route path="/gtfs/timetable" element={<EngineeringGuard><RouteTimetableViewer /></EngineeringGuard>} />
         <Route path="/gtfs/stops" element={<EngineeringGuard><StopFinder /></EngineeringGuard>} />
         <Route path="/fleet-defects" element={<EngineeringGuard><FleetIntelligenceDashboard /></EngineeringGuard>} />
+        <Route path="/ev-charges" element={<EngineeringGuard><EVChargesDashboard /></EngineeringGuard>} />
       </Routes>
     </Suspense>
   );

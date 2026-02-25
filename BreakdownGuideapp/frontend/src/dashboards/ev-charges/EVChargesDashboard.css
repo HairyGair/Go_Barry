@@ -1,0 +1,353 @@
+/* ============================================================================
+   EV Charges Dashboard Styles
+   Prefix: evc- to avoid collisions
+   ============================================================================ */
+
+.evc-dashboard {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px 16px 60px;
+}
+
+/* Header */
+.evc-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.evc-header-left {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.evc-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.evc-subtitle {
+  font-size: 0.875rem;
+  color: #94A3B8;
+}
+
+.evc-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.evc-mock-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #F59E0B;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 4px;
+}
+
+.evc-updated {
+  font-size: 0.8rem;
+  color: #64748B;
+}
+
+/* KPI Row */
+.evc-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.evc-kpi {
+  background: #141D2B;
+  border: 1px solid #1E293B;
+  border-radius: 10px;
+  padding: 20px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.evc-kpi--alert {
+  border-color: rgba(220, 38, 38, 0.2);
+}
+
+.evc-kpi-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+}
+
+.evc-kpi-label {
+  font-size: 0.8rem;
+  color: #94A3B8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 500;
+}
+
+/* Filters */
+.evc-filters {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.evc-search {
+  flex: 1;
+  min-width: 160px;
+  max-width: 220px;
+  padding: 9px 14px;
+  font-size: 0.875rem;
+  color: #fff;
+  background: #141D2B;
+  border: 1px solid #1E293B;
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.evc-search::placeholder {
+  color: #64748B;
+}
+
+.evc-search:focus {
+  border-color: #0097A7;
+}
+
+.evc-select {
+  padding: 9px 14px;
+  font-size: 0.875rem;
+  color: #fff;
+  background: #141D2B;
+  border: 1px solid #1E293B;
+  border-radius: 8px;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.evc-select:focus {
+  border-color: #0097A7;
+}
+
+/* Vehicle Grid */
+.evc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+/* Vehicle Card */
+.evc-card {
+  background: #141D2B;
+  border: 1px solid #1E293B;
+  border-radius: 12px;
+  padding: 20px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.evc-card:hover {
+  border-color: #334155;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.evc-card--critical {
+  border-color: rgba(220, 38, 38, 0.35);
+}
+
+.evc-card--critical:hover {
+  border-color: rgba(220, 38, 38, 0.55);
+  box-shadow: 0 4px 16px rgba(220, 38, 38, 0.15);
+}
+
+.evc-card--low {
+  border-color: rgba(245, 158, 11, 0.25);
+}
+
+/* Card Header */
+.evc-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.evc-fleet-no {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.evc-status-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  background: rgba(148, 163, 184, 0.1);
+  color: #94A3B8;
+}
+
+.evc-status-badge[data-status="charging"] {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10B981;
+}
+
+.evc-status-badge[data-status="charging-complete"] {
+  background: rgba(0, 188, 212, 0.12);
+  color: #00BCD4;
+}
+
+.evc-status-badge[data-status="in-service"] {
+  background: rgba(59, 130, 246, 0.1);
+  color: #60A5FA;
+}
+
+.evc-status-badge[data-status="returning-to-depot"] {
+  background: rgba(245, 158, 11, 0.1);
+  color: #FBBF24;
+}
+
+/* Charge Ring */
+.evc-charge-display {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0;
+}
+
+.evc-charge-ring {
+  position: relative;
+  width: 110px;
+  height: 110px;
+}
+
+.evc-ring-svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.evc-ring-bg {
+  fill: none;
+  stroke: #1E293B;
+  stroke-width: 7;
+}
+
+.evc-ring-fill {
+  fill: none;
+  stroke-width: 7;
+  stroke-linecap: round;
+  transition: stroke-dasharray 0.6s ease;
+}
+
+.evc-charge-pct {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* Vehicle Info */
+.evc-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.evc-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.evc-info-label {
+  font-size: 0.78rem;
+  color: #64748B;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-weight: 500;
+}
+
+.evc-info-value {
+  font-size: 0.85rem;
+  color: #E2E8F0;
+  font-weight: 500;
+}
+
+.evc-info-value--muted {
+  color: #64748B;
+  font-weight: 400;
+}
+
+/* Low Charge Warning */
+.evc-warning {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #F87171;
+  background: rgba(220, 38, 38, 0.1);
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  border-radius: 6px;
+  padding: 6px 10px;
+  text-align: center;
+}
+
+/* Empty state */
+.evc-empty {
+  text-align: center;
+  color: #64748B;
+  padding: 60px 20px;
+  font-size: 0.95rem;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .evc-kpi-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .evc-kpi-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .evc-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .evc-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .evc-filters {
+    flex-direction: column;
+  }
+
+  .evc-search {
+    max-width: none;
+  }
+}
