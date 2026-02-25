@@ -341,6 +341,19 @@ const HomePage = ({ onStatsChange, currentDuty: propDuty }) => {
                 <span className="hp-action-desc">Live impact</span>
               </button>
 
+              <button className="hp-action" onClick={() => navigate('/dashboards/ev-charges')}>
+                <div className="hp-action-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="6" y="2" width="12" height="20" rx="2"/>
+                    <line x1="10" y1="22" x2="10" y2="24"/>
+                    <line x1="14" y1="22" x2="14" y2="24"/>
+                    <path d="M13 7l-2 5h3l-2 5"/>
+                  </svg>
+                </div>
+                <span className="hp-action-title">EV Charges</span>
+                <span className="hp-action-desc">Fleet charge levels</span>
+              </button>
+
               <button className="hp-action" onClick={() => navigate('/dashboards/fleet-defects')}>
                 <div className="hp-action-icon">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

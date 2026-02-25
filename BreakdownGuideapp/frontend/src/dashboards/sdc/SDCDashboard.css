@@ -1555,6 +1555,33 @@
   animation: sdc-fade-in 0.6s var(--sdc-ease-out) 0.5s forwards;
 }
 
+/* ===== EV CHARGES BUTTON ===== */
+.sdc-ev-charges-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #00BCD4;
+  background: rgba(0, 188, 212, 0.08);
+  border: 1px solid rgba(0, 188, 212, 0.2);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sdc-ev-charges-btn:hover {
+  background: rgba(0, 188, 212, 0.15);
+  border-color: rgba(0, 188, 212, 0.4);
+}
+
+.sdc-ev-charges-btn svg {
+  flex-shrink: 0;
+}
+
 /* ===== FULLSCREEN MAP SIDEBAR ===== */
 .fullscreen-map-container {
   display: -webkit-box;

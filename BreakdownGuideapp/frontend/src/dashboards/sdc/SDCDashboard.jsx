@@ -1797,6 +1797,17 @@ const SDCDashboard = () => {
 
         {/* Right sidebar - Depot Status Grid */}
         <div className="right-sidebar">
+          <button
+            className="sdc-ev-charges-btn"
+            onClick={() => window.open('/dashboards/ev-charges', '_blank')}
+            title="View EV fleet charge levels"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
+              <rect x="6" y="2" width="12" height="20" rx="2"/>
+              <path d="M13 7l-2 5h3l-2 5"/>
+            </svg>
+            <span>EV Charges</span>
+          </button>
           <DepotStatusGrid
             breakdowns={filteredBreakdowns}
             onDepotClick={(depotId) => {
