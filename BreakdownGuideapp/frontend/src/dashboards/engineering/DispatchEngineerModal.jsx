@@ -124,17 +124,17 @@ const DispatchEngineerModal = ({ breakdownId, breakdownDepot, breakdownLat, brea
   };
 
   return (
-    <div className="dem-overlay" onClick={onClose}>
-      <div className="dem-modal" onClick={e => e.stopPropagation()}>
+    <div className="dem-overlay" role="presentation" onClick={onClose}>
+      <div className="dem-modal" role="dialog" aria-modal="true" aria-labelledby="dem-title" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="dem-header">
           <div className="dem-header-left">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
             </svg>
-            <h3>Dispatch Engineer</h3>
+            <h3 id="dem-title">Dispatch Engineer</h3>
           </div>
-          <button className="dem-close" onClick={onClose}>
+          <button className="dem-close" aria-label="Close dispatch engineer dialog" onClick={onClose}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>

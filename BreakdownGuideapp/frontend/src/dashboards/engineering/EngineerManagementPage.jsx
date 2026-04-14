@@ -90,10 +90,12 @@ const EngineerManagementPage = () => {
       </div>
 
       {/* Tabs */}
-      <div className="emp-tabs">
+      <div className="emp-tabs" role="tablist">
         {tabs.map(tab => (
           <button
             key={tab.id}
+            role="tab"
+            aria-selected={activeTab === tab.id}
             className={`emp-tab ${activeTab === tab.id ? 'emp-tab-active' : ''}`}
             onClick={() => setActiveTab(tab.id)}
           >
@@ -290,6 +292,7 @@ const EngineerForm = ({ engineer, onSave, onCancel }) => {
             <button
               key={skill}
               type="button"
+              aria-pressed={form.skills.includes(skill)}
               className={`emp-skill-opt ${form.skills.includes(skill) ? 'emp-skill-on' : ''}`}
               onClick={() => toggleSkill(skill)}
             >

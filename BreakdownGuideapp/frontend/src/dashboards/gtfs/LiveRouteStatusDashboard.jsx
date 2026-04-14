@@ -318,6 +318,7 @@ const LiveRouteStatusDashboard = () => {
               placeholder="Search routes..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Search routes"
             />
             {searchQuery && (
               <button className="lrs-search-clear" onClick={() => setSearchQuery('')}>
@@ -334,6 +335,7 @@ const LiveRouteStatusDashboard = () => {
             className="lrs-select"
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
+            aria-label="Sort routes"
           >
             <option value="status">Sort: Status</option>
             <option value="number">Sort: Route Number</option>
@@ -485,16 +487,16 @@ const LiveRouteStatusDashboard = () => {
                     {viewMode === 'table' ? (
                       /* Table View */
                       <div className="lrs-table-wrap">
-                        <table className="lrs-table">
+                        <table className="lrs-table" aria-label="Route status">
                           <thead>
                             <tr>
-                              <th className="lrs-table__th--route">Route</th>
-                              <th className="lrs-table__th--name">Name</th>
-                              <th className="lrs-table__th--status">Status</th>
-                              <th className="lrs-table__th--breakdowns">Breakdowns</th>
-                              <th className="lrs-table__th--severity">Severity</th>
-                              <th className="lrs-table__th--time">Last Incident</th>
-                              <th className="lrs-table__th--action"></th>
+                              <th scope="col" className="lrs-table__th--route">Route</th>
+                              <th scope="col" className="lrs-table__th--name">Name</th>
+                              <th scope="col" className="lrs-table__th--status">Status</th>
+                              <th scope="col" className="lrs-table__th--breakdowns">Breakdowns</th>
+                              <th scope="col" className="lrs-table__th--severity">Severity</th>
+                              <th scope="col" className="lrs-table__th--time">Last Incident</th>
+                              <th scope="col" className="lrs-table__th--action"></th>
                             </tr>
                           </thead>
                           <tbody>

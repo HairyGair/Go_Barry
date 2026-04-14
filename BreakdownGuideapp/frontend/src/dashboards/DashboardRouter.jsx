@@ -15,7 +15,7 @@ const EngineerManagementPage = lazy(() => import('./engineering/EngineerManageme
 const EVChargesDashboard = lazy(() => import('./ev-charges/EVChargesDashboard'));
 
 const DashboardFallback = () => (
-  <div className="loading-container">
+  <div className="loading-container" role="status" aria-live="polite">
     <div className="loading-spinner"></div>
     <p>Loading...</p>
   </div>

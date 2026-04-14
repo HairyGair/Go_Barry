@@ -125,8 +125,8 @@ const ShiftCheckInModal = ({ onComplete, onSkip }) => {
 
   if (loading) {
     return (
-      <div className="sci-overlay">
-        <div className="sci-modal">
+      <div className="sci-overlay" role="presentation">
+        <div className="sci-modal" role="dialog" aria-modal="true" aria-labelledby="sci-title">
           <div className="sci-loading">
             <div className="sci-spinner" />
             <p>Loading engineer roster...</p>
@@ -138,8 +138,8 @@ const ShiftCheckInModal = ({ onComplete, onSkip }) => {
   }
 
   return (
-    <div className="sci-overlay">
-      <div className="sci-modal">
+    <div className="sci-overlay" role="presentation">
+      <div className="sci-modal" role="dialog" aria-modal="true" aria-labelledby="sci-title">
         {/* Header */}
         <div className="sci-header">
           <div className="sci-header-icon">
@@ -148,7 +148,7 @@ const ShiftCheckInModal = ({ onComplete, onSkip }) => {
             </svg>
           </div>
           <div>
-            <h2 className="sci-title">Who's on shift today?</h2>
+            <h2 id="sci-title" className="sci-title">Who's on shift today?</h2>
             <p className="sci-subtitle">Select engineers and assign their shift patterns</p>
           </div>
           <div className="sci-step-indicator">Step {step} of 2</div>

@@ -50,8 +50,14 @@ const EngineerEtaCountdown = ({ dispatchedAt, etaMinutes, onSite, compact = true
   }
 
   return (
-    <span className={`eta-countdown eta-${level} ${compact ? '' : 'full'}`}>
-      <span className="eta-label">ETA</span>
+    <span
+      className={`eta-countdown eta-${level} ${compact ? '' : 'full'}`}
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+      aria-label={`Engineer ETA: ${timeText}`}
+    >
+      <span className="eta-label" aria-hidden="true">ETA</span>
       <span className="eta-time">{timeText}</span>
     </span>
   );

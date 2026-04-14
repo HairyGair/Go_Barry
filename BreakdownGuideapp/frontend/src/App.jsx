@@ -291,6 +291,29 @@ const AppContent = () => {
   const location = useLocation()
   const navigate = useNavigate()
 
+  // Dynamic page title based on route
+  useEffect(() => {
+    const titles = {
+      '/': 'Home',
+      '/breakdown-guide': 'Breakdown Guide',
+      '/dashboards/sdc': 'Operations Dashboard',
+      '/dashboards/control-room': 'Display Dashboard',
+      '/dashboards/engineering': 'Engineering Dashboard',
+      '/dashboards/engineering/manage': 'Engineer Management',
+      '/dashboards/management': 'Management Dashboard',
+      '/dashboards/gtfs/routes': 'Route Status',
+      '/dashboards/gtfs/timetable': 'Timetable Viewer',
+      '/dashboards/gtfs/stops': 'Stop Finder',
+      '/dashboards/fleet-defects': 'Fleet Intelligence',
+      '/dashboards/ev-charges': 'EV Charges',
+      '/fleet-intelligence': 'Fleet Intelligence',
+      '/settings': 'Settings',
+      '/help': 'Help & Support',
+    }
+    const pageTitle = titles[location.pathname] || 'Page'
+    document.title = `${pageTitle} - Go BARRY`
+  }, [location.pathname])
+
   // Detect demo user
   const isDemoUser = currentUser?.badge_number === 'DEMO01' || currentUser?.is_demo === true
 
@@ -608,8 +631,8 @@ const AppContent = () => {
   // Show loading while checking session
   if (isSessionChecking) {
     return (
-      <div className="app-loading">
-        <div className="loading-spinner"></div>
+      <div className="app-loading" role="status" aria-live="polite">
+        <div className="loading-spinner" aria-hidden="true"></div>
         <p>Loading...</p>
       </div>
     )
@@ -617,6 +640,11 @@ const AppContent = () => {
 
   return (
     <div className={`app ${!isOnline ? 'offline' : ''} ${isDemoUser && showDemoBanner ? 'demo-mode' : ''}`}>
+      {/* Skip to main content link for keyboard/screen reader users */}
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
+
       {useModernHeader ? (
         // Minimal User Menu - Floating dropdown in top-right
         !hideNav && (
@@ -636,7 +664,7 @@ const AppContent = () => {
       )}
 
       {!isOnline && (
-        <div className="offline-banner">
+        <div className="offline-banner" role="alert" aria-live="assertive">
           You are currently offline. Some features may be limited.
         </div>
       )}
@@ -674,8 +702,8 @@ const AppContent = () => {
         />
       )}
 
-      <main className={`main-container ${hideNav ? 'no-nav' : ''}`}>
-        <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div><p>Loading...</p></div>}>
+      <main id="main-content" className={`main-container ${hideNav ? 'no-nav' : ''}`}>
+        <Suspense fallback={<div className="loading-container" role="status" aria-live="polite"><div className="loading-spinner" aria-hidden="true"></div><p>Loading...</p></div>}>
           <Routes>
             <Route path="/" element={<HomePage onStatsChange={handleStatsChange} currentDuty={currentDuty} />} />
             <Route path="/breakdown-guide/*" element={<BreakdownGuide />} />
@@ -782,7 +810,7 @@ function App() {
       <AuthProvider>
         <DutyThemeProvider>
           <Router>
-            <Suspense fallback={<div className="loading-container"><div className="loading-spinner"></div><p>Loading...</p></div>}>
+            <Suspense fallback={<div className="loading-container" role="status" aria-live="polite"><div className="loading-spinner" aria-hidden="true"></div><p>Loading...</p></div>}>
               <Routes>
                 {/* Public routes - no authentication required */}
                 <Route path="/dashboards/engineering/display" element={<EngineeringDisplay />} />

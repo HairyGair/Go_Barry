@@ -194,6 +194,8 @@ const MySQLLoginPage = () => {
                         <button
                             className={`lp-nav-signin ${loginOpen ? 'active' : ''}`}
                             onClick={() => setLoginOpen(!loginOpen)}
+                            aria-haspopup="true"
+                            aria-expanded={loginOpen}
                         >
                             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                                 <circle cx="8" cy="5" r="3" stroke="currentColor" strokeWidth="1.5" fill="none"/>
@@ -206,7 +208,7 @@ const MySQLLoginPage = () => {
                         </button>
 
                         {/* Login Dropdown Panel */}
-                        <div className={`lp-login-panel ${loginOpen ? 'open' : ''}`}>
+                        <div className={`lp-login-panel ${loginOpen ? 'open' : ''}`} role="dialog" aria-label="Sign in">
                             <form onSubmit={handleSubmit} className="lp-login-form">
                                 <div className="lp-form-group">
                                     <label htmlFor="email">
@@ -230,7 +232,7 @@ const MySQLLoginPage = () => {
                                             required
                                         />
                                         {emailWasPrefilled && email && (
-                                            <button type="button" className="lp-clear-btn" onClick={handleClearEmail} disabled={isLoading}>
+                                            <button type="button" className="lp-clear-btn" onClick={handleClearEmail} disabled={isLoading} aria-label="Clear email">
                                                 <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                                                     <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                                                 </svg>
@@ -260,6 +262,8 @@ const MySQLLoginPage = () => {
                                             onClick={() => setShowPassword(!showPassword)}
                                             disabled={isLoading}
                                             tabIndex={-1}
+                                            aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                            aria-pressed={showPassword}
                                         >
                                             {showPassword ? (
                                                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -276,7 +280,7 @@ const MySQLLoginPage = () => {
                                         </button>
                                     </div>
                                     {capsLockOn && (
-                                        <div className="lp-caps-warn">Caps Lock is on</div>
+                                        <div className="lp-caps-warn" role="alert">Caps Lock is on</div>
                                     )}
                                 </div>
 
@@ -293,7 +297,7 @@ const MySQLLoginPage = () => {
                                 </div>
 
                                 {error && (
-                                    <div className={`lp-error lp-error--${errorType}`}>
+                                    <div className={`lp-error lp-error--${errorType}`} role="alert" aria-live="polite">
                                         <span>{error}</span>
                                     </div>
                                 )}

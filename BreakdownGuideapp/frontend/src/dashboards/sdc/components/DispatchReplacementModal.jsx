@@ -63,11 +63,11 @@ const DispatchReplacementModal = ({ breakdown, isOpen, onClose, onSuccess }) => 
   };
 
   return (
-    <div className="rvm-overlay" onClick={handleClose}>
-      <div className="rvm-dialog" onClick={(e) => e.stopPropagation()}>
+    <div className="rvm-overlay" role="presentation" onClick={handleClose}>
+      <div className="rvm-dialog" role="dialog" aria-modal="true" aria-labelledby="rvm-title" onClick={(e) => e.stopPropagation()}>
         <div className="rvm-header">
-          <h2>Dispatch Replacement Vehicle</h2>
-          <button className="rvm-close" onClick={handleClose} type="button">&times;</button>
+          <h2 id="rvm-title">Dispatch Replacement Vehicle</h2>
+          <button className="rvm-close" onClick={handleClose} type="button" aria-label="Close dispatch replacement dialog">&times;</button>
         </div>
 
         <div className="rvm-body">
@@ -132,7 +132,7 @@ const DispatchReplacementModal = ({ breakdown, isOpen, onClose, onSuccess }) => 
                 </select>
               </div>
 
-              {error && <div className="rvm-error">{error}</div>}
+              {error && <div className="rvm-error" role="alert">{error}</div>}
 
               <div className="rvm-actions">
                 <button type="button" className="rvm-btn rvm-btn-cancel" onClick={handleClose} disabled={isSubmitting}>

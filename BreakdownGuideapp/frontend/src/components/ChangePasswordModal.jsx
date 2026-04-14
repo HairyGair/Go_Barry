@@ -82,11 +82,11 @@ const ChangePasswordModal = ({ isOpen, onClose, userEmail }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay" onClick={handleClose}>
-      <div className="change-password-modal" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-overlay" onClick={handleClose} role="presentation">
+      <div className="change-password-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="cpm-title">
         <div className="modal-header">
-          <h2>🔐 Change Password</h2>
-          <button className="close-btn" onClick={handleClose}>×</button>
+          <h2 id="cpm-title">🔐 Change Password</h2>
+          <button className="close-btn" onClick={handleClose} aria-label="Close change password dialog">×</button>
         </div>
 
         <div className="modal-body">
@@ -123,9 +123,10 @@ const ChangePasswordModal = ({ isOpen, onClose, userEmail }) => {
                 onChange={(e) => setNewPassword(e.target.value)}
                 required
                 autoComplete="new-password"
+                aria-describedby="password-requirements"
                 disabled={isLoading}
               />
-              <small className="password-hint">
+              <small className="password-hint" id="password-requirements">
                 Must be 8+ characters with uppercase, lowercase, numbers, and special characters
               </small>
             </div>
@@ -158,13 +159,13 @@ const ChangePasswordModal = ({ isOpen, onClose, userEmail }) => {
             </div>
 
             {error && (
-              <div className="error-message">
+              <div className="error-message" role="alert" aria-live="polite">
                 ❌ {error}
               </div>
             )}
 
             {success && (
-              <div className="success-message">
+              <div className="success-message" role="status" aria-live="polite">
                 {success}
               </div>
             )}

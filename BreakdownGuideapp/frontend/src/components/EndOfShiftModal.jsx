@@ -152,18 +152,18 @@ const EndOfShiftModal = ({
 
   return (
     <div className={`end-of-shift-modal ${isUrgent ? 'urgent' : ''} ${isShiftEnded ? 'ended' : ''}`}>
-      <div className="end-of-shift-modal__backdrop" />
+      <div className="end-of-shift-modal__backdrop" role="presentation" />
 
-      <div className="end-of-shift-modal__container">
+      <div className="end-of-shift-modal__container" role="alertdialog" aria-modal="true" aria-labelledby="eos-title" aria-describedby="eos-countdown">
         <div className="end-of-shift-modal__card">
           {/* Header */}
           <div className="end-of-shift-modal__header">
-            <span className="end-of-shift-modal__icon">{getWarningIcon()}</span>
-            <h2 className="end-of-shift-modal__title">{getWarningTitle()}</h2>
+            <span className="end-of-shift-modal__icon" aria-hidden="true">{getWarningIcon()}</span>
+            <h2 className="end-of-shift-modal__title" id="eos-title">{getWarningTitle()}</h2>
           </div>
 
           {/* Countdown */}
-          <div className="end-of-shift-modal__countdown">
+          <div className="end-of-shift-modal__countdown" id="eos-countdown" aria-live="polite" aria-atomic="true">
             <span className="end-of-shift-modal__countdown-label">
               {isShiftEnded ? 'Overtime' : 'Time Remaining'}
             </span>

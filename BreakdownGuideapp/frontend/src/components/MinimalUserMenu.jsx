@@ -194,7 +194,7 @@ const MinimalUserMenu = ({ currentDuty, onDutyClick }) => {
   return (
     <>
       {/* GoBarry Logo - Top Left */}
-      <Link to="/" className="minimal-header-logo">
+      <Link to="/" className="minimal-header-logo" aria-label="Go BARRY home">
         <GoBarryBanner height={38} theme="dark" showTagline={false} />
       </Link>
 
@@ -203,17 +203,20 @@ const MinimalUserMenu = ({ currentDuty, onDutyClick }) => {
         <button
           className={`user-menu-trigger ${isMenuOpen ? 'active' : ''}`}
           onClick={() => setIsMenuOpen(!isMenuOpen)}
+          aria-haspopup="menu"
+          aria-expanded={isMenuOpen}
+          aria-label={`User menu for ${currentUser?.name || 'User'}`}
         >
-          <div className="user-avatar">
+          <div className="user-avatar" aria-hidden="true">
             {currentUser?.name?.charAt(0) || 'U'}
           </div>
           <span className="user-name">{currentUser?.name || 'User'}</span>
-          <span className="menu-arrow">{isMenuOpen ? '▲' : '▼'}</span>
+          <span className="menu-arrow" aria-hidden="true">{isMenuOpen ? '▲' : '▼'}</span>
         </button>
 
         {/* Dropdown Menu */}
         {isMenuOpen && (
-          <div className="user-menu-dropdown">
+          <nav className="user-menu-dropdown" role="menu" aria-label="User menu">
             {/* User Info Header */}
             <div className="menu-header">
               <div className="user-info-large">
@@ -351,7 +354,7 @@ const MinimalUserMenu = ({ currentDuty, onDutyClick }) => {
                 {isLoggingOut ? '⏳ Signing Out...' : '🚪 Sign Out'}
               </button>
             </div>
-          </div>
+          </nav>
         )}
       </div>
 

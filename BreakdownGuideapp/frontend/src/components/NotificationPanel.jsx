@@ -32,22 +32,25 @@ const NotificationPanel = ({ isOpen, onClose }) => {
 
   return (
     <>
-      <div className="notification-overlay" onClick={onClose}></div>
-      <div className="notification-panel">
+      <div className="notification-overlay" onClick={onClose} role="presentation"></div>
+      <div className="notification-panel" role="dialog" aria-modal="true" aria-labelledby="notif-title">
         <div className="notification-header">
-          <h3>Notifications</h3>
-          <button className="notification-close" onClick={onClose}>✕</button>
+          <h3 id="notif-title">Notifications</h3>
+          <button className="notification-close" onClick={onClose} aria-label="Close notifications">✕</button>
         </div>
-        <div className="notification-list">
+        <div className="notification-list" aria-live="polite" role="list">
           {notifications.map(notif => (
-            <div key={notif.id} className={`notification-item ${notif.unread ? 'unread' : ''}`}>
-              <div className="notification-icon">
+            <div key={notif.id} className={`notification-item ${notif.unread ? 'unread' : ''}`} role="listitem">
+              <div className="notification-icon" aria-hidden="true">
                 {notif.type === 'breakdown' && '🚨'}
                 {notif.type === 'alert' && '⚠️'}
                 {notif.type === 'update' && 'ℹ️'}
               </div>
               <div className="notification-content">
-                <h4>{notif.title}</h4>
+                <h4>
+                  {notif.unread && <span className="sr-only">Unread: </span>}
+                  {notif.title}
+                </h4>
                 <p>{notif.message}</p>
                 <span className="notification-time">{notif.time}</span>
               </div>

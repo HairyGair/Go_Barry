@@ -98,9 +98,9 @@ class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="error-boundary-container">
+        <div className="error-boundary-container" role="alert" aria-live="assertive">
           <div className="error-boundary-content">
-            <div className="error-icon">⚠️</div>
+            <div className="error-icon" aria-hidden="true">⚠️</div>
             <h1>Oops! Something went wrong</h1>
             <p className="error-message">
               We're sorry, but something unexpected happened. The error has been
@@ -118,9 +118,9 @@ class ErrorBoundary extends React.Component {
               </details>
             )}
 
-            <div className="error-actions">
+            <div className="error-actions" role="group" aria-label="Error recovery options">
               {this.state.retryCount < 3 && (
-                <button onClick={this.handleRetry} className="btn-retry">
+                <button onClick={this.handleRetry} className="btn-retry" aria-label={`Try again, ${3 - this.state.retryCount} attempts remaining`}>
                   Try Again ({3 - this.state.retryCount} attempts left)
                 </button>
               )}
@@ -133,7 +133,7 @@ class ErrorBoundary extends React.Component {
             </div>
 
             {this.state.errorReported && (
-              <p className="error-reported-notice">
+              <p className="error-reported-notice" role="status" aria-live="polite">
                 ✓ Error report submitted successfully
               </p>
             )}

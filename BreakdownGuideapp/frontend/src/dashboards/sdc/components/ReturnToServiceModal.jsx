@@ -108,11 +108,11 @@ const ReturnToServiceModal = ({ breakdown, isOpen, onClose, onSuccess }) => {
   };
 
   return (
-    <div className="rts-overlay" onClick={handleClose}>
-      <div className="rts-dialog" onClick={(e) => e.stopPropagation()}>
+    <div className="rts-overlay" role="presentation" onClick={handleClose}>
+      <div className="rts-dialog" role="dialog" aria-modal="true" aria-labelledby="rts-title" onClick={(e) => e.stopPropagation()}>
         <div className="rts-header">
-          <h2>Return to Service Point</h2>
-          <button className="rts-close" onClick={handleClose} type="button">&times;</button>
+          <h2 id="rts-title">Return to Service Point</h2>
+          <button className="rts-close" onClick={handleClose} type="button" aria-label="Close return to service dialog">&times;</button>
         </div>
 
         <div className="rts-body">
@@ -277,7 +277,7 @@ const ReturnToServiceModal = ({ breakdown, isOpen, onClose, onSuccess }) => {
                 </div>
               )}
 
-              {error && <div className="rts-error">{error}</div>}
+              {error && <div className="rts-error" role="alert">{error}</div>}
             </>
           )}
         </div>

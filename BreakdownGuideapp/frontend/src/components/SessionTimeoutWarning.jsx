@@ -151,13 +151,13 @@ const SessionTimeoutWarning = () => {
     if (!showWarning || !sessionInfo) return null;
 
     return (
-        <div className="session-timeout-overlay">
-            <div className="session-timeout-modal">
+        <div className="session-timeout-overlay" role="presentation">
+            <div className="session-timeout-modal" role="alertdialog" aria-modal="true" aria-labelledby="session-timeout-title" aria-describedby="session-timeout-desc">
                 <div className="session-timeout__header">
-                    <span className="session-timeout__icon">&#x23F0;</span>
+                    <span className="session-timeout__icon" aria-hidden="true">&#x23F0;</span>
                     <div>
-                        <h2 className="session-timeout__title">Session Expiring Soon</h2>
-                        <p className="session-timeout__subtitle">
+                        <h2 className="session-timeout__title" id="session-timeout-title">Session Expiring Soon</h2>
+                        <p className="session-timeout__subtitle" id="session-timeout-desc">
                             Your session will end before your shift finishes
                         </p>
                     </div>

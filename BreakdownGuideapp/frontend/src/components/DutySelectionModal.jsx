@@ -338,9 +338,18 @@ const DutySelectionModal = ({ onDutySelected, currentUser, onClose }) => {
         }
     };
 
+    // Close on Escape key
+    useEffect(() => {
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') handleClose();
+        };
+        document.addEventListener('keydown', handleEscape);
+        return () => document.removeEventListener('keydown', handleEscape);
+    }, []);
+
     return (
-        <div className="dsm-overlay" onClick={handleClose}>
-            <div className="dsm-container" onClick={(e) => e.stopPropagation()}>
+        <div className="dsm-overlay" onClick={handleClose} role="presentation">
+            <div className="dsm-container" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="dsm-title">
 
                 {/* Close Button */}
                 <button className="dsm-close" onClick={handleClose} aria-label="Close modal">
@@ -423,7 +432,7 @@ const DutySelectionModal = ({ onDutySelected, currentUser, onClose }) => {
 
                             {/* Greeting & Title */}
                             <p className="dsm-greeting">{getGreeting()}, {firstName}</p>
-                            <h2 className="dsm-title">
+                            <h2 className="dsm-title" id="dsm-title">
                                 {step === 'selection' ? 'Select Your Duty Shift' : 'Confirm Your Shift'}
                             </h2>
 

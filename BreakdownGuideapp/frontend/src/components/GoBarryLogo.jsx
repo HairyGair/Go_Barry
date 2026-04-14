@@ -76,6 +76,7 @@ export const GoBarryLogo = ({
         viewBox="0 0 64 80"
         className={className}
         xmlns="http://www.w3.org/2000/svg"
+        role="img"
         aria-label="Go BARRY"
       >
         <defs>
@@ -115,6 +116,7 @@ export const GoBarryLogo = ({
         viewBox="0 0 180 60"
         className={className}
         xmlns="http://www.w3.org/2000/svg"
+        role="img"
         aria-label="Go BARRY"
       >
         <defs>
@@ -160,6 +162,7 @@ export const GoBarryLogo = ({
       viewBox="0 0 240 64"
       className={className}
       xmlns="http://www.w3.org/2000/svg"
+      role="img"
       aria-label="Go BARRY - Breakdown Management"
     >
       <defs>
