@@ -1,10 +1,49 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { VitePWA } from 'vite-plugin-pwa'
 import { fileURLToPath, URL } from 'node:url'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      manifest: false, // Use existing manifest.json in public/
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/api\//],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/api\.breakdowns\.gobarry\.co\.uk\/api\//,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'api-cache',
+              expiration: { maxEntries: 50, maxAgeSeconds: 300 },
+              networkTimeoutSeconds: 10,
+            },
+          },
+          {
+            urlPattern: /^https:\/\/maps\.googleapis\.com\//,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'maps-cache',
+              expiration: { maxEntries: 30, maxAgeSeconds: 86400 },
+            },
+          },
+          {
+            urlPattern: /^https:\/\/use\.typekit\.net\//,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'fonts-cache',
+              expiration: { maxEntries: 10, maxAgeSeconds: 31536000 },
+            },
+          },
+        ],
+      },
+    }),
+  ],
   base: '/', // Use absolute paths from root - fixes MIME type issues on deep routes
   resolve: {
     alias: {
@@ -58,7 +97,8 @@ export default defineConfig({
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
-          supabase: ['@supabase/supabase-js']
+          charts: ['recharts'],
+          maps: ['leaflet', 'react-leaflet'],
         },
         // Obfuscate output filenames
         entryFileNames: 'assets/[name]-[hash].js',

@@ -14,3 +14,18 @@ import './styles/integrated-layout.css'  // Integrated layout improvements
 ReactDOM.createRoot(document.getElementById('root')).render(
   <App />
 )
+
+// Register PWA service worker
+if ('serviceWorker' in navigator) {
+  import('virtual:pwa-register').then(({ registerSW }) => {
+    registerSW({
+      onNeedRefresh() {
+        // New content available — will auto-update on next load
+        console.log('New version available');
+      },
+      onOfflineReady() {
+        console.log('App ready to work offline');
+      },
+    });
+  });
+}
