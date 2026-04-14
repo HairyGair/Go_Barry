@@ -716,6 +716,7 @@
     font-family: var(--font-display, 'boiga', 'Outfit', sans-serif);
     font-size: 32px;
     font-weight: 700;
+    color: white;
     letter-spacing: -0.3px;
     text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
@@ -723,6 +724,7 @@
 .dsm-confirm-name {
     font-size: 18px;
     font-weight: 500;
+    color: white;
     opacity: 0.9;
 }
 
@@ -734,6 +736,7 @@
     font-family: var(--font-mono, 'new-astro-soft', 'JetBrains Mono', monospace);
     font-size: 20px;
     font-weight: 600;
+    color: white;
     letter-spacing: 0.5px;
     opacity: 0.95;
 }
