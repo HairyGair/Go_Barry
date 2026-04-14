@@ -19,7 +19,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
-import { generateToken, doubleCsrfProtection } from './middleware/csrfProtection.js';
+import { generateCsrfToken, doubleCsrfProtection } from './middleware/csrfProtection.js';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
@@ -602,7 +602,7 @@ app.use('/api/public', publicRoutes); // Public endpoints for Control Room Displ
 
 // CSRF token endpoint - public endpoint for getting token
 app.get('/api/auth/csrf-token', (req, res) => {
-  const csrfToken = generateToken(req, res);
+  const csrfToken = generateCsrfToken(req, res);
   res.json({ csrfToken });
 });
 

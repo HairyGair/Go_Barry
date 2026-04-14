@@ -8,8 +8,9 @@ import { doubleCsrf } from 'csrf-csrf';
 
 const isProduction = process.env.NODE_ENV === 'production';
 
-const { generateToken, doubleCsrfProtection } = doubleCsrf({
+const { generateCsrfToken, doubleCsrfProtection } = doubleCsrf({
   getSecret: () => process.env.JWT_SECRET || process.env.SUPABASE_JWT_SECRET || 'csrf-fallback-secret',
+  getSessionIdentifier: (req) => req.cookies?.auth_token || req.ip || 'anonymous',
   cookieName: '_csrf',
   cookieOptions: {
     httpOnly: true,
@@ -19,9 +20,9 @@ const { generateToken, doubleCsrfProtection } = doubleCsrf({
     path: '/',
     maxAge: 3600000, // 1 hour
   },
-  getTokenFromRequest: (req) => req.headers['csrf-token'] || req.headers['x-csrf-token'],
+  getCsrfTokenFromRequest: (req) => req.headers['csrf-token'] || req.headers['x-csrf-token'],
 });
 
-export { generateToken, doubleCsrfProtection };
+export { generateCsrfToken, doubleCsrfProtection };
 
-export default { generateToken, doubleCsrfProtection };
+export default { generateCsrfToken, doubleCsrfProtection };
