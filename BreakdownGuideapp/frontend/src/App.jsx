@@ -281,6 +281,7 @@ const AppContent = () => {
   const [activeBreakdownsList, setActiveBreakdownsList] = useState([])
   const [showDutyModal, setShowDutyModal] = useState(false)
   const [currentDuty, setCurrentDuty] = useState(null)
+  const [dutyChecked, setDutyChecked] = useState(false)
   const [showWelcome, setShowWelcome] = useState(false)
   const [shiftWarningLevel, setShiftWarningLevel] = useState(null) // 30, 15, 5, or 0
   const [showEndOfShiftModal, setShowEndOfShiftModal] = useState(false)
@@ -349,6 +350,7 @@ const AppContent = () => {
         sessionStorage.removeItem('currentDuty')
       }
     }
+    setDutyChecked(true)
   }, [])
 
   const isEngineeringManager = currentUser?.role === 'engineering_manager'
@@ -373,16 +375,16 @@ const AppContent = () => {
     }
   }, [isAuthenticated, isSessionChecking, isDemoUser, currentDuty])
 
-  // Show duty modal IMMEDIATELY after login if no valid duty exists
+  // Show duty modal after login if no valid duty exists
+  // Only runs AFTER sessionStorage duty check completes (dutyChecked=true)
   // Engineering managers and demo users skip duty selection entirely
   useEffect(() => {
-    if (isAuthenticated && !isSessionChecking && !currentDuty && !isEngineeringManager && !isDemoUser) {
+    if (isAuthenticated && !isSessionChecking && dutyChecked && !currentDuty && !isEngineeringManager && !isDemoUser) {
       console.log('🔔 Authenticated with no duty - showing duty modal')
       setShowDutyModal(true)
-      // Clear the flag now that we're showing the modal
       sessionStorage.removeItem('showDutyModal')
     }
-  }, [isAuthenticated, isSessionChecking, currentDuty, isEngineeringManager, isDemoUser])
+  }, [isAuthenticated, isSessionChecking, dutyChecked, currentDuty, isEngineeringManager, isDemoUser])
 
   // Redirect engineering_manager to their landing page
   useEffect(() => {
