@@ -8,6 +8,7 @@
  */
 
 // Supabase import removed - no longer using Supabase for authentication
+import websocketService from './websocket.js';
 
 const BACKEND_URL = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
 
@@ -25,10 +26,8 @@ class AssessmentBroadcaster {
         this.route = null;
         
         // WebSocket connection for real-time updates
-        this.ws = null;
         this.wsReconnectAttempts = 0;
-        this.maxReconnectAttempts = 5;
-        this.reconnectDelay = 1000;
+        this._wsEndpoint = null;
     }
     
     /**
@@ -48,7 +47,7 @@ class AssessmentBroadcaster {
         this.route = data.route;
         
         // Connect WebSocket if not connected
-        if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+        if (!this._wsEndpoint || !websocketService.isConnected(this._wsEndpoint)) {
             this.connectWebSocket();
         }
         
@@ -168,59 +167,24 @@ class AssessmentBroadcaster {
      * NOTE: Authentication now uses HTTP-only cookies (XSS protection)
      */
     async connectWebSocket() {
-        try {
-            // NOTE: Authentication now uses HTTP-only cookies (XSS protection)
-            // The browser automatically sends the auth_token cookie with WebSocket upgrade request
-            console.log('🔒 Using HTTP-only cookie authentication for Assessment Broadcaster WebSocket');
+        const endpoint = '?channel=assessment-tracker';
 
-            const baseWsUrl = BACKEND_URL.replace('http', 'ws');
-            const wsUrl = `${baseWsUrl}/ws?channel=assessment-tracker`;
-            this.ws = new WebSocket(wsUrl);
-            
-            this.ws.onopen = () => {
+        websocketService.connect(endpoint, {
+            autoReconnect: true,
+            onOpen: () => {
                 console.log('✅ WebSocket connected for assessment broadcasting');
                 this.wsReconnectAttempts = 0;
-                
-                // Send identification
-                this.ws.send(JSON.stringify({
-                    type: 'identify',
-                    role: 'supervisor',
-                    supervisor: this.supervisor
-                }));
-            };
-            
-            this.ws.onclose = () => {
+                websocketService.send(endpoint, { type: 'identify', role: 'supervisor', supervisor: this.supervisor });
+            },
+            onClose: () => {
                 console.log('🔌 WebSocket disconnected');
-                this.handleReconnect();
-            };
-            
-            this.ws.onerror = (error) => {
+            },
+            onError: (error) => {
                 console.error('❌ WebSocket error:', error);
-            };
-            
-        } catch (error) {
-            console.error('Failed to connect WebSocket:', error);
-            // Fall back to API broadcasting
-        }
-    }
-    
-    /**
-     * Handle WebSocket reconnection
-     */
-    handleReconnect() {
-        if (this.wsReconnectAttempts >= this.maxReconnectAttempts) {
-            console.log('Max reconnection attempts reached, falling back to API');
-            return;
-        }
-        
-        this.wsReconnectAttempts++;
-        const delay = this.reconnectDelay * Math.pow(2, this.wsReconnectAttempts - 1);
-        
-        console.log(`Reconnecting in ${delay}ms (attempt ${this.wsReconnectAttempts})`);
-        
-        setTimeout(() => {
-            this.connectWebSocket();
-        }, delay);
+            }
+        });
+
+        this._wsEndpoint = endpoint;
     }
     
     /**
@@ -229,20 +193,18 @@ class AssessmentBroadcaster {
     async broadcastUpdate(data) {
         // Add timestamp
         data.timestamp = new Date().toISOString();
-        
+
         // Try WebSocket first
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            try {
-                this.ws.send(JSON.stringify(data));
+        if (this._wsEndpoint && websocketService.isConnected(this._wsEndpoint)) {
+            const sent = websocketService.send(this._wsEndpoint, data);
+            if (sent) {
                 console.log('📡 Broadcasted via WebSocket:', data.type);
-            } catch (error) {
-                console.error('WebSocket broadcast failed:', error);
-                await this.broadcastViaAPI(data);
+                return;
             }
-        } else {
-            // Fallback to API
-            await this.broadcastViaAPI(data);
         }
+
+        // Fallback to API
+        await this.broadcastViaAPI(data);
     }
     
     /**
@@ -414,9 +376,9 @@ class AssessmentBroadcaster {
      * Cleanup and disconnect
      */
     cleanup() {
-        if (this.ws) {
-            this.ws.close();
-            this.ws = null;
+        if (this._wsEndpoint) {
+            websocketService.disconnect(this._wsEndpoint);
+            this._wsEndpoint = null;
         }
         this.resetAssessment();
     }

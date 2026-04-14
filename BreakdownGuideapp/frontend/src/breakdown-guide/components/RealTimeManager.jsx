@@ -1,7 +1,7 @@
 /**
  * Real-time WebSocket Connection Manager
  * Phase 2 Priority 4: Enhanced Real-time Features
- * 
+ *
  * Features:
  * - WebSocket connection management with auto-reconnect
  * - Real-time breakdown status updates
@@ -10,18 +10,18 @@
  * - Connection status monitoring
  */
 
+import websocketService from '../../services/websocket.js';
+
 class RealTimeManager {
     constructor() {
-        this.ws = null;
         this.connected = false;
-        this.reconnectAttempts = 0;
-        this.maxReconnectAttempts = 10;
-        this.reconnectDelay = 1000; // Start with 1 second
         this.heartbeatInterval = null;
         this.supervisorId = null;
         this.subscribedChannels = new Set();
         this.messageHandlers = new Map();
         this.connectionListeners = new Set();
+        this._wsEndpoint = null;
+        this._unsubscribe = null;
         
         // Configuration
         this.config = {
@@ -71,69 +71,46 @@ class RealTimeManager {
     }
     
     connect() {
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+        if (this.connected) {
             console.log('⚠️ WebSocket already connected');
             return;
         }
-        
-        console.log('🔌 Connecting to WebSocket...', this.config.wsUrl);
-        
-        try {
-            this.ws = new WebSocket(this.config.wsUrl);
-            this.setupWebSocketHandlers();
-        } catch (error) {
-            console.error('❌ WebSocket connection failed:', error);
-            this.scheduleReconnect();
-        }
-    }
-    
-    setupWebSocketHandlers() {
-        this.ws.onopen = (event) => {
-            console.log('✅ WebSocket connected');
-            this.connected = true;
-            this.reconnectAttempts = 0;
-            this.reconnectDelay = 1000;
-            
-            // Authenticate supervisor
-            this.authenticate();
-            
-            // Start heartbeat
-            this.startHeartbeat();
-            
-            // Notify listeners
-            this.notifyConnectionListeners('connected');
-            
-            // Re-subscribe to channels
-            this.resubscribeChannels();
-        };
-        
-        this.ws.onmessage = (event) => {
-            try {
-                const message = JSON.parse(event.data);
-                this.handleMessage(message);
-            } catch (error) {
-                console.error('❌ Failed to parse WebSocket message:', error);
+
+        const wsUrl = this.getWebSocketUrl();
+
+        websocketService.connect(wsUrl, {
+            autoReconnect: true,
+            onOpen: () => {
+                console.log('✅ RealTimeManager connected');
+                this.connected = true;
+
+                // Authenticate supervisor
+                this.authenticate();
+
+                // Start heartbeat
+                this.startHeartbeat();
+
+                // Notify listeners
+                this.notifyConnectionListeners('connected');
+
+                // Re-subscribe to channels
+                this.resubscribeChannels();
+            },
+            onClose: () => {
+                this.connected = false;
+                this.stopHeartbeat();
+                this.notifyConnectionListeners('disconnected');
+            },
+            onError: (error) => {
+                this.connected = false;
+                this.notifyConnectionListeners('error', error);
             }
-        };
-        
-        this.ws.onclose = (event) => {
-            console.log('🔌 WebSocket disconnected:', event.code, event.reason);
-            this.connected = false;
-            this.stopHeartbeat();
-            
-            // Notify listeners
-            this.notifyConnectionListeners('disconnected');
-            
-            // Attempt reconnection if not a normal closure
-            if (event.code !== 1000) {
-                this.scheduleReconnect();
-            }
-        };
-        
-        this.ws.onerror = (error) => {
-            console.error('❌ WebSocket error:', error);
-            this.notifyConnectionListeners('error', error);
-        };
+        });
+
+        this._wsEndpoint = wsUrl;
+        this._unsubscribe = websocketService.subscribe(wsUrl, (data) => {
+            this.handleMessage(data);
+        });
     }
     
     authenticate() {
@@ -146,14 +123,8 @@ class RealTimeManager {
     }
     
     send(message) {
-        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            try {
-                this.ws.send(JSON.stringify(message));
-                return true;
-            } catch (error) {
-                console.error('❌ Failed to send WebSocket message:', error);
-                return false;
-            }
+        if (this._wsEndpoint && websocketService.isConnected(this._wsEndpoint)) {
+            return websocketService.send(this._wsEndpoint, message);
         } else {
             console.warn('⚠️ WebSocket not connected, message queued');
             // Could implement message queuing here
@@ -385,27 +356,6 @@ class RealTimeManager {
         }
     }
     
-    // Reconnection logic
-    scheduleReconnect() {
-        if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-            console.error('❌ Max reconnection attempts reached');
-            this.notifyConnectionListeners('failed');
-            return;
-        }
-        
-        this.reconnectAttempts++;
-        const delay = Math.min(
-            this.reconnectDelay * Math.pow(this.config.reconnectBackoff, this.reconnectAttempts - 1),
-            this.config.maxReconnectDelay
-        );
-        
-        console.log(`🔄 Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
-        
-        setTimeout(() => {
-            this.connect();
-        }, delay);
-    }
-    
     resubscribeChannels() {
         this.subscribedChannels.forEach(channel => {
             this.send({
@@ -438,9 +388,7 @@ class RealTimeManager {
         
         // Handle beforeunload
         window.addEventListener('beforeunload', () => {
-            if (this.ws) {
-                this.ws.close(1000, 'Page unload');
-            }
+            this.disconnect();
         });
     }
     
@@ -508,24 +456,21 @@ class RealTimeManager {
     }
     
     getConnectionStatus() {
-        if (!this.ws) return 'disconnected';
-        
-        switch (this.ws.readyState) {
-            case WebSocket.CONNECTING: return 'connecting';
-            case WebSocket.OPEN: return 'connected';
-            case WebSocket.CLOSING: return 'closing';
-            case WebSocket.CLOSED: return 'disconnected';
-            default: return 'unknown';
-        }
+        if (!this._wsEndpoint) return 'disconnected';
+        return websocketService.getConnectionState(this._wsEndpoint);
     }
     
     disconnect() {
         console.log('🔌 Manually disconnecting WebSocket');
         this.stopHeartbeat();
-        
-        if (this.ws) {
-            this.ws.close(1000, 'Manual disconnect');
+
+        if (this._wsEndpoint) {
+            websocketService.disconnect(this._wsEndpoint);
+            this._wsEndpoint = null;
         }
+        this._unsubscribe?.();
+        this._unsubscribe = null;
+        this.connected = false;
     }
     
     // Request notification permission

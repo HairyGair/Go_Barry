@@ -7,12 +7,10 @@ import EngineeringCardEnhanced from './EngineeringCardEnhanced';
 import DepotStats from './DepotStats';
 import DepotContactsPanel from './DepotContactsPanel';
 import ShiftCheckInModal from './ShiftCheckInModal';
+import { useWebSocket } from '../../services/websocket.js';
 
 const REFRESH_INTERVAL = 10000; // 10 seconds
 const PRIORITY_ROUTES = ['X10', 'X21', '21', '56', '1'];
-
-// WebSocket connection
-let ws = null;
 
 const EngineeringDashboard = () => {
   // State
@@ -23,9 +21,25 @@ const EngineeringDashboard = () => {
   const [error, setError] = useState(null);
   const [notification, setNotification] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(new Date());
-  const [wsConnected, setWsConnected] = useState(false);
   const [showShiftCheckIn, setShowShiftCheckIn] = useState(false);
   const [onShiftData, setOnShiftData] = useState([]);
+
+  // WebSocket — shared hook handles connection, reconnection, and cleanup.
+  // The endpoint is the path suffix appended to websocketConfig.url by the service.
+  const { lastMessage, isConnected: wsConnected, sendMessage } = useWebSocket('?channel=engineering');
+
+  // Subscribe to the engineering channel once connected
+  useEffect(() => {
+    if (wsConnected) {
+      sendMessage({ type: 'subscribe', channel: 'engineering' });
+    }
+  }, [wsConnected, sendMessage]);
+
+  // Handle incoming WebSocket messages
+  useEffect(() => {
+    if (!lastMessage) return;
+    handleWebSocketMessage(lastMessage);
+  }, [lastMessage]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Check if shift check-in modal should show
   useEffect(() => {
@@ -55,63 +69,6 @@ const EngineeringDashboard = () => {
     { value: 'priority', label: 'Priority Routes' },
     { value: 'overdue', label: 'SLA Risk' }
   ];
-
-  // WebSocket setup and cleanup
-  useEffect(() => {
-    connectWebSocket();
-
-    return () => {
-      if (ws) {
-        ws.close();
-        ws = null;
-      }
-    };
-  }, []);
-
-  const connectWebSocket = async () => {
-    try {
-      console.log('🔒 Using HTTP-only cookie authentication for Engineering WebSocket');
-
-      const WS_URL = import.meta.env.VITE_WS_URL || 'wss://api.breakdowns.gobarry.co.uk/ws';
-      const wsUrl = `${WS_URL}/ws?channel=engineering`;
-      ws = new WebSocket(wsUrl);
-
-      ws.onopen = () => {
-        console.log('✅ Engineering Dashboard WebSocket connected');
-        setWsConnected(true);
-
-        ws.send(JSON.stringify({
-          type: 'subscribe',
-          channel: 'engineering'
-        }));
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          handleWebSocketMessage(data);
-        } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
-        }
-      };
-
-      ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        setWsConnected(false);
-      };
-
-      ws.onclose = () => {
-        console.log('WebSocket disconnected. Reconnecting in 5s...');
-        setWsConnected(false);
-
-        setTimeout(() => {
-          connectWebSocket();
-        }, 5000);
-      };
-    } catch (error) {
-      console.error('Failed to connect WebSocket:', error);
-    }
-  };
 
   const handleWebSocketMessage = (data) => {
     console.log('📨 Engineering WebSocket message:', data);

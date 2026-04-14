@@ -17,5 +17,20 @@ module.exports = {
       merge_logs: true,
       time: true,
     },
+    {
+      name: "deploy-webhook",
+      cwd: "/home/gobarryco",
+      script: "deploy-webhook.mjs",
+      instances: 1,
+      exec_mode: "fork",
+      env: {
+        WEBHOOK_PORT: 9876,
+      },
+      max_memory_restart: "64M",
+      error_file: "/home/gobarryco/logs/deploy-webhook-error.log",
+      out_file: "/home/gobarryco/logs/deploy-webhook-out.log",
+      merge_logs: true,
+      time: true,
+    },
   ],
 };

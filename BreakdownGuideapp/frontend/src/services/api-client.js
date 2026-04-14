@@ -53,10 +53,13 @@ class APIClient {
           return await response.json();
         }
 
-        // Client error (4xx) - don't retry
+        // Client error (4xx) - don't retry, throw immediately
         if (response.status >= 400 && response.status < 500) {
-          const error = await response.json().catch(() => ({ error: response.statusText }));
-          throw new Error(error.error || error.message || response.statusText);
+          const errorBody = await response.json().catch(() => ({ error: response.statusText }));
+          const clientError = new Error(errorBody.error || errorBody.message || response.statusText);
+          clientError.status = response.status;
+          clientError.isClientError = true;
+          throw clientError;
         }
 
         // Server error (5xx) - retry
@@ -73,8 +76,11 @@ class APIClient {
         throw new Error(`HTTP error! status: ${response.status}`);
 
       } catch (error) {
-        // AbortError - never retry, rethrow immediately
+        // AbortError - never retry
         if (error.name === 'AbortError') throw error;
+
+        // Client error (4xx) - never retry
+        if (error.isClientError) throw error;
 
         lastError = error;
 

@@ -5,17 +5,17 @@
  */
 
 import { apiConfig } from '../breakdown-guide/components/common/constants';
+import websocketService from './websocket.js';
 // Supabase import removed - no longer using Supabase for real-time
 
 class AssessmentProgressService {
   constructor() {
     this.activeAssessments = new Map();
     this.listeners = new Map();
-    this.ws = null;
     this.reconnectAttempts = 0;
-    this.maxReconnectAttempts = 5;
-    this.reconnectDelay = 1000;
     this.isConnected = false;
+    this._wsEndpoint = null;
+    this._unsubscribe = null;
     
     // Default wizard steps for different assessment types
     this.wizardSteps = {
@@ -72,51 +72,28 @@ class AssessmentProgressService {
 
   // Connect to WebSocket for real-time updates
   async connectWebSocket() {
-    try {
-      // NOTE: Authentication now uses HTTP-only cookies (XSS protection)
-      // The browser automatically sends the auth_token cookie with WebSocket upgrade request
-      console.log('🔒 Using HTTP-only cookie authentication for Assessment Progress WebSocket');
+    const endpoint = '?channel=assessment-progress';
 
-      const baseWsUrl = apiConfig.baseUrl.replace('http', 'ws');
-      const wsUrl = `${baseWsUrl}/ws?channel=assessment-progress`;
-      this.ws = new WebSocket(wsUrl);
-      
-      this.ws.onopen = () => {
+    websocketService.connect(endpoint, {
+      autoReconnect: true,
+      onOpen: () => {
         console.log('📡 Assessment Progress WebSocket connected');
         this.isConnected = true;
         this.reconnectAttempts = 0;
-        
-        // Subscribe to assessment progress updates
-        this.ws.send(JSON.stringify({
-          type: 'subscribe',
-          channel: 'assessment_progress'
-        }));
-      };
-
-      this.ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          this.handleWebSocketMessage(data);
-        } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
-        }
-      };
-
-      this.ws.onclose = () => {
-        console.log('📡 Assessment Progress WebSocket disconnected');
+        websocketService.send(endpoint, { type: 'subscribe', channel: 'assessment_progress' });
+      },
+      onClose: () => {
         this.isConnected = false;
-        this.attemptReconnect();
-      };
-
-      this.ws.onerror = (error) => {
-        console.error('📡 Assessment Progress WebSocket error:', error);
+      },
+      onError: () => {
         this.isConnected = false;
-      };
+      }
+    });
 
-    } catch (error) {
-      console.error('Failed to connect Assessment Progress WebSocket:', error);
-      this.isConnected = false;
-    }
+    this._wsEndpoint = endpoint;
+    this._unsubscribe = websocketService.subscribe(endpoint, (data) => {
+      this.handleWebSocketMessage(data);
+    });
   }
 
   // Handle WebSocket messages
@@ -134,20 +111,6 @@ class AssessmentProgressService {
       case 'assessment_cancelled':
         this.handleAssessmentCancelled(data);
         break;
-    }
-  }
-
-  // Attempt to reconnect WebSocket
-  attemptReconnect() {
-    if (this.reconnectAttempts < this.maxReconnectAttempts) {
-      this.reconnectAttempts++;
-      const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
-      
-      console.log(`Attempting to reconnect assessment progress WebSocket (${this.reconnectAttempts}/${this.maxReconnectAttempts}) in ${delay}ms`);
-      
-      setTimeout(() => {
-        this.connectWebSocket();
-      }, delay);
     }
   }
 
@@ -174,11 +137,8 @@ class AssessmentProgressService {
     this.notifyListeners('assessment_started', assessment);
 
     // Send to backend if WebSocket is connected
-    if (this.isConnected && this.ws) {
-      this.ws.send(JSON.stringify({
-        type: 'assessment_started',
-        data: assessment
-      }));
+    if (this.isConnected && this._wsEndpoint) {
+      websocketService.send(this._wsEndpoint, { type: 'assessment_started', data: assessment });
     }
 
     return assessment;
@@ -207,11 +167,8 @@ class AssessmentProgressService {
     this.notifyListeners('step_progress', updatedAssessment);
 
     // Send to backend if WebSocket is connected
-    if (this.isConnected && this.ws) {
-      this.ws.send(JSON.stringify({
-        type: 'step_progress',
-        data: updatedAssessment
-      }));
+    if (this.isConnected && this._wsEndpoint) {
+      websocketService.send(this._wsEndpoint, { type: 'step_progress', data: updatedAssessment });
     }
 
     return updatedAssessment;
@@ -241,11 +198,8 @@ class AssessmentProgressService {
     this.notifyListeners('assessment_completed', completedAssessment);
 
     // Send to backend if WebSocket is connected
-    if (this.isConnected && this.ws) {
-      this.ws.send(JSON.stringify({
-        type: 'assessment_completed',
-        data: completedAssessment
-      }));
+    if (this.isConnected && this._wsEndpoint) {
+      websocketService.send(this._wsEndpoint, { type: 'assessment_completed', data: completedAssessment });
     }
 
     return completedAssessment;
@@ -273,11 +227,8 @@ class AssessmentProgressService {
     this.notifyListeners('assessment_cancelled', cancelledAssessment);
 
     // Send to backend if WebSocket is connected
-    if (this.isConnected && this.ws) {
-      this.ws.send(JSON.stringify({
-        type: 'assessment_cancelled',
-        data: cancelledAssessment
-      }));
+    if (this.isConnected && this._wsEndpoint) {
+      websocketService.send(this._wsEndpoint, { type: 'assessment_cancelled', data: cancelledAssessment });
     }
 
     return cancelledAssessment;
@@ -473,11 +424,13 @@ class AssessmentProgressService {
 
   // Cleanup
   destroy() {
-    if (this.ws) {
-      this.ws.close();
-      this.ws = null;
+    if (this._wsEndpoint) {
+      websocketService.disconnect(this._wsEndpoint);
+      this._wsEndpoint = null;
     }
-    
+    this._unsubscribe?.();
+    this._unsubscribe = null;
+
     this.activeAssessments.clear();
     this.listeners.clear();
   }
