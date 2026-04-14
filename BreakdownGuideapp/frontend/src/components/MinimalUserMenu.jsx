@@ -52,7 +52,13 @@ const MinimalUserMenu = ({ currentDuty, onDutyClick }) => {
       description: 'Engineering dispatch',
       hasSubmenu: true,
       submenu: [
-        { path: '/dashboards/engineering/display', label: 'All Depots Display', icon: '🏭', external: true },
+        { path: '/dashboards/engineering/display', label: 'All Depots', icon: '🏭', external: true },
+        { path: '/dashboards/engineering/display?depot=Washington', label: 'Washington', icon: '🔧', external: true },
+        { path: '/dashboards/engineering/display?depot=Riverside', label: 'Riverside', icon: '🔧', external: true },
+        { path: '/dashboards/engineering/display?depot=Consett', label: 'Consett', icon: '🔧', external: true },
+        { path: '/dashboards/engineering/display?depot=Deptford', label: 'Deptford', icon: '🔧', external: true },
+        { path: '/dashboards/engineering/display?depot=Percy%20Main', label: 'Percy Main', icon: '🔧', external: true },
+        { path: '/dashboards/engineering/display?depot=Hexham', label: 'Hexham', icon: '🔧', external: true },
         { path: '/dashboards/engineering/manage', label: 'Manage Engineers', icon: '👷' }
       ]
     },
