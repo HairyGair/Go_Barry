@@ -10,7 +10,7 @@ echo "=================================="
 
 # Configuration
 PRODUCTION_HOST="85.234.151.224"
-PRODUCTION_USER="anthony"
+PRODUCTION_USER="gobarryco"
 BACKEND_DIR="~/api"
 FRONTEND_DIR="~/public_html/breakdowns.gobarry.co.uk"
 

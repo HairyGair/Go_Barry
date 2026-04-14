@@ -1,0 +1,86 @@
+name: Build & Deploy Breakdown Guide
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'BreakdownGuideapp/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: |
+            BreakdownGuideapp/frontend/package-lock.json
+            BreakdownGuideapp/backend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: BreakdownGuideapp/frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: BreakdownGuideapp/frontend
+        run: npm run build
+        env:
+          VITE_API_URL: https://api.breakdowns.gobarry.co.uk
+          VITE_WS_URL: wss://api.breakdowns.gobarry.co.uk
+          VITE_ENV: production
+
+      - name: Package for deployment
+        run: |
+          mkdir -p deploy/breakdown-deploy/backend
+          mkdir -p deploy/breakdown-deploy/frontend-dist
+
+          cd BreakdownGuideapp
+
+          # Backend application files (matches build-deploy.sh)
+          for dir in config data middleware migrations routes services utils validation; do
+            if [ -d "backend/$dir" ]; then
+              cp -r "backend/$dir" ../deploy/breakdown-deploy/backend/
+            fi
+          done
+
+          # Backend root files
+          for file in server.js package.json package-lock.json .htaccess; do
+            if [ -f "backend/$file" ]; then
+              cp "backend/$file" ../deploy/breakdown-deploy/backend/
+            fi
+          done
+
+          # Frontend dist
+          cp -r frontend/dist/* ../deploy/breakdown-deploy/frontend-dist/
+
+          # Clean up macOS artifacts
+          find ../deploy -name '.DS_Store' -delete 2>/dev/null || true
+          find ../deploy -name '.env' -not -name '.env.example' -delete 2>/dev/null || true
+
+          cd ../deploy
+          tar -czf breakdown-deploy.tar.gz breakdown-deploy/
+
+      - name: Delete existing release
+        run: gh release delete breakdown-latest --yes --cleanup-tag 2>/dev/null || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create release
+        run: |
+          gh release create breakdown-latest deploy/breakdown-deploy.tar.gz \
+            --title "Breakdown Guide - Latest Build" \
+            --notes "Built from ${GITHUB_SHA::7} on $(date -u '+%Y-%m-%d %H:%M UTC')" \
+            --latest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
