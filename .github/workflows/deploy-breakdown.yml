@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'BreakdownGuideapp/**'
+      - '.github/workflows/deploy-breakdown.yml'
   workflow_dispatch:
 
 permissions:
