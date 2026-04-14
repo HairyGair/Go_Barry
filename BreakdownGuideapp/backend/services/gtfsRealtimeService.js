@@ -56,34 +56,42 @@ class GtfsRealtimeService {
    */
   async poll() {
     try {
-      const url = `${BODS_API_BASE}/gtfsrtdatafeed/?noc=${GO_NORTH_EAST_NOC}&api_key=${this.apiKey}`;
-      const data = await this.fetchJSON(url);
+      // BODS SIRI-VM endpoint returns XML with vehicle positions
+      // Filtering by operatorRef for Go North East (GNEL)
+      const url = `${BODS_API_BASE}/datafeed/?operatorRef=${GO_NORTH_EAST_NOC}&api_key=${this.apiKey}`;
+      const xml = await this.fetchText(url);
 
-      if (data && data.entity) {
-        let updated = 0;
-        for (const entity of data.entity) {
-          if (entity.vehicle) {
-            const v = entity.vehicle;
-            const vehicleId = v.vehicle?.id || entity.id;
-            this.vehiclePositions.set(vehicleId, {
-              vehicleId,
-              tripId: v.trip?.tripId || null,
-              routeId: v.trip?.routeId || null,
-              latitude: v.position?.latitude,
-              longitude: v.position?.longitude,
-              bearing: v.position?.bearing,
-              speed: v.position?.speed,
-              timestamp: v.timestamp ? new Date(v.timestamp * 1000).toISOString() : new Date().toISOString(),
-              stopId: v.stopId || null,
-              currentStatus: v.currentStatus || null,
-            });
-            updated++;
-          }
-        }
-        this.lastUpdate = new Date().toISOString();
-        if (updated > 0) {
-          console.log(`GTFS-RT: Updated ${updated} vehicle positions`);
-        }
+      // Parse SIRI-VM XML for VehicleActivity elements
+      // Using regex extraction (no XML parser dependency needed on cPanel)
+      const vehicleActivities = xml.match(/<VehicleActivity>[\s\S]*?<\/VehicleActivity>/g) || [];
+      let updated = 0;
+
+      for (const activity of vehicleActivities) {
+        const vehicleId = this.extractXml(activity, 'VehicleRef');
+        const lat = parseFloat(this.extractXml(activity, 'Latitude'));
+        const lng = parseFloat(this.extractXml(activity, 'Longitude'));
+
+        if (!vehicleId || isNaN(lat) || isNaN(lng)) continue;
+
+        this.vehiclePositions.set(vehicleId, {
+          vehicleId,
+          tripId: this.extractXml(activity, 'DatedVehicleJourneyRef') || null,
+          routeId: this.extractXml(activity, 'LineRef') || null,
+          lineName: this.extractXml(activity, 'PublishedLineName') || null,
+          origin: this.extractXml(activity, 'OriginName') || null,
+          destination: this.extractXml(activity, 'DestinationName') || null,
+          latitude: lat,
+          longitude: lng,
+          bearing: parseFloat(this.extractXml(activity, 'Bearing')) || null,
+          timestamp: this.extractXml(activity, 'RecordedAtTime') || new Date().toISOString(),
+          operatorRef: this.extractXml(activity, 'OperatorRef') || GO_NORTH_EAST_NOC,
+        });
+        updated++;
+      }
+
+      this.lastUpdate = new Date().toISOString();
+      if (updated > 0) {
+        console.log(`GTFS-RT: Updated ${updated} vehicle positions from SIRI-VM`);
       }
 
       // Prune stale positions (older than 5 minutes)
@@ -126,11 +134,12 @@ class GtfsRealtimeService {
    */
   getAffectedTrips(lat, lng, radiusKm = 1) {
     const nearby = this.getVehiclesNear(lat, lng, radiusKm);
+    const lineNames = [...new Set(nearby.map(v => v.lineName).filter(Boolean))];
     const routeIds = [...new Set(nearby.map(v => v.routeId).filter(Boolean))];
     return {
       affected_vehicles: nearby.length,
-      affected_routes: routeIds.length,
-      routes: routeIds,
+      affected_routes: lineNames.length || routeIds.length,
+      routes: lineNames.length > 0 ? lineNames : routeIds,
       vehicles: nearby,
       last_update: this.lastUpdate,
       is_live: this.polling && this.lastUpdate !== null,
@@ -163,20 +172,22 @@ class GtfsRealtimeService {
   }
 
   /**
-   * Fetch JSON via https (cPanel-compatible, no fetch)
+   * Extract text content from an XML tag (simple regex, no parser needed)
    */
-  fetchJSON(url) {
+  extractXml(xml, tag) {
+    const match = xml.match(new RegExp(`<${tag}[^>]*>([^<]*)</${tag}>`));
+    return match ? match[1].trim() : null;
+  }
+
+  /**
+   * Fetch text via https (cPanel-compatible, no fetch)
+   */
+  fetchText(url) {
     return new Promise((resolve, reject) => {
-      https.get(url, { timeout: 10000 }, (res) => {
+      https.get(url, { timeout: 15000 }, (res) => {
         let data = '';
         res.on('data', chunk => { data += chunk; });
-        res.on('end', () => {
-          try {
-            resolve(JSON.parse(data));
-          } catch (e) {
-            reject(new Error(`Invalid JSON from BODS: ${data.slice(0, 200)}`));
-          }
-        });
+        res.on('end', () => resolve(data));
       }).on('error', reject);
     });
   }
