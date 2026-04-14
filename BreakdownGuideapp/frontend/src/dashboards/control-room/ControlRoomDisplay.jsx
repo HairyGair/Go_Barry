@@ -28,6 +28,7 @@ import { apiClient } from '../../services/api-client';
 import useConnectionManager from '../../hooks/useConnectionManager';
 import GairWareLogo from '../../components/GairWareLogo';
 import EngineerEtaCountdown from '../../components/EngineerEtaCountdown';
+import { GOOGLE_MAPS_API_KEY } from '@/config/maps.js';
 import './ControlRoomDisplay.css';
 
 const ControlRoomDisplay = () => {
@@ -88,9 +89,6 @@ const ControlRoomDisplay = () => {
       console.warn('Could not play alert sound:', error);
     }
   }, [soundEnabled]);
-
-  // Google Maps API key - loaded from environment
-  const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY || '';
 
   // Depot coordinates fallback - VERIFIED from OpenStreetMap (December 2025)
   const DEPOT_COORDINATES = {
@@ -960,7 +958,7 @@ const ControlRoomDisplay = () => {
                   );
                 }
 
-                const apiKey = import.meta.env.VITE_GOOGLE_MAPS_KEY;
+                const apiKey = GOOGLE_MAPS_API_KEY;
 
                 // Ensure we have API key
                 if (!apiKey) {

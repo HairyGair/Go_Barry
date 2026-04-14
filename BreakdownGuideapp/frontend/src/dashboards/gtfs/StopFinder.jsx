@@ -13,10 +13,10 @@ import L from 'leaflet';
 import DashboardLayout from '../components/DashboardLayout';
 import { gtfsApiService } from '../../services/gtfsApiService';
 import { apiClient } from '../../services/api-client';
+import { GOOGLE_MAPS_API_KEY } from '@/config/maps.js';
 import './StopFinder.css';
 
 const NE_CENTER = [54.97, -1.60]; // Newcastle center
-const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY;
 
 // Bias Places results to North East England
 const NE_BOUNDS = { north: 55.15, south: 54.75, east: -1.3, west: -2.0 };
@@ -80,7 +80,7 @@ function useGooglePlaces() {
   const serviceRef = useRef(null);
 
   useEffect(() => {
-    if (!GOOGLE_API_KEY) return;
+    if (!GOOGLE_MAPS_API_KEY) return;
     if (window.google?.maps?.places) {
       serviceRef.current = new window.google.maps.places.AutocompleteService();
       setReady(true);
@@ -88,7 +88,7 @@ function useGooglePlaces() {
     }
 
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_API_KEY}&libraries=places`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;
     script.async = true;
     script.onload = () => {
       serviceRef.current = new window.google.maps.places.AutocompleteService();

@@ -7,10 +7,8 @@ import NextTripCountdownBadge from '../../components/NextTripCountdownBadge';
 import EngineerEtaCountdown from '../../components/EngineerEtaCountdown';
 import QuickDecisionButtons from './QuickDecisionButtons';
 import apiClient from '../../services/api-client';
+import { GOOGLE_MAPS_API_KEY } from '@/config/maps.js';
 import './SDCBreakdownCard-Carousel.css';
-
-// Google Maps API key for geocoding - loaded from environment
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY || '';
 
 // standard procedure category mappings with icons
 const SDC_GUIDE_CATEGORIES = {

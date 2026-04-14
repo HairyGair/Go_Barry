@@ -3,6 +3,8 @@
  * Normalizes and enhances breakdown data from various sources
  */
 
+import { GOOGLE_MAPS_API_KEY } from '@/config/maps.js';
+
 let googleApiKeyWarningShown = false;
 
 // Enhanced breakdown data processing with fleet database integration
@@ -11,9 +13,8 @@ export const enhanceBreakdownDataInline = async (breakdown) => {
 
   console.log('🔧 Enhancing breakdown data:', breakdown.breakdown_id, breakdown);
 
-  // Get Google Maps API key
-  const googleApiKey = import.meta.env.VITE_GOOGLE_MAPS_KEY;
-  if (!googleApiKey && !googleApiKeyWarningShown) {
+  // Check Google Maps API key
+  if (!GOOGLE_MAPS_API_KEY && !googleApiKeyWarningShown) {
     console.warn('Google Maps API key not found in environment variables');
     googleApiKeyWarningShown = true;
   }
@@ -47,9 +48,9 @@ export const enhanceBreakdownDataInline = async (breakdown) => {
                       `${breakdown.latitude}, ${breakdown.longitude}` : null);
 
   // If we have coordinates but no readable location, try to geocode
-  if (coordinates && !enhancedLocation && googleApiKey) {
+  if (coordinates && !enhancedLocation && GOOGLE_MAPS_API_KEY) {
     try {
-      enhancedLocation = await reverseGeocode(coordinates, googleApiKey);
+      enhancedLocation = await reverseGeocode(coordinates, GOOGLE_MAPS_API_KEY);
     } catch (error) {
       console.warn('⚠️ Geocoding failed:', error);
       enhancedLocation = coordinates; // Fallback to coordinates

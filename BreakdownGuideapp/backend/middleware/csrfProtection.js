@@ -1,44 +1,27 @@
 /**
  * CSRF Protection Middleware
- * Protects against Cross-Site Request Forgery attacks
+ * Uses csrf-csrf (double-submit cookie pattern)
+ * Replaces deprecated csurf package
  */
 
-import csrf from 'csurf';
+import { doubleCsrf } from 'csrf-csrf';
 
-// Configure CSRF protection
-// Uses cookies to store CSRF secret (secure for our architecture)
-export const csrfProtection = csrf({
-  cookie: {
-    httpOnly: true,      // CSRF secret cookie cannot be accessed by JS
-    secure: true,        // HTTPS only
-    sameSite: 'strict',  // Strict same-site policy
-    maxAge: 3600000,     // 1 hour
+const isProduction = process.env.NODE_ENV === 'production';
+
+const { generateToken, doubleCsrfProtection } = doubleCsrf({
+  getSecret: () => process.env.JWT_SECRET || process.env.SUPABASE_JWT_SECRET || 'csrf-fallback-secret',
+  cookieName: '_csrf',
+  cookieOptions: {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
+    ...(isProduction && { domain: '.gobarry.co.uk' }),
     path: '/',
-    domain: '.gobarry.co.uk'  // Share across subdomains
-  }
+    maxAge: 3600000, // 1 hour
+  },
+  getTokenFromRequest: (req) => req.headers['csrf-token'] || req.headers['x-csrf-token'],
 });
 
-// Middleware to provide CSRF token to frontend
-export const provideCsrfToken = (req, res, next) => {
-  res.locals.csrfToken = req.csrfToken();
-  next();
-};
+export { generateToken, doubleCsrfProtection };
 
-// Error handler for CSRF token validation failures
-export const csrfErrorHandler = (err, req, res, next) => {
-  if (err.code === 'EBADCSRFTOKEN') {
-    console.warn(`⚠️ CSRF token validation failed for ${req.path} from ${req.ip}`);
-    return res.status(403).json({
-      success: false,
-      error: 'Invalid CSRF token. Please refresh the page and try again.',
-      code: 'CSRF_TOKEN_INVALID'
-    });
-  }
-  next(err);
-};
-
-export default {
-  csrfProtection,
-  provideCsrfToken,
-  csrfErrorHandler
-};
+export default { generateToken, doubleCsrfProtection };

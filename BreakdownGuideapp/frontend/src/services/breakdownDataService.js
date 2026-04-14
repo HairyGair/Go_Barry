@@ -2,7 +2,7 @@
 // This service ensures proper data flow from assessments to dashboard
 
 // Google Maps Geocoding (free up to 40,000 requests/month with billing enabled, or 2,500/day without)
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
+import { GOOGLE_MAPS_API_KEY } from '@/config/maps.js';
 
 // Depot mapping based on location/fleet ranges
 const DEPOT_MAPPINGS = {

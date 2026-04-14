@@ -19,7 +19,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
-import csrf from 'csurf';
+import { generateToken, doubleCsrfProtection } from './middleware/csrfProtection.js';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
@@ -127,20 +127,9 @@ app.use(express.json());
 // This enables secure session management via cookies instead of localStorage (XSS protection)
 app.use(cookieParser());
 
-// SECURITY FIX: Configure CSRF protection
-// Generates CSRF tokens and validates them on POST/PUT/DELETE requests
-// Token stored in HTTP-only cookie (secure, not vulnerable to XSS)
-// IMPORTANT: Cookie settings must match auth cookie for cross-subdomain support
+// SECURITY: CSRF protection configured in middleware/csrfProtection.js
+// Uses csrf-csrf (double-submit cookie pattern, replaces deprecated csurf)
 const isProduction = process.env.NODE_ENV === 'production';
-const csrfProtection = csrf({
-  cookie: {
-    httpOnly: true,      // Prevent XSS from accessing token
-    secure: isProduction,        // HTTPS only in production, HTTP allowed in dev
-    sameSite: isProduction ? 'none' : 'lax',    // 'none' for cross-origin in prod, 'lax' for dev
-    ...(isProduction && { domain: '.gobarry.co.uk' }), // Only set domain in production
-    path: '/'
-  }
-});
 
 app.use(morgan('combined'));
 
@@ -612,12 +601,13 @@ app.get('/api/diagnostics', authenticateAdmin, async (req, res) => {
 app.use('/api/public', publicRoutes); // Public endpoints for Control Room Display
 
 // CSRF token endpoint - public endpoint for getting token
-app.get('/api/auth/csrf-token', csrfProtection, (req, res) => {
-  res.json({ csrfToken: req.csrfToken() });
+app.get('/api/auth/csrf-token', (req, res) => {
+  const csrfToken = generateToken(req, res);
+  res.json({ csrfToken });
 });
 
 // Authentication routes (CSRF protection for all, rate limiting only on login/signup)
-app.use('/api/auth', csrfProtection, authRoutes);
+app.use('/api/auth', doubleCsrfProtection, authRoutes);
 
 // Protected routes (require supervisor authentication)
 app.use('/api/breakdowns', authenticateSupervisor, breakdownRoutes);

@@ -30,6 +30,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { apiClient } from '../../services/api-client';
 import websocketService from '../../services/websocket';
 import GairWareLogo from '../../components/GairWareLogo';
+import { GOOGLE_MAPS_API_KEY } from '@/config/maps.js';
 import './EngineeringDisplay.css';
 
 const EngineeringDisplay = () => {
@@ -149,15 +150,13 @@ const EngineeringDisplay = () => {
   const reverseGeocode = async (lat, lng, cacheKey) => {
     try {
       // Use Google Geocoding API directly (frontend key is already exposed in browser)
-      const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY;
-
-      if (!GOOGLE_API_KEY) {
+      if (!GOOGLE_MAPS_API_KEY) {
         console.error('Google Maps API key not configured');
         return;
       }
 
       const response = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${GOOGLE_API_KEY}`
+        `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${GOOGLE_MAPS_API_KEY}`
       );
 
       if (response.ok) {
@@ -629,9 +628,8 @@ const EngineeringDisplay = () => {
                   }
 
                   const { lat, lng } = coords;
-                  const GOOGLE_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY;
 
-                  if (!GOOGLE_API_KEY) {
+                  if (!GOOGLE_MAPS_API_KEY) {
                     return (
                       <div className="card-map-error">
                         <div className="map-error-icon">🗺️</div>
@@ -645,7 +643,7 @@ const EngineeringDisplay = () => {
                   const depotMarker = depotCoords ? `&markers=color:0x0097A7%7Clabel:D%7C${depotCoords.lat},${depotCoords.lng}` : '';
 
                   // Google Maps Static API URL - Compact to fit everything on screen
-                  const mapUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=14&size=700x300&markers=size:mid%7Ccolor:red%7Clabel:B%7C${lat},${lng}${depotMarker}&key=${GOOGLE_API_KEY}&style=feature:all%7Celement:geometry%7Ccolor:0x1a2332&style=feature:all%7Celement:labels.text.fill%7Ccolor:0xffffff&style=feature:all%7Celement:labels.text.stroke%7Ccolor:0x0a0f1b&style=feature:road%7Celement:geometry%7Ccolor:0x2d3748&style=feature:water%7Celement:geometry%7Ccolor:0x0f172a`;
+                  const mapUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lng}&zoom=14&size=700x300&markers=size:mid%7Ccolor:red%7Clabel:B%7C${lat},${lng}${depotMarker}&key=${GOOGLE_MAPS_API_KEY}&style=feature:all%7Celement:geometry%7Ccolor:0x1a2332&style=feature:all%7Celement:labels.text.fill%7Ccolor:0xffffff&style=feature:all%7Celement:labels.text.stroke%7Ccolor:0x0a0f1b&style=feature:road%7Celement:geometry%7Ccolor:0x2d3748&style=feature:water%7Celement:geometry%7Ccolor:0x0f172a`;
 
                   return (
                     <div className="card-map">

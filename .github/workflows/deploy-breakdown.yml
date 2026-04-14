@@ -43,7 +43,7 @@ jobs:
           VITE_ENV: production
           VITE_ENABLE_AUTH: true
           VITE_ENABLE_MOCK_DATA: false
-          VITE_GOOGLE_MAPS_KEY: AIzaSyBhBN_kVOnIRTKXYhzrDwpr8kvb0Uy0IY8
+          VITE_GOOGLE_MAPS_KEY: ${{ secrets.VITE_GOOGLE_MAPS_KEY }}
 
       - name: Package for deployment
         run: |
