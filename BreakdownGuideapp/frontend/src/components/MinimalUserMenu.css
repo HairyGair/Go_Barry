@@ -104,14 +104,30 @@
   top: calc(100% + 12px);
   right: 0;
   width: 340px;
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  overflow-x: visible;
   background: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(10, 15, 30, 0.98));
   backdrop-filter: blur(30px);
   -webkit-backdrop-filter: blur(30px);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 20px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-  overflow: visible; /* Changed from hidden to allow submenu to appear outside */
   animation: slideDown 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.user-menu-dropdown::-webkit-scrollbar {
+  width: 5px;
+}
+.user-menu-dropdown::-webkit-scrollbar-track {
+  background: transparent;
+}
+.user-menu-dropdown::-webkit-scrollbar-thumb {
+  background: rgba(0, 151, 167, 0.3);
+  border-radius: 3px;
+}
+.user-menu-dropdown::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 151, 167, 0.5);
 }
 
 @keyframes slideDown {
