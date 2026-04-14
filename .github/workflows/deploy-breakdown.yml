@@ -30,9 +30,7 @@ jobs:
 
       - name: Install frontend dependencies
         working-directory: BreakdownGuideapp/frontend
-        run: npm ci
-        env:
-          HUSKY: "0"
+        run: npm ci --ignore-scripts
 
       - name: Build frontend
         working-directory: BreakdownGuideapp/frontend
