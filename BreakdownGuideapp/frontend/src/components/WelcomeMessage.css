@@ -269,7 +269,7 @@
     font-family: var(--font-display, 'boiga', 'Outfit', sans-serif);
     font-size: 18px;
     font-weight: 700;
-    color: var(--color-text-primary, #0F172A);
+    color: #0F172A;
     letter-spacing: -0.1px;
 }
 
@@ -323,7 +323,7 @@
     font-family: var(--font-body, 'aileron', sans-serif);
     font-size: 13px;
     font-weight: 800;
-    color: var(--color-text-primary, #0F172A);
+    color: #0F172A;
 }
 
 /* ============================================================
@@ -453,7 +453,7 @@
 .wm-action-label {
     font-size: 12px;
     font-weight: 700;
-    color: var(--color-text-primary, #0F172A);
+    color: #0F172A;
     text-align: center;
     letter-spacing: 0.1px;
 }

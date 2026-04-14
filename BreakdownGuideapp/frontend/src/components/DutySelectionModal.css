@@ -34,6 +34,7 @@
 .dsm-container {
     position: relative;
     background: #FFFFFF;
+    color: #0F172A;
     border-radius: 16px;
     box-shadow:
         0 24px 64px rgba(0, 0, 0, 0.35),
@@ -631,14 +632,14 @@
     display: block;
     font-size: 15px;
     font-weight: 600;
-    color: var(--color-text-primary, #0F172A);
+    color: #0F172A;
     margin-bottom: 3px;
 }
 
 .dsm-alt-text p {
     margin: 0;
     font-size: 13px;
-    color: var(--color-text-secondary, #64748B);
+    color: #64748B;
     line-height: 1.4;
 }
 
@@ -763,14 +764,14 @@
     display: block;
     font-size: 14px;
     font-weight: 700;
-    color: var(--color-text-primary, #0F172A);
+    color: #0F172A;
     margin-bottom: 4px;
 }
 
 .dsm-detail p {
     margin: 0;
     font-size: 13px;
-    color: var(--color-text-secondary, #64748B);
+    color: #64748B;
     line-height: 1.4;
 }
 
@@ -941,13 +942,13 @@
     font-family: var(--font-display, 'boiga', 'Outfit', sans-serif);
     font-size: 22px;
     font-weight: 700;
-    color: var(--color-text-primary, #0F172A);
+    color: #0F172A;
 }
 
 .dsm-admin-override p {
     margin: 0 0 16px;
     font-size: 14px;
-    color: var(--color-text-secondary, #64748B);
+    color: #64748B;
 }
 
 .dsm-override-input {
