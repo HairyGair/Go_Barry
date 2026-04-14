@@ -534,67 +534,104 @@ app.get('/api/health', healthCheck);
 // Diagnostic endpoint (admin only - exposes server config)
 app.get('/api/diagnostics', authenticateAdmin, async (req, res) => {
   try {
+    const memUsage = process.memoryUsage();
+    const uptime = process.uptime();
+
     const diagnostics = {
       timestamp: new Date().toISOString(),
       server: {
         nodeVersion: process.version,
         platform: process.platform,
+        arch: process.arch,
+        pid: process.pid,
         cwd: process.cwd(),
-        env: process.env.NODE_ENV || 'not set'
+        env: process.env.NODE_ENV || 'not set',
+        uptime_seconds: Math.round(uptime),
+        uptime_human: `${Math.floor(uptime / 86400)}d ${Math.floor((uptime % 86400) / 3600)}h ${Math.floor((uptime % 3600) / 60)}m`,
+      },
+      memory: {
+        rss_mb: Math.round(memUsage.rss / 1048576),
+        heap_used_mb: Math.round(memUsage.heapUsed / 1048576),
+        heap_total_mb: Math.round(memUsage.heapTotal / 1048576),
+        external_mb: Math.round(memUsage.external / 1048576),
+        heap_usage_pct: Math.round(memUsage.heapUsed / memUsage.heapTotal * 100),
       },
       database: {
         host: process.env.DB_HOST || 'NOT SET',
         port: process.env.DB_PORT || 'NOT SET',
         user: process.env.DB_USER || 'NOT SET',
         database: process.env.DB_NAME || 'NOT SET',
-        passwordSet: !!process.env.DB_PASSWORD
+        passwordSet: !!process.env.DB_PASSWORD,
       },
-      tests: {}
+      integrations: {
+        google_directions: !!process.env.GOOGLE_DIRECTIONS_API_KEY,
+        bods_api: !!process.env.BODS_API_KEY,
+        jwt_secret: !!process.env.JWT_SECRET,
+      },
+      tables: {},
+      tests: {},
     };
 
-    // Test 1: MySQL connection
+    // Test MySQL connection
     try {
       const testQuery = await db('SELECT 1 as test');
-      diagnostics.tests.mysqlConnection = '✅ Connected';
-      diagnostics.tests.mysqlResponse = testQuery[0];
+      diagnostics.tests.mysql_connection = { status: 'ok', message: 'Connected' };
     } catch (error) {
-      diagnostics.tests.mysqlConnection = `❌ ${error.message}`;
+      diagnostics.tests.mysql_connection = { status: 'error', message: error.message };
     }
 
-    // Test 2: Check supervisors table
+    // Count all key tables
+    const tablesToCheck = [
+      'supervisors', 'breakdowns', 'activities', 'fleet_vehicles', 'engineers',
+      'engineer_daily_shifts', 'engineer_shift_templates', 'replacement_vehicles',
+      'gtfs_routes', 'gtfs_stops', 'gtfs_trips', 'gtfs_stop_times',
+      'user_preferences', 'supervisor_sessions', 'duty_audit_log',
+    ];
+
+    for (const table of tablesToCheck) {
+      try {
+        const result = await db(`SELECT COUNT(*) as count FROM ${table}`);
+        diagnostics.tables[table] = { count: result[0]?.count ?? 0, status: 'ok' };
+      } catch (error) {
+        diagnostics.tables[table] = { count: 0, status: 'error', error: error.message };
+      }
+    }
+
+    // Active breakdowns
     try {
-      const count = await db('SELECT COUNT(*) as count FROM supervisors');
-      diagnostics.tests.supervisorsTable = `✅ ${count[0].count} supervisors found`;
+      const active = await db("SELECT COUNT(*) as count FROM breakdowns WHERE status IN ('active', 'pending', 'in_progress')");
+      diagnostics.tables.active_breakdowns = { count: active[0]?.count ?? 0, status: 'ok' };
     } catch (error) {
-      diagnostics.tests.supervisorsTable = `❌ ${error.message}`;
+      diagnostics.tables.active_breakdowns = { count: 0, status: 'error' };
     }
 
-    // Test 3: Check specific supervisor
+    // Active sessions
     try {
-      const supervisor = await db(
-        'SELECT id, email, name, badge_number FROM supervisors WHERE badge_number = ? LIMIT 1',
-        ['AG003']
-      );
-      diagnostics.tests.supervisorAG003 = supervisor[0]
-        ? `✅ Found: ${supervisor[0].name}`
-        : '❌ Not found';
+      const sessions = await db("SELECT COUNT(*) as count FROM supervisor_sessions WHERE ended_at IS NULL");
+      diagnostics.tables.active_sessions = { count: sessions[0]?.count ?? 0, status: 'ok' };
     } catch (error) {
-      diagnostics.tests.supervisorAG003 = `❌ ${error.message}`;
+      diagnostics.tables.active_sessions = { count: 0, status: 'error' };
     }
 
-    // Test 4: Check breakdowns table
+    // GTFS-RT status
     try {
-      const count = await db('SELECT COUNT(*) as count FROM breakdowns');
-      diagnostics.tests.breakdownsTable = `✅ ${count[0].count} breakdowns found`;
+      const gtfsRt = (await import('./services/gtfsRealtimeService.js')).default;
+      diagnostics.integrations.gtfs_rt = gtfsRt.getStatus();
     } catch (error) {
-      diagnostics.tests.breakdownsTable = `❌ ${error.message}`;
+      diagnostics.integrations.gtfs_rt = { active: false, error: error.message };
     }
 
-    res.json(diagnostics);
+    // Recent breakdowns (last 24h)
+    try {
+      const recent = await db("SELECT COUNT(*) as count FROM breakdowns WHERE created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)");
+      diagnostics.tables.breakdowns_24h = { count: recent[0]?.count ?? 0, status: 'ok' };
+    } catch (error) {
+      diagnostics.tables.breakdowns_24h = { count: 0, status: 'error' };
+    }
+
+    res.json({ success: true, data: diagnostics });
   } catch (error) {
-    res.status(500).json({
-      error: 'Diagnostics check failed'
-    });
+    res.status(500).json({ success: false, error: 'Diagnostics check failed' });
   }
 });
 

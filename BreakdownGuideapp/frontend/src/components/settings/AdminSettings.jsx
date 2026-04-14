@@ -11,6 +11,7 @@ import DutyScheduleDashboard from '../admin/DutyScheduleDashboard.jsx';
 import AdminDutyAudit from '../admin/AdminDutyAudit.jsx';
 import AdminComplianceSettings from '../admin/AdminComplianceSettings.jsx';
 import SupervisorHistoryModal from '../SupervisorHistoryModal.jsx';
+import AdminDiagnostics from './AdminDiagnostics.jsx';
 
 const AdminSettings = () => {
   const [supervisors, setSupervisors] = useState([]);
@@ -511,6 +512,33 @@ const AdminSettings = () => {
           }}
         >
           🧪 Test Pages
+        </button>
+        <button
+          onClick={() => setAdminTab('diagnostics')}
+          style={{
+            padding: '10px 16px',
+            border: 'none',
+            background: adminTab === 'diagnostics' ? 'rgba(0, 151, 167, 0.2)' : 'transparent',
+            color: adminTab === 'diagnostics' ? '#0097A7' : '#94A3B8',
+            borderBottom: adminTab === 'diagnostics' ? '2px solid #0097A7' : '2px solid transparent',
+            cursor: 'pointer',
+            fontSize: '13px',
+            fontWeight: adminTab === 'diagnostics' ? '600' : '400',
+            transition: 'all 0.2s ease',
+            whiteSpace: 'nowrap'
+          }}
+          onMouseEnter={(e) => {
+            if (adminTab !== 'diagnostics') {
+              e.target.style.background = 'rgba(255,255,255,0.05)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (adminTab !== 'diagnostics') {
+              e.target.style.background = 'transparent';
+            }
+          }}
+        >
+          🔬 Diagnostics
         </button>
       </div>
 
@@ -1082,6 +1110,11 @@ const AdminSettings = () => {
             </div>
           </div>
         </>
+      )}
+
+      {/* Diagnostics Tab */}
+      {adminTab === 'diagnostics' && (
+        <AdminDiagnostics />
       )}
     </div>
   );
