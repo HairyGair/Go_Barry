@@ -717,6 +717,10 @@ process.on('SIGINT', async () => {
   process.exit(0);
 });
 
+// Start GTFS Realtime polling (if BODS API key configured)
+import gtfsRealtimeService from './services/gtfsRealtimeService.js';
+gtfsRealtimeService.start();
+
 // Check if running under Passenger (Phusion Passenger doesn't need us to call listen())
 const isPassenger = process.env.PASSENGER_APP_ENV || process.env.PHUSION_PASSENGER;
 

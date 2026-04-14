@@ -401,4 +401,56 @@ router.get('/health', async (req, res) => {
   }
 });
 
+/**
+ * Feature: GTFS Realtime - Affected trips near a breakdown
+ * GET /api/gtfs/realtime/affected-trips?lat=X&lng=Y&radius=1
+ *
+ * Uses BODS GTFS-RT feed (polled every 30s) to show live vehicles
+ * near a breakdown location instead of static schedule matching.
+ */
+import gtfsRealtimeService from '../services/gtfsRealtimeService.js';
+
+router.get('/realtime/affected-trips', async (req, res) => {
+  try {
+    const lat = parseFloat(req.query.lat);
+    const lng = parseFloat(req.query.lng);
+    const radius = parseFloat(req.query.radius) || 1;
+
+    if (isNaN(lat) || isNaN(lng)) {
+      return res.status(400).json({ success: false, error: 'lat and lng are required' });
+    }
+
+    const result = gtfsRealtimeService.getAffectedTrips(lat, lng, radius);
+
+    // Enrich with route names from GTFS static data
+    if (result.routes.length > 0) {
+      try {
+        const placeholders = result.routes.map(() => '?').join(',');
+        const routeNames = await query(
+          `SELECT route_id, route_short_name, route_long_name FROM gtfs_routes WHERE route_id IN (${placeholders})`,
+          result.routes
+        );
+        const routeMap = {};
+        (routeNames || []).forEach(r => { routeMap[r.route_id] = r; });
+        result.vehicles = result.vehicles.map(v => ({
+          ...v,
+          route_short_name: routeMap[v.routeId]?.route_short_name || null,
+          route_long_name: routeMap[v.routeId]?.route_long_name || null,
+        }));
+      } catch (e) {
+        // Non-critical — return without route names
+      }
+    }
+
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('GTFS-RT affected trips error:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch affected trips' });
+  }
+});
+
+router.get('/realtime/status', (req, res) => {
+  res.json({ success: true, data: gtfsRealtimeService.getStatus() });
+});
+
 export default router;

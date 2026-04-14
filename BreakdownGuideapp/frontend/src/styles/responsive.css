@@ -1,0 +1,213 @@
+/* ============================================================================
+   RESPONSIVE STYLES - Tablet Support for Key Flows
+   ============================================================================
+   Limited scope: Make core supervisor flows usable on tablets (768px+).
+   Desktop remains the primary platform. Engineering/Control Room/Management
+   dashboards are NOT made mobile — they're designed for large monitors.
+   ============================================================================ */
+
+/* ============================================================================
+   BREAKPOINT: TABLET (768px - 1023px)
+   ============================================================================ */
+
+@media (max-width: 1023px) {
+  /* -- Navigation: collapse to hamburger -- */
+  .minimal-header-logo {
+    position: static;
+    margin-right: auto;
+  }
+
+  .user-menu-trigger .user-name {
+    display: none; /* Hide name, show avatar only */
+  }
+
+  .user-menu-dropdown {
+    width: 100vw;
+    max-width: 360px;
+    right: 0;
+    top: 56px;
+    max-height: calc(100vh - 60px);
+    overflow-y: auto;
+  }
+
+  /* -- Main content: reduce padding -- */
+  .main-container {
+    padding: 12px;
+  }
+
+  /* -- Duty Selection Modal -- */
+  .dsm-container {
+    max-width: 100%;
+    margin: 8px;
+    max-height: calc(100vh - 16px);
+    border-radius: 12px;
+  }
+
+  .dsm-cards-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .dsm-card {
+    padding: 16px 16px 14px;
+  }
+
+  .dsm-confirm-card {
+    flex-direction: column;
+    text-align: center;
+    padding: 24px;
+    gap: 16px;
+  }
+
+  .dsm-details-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .dsm-confirm-actions {
+    flex-direction: column;
+  }
+
+  .dsm-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* -- Fleet Selection Modal (Breakdown Report) -- */
+  .fleet-modal-content,
+  .fleet-selection-modal {
+    max-width: 100%;
+    width: calc(100vw - 24px);
+    margin: 12px;
+  }
+
+  /* -- Wizard steps -- */
+  .wizard-container,
+  .breakdown-guide-container {
+    padding: 12px;
+  }
+
+  .wizard-button-group {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .wizard-button-group button {
+    width: 100%;
+    min-height: 48px; /* Touch target */
+  }
+
+  /* -- SDC Dashboard: condensed card view -- */
+  .sdc-breakdown-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sdc-card-actions {
+    flex-wrap: wrap;
+  }
+
+  /* -- Login page -- */
+  .lp-login-panel {
+    width: calc(100vw - 24px);
+    max-width: 360px;
+  }
+
+  /* -- All modals: ensure they don't overflow -- */
+  .modal-overlay > div,
+  .rvm-dialog,
+  .rts-dialog,
+  .dem-modal,
+  .change-password-modal {
+    max-width: calc(100vw - 24px);
+    max-height: calc(100vh - 24px);
+    overflow-y: auto;
+  }
+
+  /* -- Touch targets: ensure 48px minimum -- */
+  button, a, [role="button"], [role="tab"], [role="menuitem"],
+  input[type="checkbox"], input[type="radio"],
+  select, .notification-item {
+    min-height: 44px;
+  }
+}
+
+/* ============================================================================
+   BREAKPOINT: SMALL TABLET / LARGE PHONE (max-width: 767px)
+   ============================================================================ */
+
+@media (max-width: 767px) {
+  /* -- Duty cards: single column -- */
+  .dsm-cards-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dsm-card-code {
+    font-size: 18px;
+  }
+
+  .dsm-time-value {
+    font-size: 14px;
+  }
+
+  /* -- ETA Accuracy grid -- */
+  .eta-summary-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  /* -- Shift Coverage cards -- */
+  .sc-depot-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .sc-engineer-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* -- Export panel -- */
+  .ep-export-content {
+    grid-template-columns: 1fr;
+  }
+
+  /* -- Management dashboard -- */
+  .mgmt-two-column-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .mgmt-period-buttons {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .mgmt-period-btn {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+
+  /* -- Hide elements not needed on mobile -- */
+  .app-footer {
+    display: none;
+  }
+}
+
+/* ============================================================================
+   PRINT: Hide interactive elements
+   ============================================================================ */
+
+@media print {
+  .minimal-user-menu,
+  .minimal-header-logo,
+  .skip-link,
+  .notification-panel,
+  .quick-feedback,
+  .duty-notes-widget,
+  button,
+  nav {
+    display: none !important;
+  }
+
+  .main-container {
+    padding: 0;
+    margin: 0;
+  }
+}

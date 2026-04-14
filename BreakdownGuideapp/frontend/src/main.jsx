@@ -10,6 +10,7 @@ import './dashboards/engineering/engineering-override.css'  // Remove gradients
 import 'leaflet/dist/leaflet.css'
 import './styles/activity-feed-override.css'  // Override activity feed widget styles
 import './styles/integrated-layout.css'  // Integrated layout improvements
+import './styles/responsive.css'  // Tablet responsive breakpoints
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <App />

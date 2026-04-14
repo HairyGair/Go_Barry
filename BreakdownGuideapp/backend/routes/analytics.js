@@ -1849,4 +1849,162 @@ router.get('/lost-trips', async (req, res) => {
   }
 });
 
+// GET /api/analytics/eta-accuracy - Engineer ETA accuracy analysis
+router.get('/eta-accuracy', async (req, res) => {
+  try {
+    const period = req.query.period || 'month';
+    const periodDays = { today: 1, week: 7, month: 30, quarter: 90, year: 365 }[period] || 30;
+
+    const [rows] = await query(
+      `SELECT
+        breakdown_id, fleet_no, depot, engineer_name,
+        engineer_dispatched_at, engineer_eta_minutes, engineer_on_site_at,
+        TIMESTAMPDIFF(MINUTE, engineer_dispatched_at, engineer_on_site_at) as actual_minutes
+      FROM breakdowns
+      WHERE engineer_dispatched_at IS NOT NULL
+        AND engineer_eta_minutes IS NOT NULL
+        AND engineer_on_site_at IS NOT NULL
+        AND created_at >= DATE_SUB(NOW(), INTERVAL ${parseInt(periodDays)} DAY)
+      ORDER BY engineer_dispatched_at DESC`
+    );
+
+    const dispatches = (rows || []).map(r => {
+      const etaMinutes = parseFloat(r.engineer_eta_minutes) || 0;
+      const actualMinutes = parseInt(r.actual_minutes) || 0;
+      const variance = actualMinutes - etaMinutes;
+      return {
+        breakdown_id: r.breakdown_id,
+        fleet_no: r.fleet_no,
+        depot: r.depot,
+        engineer_name: r.engineer_name,
+        eta_minutes: etaMinutes,
+        actual_minutes: actualMinutes,
+        variance_minutes: variance,
+        accuracy_pct: etaMinutes > 0 ? Math.max(0, 100 - Math.abs(variance / etaMinutes * 100)) : 0,
+        on_time: Math.abs(variance) <= 5,
+      };
+    });
+
+    const totalDispatches = dispatches.length;
+    const onTimeCount = dispatches.filter(d => d.on_time).length;
+    const avgVariance = totalDispatches > 0
+      ? dispatches.reduce((sum, d) => sum + d.variance_minutes, 0) / totalDispatches
+      : 0;
+    const avgAccuracy = totalDispatches > 0
+      ? dispatches.reduce((sum, d) => sum + d.accuracy_pct, 0) / totalDispatches
+      : 0;
+
+    // Group by depot
+    const byDepot = {};
+    dispatches.forEach(d => {
+      if (!byDepot[d.depot]) byDepot[d.depot] = { total: 0, onTime: 0, totalVariance: 0 };
+      byDepot[d.depot].total++;
+      if (d.on_time) byDepot[d.depot].onTime++;
+      byDepot[d.depot].totalVariance += d.variance_minutes;
+    });
+
+    const depotAccuracy = Object.entries(byDepot).map(([depot, stats]) => ({
+      depot,
+      dispatches: stats.total,
+      on_time_pct: stats.total > 0 ? Math.round(stats.onTime / stats.total * 100) : 0,
+      avg_variance: stats.total > 0 ? Math.round(stats.totalVariance / stats.total) : 0,
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        summary: {
+          total_dispatches: totalDispatches,
+          on_time_pct: totalDispatches > 0 ? Math.round(onTimeCount / totalDispatches * 100) : 0,
+          avg_variance_minutes: Math.round(avgVariance),
+          avg_accuracy_pct: Math.round(avgAccuracy),
+        },
+        by_depot: depotAccuracy,
+        recent: dispatches.slice(0, 20),
+      },
+    });
+  } catch (error) {
+    console.error('ETA accuracy error:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch ETA accuracy' });
+  }
+});
+
+// GET /api/analytics/shift-coverage - Engineer shift coverage timeline
+router.get('/shift-coverage', async (req, res) => {
+  try {
+    const date = req.query.date || new Date().toISOString().split('T')[0];
+
+    const [shifts] = await query(
+      `SELECT
+        eds.engineer_id, eds.shift_date, eds.status, eds.depot_code,
+        COALESCE(eds.custom_start, est.start_time) as start_time,
+        COALESCE(eds.custom_end, est.end_time) as end_time,
+        est.name as shift_name,
+        e.name as engineer_name, e.badge_number
+      FROM engineer_daily_shifts eds
+      LEFT JOIN engineer_shift_templates est ON eds.shift_template_id = est.id
+      LEFT JOIN engineers e ON eds.engineer_id = e.id
+      WHERE eds.shift_date = ?
+      ORDER BY eds.depot_code, start_time`,
+      [date]
+    );
+
+    // Group by depot
+    const byDepot = {};
+    (shifts || []).forEach(s => {
+      const depot = s.depot_code || 'Unknown';
+      if (!byDepot[depot]) byDepot[depot] = [];
+      byDepot[depot].push({
+        engineer_name: s.engineer_name,
+        badge_number: s.badge_number,
+        shift_name: s.shift_name,
+        start_time: s.start_time,
+        end_time: s.end_time,
+        status: s.status,
+      });
+    });
+
+    // Calculate coverage gaps per depot (hours with 0 engineers)
+    const depotCoverage = Object.entries(byDepot).map(([depot, engineers]) => {
+      const hoursWithCoverage = new Set();
+      engineers.forEach(eng => {
+        if (!eng.start_time || !eng.end_time) return;
+        const start = parseInt(eng.start_time.split(':')[0]);
+        const end = parseInt(eng.end_time.split(':')[0]);
+        for (let h = start; h < (end < start ? 24 : end); h++) {
+          hoursWithCoverage.add(h % 24);
+        }
+        if (end < start) {
+          for (let h = 0; h < end; h++) hoursWithCoverage.add(h);
+        }
+      });
+
+      const gaps = [];
+      for (let h = 0; h < 24; h++) {
+        if (!hoursWithCoverage.has(h)) gaps.push(h);
+      }
+
+      return {
+        depot,
+        engineers_on_shift: engineers.length,
+        hours_covered: hoursWithCoverage.size,
+        gap_hours: gaps,
+        coverage_pct: Math.round(hoursWithCoverage.size / 24 * 100),
+      };
+    });
+
+    res.json({
+      success: true,
+      data: {
+        date,
+        depots: depotCoverage,
+        shifts: byDepot,
+      },
+    });
+  } catch (error) {
+    console.error('Shift coverage error:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch shift coverage' });
+  }
+});
+
 export default router;

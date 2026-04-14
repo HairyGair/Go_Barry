@@ -9,6 +9,8 @@ import FleetHealth from './FleetHealth';
 import ExportPanel from './ExportPanel';
 import SupervisorPerformance from './SupervisorPerformance';
 import CoverageGapsAnalysis from './CoverageGapsAnalysis';
+import EtaAccuracy from './EtaAccuracy';
+import ShiftCoverage from './ShiftCoverage';
 
 const REFRESH_INTERVAL = 30000; // 30 seconds for executive dashboard
 
@@ -100,16 +102,57 @@ const ManagementDashboard = () => {
     setNotification({ message: `Preparing ${format.toUpperCase()} export...`, type: 'info' });
 
     try {
-      // Simulate export preparation
-      setTimeout(() => {
-        setNotification({
-          message: `Export completed! Check your downloads folder.`,
-          type: 'success'
+      const rows = [];
+      const timestamp = new Date().toISOString().split('T')[0];
+
+      if (sections.includes('kpis') && kpiData) {
+        rows.push(['== Executive KPIs ==']);
+        rows.push(['Metric', 'Value']);
+        rows.push(['Total Breakdowns', kpiData.totalBreakdowns ?? '']);
+        rows.push(['Active Breakdowns', kpiData.activeBreakdowns ?? '']);
+        rows.push(['SLA Compliance %', kpiData.slaCompliance ?? '']);
+        rows.push(['Avg Response Time (min)', kpiData.avgResponseTime ?? '']);
+        rows.push(['Fleet Availability %', kpiData.fleetAvailability ?? '']);
+        rows.push(['MTBF (hours)', kpiData.mtbf ?? '']);
+        rows.push([]);
+      }
+
+      if (sections.includes('depotComparison') && depotData) {
+        rows.push(['== Depot Comparison ==']);
+        rows.push(['Depot', 'Breakdowns', 'Avg Response (min)', 'SLA %', 'Fleet Size']);
+        const depots = Array.isArray(depotData) ? depotData : depotData.depots || [];
+        depots.forEach(d => {
+          rows.push([d.name || d.depot, d.breakdowns ?? '', d.avgResponse ?? '', d.slaCompliance ?? '', d.fleetSize ?? '']);
         });
-        // In real implementation, this would trigger actual file download
-      }, 2000);
+        rows.push([]);
+      }
+
+      if (sections.includes('fleetHealth') && fleetHealth) {
+        rows.push(['== Fleet Health ==']);
+        rows.push(['Status', 'Count']);
+        const categories = fleetHealth.categories || fleetHealth.statusBreakdown || [];
+        categories.forEach(c => {
+          rows.push([c.name || c.status, c.count ?? c.value ?? '']);
+        });
+        rows.push([]);
+      }
+
+      // Build CSV string
+      const csv = rows.map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `gobarry-analytics-${selectedPeriod}-${timestamp}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      setNotification({ message: 'Export completed! Check your downloads folder.', type: 'success' });
+      setTimeout(() => setNotification(null), 3000);
     } catch (error) {
+      console.error('Export error:', error);
       setNotification({ message: 'Export failed. Please try again.', type: 'error' });
+      setTimeout(() => setNotification(null), 3000);
     }
   };
 
@@ -208,6 +251,12 @@ const ManagementDashboard = () => {
 
           {/* Supervisor Performance Dashboard */}
           <SupervisorPerformance period={selectedPeriod === 'today' ? 'week' : selectedPeriod} />
+
+          {/* Engineer ETA Accuracy */}
+          <EtaAccuracy period={selectedPeriod} />
+
+          {/* Shift Coverage Timeline */}
+          <ShiftCoverage />
 
           {/* Coverage Gaps Analysis */}
           <CoverageGapsAnalysis />
