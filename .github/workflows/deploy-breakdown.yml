@@ -39,7 +39,11 @@ jobs:
         env:
           VITE_API_URL: https://api.breakdowns.gobarry.co.uk
           VITE_WS_URL: wss://api.breakdowns.gobarry.co.uk
+          VITE_APP_URL: https://breakdowns.gobarry.co.uk
           VITE_ENV: production
+          VITE_ENABLE_AUTH: true
+          VITE_ENABLE_MOCK_DATA: false
+          VITE_GOOGLE_MAPS_KEY: AIzaSyBhBN_kVOnIRTKXYhzrDwpr8kvb0Uy0IY8
 
       - name: Package for deployment
         run: |
