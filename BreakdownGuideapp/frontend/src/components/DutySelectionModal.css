@@ -328,6 +328,8 @@
     gap: 16px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
     animation: dsm-cardIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+    /* Force dark text on white cards regardless of dark mode */
+    color: #0F172A;
 }
 
 @keyframes dsm-cardIn {
@@ -409,7 +411,7 @@
     font-family: var(--font-display, 'boiga', 'Outfit', sans-serif);
     font-size: 22px;
     font-weight: 700;
-    color: var(--color-text-primary, #0F172A);
+    color: #0F172A;
     letter-spacing: -0.2px;
     line-height: 1.1;
 }
@@ -417,7 +419,7 @@
 .dsm-card-name {
     font-size: 14px;
     font-weight: 500;
-    color: var(--color-text-secondary, #64748B);
+    color: #64748B;
 }
 
 /* Time display */
@@ -435,7 +437,7 @@
     font-family: var(--font-mono, 'new-astro-soft', 'JetBrains Mono', monospace);
     font-size: 17px;
     font-weight: 700;
-    color: var(--color-text-primary, #0F172A);
+    color: #0F172A;
     letter-spacing: 0.5px;
 }
 
@@ -450,7 +452,7 @@
     margin-left: auto;
     font-size: 12px;
     font-weight: 600;
-    color: var(--color-text-tertiary, #94A3B8);
+    color: #94A3B8;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -467,7 +469,7 @@
     align-items: center;
     gap: 10px;
     font-size: 13px;
-    color: var(--color-text-secondary, #64748B);
+    color: #64748B;
     line-height: 1.4;
 }
 
@@ -535,7 +537,7 @@
 .dsm-remaining {
     font-size: 12px;
     font-weight: 500;
-    color: var(--color-text-tertiary, #94A3B8);
+    color: #94A3B8;
     font-style: italic;
 }
 
