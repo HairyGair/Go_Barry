@@ -3,8 +3,13 @@ import { chromium } from 'playwright';
 const SCREENSHOTS_DIR = '/Users/anthony/Go BARRY App/BreakdownGuideapp/frontend/Screenshots/audit';
 const BASE_URL = 'https://breakdowns.gobarry.co.uk';
 
-const EMAIL = 'anthony.gair@gonortheast.co.uk';
-const PASSWORD = 'GoNorthEast2025!';
+const EMAIL = process.env.AUDIT_EMAIL;
+const PASSWORD = process.env.AUDIT_PASSWORD;
+
+if (!EMAIL || !PASSWORD) {
+  console.error('Set AUDIT_EMAIL and AUDIT_PASSWORD env vars before running this audit script.');
+  process.exit(1);
+}
 
 // Collect all issues found
 const issues = [];

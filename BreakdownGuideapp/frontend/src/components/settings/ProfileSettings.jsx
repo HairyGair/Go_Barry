@@ -175,21 +175,6 @@ const ProfileSettings = ({ user }) => {
             </button>
           </div>
         </div>
-
-        <div className="setting-item">
-          <div className="setting-label">
-            <h3>Export My Data</h3>
-            <p>Download a copy of your breakdown assessment history</p>
-          </div>
-          <div className="setting-control">
-            <button
-              className="settings-button secondary"
-              onClick={() => alert('Data export feature coming soon!\nYou will be able to download your complete breakdown history in CSV or JSON format.')}
-            >
-              Export Data
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );

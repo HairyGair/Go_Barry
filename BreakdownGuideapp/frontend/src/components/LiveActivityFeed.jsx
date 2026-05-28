@@ -1415,16 +1415,6 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
                             className="action-btn secondary"
                             onClick={(e) => {
                               e.stopPropagation();
-                              alert('Engineer dispatch feature coming soon');
-                            }}
-                            title="Assign engineer to breakdown"
-                          >
-                            🔧 Assign Engineer
-                          </button>
-                          <button
-                            className="action-btn secondary"
-                            onClick={(e) => {
-                              e.stopPropagation();
                               // Navigate to SDC dashboard with fleet number to highlight the breakdown
                               const fleetNumber = primaryActivity.fleetNumber || primaryActivity.fleet_no || primaryActivity.fleet_number;
                               if (fleetNumber) {

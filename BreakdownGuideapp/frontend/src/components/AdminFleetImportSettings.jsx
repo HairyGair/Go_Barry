@@ -172,17 +172,9 @@ const AdminFleetImportSettings = () => {
   // Download template CSV
   const downloadTemplate = async () => {
     try {
-      const token = localStorage.getItem('authToken') || sessionStorage.getItem('authToken');
-
-      if (!token) {
-        setError('Authentication required. Please log in.');
-        return;
-      }
-
-      const response = await fetch('http://localhost:3001/api/admin/fleet/import-template', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
+      const response = await fetch(`${apiUrl}/api/admin/fleet/import-template`, {
+        credentials: 'include'
       });
 
       if (!response.ok) {
