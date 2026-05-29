@@ -31,6 +31,16 @@ import EngineerEtaCountdown from '../../components/EngineerEtaCountdown';
 import { GOOGLE_MAPS_API_KEY } from '@/config/maps.js';
 import './ControlRoomDisplay.css';
 
+// True when the current session is the demo account, so public displays
+// request demo data instead of leaking real breakdowns.
+const isDemoSession = () => {
+  try {
+    return JSON.parse(sessionStorage.getItem('currentDuty') || 'null')?.isDemo === true;
+  } catch {
+    return false;
+  }
+};
+
 const ControlRoomDisplay = () => {
   const [breakdowns, setBreakdowns] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -319,8 +329,10 @@ const ControlRoomDisplay = () => {
   // Fetch active breakdowns
   const fetchBreakdowns = useCallback(async () => {
     try {
-      // Use public endpoint - no authentication required for Control Room Display
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://breakdowns.gobarry.co.uk/api'}/api/public/breakdowns/live`)
+      // Use public endpoint - no authentication required for Control Room Display.
+      // In a demo session, request demo data so real breakdowns aren't exposed.
+      const apiBase = import.meta.env.VITE_API_URL || 'https://breakdowns.gobarry.co.uk/api';
+      const response = await fetch(`${apiBase}/api/public/breakdowns/live${isDemoSession() ? '?demo=true' : ''}`)
         .then(res => res.json());
 
       if (response.success && Array.isArray(response.breakdowns)) {

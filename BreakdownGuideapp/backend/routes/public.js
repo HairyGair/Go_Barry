@@ -9,17 +9,31 @@ const __dirname = dirname(__filename);
 
 const router = express.Router();
 
+// Severity stored in the DB can occasionally be malformed (e.g. a stringified
+// object). Public wall displays must never render garbage, so coerce to a known value.
+const VALID_SEVERITIES = ['STOP', 'AMBER', 'CONTINUE'];
+function cleanSeverity(severity, decision) {
+  const s = typeof severity === 'string' ? severity.toUpperCase() : '';
+  if (VALID_SEVERITIES.includes(s)) return s;
+  const d = typeof decision === 'string' ? decision.toUpperCase() : '';
+  if (VALID_SEVERITIES.includes(d)) return d;
+  return 'UNKNOWN';
+}
+
 // GET /api/public/breakdowns - Get breakdowns with optional depot filtering (for Engineering Display)
 // This endpoint does NOT require authentication - it's for public yard displays
 router.get('/breakdowns', async (req, res) => {
   try {
     const { depot } = req.query;
+    const demo = req.query.demo === 'true';
 
     // Query from breakdowns table using MySQL
     let queryBuilder = from('breakdowns').select('*');
 
-    // Always exclude demo breakdowns from public endpoints
-    queryBuilder = queryBuilder.neq('supervisor_badge', 'DEMO01');
+    // Demo sessions see only demo data; everyone else excludes it
+    queryBuilder = demo
+      ? queryBuilder.eq('supervisor_badge', 'DEMO01')
+      : queryBuilder.neq('supervisor_badge', 'DEMO01');
 
     // Apply depot filter if provided
     if (depot) {
@@ -59,7 +73,7 @@ router.get('/breakdowns', async (req, res) => {
 
       // Status and severity
       status: b.status,
-      severity: b.severity,
+      severity: cleanSeverity(b.severity, b.wizard_decision),
       wizard_decision: b.wizard_decision,
 
       // Timing information
@@ -97,10 +111,13 @@ router.get('/breakdowns', async (req, res) => {
 router.get('/breakdowns/live', async (req, res) => {
   try {
     // Query from breakdowns table using MySQL
-    // Always exclude demo breakdowns from public endpoints
-    const { data: allBreakdowns, error } = await from('breakdowns')
-      .select('*')
-      .neq('supervisor_badge', 'DEMO01')
+    // Demo sessions see only demo data; everyone else excludes it
+    const demo = req.query.demo === 'true';
+    let liveQuery = from('breakdowns').select('*');
+    liveQuery = demo
+      ? liveQuery.eq('supervisor_badge', 'DEMO01')
+      : liveQuery.neq('supervisor_badge', 'DEMO01');
+    const { data: allBreakdowns, error } = await liveQuery
       .order('created_at', 'DESC')
       .execute();
 
@@ -167,7 +184,7 @@ router.get('/breakdowns/live', async (req, res) => {
 
         // Status and severity
         status: b.status,
-        severity: b.severity,
+        severity: cleanSeverity(b.severity, b.wizard_decision),
         wizard_decision: b.wizard_decision,
         criticality: b.criticality || b.severity,
 

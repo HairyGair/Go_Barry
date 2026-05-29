@@ -33,6 +33,27 @@ import GairWareLogo from '../../components/GairWareLogo';
 import { GOOGLE_MAPS_API_KEY } from '@/config/maps.js';
 import './EngineeringDisplay.css';
 
+// True when the current session is the demo account, so public displays
+// request demo data instead of leaking real breakdowns.
+const isDemoSession = () => {
+  try {
+    return JSON.parse(sessionStorage.getItem('currentDuty') || 'null')?.isDemo === true;
+  } catch {
+    return false;
+  }
+};
+
+// Severity can arrive malformed (a bad DB row, or a different WebSocket shape).
+// Always render a known value so the display never shows "[object Object]".
+const VALID_SEVERITIES = ['STOP', 'AMBER', 'CONTINUE'];
+const displaySeverity = (breakdown) => {
+  const s = typeof breakdown.severity === 'string' ? breakdown.severity.toUpperCase() : '';
+  if (VALID_SEVERITIES.includes(s)) return s;
+  const d = typeof breakdown.wizard_decision === 'string' ? breakdown.wizard_decision.toUpperCase() : '';
+  if (VALID_SEVERITIES.includes(d)) return d;
+  return 'UNKNOWN';
+};
+
 const EngineeringDisplay = () => {
   const [breakdowns, setBreakdowns] = useState([]);
   const [highlightedBreakdownId, setHighlightedBreakdownId] = useState(null);
@@ -282,10 +303,13 @@ const EngineeringDisplay = () => {
   // Fetch breakdowns from API
   const fetchBreakdowns = useCallback(async () => {
     try {
-      // FIXED: Use public endpoint (no authentication required for engineering displays)
-      const endpoint = depotFilter
-        ? `/api/public/breakdowns?depot=${encodeURIComponent(depotFilter)}`
-        : '/api/public/breakdowns';
+      // FIXED: Use public endpoint (no authentication required for engineering displays).
+      // In a demo session, request demo data so real breakdowns aren't exposed.
+      const params = new URLSearchParams();
+      if (depotFilter) params.set('depot', depotFilter);
+      if (isDemoSession()) params.set('demo', 'true');
+      const queryString = params.toString();
+      const endpoint = `/api/public/breakdowns${queryString ? `?${queryString}` : ''}`;
 
       const response = await apiClient.get(endpoint);
 
@@ -343,6 +367,10 @@ const EngineeringDisplay = () => {
 
   // WebSocket connection for real-time updates
   useEffect(() => {
+    // Demo sessions rely on REST polling only — the WebSocket injects real
+    // breakdown data which would bypass the demo filter.
+    if (isDemoSession()) return;
+
     // FIXED: Pass depot parameter to WebSocket for depot-filtered initial data
     const wsEndpoint = depotFilter
       ? `/ws?channel=engineering-display&displayId=${displayId}&depot=${encodeURIComponent(depotFilter)}`
@@ -544,8 +572,8 @@ const EngineeringDisplay = () => {
                   <div className="fleet-number">
                     Fleet {breakdown.fleet_no || breakdown.fleet_number || 'Unknown'}
                   </div>
-                  <div className={`severity-badge ${getSeverityClass(breakdown.severity)}`}>
-                    {breakdown.severity || 'UNKNOWN'}
+                  <div className={`severity-badge ${getSeverityClass(displaySeverity(breakdown))}`}>
+                    {displaySeverity(breakdown)}
                   </div>
                 </div>
 
