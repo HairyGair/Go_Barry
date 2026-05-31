@@ -12,6 +12,7 @@
 
 import express from 'express';
 import { from, query, insert, update } from '../utils/queryHelpers.js';
+import { resolveSeverity } from '../utils/severity.js';
 import breakdownIdGenerator from '../services/breakdownIdGenerator.js';
 import { activityLogger, ACTIVITY_TYPES, ACTOR_TYPES, ENTITY_TYPES, SEVERITY_LEVELS } from '../services/activityLogger.js';
 import webSocketHandler from './webSocketHandler.js';
@@ -636,6 +637,8 @@ router.post('/', async (req, res) => {
       breakdown_id: idResult.id,
       created_at: toMySQLDatetime(),
       status: req.body.status || 'received',
+      // Normalise severity so malformed client input can't be persisted
+      severity: resolveSeverity(req.body.severity, req.body.wizard_decision, 'AMBER'),
       // Add duty context for shift-based reporting
       duty_code: dutyCode,
       duty_name: dutyName,
@@ -1500,8 +1503,8 @@ router.post('/from-wizard', async (req, res) => {
     // Generate unique breakdown ID
     const idResult = await breakdownIdGenerator.generateId();
 
-    // Determine severity if not provided
-    const determinedSeverity = severity || wizard_decision || 'AMBER';
+    // Determine severity if not provided (normalised so malformed input can't be stored)
+    const determinedSeverity = resolveSeverity(severity, wizard_decision, 'AMBER');
 
     // Determine priority based on severity, wizard decision, and secured mileage
     // Secured mileage is ALWAYS priority 1 (contractual obligation)

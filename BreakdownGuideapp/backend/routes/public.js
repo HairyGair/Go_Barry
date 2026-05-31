@@ -1,5 +1,6 @@
 import express from 'express';
 import { from, query } from '../utils/queryHelpers.js';
+import { resolveSeverity } from '../utils/severity.js';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -8,17 +9,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const router = express.Router();
-
-// Severity stored in the DB can occasionally be malformed (e.g. a stringified
-// object). Public wall displays must never render garbage, so coerce to a known value.
-const VALID_SEVERITIES = ['STOP', 'AMBER', 'CONTINUE'];
-function cleanSeverity(severity, decision) {
-  const s = typeof severity === 'string' ? severity.toUpperCase() : '';
-  if (VALID_SEVERITIES.includes(s)) return s;
-  const d = typeof decision === 'string' ? decision.toUpperCase() : '';
-  if (VALID_SEVERITIES.includes(d)) return d;
-  return 'UNKNOWN';
-}
 
 // GET /api/public/breakdowns - Get breakdowns with optional depot filtering (for Engineering Display)
 // This endpoint does NOT require authentication - it's for public yard displays
@@ -73,7 +63,7 @@ router.get('/breakdowns', async (req, res) => {
 
       // Status and severity
       status: b.status,
-      severity: cleanSeverity(b.severity, b.wizard_decision),
+      severity: resolveSeverity(b.severity, b.wizard_decision),
       wizard_decision: b.wizard_decision,
 
       // Timing information
@@ -184,7 +174,7 @@ router.get('/breakdowns/live', async (req, res) => {
 
         // Status and severity
         status: b.status,
-        severity: cleanSeverity(b.severity, b.wizard_decision),
+        severity: resolveSeverity(b.severity, b.wizard_decision),
         wizard_decision: b.wizard_decision,
         criticality: b.criticality || b.severity,
 
