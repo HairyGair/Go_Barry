@@ -170,6 +170,9 @@ router.get('/breakdowns/live', async (req, res) => {
 
         // Location and issue information
         location: b.location_description || b.location || 'Location TBC',
+        location_lat: b.location_lat ?? b.wizard_assessment_data?.location_coords?.lat ?? null,
+        location_lng: b.location_lng ?? b.wizard_assessment_data?.location_coords?.lng ?? null,
+        wizard_assessment_data: b.wizard_assessment_data || null,
         issue_type: b.issue_category,
         issue_description: b.description,
 
