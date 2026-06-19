@@ -483,18 +483,14 @@ export async function seedDemoData() {
       [DEMO_BADGE]
     );
 
-    // 2. Delete existing demo replacement vehicles (demo breakdown_ids are prefixed DEMO-)
-    await query(
-      "DELETE FROM replacement_vehicles WHERE breakdown_id LIKE 'DEMO-%'"
-    );
-
-    // 3. Delete existing demo breakdowns (also cleans up any breakdowns created during a demo session)
+    // 2. Delete existing demo breakdowns (also cleans up any breakdowns created during a demo session)
     await query(
       "DELETE FROM breakdowns WHERE supervisor_badge = ?",
       [DEMO_BADGE]
     );
 
-    // 4. Insert demo breakdowns
+    // 3. Insert demo breakdowns (core columns only — guaranteed to exist so the
+    //    demo always has data even if an optional enhancement below fails)
     const breakdowns = getDemoBreakdowns();
     for (const b of breakdowns) {
       await query(
@@ -502,43 +498,68 @@ export async function seedDemoData() {
           breakdown_id, fleet_no, depot, supervisor_badge, supervisor_name,
           location_description, location_lat, location_lng, issue_category,
           status, severity, wizard_decision, wizard_type, breakdown_source,
-          wizard_assessment_data, created_at,
-          engineer_name, engineer_dispatched_at, engineer_eta_minutes, engineer_on_site_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          wizard_assessment_data, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           b.breakdown_id, b.fleet_no, b.depot, b.supervisor_badge, b.supervisor_name,
           b.location_description, b.location_lat, b.location_lng, b.issue_category,
           b.status, b.severity, b.wizard_decision, b.wizard_type, b.breakdown_source,
-          b.wizard_assessment_data, b.created_at,
-          b.engineer_name || null, b.engineer_dispatched_at || null,
-          b.engineer_eta_minutes || null, b.engineer_on_site_at || null
+          b.wizard_assessment_data, b.created_at
         ]
       );
     }
 
-    // 5. Insert demo replacement vehicles (BSOG dead-mileage tracking)
+    // 4. Apply engineer dispatch + live ETA fields (best-effort; isolated so a
+    //    missing column can't wipe the core breakdown seed)
+    try {
+      for (const b of breakdowns) {
+        if (!b.engineer_name && !b.engineer_dispatched_at) continue;
+        await query(
+          `UPDATE breakdowns SET
+             engineer_name = ?, engineer_dispatched_at = ?,
+             engineer_eta_minutes = ?, engineer_on_site_at = ?
+           WHERE breakdown_id = ?`,
+          [
+            b.engineer_name || null, b.engineer_dispatched_at || null,
+            b.engineer_eta_minutes || null, b.engineer_on_site_at || null,
+            b.breakdown_id
+          ]
+        );
+      }
+    } catch (engFieldErr) {
+      console.error('🎭 Demo engineer-ETA fields skipped (non-fatal):', engFieldErr.message);
+    }
+
+    // 5. Insert demo replacement vehicles (BSOG dead-mileage tracking) — best-effort
     const replacements = getDemoReplacements();
-    for (const r of replacements) {
-      await query(
-        `INSERT INTO replacement_vehicles (
-          breakdown_id, breakdown_ref, replacement_fleet_no,
-          sending_depot_code, sending_depot_name, depot_lat, depot_lng,
-          breakdown_lat, breakdown_lng, dead_miles, dead_miles_duration_minutes,
-          pickup_miles, pickup_miles_duration_minutes, total_dead_miles,
-          return_to_service_lat, return_to_service_lng, return_to_service_location,
-          return_to_service_at, status, dispatched_by_badge, dispatched_by_name,
-          created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          r.breakdown_id, r.breakdown_id, r.replacement_fleet_no,
-          r.sending_depot_code, r.sending_depot_name, r.depot_lat, r.depot_lng,
-          r.breakdown_lat, r.breakdown_lng, r.dead_miles, r.dead_miles_duration_minutes,
-          r.pickup_miles, r.pickup_miles_duration_minutes, r.total_dead_miles,
-          r.return_to_service_lat, r.return_to_service_lng, r.return_to_service_location,
-          r.return_to_service_at, r.status, DEMO_BADGE, DEMO_SUPERVISOR_NAME,
-          r.created_at, r.created_at
-        ]
-      );
+    let replacementCount = 0;
+    try {
+      await query("DELETE FROM replacement_vehicles WHERE breakdown_id LIKE 'DEMO-%'");
+      for (const r of replacements) {
+        await query(
+          `INSERT INTO replacement_vehicles (
+            breakdown_id, breakdown_ref, replacement_fleet_no,
+            sending_depot_code, sending_depot_name, depot_lat, depot_lng,
+            breakdown_lat, breakdown_lng, dead_miles, dead_miles_duration_minutes,
+            pickup_miles, pickup_miles_duration_minutes, total_dead_miles,
+            return_to_service_lat, return_to_service_lng, return_to_service_location,
+            return_to_service_at, status, dispatched_by_badge, dispatched_by_name,
+            created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            r.breakdown_id, r.breakdown_id, r.replacement_fleet_no,
+            r.sending_depot_code, r.sending_depot_name, r.depot_lat, r.depot_lng,
+            r.breakdown_lat, r.breakdown_lng, r.dead_miles, r.dead_miles_duration_minutes,
+            r.pickup_miles, r.pickup_miles_duration_minutes, r.total_dead_miles,
+            r.return_to_service_lat, r.return_to_service_lng, r.return_to_service_location,
+            r.return_to_service_at, r.status, DEMO_BADGE, DEMO_SUPERVISOR_NAME,
+            r.created_at, r.created_at
+          ]
+        );
+        replacementCount++;
+      }
+    } catch (rvErr) {
+      console.error('🎭 Demo replacement seeding skipped (non-fatal):', rvErr.message);
     }
 
     // 6. Insert matching activities
@@ -598,8 +619,8 @@ export async function seedDemoData() {
       console.error('🎭 Demo engineer seeding skipped (non-fatal):', engErr.message);
     }
 
-    console.log(`🎭 Demo data seeded: ${breakdowns.length} breakdowns, ${replacements.length} replacements, ${activities.length} activities, ${engineerCount} engineers`);
-    return { breakdowns: breakdowns.length, replacements: replacements.length, activities: activities.length, engineers: engineerCount };
+    console.log(`🎭 Demo data seeded: ${breakdowns.length} breakdowns, ${replacementCount} replacements, ${activities.length} activities, ${engineerCount} engineers`);
+    return { breakdowns: breakdowns.length, replacements: replacementCount, activities: activities.length, engineers: engineerCount };
   } catch (error) {
     console.error('🎭 Error seeding demo data:', error);
     throw error;

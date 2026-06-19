@@ -43,8 +43,12 @@ router.get('/routes/status/live', async (req, res) => {
         AND b.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)${demoB}
       GROUP BY r.route_id, r.route_short_name, r.route_long_name
       ORDER BY
-        FIELD(status, 'RED', 'AMBER', 'GREEN'),
-        route_short_name ASC
+        FIELD(CASE
+          WHEN COUNT(DISTINCT b.id) = 0 THEN 'GREEN'
+          WHEN COUNT(DISTINCT b.id) = 1 THEN 'AMBER'
+          ELSE 'RED'
+        END, 'RED', 'AMBER', 'GREEN'),
+        r.route_short_name ASC
       LIMIT 250;
     `);
 
