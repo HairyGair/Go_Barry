@@ -1013,7 +1013,7 @@ router.get('/supervisor-performance', async (req, res) => {
         wizard_type, wizard_decision,
         created_at, acknowledged_at, resolved_at, received_at, depot
       FROM breakdowns
-      WHERE created_at >= ?
+      WHERE created_at >= ?${demoSqlFilter(req.user)}
       ORDER BY created_at DESC`,
       [startDate]
     );

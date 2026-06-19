@@ -582,12 +582,15 @@ export async function seedDemoData() {
     };
     const RESOLVED_AT = { 'DEMO-010': timeAgo(4, 30), 'DEMO-011': timeAgo(6, 0) };
     try {
-      for (const b of breakdowns) {
+      for (let i = 0; i < breakdowns.length; i++) {
+        const b = breakdowns[i];
+        const ackMins = 2 + (i % 7); // realistic 2-8 min acknowledgement time
         await query(
-          `UPDATE breakdowns SET route_id = ?, estimated_mileage_lost = ?, resolved_at = ?
+          `UPDATE breakdowns SET route_id = ?, estimated_mileage_lost = ?, resolved_at = ?,
+             received_at = created_at, acknowledged_at = DATE_ADD(created_at, INTERVAL ? MINUTE)
            WHERE breakdown_id = ?`,
           [ROUTE[b.breakdown_id] || null, MILEAGE[b.breakdown_id] || null,
-           RESOLVED_AT[b.breakdown_id] || null, b.breakdown_id]
+           RESOLVED_AT[b.breakdown_id] || null, ackMins, b.breakdown_id]
         );
       }
     } catch (enrichErr) {
