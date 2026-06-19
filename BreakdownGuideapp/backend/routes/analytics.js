@@ -1858,7 +1858,7 @@ router.get('/eta-accuracy', async (req, res) => {
     const period = req.query.period || 'month';
     const periodDays = { today: 1, week: 7, month: 30, quarter: 90, year: 365 }[period] || 30;
 
-    const [rows] = await query(
+    const rows = await query(
       `SELECT
         breakdown_id, fleet_no, depot, engineer_name,
         engineer_dispatched_at, engineer_eta_minutes, engineer_on_site_at,
@@ -1937,7 +1937,7 @@ router.get('/shift-coverage', async (req, res) => {
   try {
     const date = req.query.date || new Date().toISOString().split('T')[0];
 
-    const [shifts] = await query(
+    const shifts = await query(
       `SELECT
         eds.engineer_id, eds.shift_date, eds.status, eds.depot_code,
         COALESCE(eds.custom_start, est.start_time) as start_time,

@@ -398,6 +398,9 @@ const AppContent = () => {
   // Monitor shift time for end-of-shift warnings (30/15/5/0 minutes)
   useEffect(() => {
     if (!currentDuty || !currentDuty.endTime) return;
+    // Demo sessions never get shift-end / overtime warnings (the demo can be used
+    // at any time of day and a blocking "Shift Has Ended" modal looks broken).
+    if (isDemoUser) return;
 
     const checkShiftWarnings = () => {
       const now = new Date();
@@ -447,7 +450,7 @@ const AppContent = () => {
     const timer = setInterval(checkShiftWarnings, 30000);
 
     return () => clearInterval(timer);
-  }, [currentDuty, shiftWarningLevel, acknowledgedWarnings]);
+  }, [currentDuty, shiftWarningLevel, acknowledgedWarnings, isDemoUser]);
 
   // Online/Offline monitoring
   useEffect(() => {
