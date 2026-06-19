@@ -26,7 +26,7 @@ const EngineeringDashboard = () => {
 
   // WebSocket — shared hook handles connection, reconnection, and cleanup.
   // The endpoint is the path suffix appended to websocketConfig.url by the service.
-  const { lastMessage, isConnected: wsConnected, sendMessage } = useWebSocket('?channel=engineering');
+  const { lastMessage, isConnected: wsConnected, sendMessage } = useWebSocket('/ws?channel=engineering');
 
   // Subscribe to the engineering channel once connected
   useEffect(() => {

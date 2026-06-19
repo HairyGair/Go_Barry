@@ -167,7 +167,7 @@ class AssessmentBroadcaster {
      * NOTE: Authentication now uses HTTP-only cookies (XSS protection)
      */
     async connectWebSocket() {
-        const endpoint = '?channel=assessment-tracker';
+        const endpoint = '/ws?channel=assessment-tracker';
 
         websocketService.connect(endpoint, {
             autoReconnect: true,
