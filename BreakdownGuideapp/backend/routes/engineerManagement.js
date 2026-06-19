@@ -26,7 +26,7 @@ router.get('/engineers', async (req, res) => {
     let sql = `
       SELECT e.*, d.name AS depot_name
       FROM engineers e
-      LEFT JOIN depots d ON d.code = e.home_depot_code
+      LEFT JOIN depots d ON d.code COLLATE utf8mb4_unicode_ci = e.home_depot_code
       WHERE e.is_active = 1
     `;
     const params = [];
