@@ -368,6 +368,7 @@ router.post('/login', rateLimitLogin, clearLoginAttempts, validate(authSchemas.l
 
       // Create new session
       const sessionData = {
+        id: crypto.randomUUID(),
         supervisor_id: supervisor.id,
         supervisor_name: supervisor.name,
         email: supervisor.email,
@@ -529,6 +530,7 @@ router.post('/demo-login', rateLimitLogin, async (req, res) => {
     // Create new session
     try {
       await insert('supervisor_sessions', {
+        id: crypto.randomUUID(),
         supervisor_id: supervisor.id,
         supervisor_name: supervisor.name,
         email: supervisor.email,
