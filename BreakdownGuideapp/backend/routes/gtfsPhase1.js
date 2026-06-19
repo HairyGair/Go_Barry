@@ -38,7 +38,7 @@ router.get('/routes/status/live', async (req, res) => {
         END as status,
         GROUP_CONCAT(DISTINCT b.severity SEPARATOR ',') as breakdown_severities
       FROM gtfs_routes r
-      LEFT JOIN breakdowns b ON r.route_id = b.route_id
+      LEFT JOIN breakdowns b ON (r.route_id = b.route_id OR r.route_short_name = b.route_id)
         AND b.status NOT IN ('resolved', 'cleared')
         AND b.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)${demoB}
       GROUP BY r.route_id, r.route_short_name, r.route_long_name
@@ -131,11 +131,11 @@ router.get('/routes/:routeId/status', async (req, res) => {
         created_at,
         resolved_at
       FROM breakdowns
-      WHERE route_id = ?
+      WHERE (route_id = ? OR route_id = ?)
       AND status NOT IN ('resolved', 'cleared')
       AND created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)${demoSqlFilter(req.user)}
       ORDER BY severity DESC, created_at DESC;
-    `, [routeId]);
+    `, [routeId, route.route_short_name]);
 
     return res.json({
       success: true,
@@ -198,7 +198,7 @@ router.get('/routes/coverage/analysis', async (req, res) => {
         COUNT(DISTINCT b.id) as active_breakdowns
       FROM gtfs_routes r
       LEFT JOIN fleet_vehicles f ON r.route_id = f.route_id OR r.route_short_name = f.route_short_name
-      LEFT JOIN breakdowns b ON r.route_id = b.route_id
+      LEFT JOIN breakdowns b ON (r.route_id = b.route_id OR r.route_short_name = b.route_id)
         AND b.status NOT IN ('resolved', 'cleared')
         AND b.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)${demoSqlFilter(req.user, { alias: 'b' })}
       GROUP BY r.route_id, r.route_short_name, r.route_long_name

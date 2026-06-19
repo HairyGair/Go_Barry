@@ -325,30 +325,30 @@ function getDemoBreakdowns() {
  */
 function getDemoHistory() {
   const rows = [
-    [2,  '6301', 'Riverside',  'GNE:GOAO021:21', 'Brakes',      'brakes',      'STOP',    9.2],
-    [3,  '5437', 'Washington', 'GNE:GOAO010:10', 'Doors',       'doors',       'AMBER',   3.1],
-    [4,  '6301', 'Riverside',  'GNE:GOAO021:21', 'Overheating', 'overheating', 'STOP',   14.0],
-    [5,  '6078', 'Riverside',  'GNE:GOAO056:56', 'Steering',    'steering',    'STOP',    7.4],
-    [6,  '5318', 'Consett',    'GNE:GOAX045:X45','Speedometer', 'speedo',      'AMBER',   5.0],
-    [7,  '6145', 'Deptford',   'GNE:GOAX001:X1', 'Overheating', 'overheating', 'STOP',   16.8],
-    [8,  '5292', 'Percy Main', 'GNE:GOAO027:27', 'Doors',       'doors',       'CONTINUE',2.2],
-    [9,  '6301', 'Riverside',  'GNE:GOAO021:21', 'Brakes',      'brakes',      'STOP',   10.6],
-    [10, '5510', 'Deptford',   'GNE:GOAO008A:8A','Buzzers/Bell','buzzers',     'CONTINUE',1.9],
-    [11, '6210', 'Riverside',  'GNE:GOAO027:27', 'Wheelchair Ramp','ramp',     'STOP',    6.1],
-    [12, '5318', 'Consett',    'GNE:GOAX045:X45','Overheating', 'overheating', 'AMBER',   8.3],
-    [13, '6089', 'Percy Main', 'GNE:GOAO309:309','Puncture',    'puncture',    'STOP',   13.5],
-    [14, '5401', 'Hexham',     'GNE:GOAO684:684','Fuel System', 'fuel',        'AMBER',   7.0],
-    [15, '6078', 'Riverside',  'GNE:GOAO056:56', 'Doors',       'doors',       'AMBER',   3.8],
-    [16, '5195', 'Washington', 'GNE:GOAO035:35', 'Suspension',  'suspension',  'AMBER',   4.6],
-    [18, '6322', 'Washington', 'GNE:GOAO021:21', 'Brakes',      'brakes',      'STOP',   11.2],
-    [19, '5267', 'Consett',    'GNE:GOAX030:X30','Overheating', 'overheating', 'AMBER',   6.4],
-    [20, '5155', 'Percy Main', 'GNE:GOAO309:309','Buzzers/Bell','buzzers',     'CONTINUE',2.1],
-    [22, '6145', 'Deptford',   'GNE:GOAX001:X1', 'Brakes',      'brakes',      'STOP',   15.9],
-    [24, '5437', 'Washington', 'GNE:GOAO010:10', 'Steering',    'steering',    'STOP',    8.0],
-    [25, '6210', 'Riverside',  'GNE:GOAO027:27', 'Doors',       'doors',       'AMBER',   3.4],
-    [26, '5401', 'Hexham',     'GNE:GOAO684:684','Speedometer', 'speedo',      'CONTINUE',1.5],
-    [27, '6089', 'Percy Main', 'GNE:GOAO309:309','Overheating', 'overheating', 'STOP',   12.7],
-    [28, '5318', 'Consett',    'GNE:GOAX045:X45','Suspension',  'suspension',  'AMBER',   5.7],
+    [2,  '6301', 'Riverside',  '21',  'Brakes',          'brakes',      'STOP',     9.2],
+    [3,  '5437', 'Washington', '10',  'Doors',           'doors',       'AMBER',    3.1],
+    [4,  '6301', 'Riverside',  '21',  'Overheating',     'overheating', 'STOP',    14.0],
+    [5,  '6078', 'Riverside',  '56',  'Steering',        'steering',    'STOP',     7.4],
+    [6,  '5318', 'Consett',    'X45', 'Speedometer',     'speedo',      'AMBER',    5.0],
+    [7,  '6145', 'Deptford',   'X1',  'Overheating',     'overheating', 'STOP',    16.8],
+    [8,  '5292', 'Percy Main', '27',  'Doors',           'doors',       'CONTINUE', 2.2],
+    [9,  '6301', 'Riverside',  '21',  'Brakes',          'brakes',      'STOP',    10.6],
+    [10, '5510', 'Deptford',   '8A',  'Buzzers/Bell',    'buzzers',     'CONTINUE', 1.9],
+    [11, '6210', 'Riverside',  '27',  'Wheelchair Ramp', 'ramp',        'STOP',     6.1],
+    [12, '5318', 'Consett',    'X45', 'Overheating',     'overheating', 'AMBER',    8.3],
+    [13, '6089', 'Percy Main', '309', 'Puncture',        'puncture',    'STOP',    13.5],
+    [14, '5401', 'Hexham',     '684', 'Fuel System',     'fuel',        'AMBER',    7.0],
+    [15, '6078', 'Riverside',  '56',  'Doors',           'doors',       'AMBER',    3.8],
+    [16, '5195', 'Washington', '35',  'Suspension',      'suspension',  'AMBER',    4.6],
+    [18, '6322', 'Washington', '21',  'Brakes',          'brakes',      'STOP',    11.2],
+    [19, '5267', 'Consett',    'X30', 'Overheating',     'overheating', 'AMBER',    6.4],
+    [20, '5155', 'Percy Main', '309', 'Buzzers/Bell',    'buzzers',     'CONTINUE', 2.1],
+    [22, '6145', 'Deptford',   'X1',  'Brakes',          'brakes',      'STOP',    15.9],
+    [24, '5437', 'Washington', '10',  'Steering',        'steering',    'STOP',     8.0],
+    [25, '6210', 'Riverside',  '27',  'Doors',           'doors',       'AMBER',    3.4],
+    [26, '5401', 'Hexham',     '684', 'Speedometer',     'speedo',      'CONTINUE', 1.5],
+    [27, '6089', 'Percy Main', '309', 'Overheating',     'overheating', 'STOP',    12.7],
+    [28, '5318', 'Consett',    'X45', 'Suspension',      'suspension',  'AMBER',    5.7],
   ];
   return rows.map(([d, fleet, depot, route, cat, wt, dec, miles], i) => ({
     breakdown_id: `DEMO-H${String(i + 1).padStart(2, '0')}`,
@@ -365,7 +365,7 @@ function getDemoHistory() {
     breakdown_source: 'wizard',
     route_id: route,
     estimated_mileage_lost: miles,
-    wizard_assessment_data: JSON.stringify({ route: route.split(':').pop() }),
+    wizard_assessment_data: JSON.stringify({ route }),
     created_at: timeAgo(d * 24, 0),
     resolved_at: timeAgo(d * 24 - 3, 0),
   }));
@@ -545,17 +545,35 @@ export async function seedDemoData() {
       [DEMO_BADGE]
     );
 
-    // 3. Insert demo breakdowns. Core + a few always-present columns (route_id,
-    //    estimated_mileage_lost, resolved_at) so route status, mileage reports and
-    //    analytics have real data. Full GTFS route_ids so they map to live routes
-    //    (route 21 gets two -> shows RED on the route-status board).
+    // 3. Insert demo breakdowns (core columns only — guaranteed to exist so the
+    //    demo always has data even if an optional enhancement below fails)
     const breakdowns = getDemoBreakdowns();
-    const ROUTE_ID = {
-      'DEMO-001': 'GNE:GOAO021:21', 'DEMO-002': 'GNE:GOAO056:56', 'DEMO-003': 'GNE:GOAO010:10',
-      'DEMO-004': null, 'DEMO-005': 'GNE:GOAX001:X1', 'DEMO-006': 'GNE:GOAX045:X45',
-      'DEMO-007': 'GNE:GOAO027:27', 'DEMO-008': 'GNE:GOAO035:35', 'DEMO-009': 'GNE:GOAO309:309',
-      'DEMO-010': 'GNE:GOAO684:684', 'DEMO-011': 'GNE:GOAO008A:8A', 'DEMO-012': 'GNE:GOAO021:21',
-      'DEMO-013': 'GNE:GOAX030:X30', 'DEMO-014': null
+    for (const b of breakdowns) {
+      await query(
+        `INSERT INTO breakdowns (
+          breakdown_id, fleet_no, depot, supervisor_badge, supervisor_name,
+          location_description, location_lat, location_lng, issue_category,
+          status, severity, wizard_decision, wizard_type, breakdown_source,
+          wizard_assessment_data, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          b.breakdown_id, b.fleet_no, b.depot, b.supervisor_badge, b.supervisor_name,
+          b.location_description, b.location_lat, b.location_lng, b.issue_category,
+          b.status, b.severity, b.wizard_decision, b.wizard_type, b.breakdown_source,
+          b.wizard_assessment_data, b.created_at
+        ]
+      );
+    }
+
+    // 3a. Enrich the live breakdowns with route (SHORT name — matches how real
+    //     breakdowns store route_id), mileage and resolved time so route status,
+    //     mileage reports and analytics have data. Best-effort. Route 21 has two
+    //     live breakdowns -> shows RED on the route-status board.
+    const ROUTE = {
+      'DEMO-001': '21', 'DEMO-002': '56', 'DEMO-003': '10', 'DEMO-004': null,
+      'DEMO-005': 'X1', 'DEMO-006': 'X45', 'DEMO-007': '27', 'DEMO-008': '35',
+      'DEMO-009': '309', 'DEMO-010': '684', 'DEMO-011': '8A', 'DEMO-012': '21',
+      'DEMO-013': 'X30', 'DEMO-014': null
     };
     const MILEAGE = {
       'DEMO-001': 12.4, 'DEMO-002': 8.1, 'DEMO-003': 5.5, 'DEMO-004': 2.0, 'DEMO-005': 18.3,
@@ -563,24 +581,17 @@ export async function seedDemoData() {
       'DEMO-011': 3.3, 'DEMO-012': 11.0, 'DEMO-013': 6.0, 'DEMO-014': 1.8
     };
     const RESOLVED_AT = { 'DEMO-010': timeAgo(4, 30), 'DEMO-011': timeAgo(6, 0) };
-    for (const b of breakdowns) {
-      await query(
-        `INSERT INTO breakdowns (
-          breakdown_id, fleet_no, depot, supervisor_badge, supervisor_name,
-          location_description, location_lat, location_lng, issue_category,
-          status, severity, wizard_decision, wizard_type, breakdown_source,
-          wizard_assessment_data, created_at,
-          route_id, estimated_mileage_lost, resolved_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          b.breakdown_id, b.fleet_no, b.depot, b.supervisor_badge, b.supervisor_name,
-          b.location_description, b.location_lat, b.location_lng, b.issue_category,
-          b.status, b.severity, b.wizard_decision, b.wizard_type, b.breakdown_source,
-          b.wizard_assessment_data, b.created_at,
-          ROUTE_ID[b.breakdown_id] || null, MILEAGE[b.breakdown_id] || null,
-          RESOLVED_AT[b.breakdown_id] || null
-        ]
-      );
+    try {
+      for (const b of breakdowns) {
+        await query(
+          `UPDATE breakdowns SET route_id = ?, estimated_mileage_lost = ?, resolved_at = ?
+           WHERE breakdown_id = ?`,
+          [ROUTE[b.breakdown_id] || null, MILEAGE[b.breakdown_id] || null,
+           RESOLVED_AT[b.breakdown_id] || null, b.breakdown_id]
+        );
+      }
+    } catch (enrichErr) {
+      console.error('🎭 Demo breakdown enrichment skipped (non-fatal):', enrichErr.message);
     }
 
     // 3b. Insert historical resolved breakdowns for analytics/trends depth (best-effort)
