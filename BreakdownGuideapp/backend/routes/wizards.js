@@ -6,6 +6,7 @@
 
 import express from 'express';
 import { from, query, insert, update } from '../utils/queryHelpers.js';
+import { isDemoUser } from '../utils/demoFilter.js';
 import webSocketHandler from './webSocketHandler.js';
 
 const router = express.Router();
@@ -206,6 +207,10 @@ router.post('/complete', async (req, res) => {
  */
 router.get('/stats/usage', async (req, res) => {
   try {
+    // Demo sessions have no wizard-progress data of their own; never surface real stats
+    if (isDemoUser(req.user)) {
+      return res.json({ total_assessments: 0, by_wizard_type: {}, by_day: {} });
+    }
     const { period = 'week' } = req.query;
     let startDate;
 
@@ -269,6 +274,10 @@ router.get('/stats/usage', async (req, res) => {
  */
 router.get('/recent', async (req, res) => {
   try {
+    // Demo sessions must never see real assessments from the shared view
+    if (isDemoUser(req.user)) {
+      return res.json({ success: true, data: [], count: 0, message: 'No recent wizard assessments found' });
+    }
     const { limit = 10 } = req.query;
 
     // Use the wizard_recent_assessments view for better performance
@@ -300,6 +309,10 @@ router.get('/recent', async (req, res) => {
  */
 router.get('/decisions/summary', async (req, res) => {
   try {
+    // Demo sessions have no wizard-progress data of their own; never surface real stats
+    if (isDemoUser(req.user)) {
+      return res.json({ total: 0, STOP: 0, AMBER: 0, CONTINUE: 0 });
+    }
     const { period = 'week' } = req.query;
     let startDate;
 

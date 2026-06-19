@@ -261,6 +261,102 @@ View Dashboard: https://breakdowns.gobarry.co.uk
 }
 
 /**
+ * Send a sales/interest enquiry notification (from the public "I am interested" form)
+ * @param {Object} enquiry - The enquiry data from a prospective operator
+ * @returns {Promise<Object>} - Email send result
+ */
+export async function sendInterestNotification(enquiry) {
+  try {
+    const transport = getTransporter();
+
+    const esc = (v) => String(v == null ? '' : v)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+
+    const row = (label, value) => value
+      ? `<div class="info-row"><span class="info-label">${label}:</span><span class="info-value">${esc(value)}</span></div>`
+      : '';
+
+    const features = Array.isArray(enquiry.features) ? enquiry.features.join(', ') : enquiry.features;
+    const submittedAt = new Date().toLocaleString('en-GB');
+
+    const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+    .header { background: linear-gradient(135deg, #00838F, #00BCD4); color: white; padding: 20px; border-radius: 8px 8px 0 0; text-align: center; }
+    .header h1 { margin: 0; font-size: 22px; }
+    .content { background: #f8f9fa; padding: 20px; border: 1px solid #e0e0e0; border-top: none; }
+    .info-row { display: flex; padding: 10px 0; border-bottom: 1px solid #e0e0e0; }
+    .info-label { font-weight: 600; width: 180px; color: #555; }
+    .info-value { flex: 1; color: #333; }
+    .message-box { background: white; padding: 15px; margin: 15px 0; border-left: 4px solid #00838F; border-radius: 4px; }
+    .footer { text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e0e0e0; color: #999; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="header"><h1>🚌 New Go BARRY Enquiry</h1></div>
+  <div class="content">
+    ${row('Contact name', enquiry.name)}
+    ${row('Company / operator', enquiry.company)}
+    ${row('Email', enquiry.email)}
+    ${row('Phone', enquiry.phone)}
+    ${row('Role', enquiry.role)}
+    ${row('Fleet size', enquiry.fleetSize)}
+    ${row('Number of depots', enquiry.depots)}
+    ${row('Current process', enquiry.currentProcess)}
+    ${row('Features of interest', features)}
+    ${row('Submitted', submittedAt)}
+    ${enquiry.message ? `<div class="message-box"><strong>Message:</strong><p>${esc(enquiry.message)}</p></div>` : ''}
+  </div>
+  <div class="footer">
+    <p>Go BARRY Breakdown Management System</p>
+    <p>Sent from the "I am interested" form on the public site.</p>
+  </div>
+</body>
+</html>`;
+
+    const textContent = `🚌 NEW GO BARRY ENQUIRY
+
+Contact name: ${enquiry.name || ''}
+Company / operator: ${enquiry.company || ''}
+Email: ${enquiry.email || ''}
+Phone: ${enquiry.phone || ''}
+Role: ${enquiry.role || ''}
+Fleet size: ${enquiry.fleetSize || ''}
+Number of depots: ${enquiry.depots || ''}
+Current process: ${enquiry.currentProcess || ''}
+Features of interest: ${features || ''}
+Submitted: ${submittedAt}
+
+MESSAGE:
+${enquiry.message || '(none)'}
+
+---
+Go BARRY Breakdown Management System
+Sent from the "I am interested" form on the public site.`;
+
+    const mailOptions = {
+      from: `"Go BARRY Enquiry" <${emailConfig.auth.user}>`,
+      to: process.env.INTEREST_NOTIFY_EMAIL || 'gair@gobarry.co.uk',
+      replyTo: enquiry.email || undefined,
+      subject: `🚌 New enquiry: ${enquiry.company || enquiry.name || 'Prospective operator'}`,
+      text: textContent,
+      html: htmlContent
+    };
+
+    const info = await transport.sendMail(mailOptions);
+    console.log('✅ Interest enquiry email sent:', info.messageId);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error('❌ Error sending interest enquiry email:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Send test email to verify configuration
  * @returns {Promise<Object>} - Test result
  */
@@ -311,6 +407,7 @@ export async function verifyEmailConfig() {
 
 export default {
   sendFeedbackNotification,
+  sendInterestNotification,
   sendTestEmail,
   verifyEmailConfig
 };

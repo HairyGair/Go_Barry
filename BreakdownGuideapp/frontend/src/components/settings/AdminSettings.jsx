@@ -137,7 +137,10 @@ const AdminSettings = () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await apiClient.get('/api/auth/supervisors');
+      // In a demo session, show only the demo supervisor (never real staff)
+      let isDemo = false;
+      try { isDemo = JSON.parse(sessionStorage.getItem('currentDuty') || 'null')?.isDemo === true; } catch { /* noop */ }
+      const data = await apiClient.get(`/api/auth/supervisors${isDemo ? '?demo=true' : ''}`);
       setSupervisors(data || []);
     } catch (err) {
       console.error('Failed to load supervisors:', err);

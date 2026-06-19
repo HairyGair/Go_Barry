@@ -6,6 +6,7 @@
 
 import express from 'express';
 import { query } from '../utils/queryHelpers.js';
+import { demoSqlFilter } from '../utils/demoFilter.js';
 
 const router = express.Router();
 
@@ -20,17 +21,27 @@ const router = express.Router();
  */
 router.get('/routes/status/live', async (req, res) => {
   try {
-    // Query using the view created in migration
+    // Mirrors the v_route_status_summary view, but applies demo isolation so demo
+    // sessions only count demo breakdowns and real sessions exclude them.
+    const demoB = demoSqlFilter(req.user, { alias: 'b' });
     const results = await query(`
       SELECT
-        route_id,
-        route_short_name,
-        route_long_name,
-        active_breakdown_count,
-        status,
-        last_breakdown_time,
-        breakdown_severities
-      FROM v_route_status_summary
+        r.route_id,
+        r.route_short_name,
+        r.route_long_name,
+        COUNT(DISTINCT b.id) as active_breakdown_count,
+        MAX(b.created_at) as last_breakdown_time,
+        CASE
+          WHEN COUNT(DISTINCT b.id) = 0 THEN 'GREEN'
+          WHEN COUNT(DISTINCT b.id) = 1 THEN 'AMBER'
+          ELSE 'RED'
+        END as status,
+        GROUP_CONCAT(DISTINCT b.severity SEPARATOR ',') as breakdown_severities
+      FROM gtfs_routes r
+      LEFT JOIN breakdowns b ON r.route_id = b.route_id
+        AND b.status NOT IN ('resolved', 'cleared')
+        AND b.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)${demoB}
+      GROUP BY r.route_id, r.route_short_name, r.route_long_name
       ORDER BY
         FIELD(status, 'RED', 'AMBER', 'GREEN'),
         route_short_name ASC
@@ -118,7 +129,7 @@ router.get('/routes/:routeId/status', async (req, res) => {
       FROM breakdowns
       WHERE route_id = ?
       AND status NOT IN ('resolved', 'cleared')
-      AND created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
+      AND created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)${demoSqlFilter(req.user)}
       ORDER BY severity DESC, created_at DESC;
     `, [routeId]);
 
@@ -185,7 +196,7 @@ router.get('/routes/coverage/analysis', async (req, res) => {
       LEFT JOIN fleet_vehicles f ON r.route_id = f.route_id OR r.route_short_name = f.route_short_name
       LEFT JOIN breakdowns b ON r.route_id = b.route_id
         AND b.status NOT IN ('resolved', 'cleared')
-        AND b.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)
+        AND b.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)${demoSqlFilter(req.user, { alias: 'b' })}
       GROUP BY r.route_id, r.route_short_name, r.route_long_name
       HAVING total_vehicles > 0
       ORDER BY spare_vehicles ASC, active_breakdowns DESC;
@@ -268,19 +279,34 @@ router.get('/breakdowns/heatmap', async (req, res) => {
       limit = 1000,
     } = req.query;
 
+    // Mirrors the v_breakdown_heatmap view but applies demo isolation (the view
+    // doesn't expose supervisor_badge, so we inline it here).
+    const demoB = demoSqlFilter(req.user, { alias: 'b' });
+    const demoB2 = demoSqlFilter(req.user, { alias: 'b2' });
     let sqlQuery = `
       SELECT
-        id,
-        breakdown_id,
-        location_lat,
-        location_lng,
-        issue_category,
-        severity,
-        status,
-        created_at,
-        nearby_breakdown_count
-      FROM v_breakdown_heatmap
-      WHERE created_at > DATE_SUB(NOW(), INTERVAL ? DAY)
+        b.id,
+        b.breakdown_id,
+        b.location_lat,
+        b.location_lng,
+        b.issue_category,
+        b.severity,
+        b.status,
+        b.created_at,
+        (
+          SELECT COUNT(*) FROM breakdowns b2
+          WHERE b2.location_lat IS NOT NULL
+          AND b2.location_lng IS NOT NULL
+          AND SQRT(
+            POW(b2.location_lat - b.location_lat, 2) +
+            POW(b2.location_lng - b.location_lng, 2)
+          ) < 0.01
+          AND b2.created_at > DATE_SUB(NOW(), INTERVAL 30 DAY)${demoB2}
+        ) as nearby_breakdown_count
+      FROM breakdowns b
+      WHERE b.location_lat IS NOT NULL
+        AND b.location_lng IS NOT NULL
+        AND b.created_at > DATE_SUB(NOW(), INTERVAL ? DAY)${demoB}
     `;
 
     const params = [parseInt(daysBack) || 30];

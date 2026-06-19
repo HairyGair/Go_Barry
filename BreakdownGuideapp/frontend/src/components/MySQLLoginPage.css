@@ -613,6 +613,36 @@
     transform: none;
 }
 
+/* "I'm Interested" button - secondary CTA, teal outline */
+.lp-interest-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    padding: 14px 28px;
+    background: transparent;
+    border: 1px solid var(--lp-border-strong);
+    border-radius: var(--lp-radius);
+    color: var(--lp-text);
+    font-family: 'aileron', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    transition: all var(--lp-transition);
+}
+
+.lp-interest-btn svg { color: var(--lp-cyan); transition: transform var(--lp-transition); }
+
+.lp-interest-btn:hover {
+    border-color: var(--lp-teal);
+    color: var(--lp-white);
+    background: rgba(0, 151, 167, 0.08);
+    box-shadow: 0 0 24px var(--lp-teal-glow);
+    transform: translateY(-2px);
+}
+
+.lp-interest-btn:hover svg { transform: scale(1.12); }
+
 .lp-demo-hint {
     font-size: 13px;
     color: var(--lp-text-muted);

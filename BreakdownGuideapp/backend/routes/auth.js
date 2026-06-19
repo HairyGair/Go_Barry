@@ -68,9 +68,16 @@ function generateToken(supervisor) {
 // GET /api/auth/supervisors - Get all active supervisors
 router.get('/supervisors', async (req, res) => {
   try {
-    const { data, error } = await from('supervisors')
+    // Demo sessions see only the demo supervisor; everyone else excludes it.
+    // Demo is signalled by ?demo=true (this GET has no auth token) or by req.user.
+    const demo = req.query.demo === 'true' || req.user?.badge_number === 'DEMO01';
+    let supervisorQuery = from('supervisors')
       .select('id, name, email, role, depot, is_active, badge_number')
-      .eq('is_active', true)
+      .eq('is_active', true);
+    supervisorQuery = demo
+      ? supervisorQuery.eq('badge_number', 'DEMO01')
+      : supervisorQuery.neq('badge_number', 'DEMO01');
+    const { data, error } = await supervisorQuery
       .order('name', 'ASC')
       .execute();
 

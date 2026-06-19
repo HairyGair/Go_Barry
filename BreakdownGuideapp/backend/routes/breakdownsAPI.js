@@ -84,8 +84,10 @@ router.get('/live', async (req, res) => {
       .order('created_at', 'DESC')
       .limit(100);
 
-    // Hide demo breakdowns from real users
-    if (req.user?.badge_number !== 'DEMO01') {
+    // Demo sessions see only demo data; everyone else excludes it
+    if (req.user?.badge_number === 'DEMO01') {
+      sdcQuery = sdcQuery.eq('supervisor_badge', 'DEMO01');
+    } else {
       sdcQuery = sdcQuery.neq('supervisor_badge', 'DEMO01');
     }
 

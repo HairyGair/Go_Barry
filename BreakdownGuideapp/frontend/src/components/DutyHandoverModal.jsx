@@ -80,7 +80,10 @@ const DutyHandoverModal = ({
 
   const fetchSupervisors = async () => {
     try {
-      const response = await fetch(`${API_URL}/api/auth/supervisors`, {
+      // In a demo session, only the demo supervisor is returned (never real staff)
+      let isDemo = false;
+      try { isDemo = JSON.parse(sessionStorage.getItem('currentDuty') || 'null')?.isDemo === true; } catch { /* noop */ }
+      const response = await fetch(`${API_URL}/api/auth/supervisors${isDemo ? '?demo=true' : ''}`, {
         credentials: 'include'
       });
 

@@ -1551,7 +1551,31 @@ body {
 }
 
 .demo-mode-banner-text {
+  flex: 0 1 auto;
+}
+
+.demo-mode-banner-text strong {
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.demo-mode-cta-btn {
   flex: 0 0 auto;
+  background: #fff;
+  border: none;
+  color: #00838F;
+  padding: 3px 14px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.2s;
+}
+
+.demo-mode-cta-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.25);
 }
 
 .demo-mode-hide-btn {

@@ -28,6 +28,7 @@ import MySQLLoginPage from './components/MySQLLoginPage.jsx'
 import DutySelectionModal from './components/DutySelectionModal.jsx'
 import DutyIndicator from './components/DutyIndicator.jsx'
 import WelcomeMessage from './components/WelcomeMessage.jsx'
+import InterestModal from './components/InterestModal.jsx'
 
 // Import Minimal User Menu (floating dropdown in top-right)
 import MinimalUserMenu from './components/MinimalUserMenu.jsx'
@@ -289,6 +290,7 @@ const AppContent = () => {
   const [showShiftSummary, setShowShiftSummary] = useState(false) // Phase 8.4
   const [shiftStats, setShiftStats] = useState({}) // Phase 8.4 - aggregated stats
   const [showDemoBanner, setShowDemoBanner] = useState(true) // Demo mode banner visibility
+  const [showInterest, setShowInterest] = useState(false) // "Request changes" enquiry form (demo)
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -675,8 +677,15 @@ const AppContent = () => {
       {isDemoUser && showDemoBanner && (
         <div className="demo-mode-banner">
           <span className="demo-mode-banner-text">
-            Demo Mode - Exploring with sample data
+            <strong>Demo Mode</strong> — sample data. Every screen, field, wizard and workflow you see is
+            configured per operator and can be tailored to your team on request.
           </span>
+          <button
+            className="demo-mode-cta-btn"
+            onClick={() => setShowInterest(true)}
+          >
+            Make it yours
+          </button>
           <button
             className="demo-mode-hide-btn"
             onClick={() => setShowDemoBanner(false)}
@@ -685,6 +694,11 @@ const AppContent = () => {
             Hide
           </button>
         </div>
+      )}
+
+      {/* Interest / "tailor this to us" enquiry (available throughout the demo) */}
+      {isDemoUser && (
+        <InterestModal isOpen={showInterest} onClose={() => setShowInterest(false)} />
       )}
 
       {/* Duty Selection Modal */}

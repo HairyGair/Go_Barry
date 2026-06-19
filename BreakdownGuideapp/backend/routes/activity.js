@@ -28,9 +28,11 @@ router.get('/feed', async (req, res) => {
       });
     }
 
-    // Filter out demo activities for non-demo users
-    if (!isDemoUser && result.activities) {
-      result.activities = result.activities.filter(a => a.actor_id !== 'DEMO01');
+    // Demo sessions see only demo activities; everyone else excludes them
+    if (result.activities) {
+      result.activities = result.activities.filter(a =>
+        isDemoUser ? a.actor_id === 'DEMO01' : a.actor_id !== 'DEMO01'
+      );
       result.count = result.activities.length;
     }
 
@@ -92,7 +94,9 @@ router.get('/feed/legacy', async (req, res) => {
       .order('created_at', 'DESC')
       .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
 
-    if (!isDemoUser) {
+    if (isDemoUser) {
+      breakdownQuery = breakdownQuery.eq('supervisor_badge', 'DEMO01');
+    } else {
       breakdownQuery = breakdownQuery.neq('supervisor_badge', 'DEMO01');
     }
     if (depot) {
@@ -101,9 +105,9 @@ router.get('/feed/legacy', async (req, res) => {
 
     const { data: breakdowns, error: breakdownError } = await breakdownQuery.execute();
     if (breakdownError) throw breakdownError;
-    
+
     // Get recent breakdown events with JOIN to breakdowns table
-    const demoEventFilter = isDemoUser ? '' : " AND b.supervisor_badge != 'DEMO01'";
+    const demoEventFilter = isDemoUser ? " AND b.supervisor_badge = 'DEMO01'" : " AND b.supervisor_badge != 'DEMO01'";
     const eventsSql = `
       SELECT
         be.*,
@@ -205,7 +209,9 @@ router.get('/live', async (req, res) => {
       .order('created_at', 'DESC')
       .limit(parseInt(limit));
 
-    if (!isDemoUser) {
+    if (isDemoUser) {
+      liveQuery = liveQuery.eq('actor_id', 'DEMO01');
+    } else {
       liveQuery = liveQuery.neq('actor_id', 'DEMO01');
     }
 
@@ -272,7 +278,9 @@ router.get('/live/legacy', async (req, res) => {
       .gte('created_at', sinceTime)
       .order('created_at', 'DESC');
 
-    if (!isDemoUser) {
+    if (isDemoUser) {
+      legacyQuery = legacyQuery.eq('supervisor_badge', 'DEMO01');
+    } else {
       legacyQuery = legacyQuery.neq('supervisor_badge', 'DEMO01');
     }
 
@@ -281,7 +289,7 @@ router.get('/live/legacy', async (req, res) => {
     if (breakdownError) throw breakdownError;
 
     // Get recent events with JOIN
-    const demoLegacyFilter = isDemoUser ? '' : " AND b.supervisor_badge != 'DEMO01'";
+    const demoLegacyFilter = isDemoUser ? " AND b.supervisor_badge = 'DEMO01'" : " AND b.supervisor_badge != 'DEMO01'";
     const eventsSql = `
       SELECT
         be.*,
@@ -559,7 +567,9 @@ router.get('/breakdown-guide', async (req, res) => {
       .order('created_at', 'DESC')
       .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
 
-    if (!isDemoUser) {
+    if (isDemoUser) {
+      breakdownQuery = breakdownQuery.eq('supervisor_badge', 'DEMO01');
+    } else {
       breakdownQuery = breakdownQuery.neq('supervisor_badge', 'DEMO01');
     }
     if (supervisor_badge) {
@@ -570,7 +580,7 @@ router.get('/breakdown-guide', async (req, res) => {
     if (wizardError) throw wizardError;
 
     // Get wizard assessment events with JOIN
-    const demoGuideFilter = isDemoUser ? '' : " AND b.supervisor_badge != 'DEMO01'";
+    const demoGuideFilter = isDemoUser ? " AND b.supervisor_badge = 'DEMO01'" : " AND b.supervisor_badge != 'DEMO01'";
     const eventsSql = `
       SELECT
         be.*,
@@ -855,7 +865,9 @@ router.get('/stats', async (req, res) => {
       .select('activity_type, severity, actor_type, depot, created_at')
       .gte('created_at', timeFilter);
 
-    if (!isDemoUser) {
+    if (isDemoUser) {
+      activitiesQuery = activitiesQuery.eq('actor_id', 'DEMO01');
+    } else {
       activitiesQuery = activitiesQuery.neq('actor_id', 'DEMO01');
     }
     if (depot) {

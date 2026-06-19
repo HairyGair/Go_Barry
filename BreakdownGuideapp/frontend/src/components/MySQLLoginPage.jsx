@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { GoBarryLogo } from './GoBarryLogo.jsx';
 import PixelishLogo from './PixelishLogo.jsx';
+import InterestModal from './InterestModal.jsx';
 import './MySQLLoginPage.css';
 
 const MySQLLoginPage = () => {
@@ -25,6 +26,7 @@ const MySQLLoginPage = () => {
     // UI state
     const [isLoading, setIsLoading] = useState(false);
     const [isDemoLoading, setIsDemoLoading] = useState(false);
+    const [showInterest, setShowInterest] = useState(false);
     const [error, setError] = useState('');
     const [errorType, setErrorType] = useState('general');
     const [capsLockOn, setCapsLockOn] = useState(false);
@@ -351,6 +353,16 @@ const MySQLLoginPage = () => {
                                 </svg>
                                 See The Full Platform
                             </a>
+                            <button
+                                type="button"
+                                className="lp-interest-btn"
+                                onClick={() => setShowInterest(true)}
+                            >
+                                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                                    <path d="M9 2.5c-1.6-1.8-5.5-1-5.5 2.2C3.5 8 9 12 9 12s5.5-4 5.5-7.3C14.5 1.5 10.6.7 9 2.5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
+                                </svg>
+                                I'm Interested
+                            </button>
                             <span className="lp-demo-hint">No account needed</span>
                         </div>
                     </div>
@@ -481,6 +493,8 @@ const MySQLLoginPage = () => {
                     </div>
                 </div>
             </footer>
+
+            <InterestModal isOpen={showInterest} onClose={() => setShowInterest(false)} />
         </div>
     );
 };

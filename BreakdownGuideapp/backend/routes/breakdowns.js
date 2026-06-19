@@ -164,9 +164,11 @@ router.get('/', async (req, res) => {
       .limit(parseInt(limit))
       .offset(offset);
 
-    // Hide demo breakdowns from real users
+    // Demo sessions see only demo data; everyone else excludes it
     const isDemoUser = req.user?.badge_number === 'DEMO01';
-    if (!isDemoUser) {
+    if (isDemoUser) {
+      queryBuilder = queryBuilder.eq('supervisor_badge', 'DEMO01');
+    } else {
       queryBuilder = queryBuilder.neq('supervisor_badge', 'DEMO01');
     }
 
@@ -186,8 +188,10 @@ router.get('/', async (req, res) => {
     let countSQL = 'SELECT COUNT(*) as count FROM breakdowns WHERE 1=1';
     const countParams = [];
 
-    // Hide demo breakdowns from real users
-    if (!isDemoUser) {
+    // Demo sessions see only demo data; everyone else excludes it
+    if (isDemoUser) {
+      countSQL += " AND supervisor_badge = 'DEMO01'";
+    } else {
       countSQL += " AND supervisor_badge != 'DEMO01'";
     }
 
@@ -230,8 +234,10 @@ router.get('/active', async (req, res) => {
       .in('status', ['active', 'pending', 'in_progress'])
       .order('created_at', 'DESC');
 
-    // Hide demo breakdowns from real users
-    if (req.user?.badge_number !== 'DEMO01') {
+    // Demo sessions see only demo data; everyone else excludes it
+    if (req.user?.badge_number === 'DEMO01') {
+      activeQuery = activeQuery.eq('supervisor_badge', 'DEMO01');
+    } else {
       activeQuery = activeQuery.neq('supervisor_badge', 'DEMO01');
     }
 
@@ -359,9 +365,9 @@ router.get('/live', async (req, res) => {
 
     // Query for unresolved breakdowns using direct MySQL query
     // Exclude: resolved, deleted, cancelled, completed statuses
-    // Hide demo breakdowns from real users
+    // Demo sessions see only demo data; everyone else excludes it
     const isDemoUser = req.user?.badge_number === 'DEMO01';
-    const demoFilter = isDemoUser ? '' : " AND supervisor_badge != 'DEMO01'";
+    const demoFilter = isDemoUser ? " AND supervisor_badge = 'DEMO01'" : " AND supervisor_badge != 'DEMO01'";
     const breakdowns = await query(`
       SELECT * FROM breakdowns
       WHERE status NOT IN ('resolved', 'deleted', 'cancelled', 'completed')${demoFilter}
@@ -567,8 +573,10 @@ router.get('/stats', async (req, res) => {
       .select('status')
       .gte('created_at', startDate.toISOString());
 
-    // Hide demo breakdowns from real users
-    if (req.user?.badge_number !== 'DEMO01') {
+    // Demo sessions see only demo data; everyone else excludes it
+    if (req.user?.badge_number === 'DEMO01') {
+      statsQuery = statsQuery.eq('supervisor_badge', 'DEMO01');
+    } else {
       statsQuery = statsQuery.neq('supervisor_badge', 'DEMO01');
     }
 

@@ -19,6 +19,7 @@
 import express from 'express';
 import { query, select, insert, update } from '../config/mysql.js';
 import { from } from '../utils/queryHelpers.js';
+import { applyEngineerDemoFilter } from '../utils/demoFilter.js';
 import { activityLogger, ACTIVITY_TYPES, ACTOR_TYPES, SEVERITY_LEVELS } from '../services/activityLogger.js';
 import { calculateRoadDistance } from '../services/googleDirectionsService.js';
 
@@ -67,8 +68,10 @@ router.get('/depot-stats', async (req, res) => {
         .gte('created_at', oneDayAgo.toISOString())
         .in('status', ['active', 'pending', 'in_progress', 'dispatched', 'on_site']);
 
-      // Hide demo breakdowns from real users
-      if (req.user?.badge_number !== 'DEMO01') {
+      // Demo sessions see only demo data; everyone else excludes it
+      if (req.user?.badge_number === 'DEMO01') {
+        depotBreakdownQuery = depotBreakdownQuery.eq('supervisor_badge', 'DEMO01');
+      } else {
         depotBreakdownQuery = depotBreakdownQuery.neq('supervisor_badge', 'DEMO01');
       }
 
@@ -102,10 +105,10 @@ router.get('/depot-stats', async (req, res) => {
         : 100;
 
       // Get actual engineer counts
-      const { data: depotEngineers } = await from('engineers')
+      const { data: depotEngineers } = await applyEngineerDemoFilter(from('engineers')
         .select('status')
         .eq('depot', depot.code)
-        .eq('is_active', true)
+        .eq('is_active', true), req.user)
         .execute();
 
       const total = depotEngineers?.length || 0;
@@ -138,9 +141,9 @@ router.get('/depot-stats', async (req, res) => {
 // GET /api/engineering/engineers - Get all engineers
 router.get('/engineers', async (req, res) => {
   try {
-    const { data: engineers, error } = await from('engineers')
+    const { data: engineers, error } = await applyEngineerDemoFilter(from('engineers')
       .select('*')
-      .eq('is_active', true)
+      .eq('is_active', true), req.user)
       .order('name', 'ASC')
       .execute();
 
@@ -183,8 +186,10 @@ router.get('/metrics', async (req, res) => {
       .select('*')
       .gte('created_at', startDate.toISOString());
 
-    // Hide demo breakdowns from real users
-    if (req.user?.badge_number !== 'DEMO01') {
+    // Demo sessions see only demo data; everyone else excludes it
+    if (req.user?.badge_number === 'DEMO01') {
+      metricsQuery = metricsQuery.eq('supervisor_badge', 'DEMO01');
+    } else {
       metricsQuery = metricsQuery.neq('supervisor_badge', 'DEMO01');
     }
 
@@ -222,9 +227,9 @@ router.get('/metrics', async (req, res) => {
       : 100;
 
     // Engineer utilization (simulated based on active jobs)
-    const { data: engineers } = await from('engineers')
+    const { data: engineers } = await applyEngineerDemoFilter(from('engineers')
       .select('status')
-      .eq('is_active', true)
+      .eq('is_active', true), req.user)
       .execute();
 
     const totalEngineers = engineers?.length || 1;
@@ -269,11 +274,11 @@ router.get('/engineers/available/:depotId', async (req, res) => {
 
     const depotCode = depotMap[depotId] || depotId;
 
-    const { data: engineers, error } = await from('engineers')
+    const { data: engineers, error } = await applyEngineerDemoFilter(from('engineers')
       .select('*')
       .eq('depot', depotCode)
       .eq('status', 'available')
-      .eq('is_active', true)
+      .eq('is_active', true), req.user)
       .execute();
 
     if (error) throw error;
@@ -556,11 +561,11 @@ router.post('/auto-assign', async (req, res) => {
     }
 
     // Get available engineers from depot
-    const { data: availableEngineers } = await from('engineers')
+    const { data: availableEngineers } = await applyEngineerDemoFilter(from('engineers')
       .select('*')
       .eq('depot', depot_id)
       .eq('status', 'available')
-      .eq('is_active', true)
+      .eq('is_active', true), req.user)
       .limit(1)
       .execute();
 
@@ -756,8 +761,10 @@ router.get('/performance', async (req, res) => {
     let sql = 'SELECT * FROM breakdowns WHERE created_at >= ?';
     let params = [startDate];
 
-    // Hide demo breakdowns from real users
-    if (req.user?.badge_number !== 'DEMO01') {
+    // Demo sessions see only demo data; everyone else excludes it
+    if (req.user?.badge_number === 'DEMO01') {
+      sql += " AND supervisor_badge = 'DEMO01'";
+    } else {
       sql += " AND supervisor_badge != 'DEMO01'";
     }
 
@@ -828,9 +835,9 @@ router.get('/performance', async (req, res) => {
       .slice(0, 5);
 
     // Get engineer count for productivity calculation
-    const { data: engineers } = await from('engineers')
+    const { data: engineers } = await applyEngineerDemoFilter(from('engineers')
       .select('id')
-      .eq('is_active', true)
+      .eq('is_active', true), req.user)
       .execute();
 
     const engineerCount = engineers?.length || 10;
@@ -891,8 +898,10 @@ router.get('/sla', async (req, res) => {
     let sql = 'SELECT * FROM breakdowns WHERE created_at >= ?';
     let params = [startDate];
 
-    // Hide demo breakdowns from real users
-    if (req.user?.badge_number !== 'DEMO01') {
+    // Demo sessions see only demo data; everyone else excludes it
+    if (req.user?.badge_number === 'DEMO01') {
+      sql += " AND supervisor_badge = 'DEMO01'";
+    } else {
       sql += " AND supervisor_badge != 'DEMO01'";
     }
 
@@ -1028,17 +1037,19 @@ router.get('/teams', async (req, res) => {
         WHERE depot = ?
         AND status IN ('active', 'pending', 'in_progress', 'dispatched', 'on_site')
       `;
-      // Hide demo breakdowns from real users
-      if (req.user?.badge_number !== 'DEMO01') {
+      // Demo sessions see only demo data; everyone else excludes it
+      if (req.user?.badge_number === 'DEMO01') {
+        teamsSql += " AND supervisor_badge = 'DEMO01'";
+      } else {
         teamsSql += " AND supervisor_badge != 'DEMO01'";
       }
       const activeBreakdowns = await query(teamsSql, [depot.code]);
 
       // Get engineer data for this depot
-      const { data: depotEngineers } = await from('engineers')
+      const { data: depotEngineers } = await applyEngineerDemoFilter(from('engineers')
         .select('status')
         .eq('depot', depot.code)
-        .eq('is_active', true)
+        .eq('is_active', true), req.user)
         .execute();
 
       const total = depotEngineers?.length || 0;
@@ -1373,8 +1384,10 @@ router.get('/jobs', async (req, res) => {
     let sql = "SELECT * FROM breakdowns WHERE status != 'resolved'";
     let params = [];
 
-    // Hide demo breakdowns from real users
-    if (req.user?.badge_number !== 'DEMO01') {
+    // Demo sessions see only demo data; everyone else excludes it
+    if (req.user?.badge_number === 'DEMO01') {
+      sql += " AND supervisor_badge = 'DEMO01'";
+    } else {
       sql += " AND supervisor_badge != 'DEMO01'";
     }
 

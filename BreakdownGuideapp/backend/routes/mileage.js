@@ -9,6 +9,7 @@
 
 import express from 'express';
 import { query } from '../utils/queryHelpers.js';
+import { demoSqlFilter } from '../utils/demoFilter.js';
 import {
   calculateMileageLost,
   calculateRouteDistance,
@@ -222,6 +223,9 @@ router.post('/breakdown/:breakdownId/calculate', async (req, res) => {
 router.get('/report/daily', async (req, res) => {
   try {
     const { date, days } = req.query;
+    // Demo isolation: demo sessions see only demo breakdowns, everyone else excludes them
+    const demoB = demoSqlFilter(req.user, { alias: 'b' });
+    const demoBare = demoSqlFilter(req.user);
 
     // If 'days' parameter is provided, return multi-day data for charts
     if (days && parseInt(days) > 0) {
@@ -251,7 +255,7 @@ router.get('/report/daily', async (req, res) => {
           COUNT(*) as breakdown_count
         FROM breakdowns b
         LEFT JOIN gtfs_routes r ON b.route_id = r.route_id OR b.route_id = r.route_short_name
-        WHERE b.created_at >= ?
+        WHERE b.created_at >= ?${demoB}
         GROUP BY DATE(b.created_at), b.route_id, r.route_short_name
         ORDER BY breakdown_date ASC
       `, [startDateObj.toISOString().split('T')[0] + ' 00:00:00']);
@@ -260,7 +264,7 @@ router.get('/report/daily', async (req, res) => {
       const lastWeekData = await query(`
         SELECT SUM(COALESCE(estimated_mileage_lost, 0)) as total
         FROM breakdowns
-        WHERE created_at BETWEEN ? AND ?
+        WHERE created_at BETWEEN ? AND ?${demoBare}
       `, [
         lastWeekStartObj.toISOString().split('T')[0] + ' 00:00:00',
         lastWeekEndObj.toISOString().split('T')[0] + ' 23:59:59'
@@ -353,7 +357,7 @@ router.get('/report/daily', async (req, res) => {
         TIMESTAMPDIFF(MINUTE, b.created_at, COALESCE(b.resolved_at, NOW())) as duration_minutes
       FROM breakdowns b
       LEFT JOIN gtfs_routes r ON b.route_id = r.route_id OR b.route_id = r.route_short_name
-      WHERE b.created_at BETWEEN ? AND ?
+      WHERE b.created_at BETWEEN ? AND ?${demoB}
       ORDER BY b.estimated_mileage_lost DESC NULLS LAST, b.created_at DESC
     `, [startDate, endDate]);
 
@@ -480,12 +484,12 @@ router.post('/recalculate-all', async (req, res) => {
   try {
     const { limit = 100 } = req.body;
 
-    // Get breakdowns without mileage data
+    // Get breakdowns without mileage data (demo sessions only touch demo data)
     const breakdowns = await query(`
       SELECT id, breakdown_id, route_id, location_lat, location_lng, created_at, resolved_at
       FROM breakdowns
       WHERE route_id IS NOT NULL
-      AND estimated_mileage_lost IS NULL
+      AND estimated_mileage_lost IS NULL${demoSqlFilter(req.user)}
       ORDER BY created_at DESC
       LIMIT ${parseInt(limit) || 100}
     `, []);
@@ -613,6 +617,9 @@ router.get('/detailed-analysis', async (req, res) => {
       whereClause += ' AND (b.route_id = ? OR r.route_short_name = ?)';
       params.push(route, route);
     }
+
+    // Demo isolation: demo sessions see only demo breakdowns, everyone else excludes them
+    whereClause += demoSqlFilter(req.user, { alias: 'b' });
 
     // Determine sort order
     let orderBy = 'b.estimated_mileage_lost DESC';
@@ -901,7 +908,7 @@ router.get('/top-routes', async (req, res) => {
       FROM breakdowns b
       LEFT JOIN gtfs_routes r ON b.route_id = r.route_id OR b.route_id = r.route_short_name
       WHERE b.created_at > DATE_SUB(NOW(), INTERVAL ? DAY)
-      AND b.route_id IS NOT NULL
+      AND b.route_id IS NOT NULL${demoSqlFilter(req.user, { alias: 'b' })}
       GROUP BY b.route_id, r.route_short_name, r.route_long_name
       ORDER BY total_mileage_lost DESC
       LIMIT ${parseInt(limit) || 20}

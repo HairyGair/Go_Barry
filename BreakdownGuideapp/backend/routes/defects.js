@@ -3,6 +3,7 @@
 
 import express from 'express';
 import { from, query } from '../utils/queryHelpers.js';
+import { applyDemoFilter } from '../utils/demoFilter.js';
 import { activityLogger } from '../services/activityLogger.js';
 import webSocketHandler from './webSocketHandler.js';
 
@@ -107,10 +108,9 @@ router.post('/repeat', async (req, res) => {
 
     console.log(`🔍 Analyzing repeat defects for timeframe: ${timeframe} (since ${startDate})`);
 
-    // Get all breakdowns in the timeframe
-    const { data: breakdowns, error } = await from('breakdowns')
-      .select('*')
-      .gte('created_at', startDate)
+    // Get all breakdowns in the timeframe (demo sessions see only demo data)
+    const { data: breakdowns, error } = await applyDemoFilter(
+      from('breakdowns').select('*').gte('created_at', startDate), req.user)
       .order('created_at', 'DESC')
       .execute();
 
@@ -239,19 +239,18 @@ router.post('/trends', async (req, res) => {
     console.log(`   Current period: ${currentPeriodStart} to now`);
     console.log(`   Comparison period: ${comparisonPeriodStart.toISOString()} to ${comparisonPeriodEnd.toISOString()}`);
 
-    // Get current period breakdowns
-    const { data: currentBreakdowns, error: currentError } = await from('breakdowns')
-      .select('*')
-      .gte('created_at', currentPeriodStart)
+    // Get current period breakdowns (demo sessions see only demo data)
+    const { data: currentBreakdowns, error: currentError } = await applyDemoFilter(
+      from('breakdowns').select('*').gte('created_at', currentPeriodStart), req.user)
       .execute();
 
     if (currentError) throw currentError;
 
-    // Get comparison period breakdowns
-    const { data: comparisonBreakdowns, error: comparisonError } = await from('breakdowns')
-      .select('*')
-      .gte('created_at', comparisonPeriodStart.toISOString())
-      .lt('created_at', comparisonPeriodEnd.toISOString())
+    // Get comparison period breakdowns (demo sessions see only demo data)
+    const { data: comparisonBreakdowns, error: comparisonError } = await applyDemoFilter(
+      from('breakdowns').select('*')
+        .gte('created_at', comparisonPeriodStart.toISOString())
+        .lt('created_at', comparisonPeriodEnd.toISOString()), req.user)
       .execute();
 
     if (comparisonError) throw comparisonError;
@@ -369,10 +368,9 @@ router.get('/depot-stats', async (req, res) => {
 
     console.log(`🏢 Analyzing depot defect statistics for ${timeframe}`);
 
-    // Get breakdowns for the period
-    const { data: breakdowns, error } = await from('breakdowns')
-      .select('*')
-      .gte('created_at', startDate)
+    // Get breakdowns for the period (demo sessions see only demo data)
+    const { data: breakdowns, error } = await applyDemoFilter(
+      from('breakdowns').select('*').gte('created_at', startDate), req.user)
       .execute();
 
     if (error) throw error;
@@ -493,9 +491,8 @@ router.get('/predictive', async (req, res) => {
     // Get last 30 days of data for pattern analysis
     const startDate = getTimeframeStartDate('30d');
 
-    const { data: breakdowns, error } = await from('breakdowns')
-      .select('*')
-      .gte('created_at', startDate)
+    const { data: breakdowns, error } = await applyDemoFilter(
+      from('breakdowns').select('*').gte('created_at', startDate), req.user)
       .order('created_at', 'DESC')
       .execute();
 
@@ -782,9 +779,8 @@ router.post('/report', async (req, res) => {
     // Section 1: Repeat Defects Analysis
     if (includeRepeatDefects) {
       const startDate = getTimeframeStartDate(timeframe);
-      const { data: breakdowns } = await from('breakdowns')
-        .select('*')
-        .gte('created_at', startDate)
+      const { data: breakdowns } = await applyDemoFilter(
+        from('breakdowns').select('*').gte('created_at', startDate), req.user)
         .execute();
 
       const vehicleDefects = {};
@@ -843,9 +839,8 @@ router.post('/report', async (req, res) => {
 
     // Add summary statistics
     const startDate = getTimeframeStartDate(timeframe);
-    const { data: allBreakdowns } = await from('breakdowns')
-      .select('*')
-      .gte('created_at', startDate)
+    const { data: allBreakdowns } = await applyDemoFilter(
+      from('breakdowns').select('*').gte('created_at', startDate), req.user)
       .execute();
 
     report.summary = {
@@ -997,9 +992,9 @@ router.get('/vehicle/:fleetNumber', async (req, res) => {
 
     console.log(`📋 Fetching defect history for vehicle ${fleetNumber}`);
 
-    // Build the query
-    let queryBuilder = from('breakdowns')
-      .eq('fleet_no', fleetNumber)
+    // Build the query (demo sessions see only demo data)
+    let queryBuilder = applyDemoFilter(
+      from('breakdowns').eq('fleet_no', fleetNumber), req.user)
       .order('created_at', 'DESC')
       .limit(parseInt(limit));
 

@@ -1,6 +1,7 @@
 import express from 'express';
 import { from, query } from '../utils/queryHelpers.js';
 import { resolveSeverity } from '../utils/severity.js';
+import { sendInterestNotification } from '../services/emailService.js';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -963,6 +964,65 @@ router.get('/service-gaps', async (req, res) => {
   } catch (error) {
     console.error('Error in public service-gaps:', error);
     return res.json({ success: true, normalFrequency: null, currentGap: null });
+  }
+});
+
+// POST /api/public/interest - Sales enquiry from the public "I am interested" form
+// No authentication required (prospective operators are not logged in).
+router.post('/interest', async (req, res) => {
+  try {
+    const {
+      name, company, email, phone, role,
+      fleetSize, depots, currentProcess, features, message,
+      website // honeypot - real users never fill this
+    } = req.body || {};
+
+    // Honeypot: silently accept and drop obvious bot submissions
+    if (website) {
+      return res.json({ success: true, message: 'Thank you for your interest.' });
+    }
+
+    // Required fields
+    if (!name || !company || !email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Please provide your name, company, and email address.'
+      });
+    }
+
+    // Basic email sanity check
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email))) {
+      return res.status(400).json({ success: false, error: 'Please provide a valid email address.' });
+    }
+
+    // Clamp field lengths to keep emails tidy and reject abuse
+    const clamp = (v, n) => (v == null ? null : String(v).slice(0, n));
+    const enquiry = {
+      name: clamp(name, 200),
+      company: clamp(company, 200),
+      email: clamp(email, 200),
+      phone: clamp(phone, 50),
+      role: clamp(role, 150),
+      fleetSize: clamp(fleetSize, 100),
+      depots: clamp(depots, 100),
+      currentProcess: clamp(currentProcess, 500),
+      features: Array.isArray(features) ? features.slice(0, 20).map(f => clamp(f, 100)) : clamp(features, 500),
+      message: clamp(message, 4000)
+    };
+
+    // Email is the primary delivery; don't fail the request if SMTP hiccups
+    const result = await sendInterestNotification(enquiry);
+    if (!result.success) {
+      console.error('Interest enquiry email failed:', result.error);
+    }
+
+    return res.json({
+      success: true,
+      message: "Thank you for your interest. We'll be in touch shortly."
+    });
+  } catch (error) {
+    console.error('Error handling interest enquiry:', error);
+    return res.status(500).json({ success: false, error: 'Something went wrong. Please try again, or email gair@gobarry.co.uk directly.' });
   }
 });
 

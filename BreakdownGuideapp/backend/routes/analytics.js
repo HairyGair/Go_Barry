@@ -20,6 +20,7 @@
 import express from 'express';
 import { query } from '../config/mysql.js';
 import { from } from '../utils/queryHelpers.js';
+import { demoSqlFilter } from '../utils/demoFilter.js';
 import { validate } from '../middleware/validationMiddleware.js';
 import { analyticsSchemas } from '../validation/schemas.js';
 
@@ -733,7 +734,7 @@ router.get('/activity/feed', async (req, res) => {
   try {
     const { limit = 20, offset = 0, depot } = req.query;
     const isDemoUser = req.user?.badge_number === 'DEMO01';
-    const demoFilter = isDemoUser ? '' : " AND supervisor_badge != 'DEMO01'";
+    const demoFilter = isDemoUser ? " AND supervisor_badge = 'DEMO01'" : " AND supervisor_badge != 'DEMO01'";
 
     // Get recent breakdowns with depot filter if specified
     const safeLimit = parseInt(limit) || 20;
@@ -836,7 +837,7 @@ router.get('/shift-stats', async (req, res) => {
 
     // Query breakdowns for this shift period
     // Use SELECT * to avoid errors if optional columns (acknowledged_at, received_at) don't exist
-    const demoFilter = isDemoUser ? '' : " AND supervisor_badge != 'DEMO01'";
+    const demoFilter = isDemoUser ? " AND supervisor_badge = 'DEMO01'" : " AND supervisor_badge != 'DEMO01'";
     let breakdownsQuery = `
       SELECT *
       FROM breakdowns
@@ -994,10 +995,12 @@ router.get('/supervisor-performance', async (req, res) => {
         periodLabel = 'Last 7 Days';
     }
 
-    // Get all supervisors
+    // Get all supervisors (demo sessions see only the demo supervisor)
     let supervisors = [];
     try {
-      supervisors = await query('SELECT id, badge_number, name, depot, role FROM supervisors WHERE is_active = 1');
+      supervisors = await query(
+        `SELECT id, badge_number, name, depot, role FROM supervisors WHERE is_active = 1${demoSqlFilter(req.user, { column: 'badge_number' })}`
+      );
     } catch (err) {
       console.warn('Could not fetch supervisors:', err.message);
     }
@@ -1532,8 +1535,8 @@ router.get('/coverage-alert', async (req, res) => {
     // Get active supervisors from recent activity (last 30 minutes)
     const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000);
     const isDemoUser = req.user?.badge_number === 'DEMO01';
-    const demoSupervisorFilter = isDemoUser ? '' : " AND supervisor_badge != 'DEMO01'";
-    const demoActorFilter = isDemoUser ? '' : " AND actor_id != 'DEMO01'";
+    const demoSupervisorFilter = isDemoUser ? " AND supervisor_badge = 'DEMO01'" : " AND supervisor_badge != 'DEMO01'";
+    const demoActorFilter = isDemoUser ? " AND actor_id = 'DEMO01'" : " AND actor_id != 'DEMO01'";
     let activeSupervisors = [];
 
     try {

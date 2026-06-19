@@ -11,6 +11,7 @@
 import express from 'express';
 import { query, select, insert, update } from '../config/mysql.js';
 import { from } from '../utils/queryHelpers.js';
+import { isDemoUser, demoSqlFilter, DEMO_SUPERVISOR_ID } from '../utils/demoFilter.js';
 
 const router = express.Router();
 
@@ -30,10 +31,18 @@ router.get('/engineers', async (req, res) => {
     `;
     const params = [];
 
-    // If not requesting all, scope to manager
-    if (!include_all) {
-      sql += ' AND (e.managed_by = ? OR e.managed_by IS NULL)';
-      params.push(supervisorId);
+    // Demo isolation: demo sessions see only demo engineers; real sessions never see them
+    if (isDemoUser(req.user)) {
+      sql += ' AND e.managed_by = ?';
+      params.push(DEMO_SUPERVISOR_ID);
+    } else {
+      sql += ' AND (e.managed_by IS NULL OR e.managed_by != ?)';
+      params.push(DEMO_SUPERVISOR_ID);
+      // If not requesting all, scope to manager
+      if (!include_all) {
+        sql += ' AND (e.managed_by = ? OR e.managed_by IS NULL)';
+        params.push(supervisorId);
+      }
     }
 
     if (depot) {
@@ -348,15 +357,16 @@ router.get('/on-shift', async (req, res) => {
         COALESCE(st.end_time, ds.custom_end) AS shift_end,
         (SELECT COUNT(*) FROM breakdowns b
          WHERE b.engineer_badge = e.badge_number
-         AND b.status IN ('dispatched', 'on_site', 'in_progress')
+         AND b.status IN ('dispatched', 'on_site', 'in_progress')${demoSqlFilter(req.user, { alias: 'b' })}
         ) AS active_jobs
       FROM engineer_daily_shifts ds
       JOIN engineers e ON e.id = ds.engineer_id AND e.is_active = 1
       LEFT JOIN engineer_shift_templates st ON st.id = ds.shift_template_id
       WHERE ds.shift_date = ?
         AND ds.status = 'on_shift'
+        ${isDemoUser(req.user) ? 'AND e.managed_by = ?' : 'AND (e.managed_by IS NULL OR e.managed_by != ?)'}
     `;
-    const params = [today];
+    const params = [today, DEMO_SUPERVISOR_ID];
 
     if (depot) {
       sql += ' AND ds.depot_code = ?';
@@ -396,7 +406,7 @@ router.get('/on-shift/:depot', async (req, res) => {
         COALESCE(st.end_time, ds.custom_end) AS shift_end,
         (SELECT COUNT(*) FROM breakdowns b
          WHERE b.engineer_badge = e.badge_number
-         AND b.status IN ('dispatched', 'on_site', 'in_progress')
+         AND b.status IN ('dispatched', 'on_site', 'in_progress')${demoSqlFilter(req.user, { alias: 'b' })}
         ) AS active_jobs
       FROM engineer_daily_shifts ds
       JOIN engineers e ON e.id = ds.engineer_id AND e.is_active = 1
@@ -404,10 +414,11 @@ router.get('/on-shift/:depot', async (req, res) => {
       WHERE ds.shift_date = ?
         AND ds.depot_code = ?
         AND ds.status = 'on_shift'
+        ${isDemoUser(req.user) ? 'AND e.managed_by = ?' : 'AND (e.managed_by IS NULL OR e.managed_by != ?)'}
       ORDER BY e.status ASC, e.name ASC
     `;
 
-    const engineers = await query(sql, [today, depot]);
+    const engineers = await query(sql, [today, depot, DEMO_SUPERVISOR_ID]);
 
     const parsed = engineers.map(e => ({
       ...e,
@@ -443,6 +454,7 @@ router.get('/shift-history', async (req, res) => {
       LEFT JOIN engineer_shift_templates st ON st.id = ds.shift_template_id
       LEFT JOIN supervisors s ON s.id = ds.checked_in_by
       WHERE ds.shift_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+        ${isDemoUser(req.user) ? "AND e.badge_number LIKE 'DEMO-%'" : "AND e.badge_number NOT LIKE 'DEMO-%'"}
       ORDER BY ds.shift_date DESC, ds.depot_code ASC, e.name ASC
     `;
 

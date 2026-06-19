@@ -244,6 +244,19 @@ export class QueryBuilder {
   }
 
   /**
+   * Add WHERE column NOT LIKE value condition
+   * @param {string} column - Column name
+   * @param {string} pattern - LIKE pattern (use % for wildcards)
+   * @returns {QueryBuilder} this
+   */
+  notLike(column, pattern) {
+    sanitizeColumn(column);
+    this.whereConditions.push(`${column} NOT LIKE ?`);
+    this.whereParams.push(pattern);
+    return this;
+  }
+
+  /**
    * Add WHERE column ILIKE value condition (case-insensitive)
    * @param {string} column - Column name
    * @param {string} pattern - LIKE pattern (use % for wildcards)
