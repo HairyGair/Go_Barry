@@ -121,8 +121,9 @@ export default function InterestModal({ isOpen, onClose }) {
           <div className="im-header">
             <h2 id="im-title">Tell us about your operation</h2>
             <p id="im-desc">
-              Go BARRY is tailored to each operator. Share a few details and we'll get back to you
-              about how it could fit your fleet. Fields marked * are required.
+              Go BARRY is built around each operator — every screen, field and workflow is configurable,
+              and if you need something it doesn't do yet, we'll build it. Share a few details and we'll be
+              in touch about how it could fit your fleet. Fields marked * are required.
             </p>
           </div>
 
@@ -184,8 +185,8 @@ export default function InterestModal({ isOpen, onClose }) {
           </fieldset>
 
           <div className="im-field">
-            <label htmlFor="im-message">Anything else you'd like us to know?</label>
-            <textarea id="im-message" rows={3} value={form.message} onChange={update('message')} />
+            <label htmlFor="im-message">Anything you'd change, or features you'd like us to build?</label>
+            <textarea id="im-message" rows={3} value={form.message} onChange={update('message')} placeholder="Tell us what would make this perfect for your team…" />
           </div>
 
           {/* Honeypot - hidden from real users, catches bots */}

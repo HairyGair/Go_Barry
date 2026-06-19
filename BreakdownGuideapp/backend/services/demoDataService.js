@@ -317,6 +317,61 @@ function getDemoBreakdowns() {
 }
 
 /**
+ * Historical (resolved) demo breakdowns spread over the last ~4 weeks. Gives the
+ * analytics, trends, fleet-intelligence and mileage dashboards real depth without
+ * cluttering the live operations view (all are status 'resolved'). Some fleet
+ * numbers repeat so repeat-offender / fleet-health analysis has something to show.
+ * Tuple: [daysAgo, fleet_no, depot, route_id, issue_category, wizard_type, decision, miles]
+ */
+function getDemoHistory() {
+  const rows = [
+    [2,  '6301', 'Riverside',  'GNE:GOAO021:21', 'Brakes',      'brakes',      'STOP',    9.2],
+    [3,  '5437', 'Washington', 'GNE:GOAO010:10', 'Doors',       'doors',       'AMBER',   3.1],
+    [4,  '6301', 'Riverside',  'GNE:GOAO021:21', 'Overheating', 'overheating', 'STOP',   14.0],
+    [5,  '6078', 'Riverside',  'GNE:GOAO056:56', 'Steering',    'steering',    'STOP',    7.4],
+    [6,  '5318', 'Consett',    'GNE:GOAX045:X45','Speedometer', 'speedo',      'AMBER',   5.0],
+    [7,  '6145', 'Deptford',   'GNE:GOAX001:X1', 'Overheating', 'overheating', 'STOP',   16.8],
+    [8,  '5292', 'Percy Main', 'GNE:GOAO027:27', 'Doors',       'doors',       'CONTINUE',2.2],
+    [9,  '6301', 'Riverside',  'GNE:GOAO021:21', 'Brakes',      'brakes',      'STOP',   10.6],
+    [10, '5510', 'Deptford',   'GNE:GOAO008A:8A','Buzzers/Bell','buzzers',     'CONTINUE',1.9],
+    [11, '6210', 'Riverside',  'GNE:GOAO027:27', 'Wheelchair Ramp','ramp',     'STOP',    6.1],
+    [12, '5318', 'Consett',    'GNE:GOAX045:X45','Overheating', 'overheating', 'AMBER',   8.3],
+    [13, '6089', 'Percy Main', 'GNE:GOAO309:309','Puncture',    'puncture',    'STOP',   13.5],
+    [14, '5401', 'Hexham',     'GNE:GOAO684:684','Fuel System', 'fuel',        'AMBER',   7.0],
+    [15, '6078', 'Riverside',  'GNE:GOAO056:56', 'Doors',       'doors',       'AMBER',   3.8],
+    [16, '5195', 'Washington', 'GNE:GOAO035:35', 'Suspension',  'suspension',  'AMBER',   4.6],
+    [18, '6322', 'Washington', 'GNE:GOAO021:21', 'Brakes',      'brakes',      'STOP',   11.2],
+    [19, '5267', 'Consett',    'GNE:GOAX030:X30','Overheating', 'overheating', 'AMBER',   6.4],
+    [20, '5155', 'Percy Main', 'GNE:GOAO309:309','Buzzers/Bell','buzzers',     'CONTINUE',2.1],
+    [22, '6145', 'Deptford',   'GNE:GOAX001:X1', 'Brakes',      'brakes',      'STOP',   15.9],
+    [24, '5437', 'Washington', 'GNE:GOAO010:10', 'Steering',    'steering',    'STOP',    8.0],
+    [25, '6210', 'Riverside',  'GNE:GOAO027:27', 'Doors',       'doors',       'AMBER',   3.4],
+    [26, '5401', 'Hexham',     'GNE:GOAO684:684','Speedometer', 'speedo',      'CONTINUE',1.5],
+    [27, '6089', 'Percy Main', 'GNE:GOAO309:309','Overheating', 'overheating', 'STOP',   12.7],
+    [28, '5318', 'Consett',    'GNE:GOAX045:X45','Suspension',  'suspension',  'AMBER',   5.7],
+  ];
+  return rows.map(([d, fleet, depot, route, cat, wt, dec, miles], i) => ({
+    breakdown_id: `DEMO-H${String(i + 1).padStart(2, '0')}`,
+    fleet_no: fleet,
+    depot,
+    supervisor_badge: DEMO_BADGE,
+    supervisor_name: DEMO_SUPERVISOR_NAME,
+    location_description: `${depot} area`,
+    issue_category: cat,
+    status: 'resolved',
+    severity: dec,
+    wizard_decision: dec,
+    wizard_type: wt,
+    breakdown_source: 'wizard',
+    route_id: route,
+    estimated_mileage_lost: miles,
+    wizard_assessment_data: JSON.stringify({ route: route.split(':').pop() }),
+    created_at: timeAgo(d * 24, 0),
+    resolved_at: timeAgo(d * 24 - 3, 0),
+  }));
+}
+
+/**
  * Replacement vehicles (BSOG dead-mileage) seeded for the demo.
  * Coordinates mirror the matching demo breakdowns so the map/calcs line up.
  * One en-route dispatch (dead miles only) and one completed run (with pickup
@@ -490,24 +545,67 @@ export async function seedDemoData() {
       [DEMO_BADGE]
     );
 
-    // 3. Insert demo breakdowns (core columns only — guaranteed to exist so the
-    //    demo always has data even if an optional enhancement below fails)
+    // 3. Insert demo breakdowns. Core + a few always-present columns (route_id,
+    //    estimated_mileage_lost, resolved_at) so route status, mileage reports and
+    //    analytics have real data. Full GTFS route_ids so they map to live routes
+    //    (route 21 gets two -> shows RED on the route-status board).
     const breakdowns = getDemoBreakdowns();
+    const ROUTE_ID = {
+      'DEMO-001': 'GNE:GOAO021:21', 'DEMO-002': 'GNE:GOAO056:56', 'DEMO-003': 'GNE:GOAO010:10',
+      'DEMO-004': null, 'DEMO-005': 'GNE:GOAX001:X1', 'DEMO-006': 'GNE:GOAX045:X45',
+      'DEMO-007': 'GNE:GOAO027:27', 'DEMO-008': 'GNE:GOAO035:35', 'DEMO-009': 'GNE:GOAO309:309',
+      'DEMO-010': 'GNE:GOAO684:684', 'DEMO-011': 'GNE:GOAO008A:8A', 'DEMO-012': 'GNE:GOAO021:21',
+      'DEMO-013': 'GNE:GOAX030:X30', 'DEMO-014': null
+    };
+    const MILEAGE = {
+      'DEMO-001': 12.4, 'DEMO-002': 8.1, 'DEMO-003': 5.5, 'DEMO-004': 2.0, 'DEMO-005': 18.3,
+      'DEMO-006': 9.7, 'DEMO-007': 6.8, 'DEMO-008': 4.2, 'DEMO-009': 15.0, 'DEMO-010': 7.5,
+      'DEMO-011': 3.3, 'DEMO-012': 11.0, 'DEMO-013': 6.0, 'DEMO-014': 1.8
+    };
+    const RESOLVED_AT = { 'DEMO-010': timeAgo(4, 30), 'DEMO-011': timeAgo(6, 0) };
     for (const b of breakdowns) {
       await query(
         `INSERT INTO breakdowns (
           breakdown_id, fleet_no, depot, supervisor_badge, supervisor_name,
           location_description, location_lat, location_lng, issue_category,
           status, severity, wizard_decision, wizard_type, breakdown_source,
-          wizard_assessment_data, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          wizard_assessment_data, created_at,
+          route_id, estimated_mileage_lost, resolved_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           b.breakdown_id, b.fleet_no, b.depot, b.supervisor_badge, b.supervisor_name,
           b.location_description, b.location_lat, b.location_lng, b.issue_category,
           b.status, b.severity, b.wizard_decision, b.wizard_type, b.breakdown_source,
-          b.wizard_assessment_data, b.created_at
+          b.wizard_assessment_data, b.created_at,
+          ROUTE_ID[b.breakdown_id] || null, MILEAGE[b.breakdown_id] || null,
+          RESOLVED_AT[b.breakdown_id] || null
         ]
       );
+    }
+
+    // 3b. Insert historical resolved breakdowns for analytics/trends depth (best-effort)
+    let historyCount = 0;
+    try {
+      const history = getDemoHistory();
+      for (const h of history) {
+        await query(
+          `INSERT INTO breakdowns (
+            breakdown_id, fleet_no, depot, supervisor_badge, supervisor_name,
+            location_description, issue_category, status, severity, wizard_decision,
+            wizard_type, breakdown_source, route_id, estimated_mileage_lost,
+            wizard_assessment_data, created_at, resolved_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            h.breakdown_id, h.fleet_no, h.depot, h.supervisor_badge, h.supervisor_name,
+            h.location_description, h.issue_category, h.status, h.severity, h.wizard_decision,
+            h.wizard_type, h.breakdown_source, h.route_id, h.estimated_mileage_lost,
+            h.wizard_assessment_data, h.created_at, h.resolved_at
+          ]
+        );
+        historyCount++;
+      }
+    } catch (histErr) {
+      console.error('🎭 Demo history seeding skipped (non-fatal):', histErr.message);
     }
 
     // 4. Apply engineer dispatch + live ETA fields (best-effort; isolated so a
@@ -623,8 +721,8 @@ export async function seedDemoData() {
       seedErrors.push('engineers: ' + engErr.message);
     }
 
-    console.log(`🎭 Demo data seeded: ${breakdowns.length} breakdowns, ${replacementCount} replacements, ${activities.length} activities, ${engineerCount} engineers`);
-    return { breakdowns: breakdowns.length, replacements: replacementCount, activities: activities.length, engineers: engineerCount, errors: seedErrors };
+    console.log(`🎭 Demo data seeded: ${breakdowns.length} breakdowns (+${historyCount} history), ${replacementCount} replacements, ${activities.length} activities, ${engineerCount} engineers`);
+    return { breakdowns: breakdowns.length, history: historyCount, replacements: replacementCount, activities: activities.length, engineers: engineerCount, errors: seedErrors };
   } catch (error) {
     console.error('🎭 Error seeding demo data:', error);
     throw error;

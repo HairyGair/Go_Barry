@@ -677,8 +677,8 @@ const AppContent = () => {
       {isDemoUser && showDemoBanner && (
         <div className="demo-mode-banner">
           <span className="demo-mode-banner-text">
-            <strong>Demo Mode</strong> — sample data. Every screen, field, wizard and workflow you see is
-            configured per operator and can be tailored to your team on request.
+            <strong>Demo Mode</strong> — sample data. Everything here — screens, fields, wizards, workflows,
+            depots, branding — is configured per operator and can be tweaked to fit your team. Got an idea? We'll build it.
           </span>
           <button
             className="demo-mode-cta-btn"

@@ -207,9 +207,18 @@ router.post('/complete', async (req, res) => {
  */
 router.get('/stats/usage', async (req, res) => {
   try {
-    // Demo sessions have no wizard-progress data of their own; never surface real stats
+    // Demo sessions: compute usage stats from demo breakdowns (never touch real data)
     if (isDemoUser(req.user)) {
-      return res.json({ total_assessments: 0, by_wizard_type: {}, by_day: {} });
+      const rows = await query(
+        "SELECT wizard_type, created_at FROM breakdowns WHERE supervisor_badge = 'DEMO01' AND breakdown_source = 'wizard'"
+      );
+      const stats = { total_assessments: rows.length, by_wizard_type: {}, by_day: {} };
+      for (const r of rows) {
+        if (r.wizard_type) stats.by_wizard_type[r.wizard_type] = (stats.by_wizard_type[r.wizard_type] || 0) + 1;
+        const day = new Date(r.created_at).toISOString().split('T')[0];
+        stats.by_day[day] = (stats.by_day[day] || 0) + 1;
+      }
+      return res.json(stats);
     }
     const { period = 'week' } = req.query;
     let startDate;
@@ -309,9 +318,18 @@ router.get('/recent', async (req, res) => {
  */
 router.get('/decisions/summary', async (req, res) => {
   try {
-    // Demo sessions have no wizard-progress data of their own; never surface real stats
+    // Demo sessions: compute decision stats from demo breakdowns (never touch real data)
     if (isDemoUser(req.user)) {
-      return res.json({ total: 0, STOP: 0, AMBER: 0, CONTINUE: 0 });
+      const rows = await query(
+        "SELECT wizard_decision FROM breakdowns WHERE supervisor_badge = 'DEMO01' AND wizard_decision IS NOT NULL"
+      );
+      const d = rows.map(r => r.wizard_decision);
+      return res.json({
+        total: d.length,
+        STOP: d.filter(x => x === 'STOP').length,
+        AMBER: d.filter(x => x === 'AMBER').length,
+        CONTINUE: d.filter(x => x === 'CONTINUE').length,
+      });
     }
     const { period = 'week' } = req.query;
     let startDate;

@@ -20,7 +20,7 @@
 import express from 'express';
 import { query } from '../config/mysql.js';
 import { from } from '../utils/queryHelpers.js';
-import { demoSqlFilter } from '../utils/demoFilter.js';
+import { demoSqlFilter, isDemoUser } from '../utils/demoFilter.js';
 import { validate } from '../middleware/validationMiddleware.js';
 import { analyticsSchemas } from '../validation/schemas.js';
 
@@ -58,15 +58,15 @@ router.get('/kpis', validate(analyticsSchemas.kpis), async (req, res) => {
         previousStartDate.setHours(0, 0, 0, 0);
     }
 
-    // Get current period breakdowns
+    // Get current period breakdowns (demo isolation)
     const currentBreakdowns = await query(
-      'SELECT * FROM breakdowns WHERE created_at >= ?',
+      'SELECT * FROM breakdowns WHERE created_at >= ?' + demoSqlFilter(req.user),
       [startDate]
     );
 
     // Get previous period breakdowns for comparison
     const previousBreakdowns = await query(
-      'SELECT * FROM breakdowns WHERE created_at >= ? AND created_at < ?',
+      'SELECT * FROM breakdowns WHERE created_at >= ? AND created_at < ?' + demoSqlFilter(req.user),
       [previousStartDate, startDate]
     );
 
@@ -242,9 +242,9 @@ router.get('/trends', validate(analyticsSchemas.trends), async (req, res) => {
     const slaRates = [];
 
     for (const range of timeRanges) {
-      // Get breakdowns for this range
+      // Get breakdowns for this range (demo isolation)
       const breakdowns = await query(
-        'SELECT * FROM breakdowns WHERE created_at >= ? AND created_at < ?',
+        'SELECT * FROM breakdowns WHERE created_at >= ? AND created_at < ?' + demoSqlFilter(req.user),
         [range.start, range.end]
       );
 
@@ -364,9 +364,9 @@ router.get('/depot-comparison', validate(analyticsSchemas.summary), async (req, 
     const depotData = [];
 
     for (const depot of depots) {
-      // Get breakdowns for this depot
+      // Get breakdowns for this depot (demo isolation)
       const breakdowns = await query(
-        'SELECT * FROM breakdowns WHERE depot = ? AND created_at >= ?',
+        'SELECT * FROM breakdowns WHERE depot = ? AND created_at >= ?' + demoSqlFilter(req.user),
         [depot.code, startDate]
       );
 
@@ -457,7 +457,7 @@ router.get('/fleet-health', async (req, res) => {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
     const recentBreakdowns = await query(
-      'SELECT * FROM breakdowns WHERE created_at >= ?',
+      'SELECT * FROM breakdowns WHERE created_at >= ?' + demoSqlFilter(req.user),
       [thirtyDaysAgo]
     );
 
@@ -904,7 +904,7 @@ router.get('/shift-stats', async (req, res) => {
           FROM breakdowns
           WHERE duty_code = ?
             AND created_at >= ?
-            AND created_at < ?
+            AND created_at < ?${demoFilter}
         `, [duty_code, thirtyDaysAgo, shiftStartTime]);
 
         if (historicalData && historicalData[0]) {
@@ -1223,7 +1223,7 @@ router.get('/coverage-gaps', async (req, res) => {
           created_at,
           activity_type
         FROM activities
-        WHERE created_at >= ?
+        WHERE created_at >= ?${demoSqlFilter(req.user, { column: 'actor_id' })}
       `;
       const params = [startDate];
 
@@ -1247,7 +1247,7 @@ router.get('/coverage-gaps', async (req, res) => {
         depot,
         created_at
       FROM breakdowns
-      WHERE created_at >= ?
+      WHERE created_at >= ?${demoSqlFilter(req.user)}
     `;
     const breakdownParams = [startDate];
 
@@ -1867,7 +1867,7 @@ router.get('/eta-accuracy', async (req, res) => {
       WHERE engineer_dispatched_at IS NOT NULL
         AND engineer_eta_minutes IS NOT NULL
         AND engineer_on_site_at IS NOT NULL
-        AND created_at >= DATE_SUB(NOW(), INTERVAL ${parseInt(periodDays)} DAY)
+        AND created_at >= DATE_SUB(NOW(), INTERVAL ${parseInt(periodDays)} DAY)${demoSqlFilter(req.user)}
       ORDER BY engineer_dispatched_at DESC`
     );
 
@@ -1947,7 +1947,7 @@ router.get('/shift-coverage', async (req, res) => {
       FROM engineer_daily_shifts eds
       LEFT JOIN engineer_shift_templates est ON eds.shift_template_id = est.id
       LEFT JOIN engineers e ON eds.engineer_id = e.id
-      WHERE eds.shift_date = ?
+      WHERE eds.shift_date = ?${isDemoUser(req.user) ? " AND e.badge_number LIKE 'DEMO-%'" : " AND e.badge_number NOT LIKE 'DEMO-%'"}
       ORDER BY eds.depot_code, start_time`,
       [date]
     );
