@@ -476,6 +476,7 @@ function getDemoActivities(breakdowns, replacements) {
 export async function seedDemoData() {
   console.log('🎭 Seeding demo data...');
 
+  const seedErrors = [];
   try {
     // 1. Delete existing demo activities
     await query(
@@ -528,6 +529,7 @@ export async function seedDemoData() {
       }
     } catch (engFieldErr) {
       console.error('🎭 Demo engineer-ETA fields skipped (non-fatal):', engFieldErr.message);
+      seedErrors.push('engineer-eta: ' + engFieldErr.message);
     }
 
     // 5. Insert demo replacement vehicles (BSOG dead-mileage tracking) — best-effort
@@ -560,6 +562,7 @@ export async function seedDemoData() {
       }
     } catch (rvErr) {
       console.error('🎭 Demo replacement seeding skipped (non-fatal):', rvErr.message);
+      seedErrors.push('replacement: ' + rvErr.message);
     }
 
     // 6. Insert matching activities
@@ -617,10 +620,11 @@ export async function seedDemoData() {
       }
     } catch (engErr) {
       console.error('🎭 Demo engineer seeding skipped (non-fatal):', engErr.message);
+      seedErrors.push('engineers: ' + engErr.message);
     }
 
     console.log(`🎭 Demo data seeded: ${breakdowns.length} breakdowns, ${replacementCount} replacements, ${activities.length} activities, ${engineerCount} engineers`);
-    return { breakdowns: breakdowns.length, replacements: replacementCount, activities: activities.length, engineers: engineerCount };
+    return { breakdowns: breakdowns.length, replacements: replacementCount, activities: activities.length, engineers: engineerCount, errors: seedErrors };
   } catch (error) {
     console.error('🎭 Error seeding demo data:', error);
     throw error;
