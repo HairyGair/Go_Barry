@@ -400,7 +400,10 @@ const AppContent = () => {
     if (!currentDuty || !currentDuty.endTime) return;
     // Demo sessions never get shift-end / overtime warnings (the demo can be used
     // at any time of day and a blocking "Shift Has Ended" modal looks broken).
-    if (isDemoUser) return;
+    // Gate on currentDuty.isDemo too — it's restored from sessionStorage
+    // synchronously, avoiding a reload race where currentUser (isDemoUser) hasn't
+    // loaded yet and the modal flashes up.
+    if (isDemoUser || currentDuty.isDemo) return;
 
     const checkShiftWarnings = () => {
       const now = new Date();
@@ -765,7 +768,7 @@ const AppContent = () => {
       )}
 
       {/* End of Shift Warning Modal (hidden on Control Room Display) */}
-      {isAuthenticated && currentDuty && !hideNav && (
+      {isAuthenticated && currentDuty && !hideNav && !currentDuty.isDemo && !isDemoUser && (
         <EndOfShiftModal
           currentDuty={currentDuty}
           activeBreakdowns={activeBreakdowns}
