@@ -500,12 +500,10 @@ router.post('/demo-login', rateLimitLogin, async (req, res) => {
     }
 
     // Seed fresh demo data (clears old, inserts new)
-    let seedDebug = null;
     try {
-      seedDebug = await seedDemoData();
+      await seedDemoData();
     } catch (seedError) {
       console.error('🎭 Failed to seed demo data:', seedError);
-      seedDebug = { fatal: seedError.message };
       // Continue with login even if seeding fails
     }
 
@@ -583,8 +581,7 @@ router.post('/demo-login', rateLimitLogin, async (req, res) => {
         expires_in: expiresIn,
         token_type: 'Bearer'
       },
-      message: 'Demo login successful',
-      _seed: seedDebug
+      message: 'Demo login successful'
     });
   } catch (error) {
     console.error('🎭 Demo login error:', error);
