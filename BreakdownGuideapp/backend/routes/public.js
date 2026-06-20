@@ -1019,6 +1019,27 @@ router.post('/interest', async (req, res) => {
       console.error('Interest enquiry email failed:', result.error);
     }
 
+    // Durable backstop: persist every enquiry so none are lost even if email fails.
+    try {
+      const ip = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').toString().split(',')[0].trim().slice(0, 45);
+      const featuresJson = Array.isArray(enquiry.features)
+        ? JSON.stringify(enquiry.features)
+        : (enquiry.features ? JSON.stringify([enquiry.features]) : null);
+      await query(
+        `INSERT INTO interest_enquiries
+          (name, company, email, phone, role, fleet_size, depots, current_process, features, message, email_sent, ip_address)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          enquiry.name, enquiry.company, enquiry.email, enquiry.phone || null,
+          enquiry.role || null, enquiry.fleetSize || null, enquiry.depots || null,
+          enquiry.currentProcess || null, featuresJson, enquiry.message || null,
+          result.success ? 1 : 0, ip || null
+        ]
+      );
+    } catch (dbErr) {
+      console.error('Interest enquiry DB persist failed (email still attempted):', dbErr.message);
+    }
+
     return res.json({
       success: true,
       message: "Thank you for your interest. We'll be in touch shortly."

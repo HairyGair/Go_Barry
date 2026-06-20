@@ -12,6 +12,7 @@ import AdminDutyAudit from '../admin/AdminDutyAudit.jsx';
 import AdminComplianceSettings from '../admin/AdminComplianceSettings.jsx';
 import SupervisorHistoryModal from '../SupervisorHistoryModal.jsx';
 import AdminDiagnostics from './AdminDiagnostics.jsx';
+import EnquiriesAdmin from './EnquiriesAdmin.jsx';
 
 const AdminSettings = () => {
   const [supervisors, setSupervisors] = useState([]);
@@ -542,6 +543,25 @@ const AdminSettings = () => {
           }}
         >
           🔬 Diagnostics
+        </button>
+        <button
+          onClick={() => setAdminTab('enquiries')}
+          style={{
+            padding: '10px 16px',
+            border: 'none',
+            background: adminTab === 'enquiries' ? 'rgba(0, 151, 167, 0.2)' : 'transparent',
+            color: adminTab === 'enquiries' ? '#0097A7' : '#94A3B8',
+            borderBottom: adminTab === 'enquiries' ? '2px solid #0097A7' : '2px solid transparent',
+            cursor: 'pointer',
+            fontSize: '13px',
+            fontWeight: adminTab === 'enquiries' ? '600' : '400',
+            transition: 'all 0.2s ease',
+            whiteSpace: 'nowrap'
+          }}
+          onMouseEnter={(e) => { if (adminTab !== 'enquiries') e.target.style.background = 'rgba(255,255,255,0.05)'; }}
+          onMouseLeave={(e) => { if (adminTab !== 'enquiries') e.target.style.background = 'transparent'; }}
+        >
+          ✉️ Enquiries
         </button>
       </div>
 
@@ -1118,6 +1138,10 @@ const AdminSettings = () => {
       {/* Diagnostics Tab */}
       {adminTab === 'diagnostics' && (
         <AdminDiagnostics />
+      )}
+
+      {adminTab === 'enquiries' && (
+        <EnquiriesAdmin />
       )}
     </div>
   );

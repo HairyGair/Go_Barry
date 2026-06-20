@@ -197,6 +197,7 @@ import bugReportsRoutes from './routes/bugReports.js';
 import displayRoutes from './routes/displays.js';
 import adminFleetRoutes from './routes/adminFleet.js';
 import adminGTFSRoutes from './routes/adminGTFS.js';
+import enquiriesRoutes from './routes/enquiries.js';
 import gtfsPhase1Routes from './routes/gtfsPhase1.js';
 import gtfsPhase2Routes from './routes/gtfsPhase2.js';
 import supervisorSessionsRoutes from './routes/supervisorSessions.js';
@@ -668,6 +669,7 @@ app.use('/api/duty', authenticateSupervisor, dutyNotesRoutes); // Duty notes/log
 // Admin-only routes (require admin role)
 app.use('/api/admin/fleet', authenticateAdmin, adminFleetRoutes); // Fleet CSV import and management
 app.use('/api/admin/gtfs', authenticateAdmin, adminGTFSRoutes); // GTFS transit data import
+app.use('/api/admin/enquiries', authenticateAdmin, enquiriesRoutes); // "I'm Interested" enquiries
 app.use('/api/admin/duty', authenticateAdmin, dutySchedulesRoutes); // Duty schedule management (Phase 5)
 app.use('/api/audit', authenticateAdmin, dutyAuditRoutes); // Duty audit trail (Phase 9.2)
 app.use('/api/breaks', authenticateSupervisor, dutyBreaksRoutes); // Break tracking (Phase 2.3)
