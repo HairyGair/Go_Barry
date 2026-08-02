@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import CoordinateVerificationButton from './CoordinateVerificationButton';
+import { GOOGLE_MAPS_API_KEY, hasGoogleMapsKey } from '../config/googleMaps';
 
 // No longer need mapbox-gl for Google Maps iframe
 
@@ -312,10 +313,10 @@ const RoadworkMapModal = ({ visible, roadwork, onClose }) => {
 
         {/* Map Container */}
         <View style={styles.mapContainer}>
-          {Platform.OS === 'web' ? (
+          {Platform.OS === 'web' && hasGoogleMapsKey() ? (
             <>
               <iframe
-                src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBhBN_kVOnIRTKXYhzrDwpr8kvb0Uy0IY8&q=${Number(coordinates[0]).toFixed(6)},${Number(coordinates[1]).toFixed(6)}&zoom=${coordinateQuality.zoomLevel}&maptype=roadmap`}
+                src={`https://www.google.com/maps/embed/v1/place?key=${GOOGLE_MAPS_API_KEY}&q=${Number(coordinates[0]).toFixed(6)},${Number(coordinates[1]).toFixed(6)}&zoom=${coordinateQuality.zoomLevel}&maptype=roadmap`}
                 style={{
                   width: '100%',
                   height: '100%',

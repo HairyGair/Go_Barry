@@ -3,6 +3,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { GOOGLE_MAPS_API_KEY, hasGoogleMapsKey } from '../config/googleMaps';
 
 const RoadworkLinestringMap = ({ roadwork, width = '100%', height = 400 }) => {
   const mapRef = useRef(null);
@@ -76,7 +77,7 @@ const RoadworkLinestringMap = ({ roadwork, width = '100%', height = 400 }) => {
       zoom: zoom,
       size: '640x400',
       maptype: 'roadmap',
-      key: 'AIzaSyBhBN_kVOnIRTKXYhzrDwpr8kvb0Uy0IY8',
+      key: GOOGLE_MAPS_API_KEY,
       path: `color:${color}|weight:5|${path}`
     });
     
@@ -102,8 +103,20 @@ const RoadworkLinestringMap = ({ roadwork, width = '100%', height = 400 }) => {
     );
   }
   
+  // Without a key the static map URL just returns an error image
+  if (!hasGoogleMapsKey()) {
+    return (
+      <View style={styles.noLinestringContainer}>
+        <MaterialCommunityIcons name="map-marker-off" size={24} color="#6b7280" />
+        <Text style={styles.noLinestringText}>
+          Map unavailable: Google Maps key not configured
+        </Text>
+      </View>
+    );
+  }
+
   const totalLength = calculateTotalLength(roadwork.allCoordinatePoints);
-  
+
   return (
     <View style={[styles.container, { width, height }]}>
       <img

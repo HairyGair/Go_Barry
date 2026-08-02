@@ -1,11 +1,8 @@
 // Google Maps Geocoding Service for Go BARRY
 // Enhanced geocoding using Google Maps API for maximum accuracy
 
-// Google Maps API key (should be set in environment variables)
-const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY || 
-                           process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || 
-                           // Fallback key for development
-                           'AIzaSyBhBN_kVOnIRTKXYhzrDwpr8kvb0Uy0IY8';
+// Google Maps API key: resolved from the environment, never hardcoded.
+import { GOOGLE_MAPS_API_KEY } from '../config/googleMaps.js';
 
 // Google Maps Geocoding API endpoint
 const GOOGLE_GEOCODING_URL = 'https://maps.googleapis.com/maps/api/geocode/json';
