@@ -30,17 +30,8 @@ import useConnectionManager from '../../hooks/useConnectionManager';
 import GairWareLogo from '../../components/GairWareLogo';
 import EngineerEtaCountdown from '../../components/EngineerEtaCountdown';
 import { GOOGLE_MAPS_API_KEY } from '@/config/maps.js';
+import { isDemoSession, DEMO_DEPOTS } from '../../config/demoDepots';
 import './ControlRoomDisplay.css';
-
-// True when the current session is the demo account, so public displays
-// request demo data instead of leaking real breakdowns.
-const isDemoSession = () => {
-  try {
-    return JSON.parse(sessionStorage.getItem('currentDuty') || 'null')?.isDemo === true;
-  } catch {
-    return false;
-  }
-};
 
 const ControlRoomDisplay = () => {
   const [breakdowns, setBreakdowns] = useState([]);
@@ -114,7 +105,14 @@ const ControlRoomDisplay = () => {
     'percy main depot': { lat: 55.0041, lng: -1.4774, name: 'Percy Main Depot' },
     'percy main': { lat: 55.0041, lng: -1.4774, name: 'Percy Main Depot' },
     'hexham depot': { lat: 54.9756, lng: -2.0960, name: 'Hexham Depot' },
-    'hexham': { lat: 54.9756, lng: -2.0960, name: 'Hexham Depot' }
+    'hexham': { lat: 54.9756, lng: -2.0960, name: 'Hexham Depot' },
+    // Fictional demo depots
+    ...DEMO_DEPOTS.reduce((acc, d) => {
+      const nameLower = d.name.toLowerCase();
+      acc[`${nameLower} depot`] = { lat: d.lat, lng: d.lng, name: `${d.name} Depot` };
+      acc[nameLower] = { lat: d.lat, lng: d.lng, name: `${d.name} Depot` };
+      return acc;
+    }, {})
   };
 
   // Try to extract coordinates from depot name
@@ -197,7 +195,10 @@ const ControlRoomDisplay = () => {
     return null;
   };
 
-  // Weather locations to rotate through (using OpenWeather-recognized names)
+  // Weather locations to rotate through (using OpenWeather-recognized names).
+  // These stay real North East towns so the API returns genuine weather —
+  // only the on-screen label is swapped to a fictional depot region name
+  // in a demo session (see weatherDisplayLabel below).
   const weatherLocations = [
     'Durham,GB',
     'Consett,GB',
@@ -214,6 +215,27 @@ const ControlRoomDisplay = () => {
     'Bishop Auckland,GB',
     'Peterlee,GB'
   ];
+
+  // Real town -> fictional demo region label, so the on-screen weather
+  // widget never shows a real GNE-area place name in a demo session.
+  const WEATHER_DEMO_LABELS = {
+    'Durham': 'Hillcrest',
+    'Consett': 'Hillcrest',
+    'Washington': 'Eastfield',
+    'Hexham': 'Westmoor',
+    'Newcastle upon Tyne': 'Northgate',
+    'Gateshead': 'Southbank',
+    'Sunderland': 'Southbank',
+    'North Shields': 'Harbourside',
+    'Tynemouth': 'Harbourside',
+    'Blyth': 'Harbourside',
+    'Cramlington': 'Northgate',
+    'Middlesbrough': 'Southbank',
+    'Bishop Auckland': 'Hillcrest',
+    'Peterlee': 'Southbank'
+  };
+  const weatherDisplayLabel = (realTownName) =>
+    isDemoSession() ? (WEATHER_DEMO_LABELS[realTownName] || 'Regional') : realTownName;
 
   // WebSocket connection for real-time updates (using public channel, no auth required)
   // No polling fallback since this is a public display without authentication
@@ -237,7 +259,7 @@ const ControlRoomDisplay = () => {
   useEffect(() => {
     const fetchFleetDatabase = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://breakdowns.gobarry.co.uk/api'}/api/public/fleet`)
+        const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://breakdowns.gobarry.co.uk/api'}/api/public/fleet${isDemoSession() ? '?demo=true' : ''}`)
           .then(res => res.json());
         if (response.success && response.fleet) {
           setFleetDatabase(response.fleet);
@@ -259,7 +281,7 @@ const ControlRoomDisplay = () => {
       if (!apiKey) {
         console.warn('Weather API key not configured. Set VITE_WEATHER_API_KEY in .env file');
         setWeatherData({
-          location: location.split(',')[0],
+          location: weatherDisplayLabel(location.split(',')[0]),
           temp: '--',
           icon: '01d',
           description: 'API key required'
@@ -274,7 +296,7 @@ const ControlRoomDisplay = () => {
 
       if (response.main && response.weather) {
         setWeatherData({
-          location: location.split(',')[0],
+          location: weatherDisplayLabel(location.split(',')[0]),
           temp: Math.round(response.main.temp),
           icon: response.weather[0].icon,
           description: response.weather[0].description
@@ -284,7 +306,7 @@ const ControlRoomDisplay = () => {
       console.error('Error fetching weather:', error);
       // Set fallback data if API fails
       setWeatherData({
-        location: weatherLocations[currentWeatherIndex].split(',')[0],
+        location: weatherDisplayLabel(weatherLocations[currentWeatherIndex].split(',')[0]),
         temp: '--',
         icon: '01d',
         description: 'Weather unavailable'

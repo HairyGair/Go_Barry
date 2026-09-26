@@ -8,7 +8,7 @@
 
 import React from 'react';
 import { Phone, Smartphone, AlertTriangle, ChevronDown, X } from 'lucide-react';
-import { DEPOT_CONTACTS, getDepotByFleetNumber, getDepotContacts, getDepotName } from '../constants/depotContacts';
+import { getDepotByFleetNumber, getDepotContacts, getDepotContactsTable, getDepotName } from '../constants/depotContacts';
 import './DepotContactModal.css';
 
 const DepotContactModal = ({
@@ -128,7 +128,7 @@ const DepotContactModal = ({
               View All Depot Contacts
             </summary>
             <div className="all-depots__list">
-              {Object.entries(DEPOT_CONTACTS).map(([key, depot]) => (
+              {Object.entries(getDepotContactsTable()).map(([key, depot]) => (
                 depot.contacts.length > 0 && (
                   <div key={key} className="all-depots__depot">
                     <span className="all-depots__depot-name">{depot.name}</span>

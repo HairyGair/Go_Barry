@@ -1,314 +1,882 @@
 {
+  "5101": {
+    "fleetNumber": "5101",
+    "registration": "DEMO5101",
+    "busType": "ADL Enviro400",
+    "depot": "Southbank",
+    "capacity": 78,
+    "yearOfManufacture": 2016
+  },
+  "5108": {
+    "fleetNumber": "5108",
+    "registration": "DEMO5108",
+    "busType": "ADL Enviro200",
+    "depot": "Hillcrest",
+    "capacity": 42,
+    "yearOfManufacture": 2017
+  },
+  "5112": {
+    "fleetNumber": "5112",
+    "registration": "DEMO5112",
+    "busType": "Volvo B5TL",
+    "depot": "Northgate",
+    "capacity": 78,
+    "yearOfManufacture": 2018
+  },
+  "5119": {
+    "fleetNumber": "5119",
+    "registration": "DEMO5119",
+    "busType": "Optare Versa",
+    "depot": "Eastfield",
+    "capacity": 42,
+    "yearOfManufacture": 2019
+  },
+  "5124": {
+    "fleetNumber": "5124",
+    "registration": "DEMO5124",
+    "busType": "Mercedes-Benz Citaro",
+    "depot": "Harbourside",
+    "capacity": 42,
+    "yearOfManufacture": 2020
+  },
+  "5130": {
+    "fleetNumber": "5130",
+    "registration": "DEMO5130",
+    "busType": "Wrightbus Streetdeck",
+    "depot": "Westmoor",
+    "capacity": 78,
+    "yearOfManufacture": 2021
+  },
+  "5137": {
+    "fleetNumber": "5137",
+    "registration": "DEMO5137",
+    "busType": "Wrightbus Streetlite",
+    "depot": "Southbank",
+    "capacity": 42,
+    "yearOfManufacture": 2022
+  },
+  "5142": {
+    "fleetNumber": "5142",
+    "registration": "DEMO5142",
+    "busType": "ADL Enviro400",
+    "depot": "Hillcrest",
+    "capacity": 78,
+    "yearOfManufacture": 2023
+  },
+  "5148": {
+    "fleetNumber": "5148",
+    "registration": "DEMO5148",
+    "busType": "ADL Enviro200",
+    "depot": "Northgate",
+    "capacity": 42,
+    "yearOfManufacture": 2016
+  },
+  "5153": {
+    "fleetNumber": "5153",
+    "registration": "DEMO5153",
+    "busType": "Volvo B5TL",
+    "depot": "Eastfield",
+    "capacity": 78,
+    "yearOfManufacture": 2017
+  },
+  "5155": {
+    "fleetNumber": "5155",
+    "registration": "DEMO5155",
+    "busType": "Mercedes-Benz Citaro",
+    "depot": "Eastfield",
+    "capacity": 42,
+    "yearOfManufacture": 2021
+  },
+  "5160": {
+    "fleetNumber": "5160",
+    "registration": "DEMO5160",
+    "busType": "Optare Versa",
+    "depot": "Harbourside",
+    "capacity": 42,
+    "yearOfManufacture": 2018
+  },
+  "5167": {
+    "fleetNumber": "5167",
+    "registration": "DEMO5167",
+    "busType": "Mercedes-Benz Citaro",
+    "depot": "Westmoor",
+    "capacity": 42,
+    "yearOfManufacture": 2019
+  },
+  "5172": {
+    "fleetNumber": "5172",
+    "registration": "DEMO5172",
+    "busType": "Wrightbus Streetdeck",
+    "depot": "Southbank",
+    "capacity": 78,
+    "yearOfManufacture": 2020
+  },
+  "5178": {
+    "fleetNumber": "5178",
+    "registration": "DEMO5178",
+    "busType": "Wrightbus Streetlite",
+    "depot": "Hillcrest",
+    "capacity": 42,
+    "yearOfManufacture": 2021
+  },
+  "5183": {
+    "fleetNumber": "5183",
+    "registration": "DEMO5183",
+    "busType": "ADL Enviro400",
+    "depot": "Northgate",
+    "capacity": 78,
+    "yearOfManufacture": 2022
+  },
+  "5188": {
+    "fleetNumber": "5188",
+    "registration": "DEMO5188",
+    "busType": "ADL Enviro200",
+    "depot": "Eastfield",
+    "capacity": 42,
+    "yearOfManufacture": 2023
+  },
+  "5192": {
+    "fleetNumber": "5192",
+    "registration": "DEMO5192",
+    "busType": "Volvo B5TL",
+    "depot": "Harbourside",
+    "capacity": 78,
+    "yearOfManufacture": 2016
+  },
+  "5195": {
+    "fleetNumber": "5195",
+    "registration": "DEMO5195",
+    "busType": "Wrightbus Streetdeck",
+    "depot": "Eastfield",
+    "capacity": 78,
+    "yearOfManufacture": 2023
+  },
+  "5198": {
+    "fleetNumber": "5198",
+    "registration": "DEMO5198",
+    "busType": "Optare Versa",
+    "depot": "Westmoor",
+    "capacity": 42,
+    "yearOfManufacture": 2017
+  },
+  "5203": {
+    "fleetNumber": "5203",
+    "registration": "DEMO5203",
+    "busType": "Mercedes-Benz Citaro",
+    "depot": "Southbank",
+    "capacity": 42,
+    "yearOfManufacture": 2018
+  },
+  "5209": {
+    "fleetNumber": "5209",
+    "registration": "DEMO5209",
+    "busType": "Wrightbus Streetdeck",
+    "depot": "Hillcrest",
+    "capacity": 78,
+    "yearOfManufacture": 2019
+  },
+  "5214": {
+    "fleetNumber": "5214",
+    "registration": "DEMO5214",
+    "busType": "Wrightbus Streetlite",
+    "depot": "Northgate",
+    "capacity": 42,
+    "yearOfManufacture": 2020
+  },
+  "5220": {
+    "fleetNumber": "5220",
+    "registration": "DEMO5220",
+    "busType": "ADL Enviro400",
+    "depot": "Eastfield",
+    "capacity": 78,
+    "yearOfManufacture": 2021
+  },
+  "5225": {
+    "fleetNumber": "5225",
+    "registration": "DEMO5225",
+    "busType": "ADL Enviro200",
+    "depot": "Harbourside",
+    "capacity": 42,
+    "yearOfManufacture": 2022
+  },
+  "5231": {
+    "fleetNumber": "5231",
+    "registration": "DEMO5231",
+    "busType": "Volvo B5TL",
+    "depot": "Westmoor",
+    "capacity": 78,
+    "yearOfManufacture": 2023
+  },
+  "5236": {
+    "fleetNumber": "5236",
+    "registration": "DEMO5236",
+    "busType": "Optare Versa",
+    "depot": "Southbank",
+    "capacity": 42,
+    "yearOfManufacture": 2016
+  },
+  "5242": {
+    "fleetNumber": "5242",
+    "registration": "DEMO5242",
+    "busType": "Mercedes-Benz Citaro",
+    "depot": "Hillcrest",
+    "capacity": 42,
+    "yearOfManufacture": 2017
+  },
+  "5248": {
+    "fleetNumber": "5248",
+    "registration": "DEMO5248",
+    "busType": "Wrightbus Streetdeck",
+    "depot": "Northgate",
+    "capacity": 78,
+    "yearOfManufacture": 2018
+  },
+  "5253": {
+    "fleetNumber": "5253",
+    "registration": "DEMO5253",
+    "busType": "Wrightbus Streetlite",
+    "depot": "Eastfield",
+    "capacity": 42,
+    "yearOfManufacture": 2019
+  },
+  "5259": {
+    "fleetNumber": "5259",
+    "registration": "DEMO5259",
+    "busType": "ADL Enviro400",
+    "depot": "Harbourside",
+    "capacity": 78,
+    "yearOfManufacture": 2020
+  },
+  "5264": {
+    "fleetNumber": "5264",
+    "registration": "DEMO5264",
+    "busType": "ADL Enviro200",
+    "depot": "Westmoor",
+    "capacity": 42,
+    "yearOfManufacture": 2021
+  },
+  "5267": {
+    "fleetNumber": "5267",
+    "registration": "DEMO5267",
+    "busType": "Optare Versa",
+    "depot": "Northgate",
+    "capacity": 42,
+    "yearOfManufacture": 2020
+  },
+  "5271": {
+    "fleetNumber": "5271",
+    "registration": "DEMO5271",
+    "busType": "Volvo B5TL",
+    "depot": "Southbank",
+    "capacity": 78,
+    "yearOfManufacture": 2022
+  },
+  "5276": {
+    "fleetNumber": "5276",
+    "registration": "DEMO5276",
+    "busType": "Optare Versa",
+    "depot": "Hillcrest",
+    "capacity": 42,
+    "yearOfManufacture": 2023
+  },
+  "5282": {
+    "fleetNumber": "5282",
+    "registration": "DEMO5282",
+    "busType": "Mercedes-Benz Citaro",
+    "depot": "Northgate",
+    "capacity": 42,
+    "yearOfManufacture": 2016
+  },
+  "5288": {
+    "fleetNumber": "5288",
+    "registration": "DEMO5288",
+    "busType": "Wrightbus Streetdeck",
+    "depot": "Eastfield",
+    "capacity": 78,
+    "yearOfManufacture": 2017
+  },
+  "5292": {
+    "fleetNumber": "5292",
+    "registration": "DEMO5292",
+    "busType": "ADL Enviro200",
+    "depot": "Westmoor",
+    "capacity": 42,
+    "yearOfManufacture": 2019
+  },
+  "5295": {
+    "fleetNumber": "5295",
+    "registration": "DEMO5295",
+    "busType": "Wrightbus Streetlite",
+    "depot": "Harbourside",
+    "capacity": 42,
+    "yearOfManufacture": 2018
+  },
   "5301": {
     "fleetNumber": "5301",
-    "registration": "NJX18AAA",
-    "busType": "Wright Streetlite DF",
-    "depot": "Riverside",
-    "capacity": 44,
-    "yearOfManufacture": 2018
-  },
-  "5302": {
-    "fleetNumber": "5302",
-    "registration": "NJX18AAB",
-    "busType": "Wright Streetlite DF",
-    "depot": "Riverside",
-    "capacity": 44,
-    "yearOfManufacture": 2018
-  },
-  "5303": {
-    "fleetNumber": "5303",
-    "registration": "NJX18AAC",
-    "busType": "Wright Streetlite DF",
-    "depot": "Riverside",
-    "capacity": 44,
-    "yearOfManufacture": 2018
+    "registration": "DEMO5301",
+    "busType": "Wrightbus Streetlite",
+    "depot": "Westmoor",
+    "capacity": 42,
+    "yearOfManufacture": 2023
   },
   "5304": {
     "fleetNumber": "5304",
-    "registration": "NJX18AAD",
-    "busType": "Wright Streetlite DF",
-    "depot": "Riverside",
-    "capacity": 44,
-    "yearOfManufacture": 2018
-  },
-  "5305": {
-    "fleetNumber": "5305",
-    "registration": "NJX18AAE",
-    "busType": "Wright Streetlite DF",
-    "depot": "Riverside",
-    "capacity": 44,
-    "yearOfManufacture": 2018
-  },
-  "5306": {
-    "fleetNumber": "5306",
-    "registration": "NJX18AAF",
-    "busType": "Wright Streetlite DF",
-    "depot": "Riverside",
-    "capacity": 44,
-    "yearOfManufacture": 2018
-  },
-  "5307": {
-    "fleetNumber": "5307",
-    "registration": "NJX18AAG",
-    "busType": "Wright Streetlite DF",
-    "depot": "Riverside",
-    "capacity": 44,
-    "yearOfManufacture": 2018
-  },
-  "5308": {
-    "fleetNumber": "5308",
-    "registration": "NJX18AAH",
-    "busType": "Wright Streetlite DF",
-    "depot": "Riverside",
-    "capacity": 44,
-    "yearOfManufacture": 2018
+    "registration": "DEMO5304",
+    "busType": "ADL Enviro400",
+    "depot": "Westmoor",
+    "capacity": 78,
+    "yearOfManufacture": 2019
   },
   "5309": {
     "fleetNumber": "5309",
-    "registration": "NJX18AAI",
-    "busType": "Wright Streetlite DF",
-    "depot": "Riverside",
-    "capacity": 44,
+    "registration": "DEMO5309",
+    "busType": "ADL Enviro200",
+    "depot": "Southbank",
+    "capacity": 42,
+    "yearOfManufacture": 2020
+  },
+  "5315": {
+    "fleetNumber": "5315",
+    "registration": "DEMO5315",
+    "busType": "Volvo B5TL",
+    "depot": "Hillcrest",
+    "capacity": 78,
+    "yearOfManufacture": 2021
+  },
+  "5318": {
+    "fleetNumber": "5318",
+    "registration": "DEMO5318",
+    "busType": "Optare Versa",
+    "depot": "Hillcrest",
+    "capacity": 42,
+    "yearOfManufacture": 2021
+  },
+  "5321": {
+    "fleetNumber": "5321",
+    "registration": "DEMO5321",
+    "busType": "Optare Versa",
+    "depot": "Northgate",
+    "capacity": 42,
+    "yearOfManufacture": 2022
+  },
+  "5327": {
+    "fleetNumber": "5327",
+    "registration": "DEMO5327",
+    "busType": "Mercedes-Benz Citaro",
+    "depot": "Eastfield",
+    "capacity": 42,
+    "yearOfManufacture": 2023
+  },
+  "5333": {
+    "fleetNumber": "5333",
+    "registration": "DEMO5333",
+    "busType": "Wrightbus Streetdeck",
+    "depot": "Harbourside",
+    "capacity": 78,
+    "yearOfManufacture": 2016
+  },
+  "5339": {
+    "fleetNumber": "5339",
+    "registration": "DEMO5339",
+    "busType": "Wrightbus Streetlite",
+    "depot": "Westmoor",
+    "capacity": 42,
+    "yearOfManufacture": 2017
+  },
+  "5345": {
+    "fleetNumber": "5345",
+    "registration": "DEMO5345",
+    "busType": "ADL Enviro400",
+    "depot": "Southbank",
+    "capacity": 78,
     "yearOfManufacture": 2018
   },
-  "5420": {
-    "fleetNumber": "5420",
-    "registration": "NNX22AAJ",
-    "busType": "Wright Streetlite",
-    "depot": "Percy Main",
-    "capacity": 44,
+  "5352": {
+    "fleetNumber": "5352",
+    "registration": "DEMO5352",
+    "busType": "ADL Enviro200",
+    "depot": "Hillcrest",
+    "capacity": 42,
+    "yearOfManufacture": 2019
+  },
+  "5358": {
+    "fleetNumber": "5358",
+    "registration": "DEMO5358",
+    "busType": "Volvo B5TL",
+    "depot": "Northgate",
+    "capacity": 78,
+    "yearOfManufacture": 2020
+  },
+  "5365": {
+    "fleetNumber": "5365",
+    "registration": "DEMO5365",
+    "busType": "Optare Versa",
+    "depot": "Eastfield",
+    "capacity": 42,
+    "yearOfManufacture": 2021
+  },
+  "5372": {
+    "fleetNumber": "5372",
+    "registration": "DEMO5372",
+    "busType": "Mercedes-Benz Citaro",
+    "depot": "Harbourside",
+    "capacity": 42,
     "yearOfManufacture": 2022
   },
-  "5421": {
-    "fleetNumber": "5421",
-    "registration": "NNX22AAK",
-    "busType": "Wright Streetlite",
-    "depot": "Percy Main",
-    "capacity": 44,
-    "yearOfManufacture": 2022
+  "5379": {
+    "fleetNumber": "5379",
+    "registration": "DEMO5379",
+    "busType": "Wrightbus Streetdeck",
+    "depot": "Westmoor",
+    "capacity": 78,
+    "yearOfManufacture": 2023
   },
-  "5422": {
-    "fleetNumber": "5422",
-    "registration": "NNX22AAL",
-    "busType": "Wright Streetlite",
-    "depot": "Percy Main",
-    "capacity": 44,
-    "yearOfManufacture": 2022
+  "5385": {
+    "fleetNumber": "5385",
+    "registration": "DEMO5385",
+    "busType": "Wrightbus Streetlite",
+    "depot": "Southbank",
+    "capacity": 42,
+    "yearOfManufacture": 2016
   },
-  "5423": {
-    "fleetNumber": "5423",
-    "registration": "NNX22AAM",
-    "busType": "Wright Streetlite",
-    "depot": "Percy Main",
-    "capacity": 44,
-    "yearOfManufacture": 2022
-  },
-  "5424": {
-    "fleetNumber": "5424",
-    "registration": "NNX22AAN",
-    "busType": "Wright Streetlite",
-    "depot": "Percy Main",
-    "capacity": 44,
-    "yearOfManufacture": 2022
-  },
-  "5425": {
-    "fleetNumber": "5425",
-    "registration": "NNX22AAO",
-    "busType": "Wright Streetlite",
-    "depot": "Percy Main",
-    "capacity": 44,
-    "yearOfManufacture": 2022
-  },
-  "5426": {
-    "fleetNumber": "5426",
-    "registration": "NNX22AAP",
-    "busType": "Wright Streetlite",
-    "depot": "Percy Main",
-    "capacity": 44,
-    "yearOfManufacture": 2022
-  },
-  "5427": {
-    "fleetNumber": "5427",
-    "registration": "NNX22AAQ",
-    "busType": "Wright Streetlite",
-    "depot": "Percy Main",
-    "capacity": 44,
-    "yearOfManufacture": 2022
-  },
-  "5428": {
-    "fleetNumber": "5428",
-    "registration": "NNX22AAR",
-    "busType": "Wright Streetlite",
-    "depot": "Percy Main",
-    "capacity": 44,
-    "yearOfManufacture": 2022
-  },
-  "5429": {
-    "fleetNumber": "5429",
-    "registration": "NNX22AAS",
-    "busType": "Wright Streetlite",
-    "depot": "Percy Main",
-    "capacity": 44,
-    "yearOfManufacture": 2022
-  },
-  "5430": {
-    "fleetNumber": "5430",
-    "registration": "NNX22AAT",
-    "busType": "Wright Streetlite",
-    "depot": "Percy Main",
-    "capacity": 44,
-    "yearOfManufacture": 2022
-  },
-  "6071": {
-    "fleetNumber": "6071",
-    "registration": "NHX17AAU",
-    "busType": "Volvo B5LH Wright Eclipse Gemini 3",
-    "depot": "Consett",
-    "capacity": 85,
+  "5392": {
+    "fleetNumber": "5392",
+    "registration": "DEMO5392",
+    "busType": "ADL Enviro400",
+    "depot": "Hillcrest",
+    "capacity": 78,
     "yearOfManufacture": 2017
   },
-  "6072": {
-    "fleetNumber": "6072",
-    "registration": "NHX17AAV",
-    "busType": "Volvo B5LH Wright Eclipse Gemini 3",
-    "depot": "Consett",
-    "capacity": 85,
+  "5401": {
+    "fleetNumber": "5401",
+    "registration": "DEMO5401",
+    "busType": "ADL Enviro400",
+    "depot": "Westmoor",
+    "capacity": 78,
     "yearOfManufacture": 2017
   },
-  "6073": {
-    "fleetNumber": "6073",
-    "registration": "NHX17AAW",
-    "busType": "Volvo B5LH Wright Eclipse Gemini 3",
-    "depot": "Consett",
-    "capacity": 85,
+  "5437": {
+    "fleetNumber": "5437",
+    "registration": "DEMO5437",
+    "busType": "ADL Enviro400",
+    "depot": "Harbourside",
+    "capacity": 78,
+    "yearOfManufacture": 2018
+  },
+  "5510": {
+    "fleetNumber": "5510",
+    "registration": "DEMO5510",
+    "busType": "ADL Enviro200",
+    "depot": "Southbank",
+    "capacity": 42,
+    "yearOfManufacture": 2018
+  },
+  "6012": {
+    "fleetNumber": "6012",
+    "registration": "DEMO6012",
+    "busType": "ADL Enviro200",
+    "depot": "Northgate",
+    "capacity": 42,
+    "yearOfManufacture": 2018
+  },
+  "6018": {
+    "fleetNumber": "6018",
+    "registration": "DEMO6018",
+    "busType": "Volvo B5TL",
+    "depot": "Eastfield",
+    "capacity": 78,
+    "yearOfManufacture": 2019
+  },
+  "6025": {
+    "fleetNumber": "6025",
+    "registration": "DEMO6025",
+    "busType": "Optare Versa",
+    "depot": "Harbourside",
+    "capacity": 42,
+    "yearOfManufacture": 2020
+  },
+  "6031": {
+    "fleetNumber": "6031",
+    "registration": "DEMO6031",
+    "busType": "Mercedes-Benz Citaro",
+    "depot": "Westmoor",
+    "capacity": 42,
+    "yearOfManufacture": 2021
+  },
+  "6038": {
+    "fleetNumber": "6038",
+    "registration": "DEMO6038",
+    "busType": "Wrightbus Streetdeck",
+    "depot": "Southbank",
+    "capacity": 78,
+    "yearOfManufacture": 2022
+  },
+  "6044": {
+    "fleetNumber": "6044",
+    "registration": "DEMO6044",
+    "busType": "Wrightbus Streetlite",
+    "depot": "Hillcrest",
+    "capacity": 42,
+    "yearOfManufacture": 2023
+  },
+  "6051": {
+    "fleetNumber": "6051",
+    "registration": "DEMO6051",
+    "busType": "ADL Enviro400",
+    "depot": "Northgate",
+    "capacity": 78,
+    "yearOfManufacture": 2016
+  },
+  "6057": {
+    "fleetNumber": "6057",
+    "registration": "DEMO6057",
+    "busType": "ADL Enviro200",
+    "depot": "Eastfield",
+    "capacity": 42,
     "yearOfManufacture": 2017
   },
-  "6074": {
-    "fleetNumber": "6074",
-    "registration": "NHX17AAX",
-    "busType": "Volvo B5LH Wright Eclipse Gemini 3",
-    "depot": "Consett",
-    "capacity": 85,
-    "yearOfManufacture": 2017
+  "6063": {
+    "fleetNumber": "6063",
+    "registration": "DEMO6063",
+    "busType": "Volvo B5TL",
+    "depot": "Harbourside",
+    "capacity": 78,
+    "yearOfManufacture": 2018
   },
-  "6075": {
-    "fleetNumber": "6075",
-    "registration": "NHX17AAY",
-    "busType": "Volvo B5LH Wright Eclipse Gemini 3",
-    "depot": "Consett",
-    "capacity": 85,
-    "yearOfManufacture": 2017
-  },
-  "6076": {
-    "fleetNumber": "6076",
-    "registration": "NHX17AAZ",
-    "busType": "Volvo B5LH Wright Eclipse Gemini 3",
-    "depot": "Consett",
-    "capacity": 85,
-    "yearOfManufacture": 2017
-  },
-  "6077": {
-    "fleetNumber": "6077",
-    "registration": "NHX17ABA",
-    "busType": "Volvo B5LH Wright Eclipse Gemini 3",
-    "depot": "Consett",
-    "capacity": 85,
-    "yearOfManufacture": 2017
+  "6070": {
+    "fleetNumber": "6070",
+    "registration": "DEMO6070",
+    "busType": "Optare Versa",
+    "depot": "Westmoor",
+    "capacity": 42,
+    "yearOfManufacture": 2019
   },
   "6078": {
     "fleetNumber": "6078",
-    "registration": "NHX17ABB",
-    "busType": "Volvo B5LH Wright Eclipse Gemini 3",
-    "depot": "Consett",
-    "capacity": 85,
+    "registration": "DEMO6078",
+    "busType": "Wrightbus Streetlite",
+    "depot": "Eastfield",
+    "capacity": 42,
     "yearOfManufacture": 2017
   },
-  "6079": {
-    "fleetNumber": "6079",
-    "registration": "NHX17ABC",
-    "busType": "Volvo B5LH Wright Eclipse Gemini 3",
-    "depot": "Consett",
-    "capacity": 85,
+  "6084": {
+    "fleetNumber": "6084",
+    "registration": "DEMO6084",
+    "busType": "Mercedes-Benz Citaro",
+    "depot": "Southbank",
+    "capacity": 42,
+    "yearOfManufacture": 2020
+  },
+  "6089": {
+    "fleetNumber": "6089",
+    "registration": "DEMO6089",
+    "busType": "Wrightbus Streetlite",
+    "depot": "Harbourside",
+    "capacity": 42,
+    "yearOfManufacture": 2016
+  },
+  "6091": {
+    "fleetNumber": "6091",
+    "registration": "DEMO6091",
+    "busType": "Wrightbus Streetdeck",
+    "depot": "Hillcrest",
+    "capacity": 78,
+    "yearOfManufacture": 2021
+  },
+  "6098": {
+    "fleetNumber": "6098",
+    "registration": "DEMO6098",
+    "busType": "Wrightbus Streetlite",
+    "depot": "Northgate",
+    "capacity": 42,
+    "yearOfManufacture": 2022
+  },
+  "6104": {
+    "fleetNumber": "6104",
+    "registration": "DEMO6104",
+    "busType": "ADL Enviro400",
+    "depot": "Eastfield",
+    "capacity": 78,
+    "yearOfManufacture": 2023
+  },
+  "6111": {
+    "fleetNumber": "6111",
+    "registration": "DEMO6111",
+    "busType": "ADL Enviro200",
+    "depot": "Harbourside",
+    "capacity": 42,
+    "yearOfManufacture": 2016
+  },
+  "6118": {
+    "fleetNumber": "6118",
+    "registration": "DEMO6118",
+    "busType": "Volvo B5TL",
+    "depot": "Westmoor",
+    "capacity": 78,
     "yearOfManufacture": 2017
   },
-  "6080": {
-    "fleetNumber": "6080",
-    "registration": "NHX17ABD",
-    "busType": "Volvo B5LH Wright Eclipse Gemini 3",
-    "depot": "Consett",
-    "capacity": 85,
+  "6124": {
+    "fleetNumber": "6124",
+    "registration": "DEMO6124",
+    "busType": "Optare Versa",
+    "depot": "Southbank",
+    "capacity": 42,
+    "yearOfManufacture": 2018
+  },
+  "6131": {
+    "fleetNumber": "6131",
+    "registration": "DEMO6131",
+    "busType": "Mercedes-Benz Citaro",
+    "depot": "Hillcrest",
+    "capacity": 42,
+    "yearOfManufacture": 2019
+  },
+  "6138": {
+    "fleetNumber": "6138",
+    "registration": "DEMO6138",
+    "busType": "Wrightbus Streetdeck",
+    "depot": "Northgate",
+    "capacity": 78,
+    "yearOfManufacture": 2020
+  },
+  "6145": {
+    "fleetNumber": "6145",
+    "registration": "DEMO6145",
+    "busType": "Volvo B5TL",
+    "depot": "Southbank",
+    "capacity": 78,
+    "yearOfManufacture": 2020
+  },
+  "6152": {
+    "fleetNumber": "6152",
+    "registration": "DEMO6152",
+    "busType": "Wrightbus Streetlite",
+    "depot": "Eastfield",
+    "capacity": 42,
+    "yearOfManufacture": 2021
+  },
+  "6159": {
+    "fleetNumber": "6159",
+    "registration": "DEMO6159",
+    "busType": "ADL Enviro400",
+    "depot": "Harbourside",
+    "capacity": 78,
+    "yearOfManufacture": 2022
+  },
+  "6166": {
+    "fleetNumber": "6166",
+    "registration": "DEMO6166",
+    "busType": "ADL Enviro200",
+    "depot": "Westmoor",
+    "capacity": 42,
+    "yearOfManufacture": 2023
+  },
+  "6173": {
+    "fleetNumber": "6173",
+    "registration": "DEMO6173",
+    "busType": "Volvo B5TL",
+    "depot": "Southbank",
+    "capacity": 78,
+    "yearOfManufacture": 2016
+  },
+  "6180": {
+    "fleetNumber": "6180",
+    "registration": "DEMO6180",
+    "busType": "Optare Versa",
+    "depot": "Hillcrest",
+    "capacity": 42,
     "yearOfManufacture": 2017
   },
-  "6917": {
-    "fleetNumber": "6917",
-    "registration": "NRX24ABA",
-    "busType": "ADL Enviro400 MMC",
-    "depot": "Percy Main",
-    "capacity": 90,
-    "yearOfManufacture": 2024
+  "6188": {
+    "fleetNumber": "6188",
+    "registration": "DEMO6188",
+    "busType": "Mercedes-Benz Citaro",
+    "depot": "Northgate",
+    "capacity": 42,
+    "yearOfManufacture": 2018
   },
-  "6918": {
-    "fleetNumber": "6918",
-    "registration": "NRX24ABB",
-    "busType": "ADL Enviro400 MMC",
-    "depot": "Percy Main",
-    "capacity": 90,
-    "yearOfManufacture": 2024
+  "6195": {
+    "fleetNumber": "6195",
+    "registration": "DEMO6195",
+    "busType": "Wrightbus Streetdeck",
+    "depot": "Eastfield",
+    "capacity": 78,
+    "yearOfManufacture": 2019
   },
-  "6919": {
-    "fleetNumber": "6919",
-    "registration": "NRX24ABC",
-    "busType": "ADL Enviro400 MMC",
-    "depot": "Percy Main",
-    "capacity": 90,
-    "yearOfManufacture": 2024
+  "6203": {
+    "fleetNumber": "6203",
+    "registration": "DEMO6203",
+    "busType": "Wrightbus Streetlite",
+    "depot": "Harbourside",
+    "capacity": 42,
+    "yearOfManufacture": 2020
   },
-  "6920": {
-    "fleetNumber": "6920",
-    "registration": "NRX24ABD",
-    "busType": "ADL Enviro400 MMC",
-    "depot": "Percy Main",
-    "capacity": 90,
-    "yearOfManufacture": 2024
+  "6210": {
+    "fleetNumber": "6210",
+    "registration": "DEMO6210",
+    "busType": "Mercedes-Benz Citaro",
+    "depot": "Northgate",
+    "capacity": 42,
+    "yearOfManufacture": 2022
   },
-  "6921": {
-    "fleetNumber": "6921",
-    "registration": "NRX24ABE",
-    "busType": "ADL Enviro400 MMC",
-    "depot": "Percy Main",
-    "capacity": 90,
-    "yearOfManufacture": 2024
+  "6217": {
+    "fleetNumber": "6217",
+    "registration": "DEMO6217",
+    "busType": "ADL Enviro400",
+    "depot": "Westmoor",
+    "capacity": 78,
+    "yearOfManufacture": 2021
   },
-  "6922": {
-    "fleetNumber": "6922",
-    "registration": "NRX24ABF",
-    "busType": "ADL Enviro400 MMC",
-    "depot": "Percy Main",
-    "capacity": 90,
-    "yearOfManufacture": 2024
+  "6224": {
+    "fleetNumber": "6224",
+    "registration": "DEMO6224",
+    "busType": "ADL Enviro200",
+    "depot": "Southbank",
+    "capacity": 42,
+    "yearOfManufacture": 2022
   },
-  "6923": {
-    "fleetNumber": "6923",
-    "registration": "NRX24ABG",
-    "busType": "ADL Enviro400 MMC",
-    "depot": "Percy Main",
-    "capacity": 90,
-    "yearOfManufacture": 2024
+  "6231": {
+    "fleetNumber": "6231",
+    "registration": "DEMO6231",
+    "busType": "Volvo B5TL",
+    "depot": "Hillcrest",
+    "capacity": 78,
+    "yearOfManufacture": 2023
   },
-  "6924": {
-    "fleetNumber": "6924",
-    "registration": "NRX24ABH",
-    "busType": "ADL Enviro400 MMC",
-    "depot": "Riverside",
-    "capacity": 90,
-    "yearOfManufacture": 2024
+  "6238": {
+    "fleetNumber": "6238",
+    "registration": "DEMO6238",
+    "busType": "Optare Versa",
+    "depot": "Northgate",
+    "capacity": 42,
+    "yearOfManufacture": 2016
   },
-  "6925": {
-    "fleetNumber": "6925",
-    "registration": "NRX24ABI",
-    "busType": "ADL Enviro400 MMC",
-    "depot": "Riverside",
-    "capacity": 90,
-    "yearOfManufacture": 2024
+  "6245": {
+    "fleetNumber": "6245",
+    "registration": "DEMO6245",
+    "busType": "Mercedes-Benz Citaro",
+    "depot": "Eastfield",
+    "capacity": 42,
+    "yearOfManufacture": 2017
+  },
+  "6252": {
+    "fleetNumber": "6252",
+    "registration": "DEMO6252",
+    "busType": "Wrightbus Streetdeck",
+    "depot": "Harbourside",
+    "capacity": 78,
+    "yearOfManufacture": 2018
+  },
+  "6260": {
+    "fleetNumber": "6260",
+    "registration": "DEMO6260",
+    "busType": "Wrightbus Streetlite",
+    "depot": "Westmoor",
+    "capacity": 42,
+    "yearOfManufacture": 2019
+  },
+  "6267": {
+    "fleetNumber": "6267",
+    "registration": "DEMO6267",
+    "busType": "ADL Enviro400",
+    "depot": "Southbank",
+    "capacity": 78,
+    "yearOfManufacture": 2020
+  },
+  "6274": {
+    "fleetNumber": "6274",
+    "registration": "DEMO6274",
+    "busType": "ADL Enviro200",
+    "depot": "Hillcrest",
+    "capacity": 42,
+    "yearOfManufacture": 2021
+  },
+  "6281": {
+    "fleetNumber": "6281",
+    "registration": "DEMO6281",
+    "busType": "Volvo B5TL",
+    "depot": "Northgate",
+    "capacity": 78,
+    "yearOfManufacture": 2022
+  },
+  "6289": {
+    "fleetNumber": "6289",
+    "registration": "DEMO6289",
+    "busType": "Optare Versa",
+    "depot": "Eastfield",
+    "capacity": 42,
+    "yearOfManufacture": 2023
+  },
+  "6296": {
+    "fleetNumber": "6296",
+    "registration": "DEMO6296",
+    "busType": "Mercedes-Benz Citaro",
+    "depot": "Harbourside",
+    "capacity": 42,
+    "yearOfManufacture": 2016
+  },
+  "6301": {
+    "fleetNumber": "6301",
+    "registration": "DEMO6301",
+    "busType": "Wrightbus Streetdeck",
+    "depot": "Northgate",
+    "capacity": 78,
+    "yearOfManufacture": 2016
+  },
+  "6308": {
+    "fleetNumber": "6308",
+    "registration": "DEMO6308",
+    "busType": "Wrightbus Streetdeck",
+    "depot": "Westmoor",
+    "capacity": 78,
+    "yearOfManufacture": 2017
+  },
+  "6312": {
+    "fleetNumber": "6312",
+    "registration": "DEMO6312",
+    "busType": "Wrightbus Streetdeck",
+    "depot": "Harbourside",
+    "capacity": 78,
+    "yearOfManufacture": 2022
+  },
+  "6315": {
+    "fleetNumber": "6315",
+    "registration": "DEMO6315",
+    "busType": "Wrightbus Streetlite",
+    "depot": "Southbank",
+    "capacity": 42,
+    "yearOfManufacture": 2018
+  },
+  "6322": {
+    "fleetNumber": "6322",
+    "registration": "DEMO6322",
+    "busType": "Volvo B5TL",
+    "depot": "Hillcrest",
+    "capacity": 78,
+    "yearOfManufacture": 2019
+  },
+  "6329": {
+    "fleetNumber": "6329",
+    "registration": "DEMO6329",
+    "busType": "ADL Enviro400",
+    "depot": "Hillcrest",
+    "capacity": 78,
+    "yearOfManufacture": 2019
+  },
+  "6336": {
+    "fleetNumber": "6336",
+    "registration": "DEMO6336",
+    "busType": "ADL Enviro200",
+    "depot": "Northgate",
+    "capacity": 42,
+    "yearOfManufacture": 2020
+  },
+  "6343": {
+    "fleetNumber": "6343",
+    "registration": "DEMO6343",
+    "busType": "Volvo B5TL",
+    "depot": "Eastfield",
+    "capacity": 78,
+    "yearOfManufacture": 2021
   }
 }

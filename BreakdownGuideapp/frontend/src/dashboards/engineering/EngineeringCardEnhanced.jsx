@@ -13,6 +13,7 @@ import { apiClient } from '../../services/api-client';
 import { createAssessmentSummary, getServiceImpact } from './utils/assessmentParser';
 import L from 'leaflet';
 import { STREET_TILES, SATELLITE_TILES } from '../../config/mapTiles';
+import { DEMO_DEPOTS } from '../../config/demoDepots';
 
 // ── Reverse geocode cache (shared across all cards, survives re-renders) ──
 const geocodeCache = new Map();
@@ -992,6 +993,11 @@ const DEPOT_COORDS = {
   'Percy Main': [54.9962, -1.4692],
   'Hexham':     [54.9689, -2.0953],
   'SDC':        [54.9586, -1.6579],
+  // Fictional demo depots
+  ...DEMO_DEPOTS.reduce((acc, d) => {
+    acc[d.name] = [d.lat, d.lng];
+    return acc;
+  }, {}),
 };
 
 // ── Location Map Modal ──

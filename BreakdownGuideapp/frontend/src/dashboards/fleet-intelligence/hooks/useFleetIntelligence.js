@@ -7,14 +7,18 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { isDemoSession } from '../../../config/demoDepots';
 
 // API base URL
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
 
 /**
- * Demo data for when APIs are unavailable
+ * Client-side fallback data shown only if every API call fails (e.g. the
+ * network is down). Two variants: the real-depot set for real supervisor
+ * sessions, and a fictional-depot set for demo sessions (so a demo never
+ * shows real GNE depot names even in this rare failure fallback).
  */
-const DEMO_DATA = {
+const REAL_FALLBACK_DATA = {
   breakdowns: [
     { id: 1, fleet_no: '6377', location: 'Newcastle City Centre', location_lat: 54.9783, location_lng: -1.6178, status: 'active', severity: 'AMBER', issue_type: 'Engine', depot: 'Riverside', created_at: new Date().toISOString() },
     { id: 2, fleet_no: '5421', location: 'Gateshead Interchange', location_lat: 54.9619, location_lng: -1.6036, status: 'active', severity: 'STOP', issue_type: 'Brakes', depot: 'Washington', created_at: new Date(Date.now() - 3600000).toISOString() },
@@ -66,6 +70,38 @@ const DEMO_DATA = {
     { id: 3, title: 'Route 21 - Recurring Issues', description: 'Higher than average breakdown rate on Route 21 corridor', risk_level: 'low', confidence: 65 },
   ],
 };
+
+const DEMO_FALLBACK_DATA = {
+  breakdowns: [
+    { id: 1, fleet_no: '6377', location: 'Northgate Interchange, Stand C', location_lat: 55.0180, location_lng: -1.6230, status: 'active', severity: 'AMBER', issue_type: 'Engine', depot: 'Northgate', created_at: new Date().toISOString() },
+    { id: 2, fleet_no: '5421', location: 'Market Street, Eastfield', location_lat: 54.9830, location_lng: -1.4620, status: 'active', severity: 'STOP', issue_type: 'Brakes', depot: 'Eastfield', created_at: new Date(Date.now() - 3600000).toISOString() },
+    { id: 3, fleet_no: '6102', location: 'Harbourside Ferry Terminal', location_lat: 54.9120, location_lng: -1.3850, status: 'active', severity: 'CONTINUE', issue_type: 'Doors', depot: 'Southbank', created_at: new Date(Date.now() - 7200000).toISOString() },
+  ],
+  mileageData: REAL_FALLBACK_DATA.mileageData,
+  criticalVehicles: [
+    { fleet_number: '5421', depot: 'Eastfield', defect_count: 5, top_issue: 'Brakes', last_defect_date: new Date().toISOString() },
+    { fleet_number: '6089', depot: 'Northgate', defect_count: 4, top_issue: 'Engine', last_defect_date: new Date(Date.now() - 86400000).toISOString() },
+    { fleet_number: '5512', depot: 'Harbourside', defect_count: 3, top_issue: 'Electrical', last_defect_date: new Date(Date.now() - 172800000).toISOString() },
+  ],
+  depotStats: [
+    { depot: 'Eastfield', defect_count: 12, trend: 5 },
+    { depot: 'Northgate', defect_count: 8, trend: -3 },
+    { depot: 'Harbourside', defect_count: 6, trend: 2 },
+    { depot: 'Southbank', defect_count: 5, trend: -1 },
+    { depot: 'Hillcrest', defect_count: 4, trend: 0 },
+    { depot: 'Westmoor', defect_count: 3, trend: -2 },
+  ],
+  trendingIssues: REAL_FALLBACK_DATA.trendingIssues,
+  predictiveAlerts: [
+    { id: 1, title: 'Fleet 6089 - Engine Service Due', description: 'Based on mileage patterns, recommend engine inspection within 7 days', risk_level: 'high', confidence: 87, fleet_number: '6089' },
+    { id: 2, title: 'Eastfield Depot - Brake Pattern', description: 'Increased brake issues detected. Review brake maintenance schedule.', risk_level: 'medium', confidence: 72 },
+    { id: 3, title: 'Route 21 - Recurring Issues', description: 'Higher than average breakdown rate on Route 21 corridor', risk_level: 'low', confidence: 65 },
+  ],
+};
+
+function getFallbackData() {
+  return isDemoSession() ? DEMO_FALLBACK_DATA : REAL_FALLBACK_DATA;
+}
 
 /**
  * Calculate KPI values from raw data
@@ -174,16 +210,17 @@ const useFleetIntelligence = (options = {}) => {
     console.log('Fleet Intelligence: Using demo data');
     setUsingDemoData(true);
 
-    const kpis = calculateKPIs(DEMO_DATA.breakdowns, DEMO_DATA.mileageData, DEMO_DATA.criticalVehicles);
+    const FALLBACK_DATA = getFallbackData();
+    const kpis = calculateKPIs(FALLBACK_DATA.breakdowns, FALLBACK_DATA.mileageData, FALLBACK_DATA.criticalVehicles);
 
     setData({
       kpis,
-      breakdowns: DEMO_DATA.breakdowns,
-      mileageData: DEMO_DATA.mileageData,
-      criticalVehicles: DEMO_DATA.criticalVehicles,
-      depotStats: DEMO_DATA.depotStats,
-      trendingIssues: DEMO_DATA.trendingIssues,
-      predictiveAlerts: DEMO_DATA.predictiveAlerts,
+      breakdowns: FALLBACK_DATA.breakdowns,
+      mileageData: FALLBACK_DATA.mileageData,
+      criticalVehicles: FALLBACK_DATA.criticalVehicles,
+      depotStats: FALLBACK_DATA.depotStats,
+      trendingIssues: FALLBACK_DATA.trendingIssues,
+      predictiveAlerts: FALLBACK_DATA.predictiveAlerts,
       defectTimeline: null,
     });
   }, []);
@@ -263,12 +300,13 @@ const useFleetIntelligence = (options = {}) => {
       setUsingDemoData(false);
 
       // Extract data from responses with fallbacks
-      const breakdowns = breakdownsRes?.breakdowns || breakdownsRes?.data || DEMO_DATA.breakdowns;
-      const mileage = mileageRes || DEMO_DATA.mileageData;
-      const repeatVehicles = repeatRes?.vehicles || repeatRes?.data || DEMO_DATA.criticalVehicles;
-      const depots = depotRes?.depots || depotRes?.data || DEMO_DATA.depotStats;
-      const trends = trendsRes?.trends || trendsRes?.data || DEMO_DATA.trendingIssues;
-      const predictive = predictiveRes?.alerts || predictiveRes?.data || DEMO_DATA.predictiveAlerts;
+      const FALLBACK_DATA = getFallbackData();
+      const breakdowns = breakdownsRes?.breakdowns || breakdownsRes?.data || FALLBACK_DATA.breakdowns;
+      const mileage = mileageRes || FALLBACK_DATA.mileageData;
+      const repeatVehicles = repeatRes?.vehicles || repeatRes?.data || FALLBACK_DATA.criticalVehicles;
+      const depots = depotRes?.depots || depotRes?.data || FALLBACK_DATA.depotStats;
+      const trends = trendsRes?.trends || trendsRes?.data || FALLBACK_DATA.trendingIssues;
+      const predictive = predictiveRes?.alerts || predictiveRes?.data || FALLBACK_DATA.predictiveAlerts;
       // No demo fallback here on purpose — null means "endpoint unavailable",
       // and the dashboard already knows how to build a (flatter) timeline
       // itself from `breakdowns` when this is null.

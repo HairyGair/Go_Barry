@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { apiClient } from '../../../services/api-client';
+import { getDepotOptions } from '../../../config/demoDepots';
 
-const DEPOTS = [
+const REAL_DEPOTS = [
   { code: 'WAS', name: 'Washington' },
   { code: 'NCL', name: 'Riverside' },
   { code: 'CON', name: 'Consett' },
@@ -9,6 +10,8 @@ const DEPOTS = [
   { code: 'GTS', name: 'Deptford' },
   { code: 'PM', name: 'Percy Main' }
 ];
+
+const DEPOTS = getDepotOptions(REAL_DEPOTS);
 
 const DispatchReplacementModal = ({ breakdown, isOpen, onClose, onSuccess }) => {
   const [fleetNo, setFleetNo] = useState('');

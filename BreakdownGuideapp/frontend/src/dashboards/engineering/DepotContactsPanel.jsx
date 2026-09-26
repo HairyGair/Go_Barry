@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Phone, ChevronDown, ChevronRight } from 'lucide-react';
-import { DEPOT_CONTACTS } from '../../constants/depotContacts';
+import { getDepotContactsTable } from '../../constants/depotContacts';
 
 const DepotContactsPanel = () => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const depotContacts = getDepotContactsTable();
 
   const handleCall = (number) => {
     // In a production environment with phone integration
@@ -24,7 +25,7 @@ const DepotContactsPanel = () => {
       {isExpanded && (
         <div className="contacts-content">
           <div className="contacts-grid">
-            {Object.entries(DEPOT_CONTACTS).map(([depotId, depot]) => (
+            {Object.entries(depotContacts).map(([depotId, depot]) => (
               depot.contacts.length > 0 && (
                 <div key={depotId} className="depot-group">
                   <h4 className="depot-name">{depot.name}</h4>

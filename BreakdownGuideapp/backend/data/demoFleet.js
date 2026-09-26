@@ -15,6 +15,8 @@
  * is no chance of colliding with, or being mistaken for, an actual vehicle plate.
  */
 
+import { DEMO_DEPOTS as DEMO_DEPOT_TABLE } from './demoDepots.js';
+
 // Fleet numbers referenced by services/demoDataService.js (live breakdowns,
 // history rows, and replacement-vehicle dispatches). Keep in sync with that file.
 const REQUIRED_FLEET_NUMBERS = [
@@ -23,8 +25,9 @@ const REQUIRED_FLEET_NUMBERS = [
   '6312', '5301', // replacement vehicle dispatches
 ];
 
-// The 6 depots used by the demo seed (matches services/demoDataService.js).
-const DEMO_DEPOTS = ['Riverside', 'Washington', 'Percy Main', 'Deptford', 'Consett', 'Hexham'];
+// The 6 fictional depots used by the demo seed (matches services/demoDataService.js
+// and data/demoDepots.js - the canonical fictional depot table).
+const DEMO_DEPOTS = DEMO_DEPOT_TABLE.map((d) => d.name);
 
 // A spread of plausible (but generic/non-branded) single-deck and double-deck
 // bus types, so the fleet looks like a real mixed operation without describing

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '../../services/api-client';
+import { getDepotOptions } from '../../config/demoDepots';
 
-const DEPOTS = [
+const REAL_DEPOTS = [
   { code: 'WAS', name: 'Washington' },
   { code: 'NCL', name: 'Riverside' },
   { code: 'CON', name: 'Consett' },
@@ -9,6 +10,8 @@ const DEPOTS = [
   { code: 'HEX', name: 'Hexham' },
   { code: 'DAR', name: 'Percy Main' }
 ];
+
+const DEPOTS = getDepotOptions(REAL_DEPOTS);
 
 const DispatchEngineerModal = ({ breakdownId, breakdownDepot, breakdownLat, breakdownLng, onDispatch, onClose }) => {
   const [engineers, setEngineers] = useState([]);

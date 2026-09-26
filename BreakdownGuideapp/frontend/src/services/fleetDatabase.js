@@ -48,7 +48,7 @@ class FleetDatabaseService {
 
     async loadLocalFleetData() {
         try {
-            const response = await fetch('/gne-fleet-database.json');
+            const response = await fetch('/fleet-database.json');
             
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);

@@ -1,22 +1,30 @@
 import React, { useState } from 'react';
 import { theme } from '@styles/theme';
+import { isDemoSession, DEMO_DEPOTS } from '../../config/demoDepots';
+
+const REAL_DEPOT_CODES = ['WASHINGTON', 'RIVERSIDE', 'PERCY_MAIN', 'CONSETT', 'DEPTFORD', 'HEXHAM'];
+const REAL_DEPOT_NAMES = {
+  'WASHINGTON': 'Washington',
+  'RIVERSIDE': 'Riverside',
+  'PERCY_MAIN': 'Percy Main',
+  'CONSETT': 'Consett',
+  'DEPTFORD': 'Deptford',
+  'HEXHAM': 'Hexham'
+};
 
 const DepotStats = ({ engineers, metrics }) => {
   const [hoveredDepot, setHoveredDepot] = useState(null);
-  
-  const depots = ['WASHINGTON', 'RIVERSIDE', 'PERCY_MAIN', 'CONSETT', 'DEPTFORD', 'HEXHAM'];
-  
+
+  const isDemo = isDemoSession();
+  const depots = isDemo ? DEMO_DEPOTS.map(d => d.code) : REAL_DEPOT_CODES;
+
   // Format depot name
   const formatDepotName = (depot) => {
-    const names = {
-      'WASHINGTON': 'Washington',
-      'RIVERSIDE': 'Riverside',
-      'PERCY_MAIN': 'Percy Main',
-      'CONSETT': 'Consett',
-      'DEPTFORD': 'Deptford',
-      'HEXHAM': 'Hexham'
-    };
-    return names[depot] || depot;
+    if (isDemo) {
+      const demoDepot = DEMO_DEPOTS.find(d => d.code === depot);
+      return demoDepot ? demoDepot.name : depot;
+    }
+    return REAL_DEPOT_NAMES[depot] || depot;
   };
 
   // Get status class based on SLA performance

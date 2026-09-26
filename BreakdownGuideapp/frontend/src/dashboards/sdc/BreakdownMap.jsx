@@ -6,6 +6,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
+import { isDemoSession, DEMO_DEPOTS } from '../../config/demoDepots';
 import './BreakdownMap.css';
 
 // Zoom tracker component to monitor zoom level changes
@@ -143,7 +144,7 @@ const depotIcon = L.divIcon({
 
 // Depot locations - VERIFIED from OpenStreetMap Nominatim API (December 2025)
 // Coordinates point to actual depot buildings, not postcode centroids
-const DEPOT_LOCATIONS = [
+const REAL_DEPOT_LOCATIONS = [
   { name: 'Washington', code: 'WAS', coords: [54.9068, -1.5140] },      // Industrial Road, Hertburn
   { name: 'Riverside', code: 'RIV', coords: [54.9586, -1.6579] },       // Handy Drive Bus Depot, Dunston
   { name: 'Consett', code: 'CON', coords: [54.8403, -1.8380] },         // Number One Industrial Estate (near Greencore)
@@ -152,7 +153,20 @@ const DEPOT_LOCATIONS = [
   { name: 'Hexham', code: 'HEX', coords: [54.9756, -2.0960] }           // Tyne Green Road, Hexham
 ];
 
-// Depot code to coordinates mapping for fallback - VERIFIED from OpenStreetMap (December 2025)
+// Fictional depot markers shown instead in a demo session, using the
+// canonical demo depot table (config/demoDepots.js) so codes/names/coords
+// stay consistent with the rest of the app.
+const DEMO_DEPOT_LOCATIONS = DEMO_DEPOTS.map(d => ({
+  name: d.name,
+  code: d.code,
+  coords: [d.lat, d.lng]
+}));
+
+const DEPOT_LOCATIONS = isDemoSession() ? DEMO_DEPOT_LOCATIONS : REAL_DEPOT_LOCATIONS;
+
+// Depot code to coordinates mapping for fallback - VERIFIED from OpenStreetMap (December 2025).
+// Includes both real and fictional demo entries (distinct keys, so it's safe to
+// keep them in one shared lookup regardless of session).
 const DEPOT_COORDINATES = {
   'WAS': [54.9068, -1.5140],
   'Washington': [54.9068, -1.5140],
@@ -167,7 +181,13 @@ const DEPOT_COORDINATES = {
   'HEX': [54.9756, -2.0960],
   'Hexham': [54.9756, -2.0960],
   'SDC': [54.9069, -1.3838],  // Sunderland city centre
-  'Sunderland': [54.9069, -1.3838]
+  'Sunderland': [54.9069, -1.3838],
+  // Fictional demo depots (code + name keys)
+  ...DEMO_DEPOTS.reduce((acc, d) => {
+    acc[d.code] = [d.lat, d.lng];
+    acc[d.name] = [d.lat, d.lng];
+    return acc;
+  }, {})
 };
 
 // Geocode a location description using Nominatim (OpenStreetMap)
@@ -261,7 +281,23 @@ const LOCATION_COORDINATES = {
   // Other
   'Hexham': [54.9710, -2.1010],
   'Cramlington': [55.0858, -1.5900],
-  'Blyth': [55.1250, -1.5083]
+  'Blyth': [55.1250, -1.5083],
+
+  // Fictional demo place names (matches the demo data seed's location text,
+  // e.g. "Northgate Interchange, Stand C") so pins land near the right
+  // fictional depot instead of falling through to the generic default.
+  'Northgate Interchange': [55.0180, -1.6230],
+  'Northgate': [55.0180, -1.6230],
+  'Market Street, Eastfield': [54.9830, -1.4620],
+  'Eastfield': [54.9830, -1.4620],
+  'Harbourside Ferry Terminal': [54.9120, -1.3850],
+  'Harbourside': [54.9120, -1.3850],
+  'Westmoor Retail Park': [54.9560, -1.7420],
+  'Westmoor': [54.9560, -1.7420],
+  'Southbank Hospital': [54.8620, -1.5760],
+  'Southbank': [54.8620, -1.5760],
+  'Hillcrest High Street': [54.8720, -1.8350],
+  'Hillcrest': [54.8720, -1.8350]
 };
 
 const BreakdownMap = ({

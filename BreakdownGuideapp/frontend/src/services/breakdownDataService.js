@@ -3,6 +3,7 @@
 
 // Google Maps Geocoding (free up to 40,000 requests/month with billing enabled, or 2,500/day without)
 import { GOOGLE_MAPS_API_KEY } from '@/config/maps.js';
+import { isDemoSession, mapRealDepotToDemo } from '@/config/demoDepots.js';
 
 // Depot mapping based on location/fleet ranges
 const DEPOT_MAPPINGS = {
@@ -56,17 +57,19 @@ class BreakdownDataService {
     this.fleetDataCache = new Map();
   }
 
-  // Determine depot from fleet number
+  // Determine depot from fleet number. In a demo session, translates the
+  // result to the fictional depot equivalent so a real GNE depot name never
+  // gets written into demo breakdown data.
   determineDepot(fleetNumber) {
     if (!fleetNumber || fleetNumber === 'Unknown') return 'Unknown';
-    
+
     const fleetNum = parseInt(fleetNumber);
     if (isNaN(fleetNum)) return 'Unknown';
 
     for (const [depot, config] of Object.entries(DEPOT_MAPPINGS)) {
       for (const [min, max] of config.fleetRanges) {
         if (fleetNum >= min && fleetNum <= max) {
-          return depot;
+          return isDemoSession() ? (mapRealDepotToDemo(depot)?.name || depot) : depot;
         }
       }
     }
@@ -74,24 +77,24 @@ class BreakdownDataService {
     return 'Unknown';
   }
 
-  // Determine depot from location/postcode
+  // Determine depot from location/postcode. Same demo translation as above.
   determineDepotFromLocation(location) {
     if (!location || typeof location !== 'string') return null;
 
     const locationUpper = location.toUpperCase();
-    
+
     for (const [depot, config] of Object.entries(DEPOT_MAPPINGS)) {
       // Check postcodes
       for (const postcode of config.postcodes) {
         if (locationUpper.includes(postcode)) {
-          return depot;
+          return isDemoSession() ? (mapRealDepotToDemo(depot)?.name || depot) : depot;
         }
       }
-      
+
       // Check area names
       for (const area of config.areas) {
         if (locationUpper.includes(area.toUpperCase())) {
-          return depot;
+          return isDemoSession() ? (mapRealDepotToDemo(depot)?.name || depot) : depot;
         }
       }
     }

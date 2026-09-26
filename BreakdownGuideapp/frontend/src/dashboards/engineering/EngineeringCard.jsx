@@ -1,5 +1,6 @@
 import React from 'react';
 import { theme, getStatusColor } from '@styles/theme';
+import { findDemoDepotByCode, isDemoSession } from '../../config/demoDepots';
 
 const EngineeringCard = ({ breakdown, onShowEngineerModal, onAutoAssign, onUpdateStatus }) => {
   const { assignment, totalElapsed, waitTime, timeStatus, currentStage, isPriority } = breakdown;
@@ -7,9 +8,12 @@ const EngineeringCard = ({ breakdown, onShowEngineerModal, onAutoAssign, onUpdat
 
   // Format depot name
   const formatDepotName = (depot) => {
+    if (isDemoSession()) {
+      return findDemoDepotByCode(depot)?.name || depot || 'Unknown';
+    }
     const names = {
       'WASHINGTON': 'Washington',
-      'RIVERSIDE': 'Riverside', 
+      'RIVERSIDE': 'Riverside',
       'PERCY_MAIN': 'Percy Main',
       'CONSETT': 'Consett',
       'DEPTFORD': 'Deptford',

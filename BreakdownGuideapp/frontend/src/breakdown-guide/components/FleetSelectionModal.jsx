@@ -14,7 +14,14 @@ const depotIconMap = {
     'Percy Main': Anchor,
     'Washington': Construction,
     'Hexham': Castle,
-    'Riverside': Waves
+    'Riverside': Waves,
+    // Fictional demo depot equivalents
+    'Hillcrest': Building2,
+    'Southbank': Factory,
+    'Harbourside': Anchor,
+    'Eastfield': Construction,
+    'Westmoor': Castle,
+    'Northgate': Waves
 };
 import storageService from '../../services/storageService.js';
 import breakdownDataService from '../../services/breakdownDataService.js';
@@ -98,7 +105,7 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
     const [fleetLoading, setFleetLoading] = useState(true);
     
     // Depot locations with colors and icons
-    const depotLocations = {
+    const realDepotLocations = {
         'Consett': {
             lat: 54.8543, lng: -1.8321,
             color: '#10b981', icon: '🏢',
@@ -130,6 +137,43 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
             address: 'Riverside Depot, Pottery Lane, Newcastle NE4 6SL'
         }
     };
+
+    // Fictional depot set shown instead in a demo session, using the
+    // canonical demo depot coordinates so pins/maps still work.
+    const demoDepotLocations = {
+        'Hillcrest': {
+            lat: 54.8720, lng: -1.8350,
+            color: '#10b981', icon: '🏢',
+            address: 'Hillcrest High Street'
+        },
+        'Southbank': {
+            lat: 54.8620, lng: -1.5760,
+            color: '#3b82f6', icon: '🏭',
+            address: 'Southbank Depot, Ring Road, Southbank'
+        },
+        'Harbourside': {
+            lat: 54.9120, lng: -1.3850,
+            color: '#ec4899', icon: '⚓',
+            address: 'Harbourside Ferry Terminal'
+        },
+        'Eastfield': {
+            lat: 54.9830, lng: -1.4620,
+            color: '#f59e0b', icon: '🏗️',
+            address: 'Market Street, Eastfield'
+        },
+        'Westmoor': {
+            lat: 54.9560, lng: -1.7420,
+            color: '#14b8a6', icon: '🏰',
+            address: 'Westmoor Retail Park, Ring Road'
+        },
+        'Northgate': {
+            lat: 55.0180, lng: -1.6230,
+            color: '#ef4444', icon: '🌊',
+            address: 'Northgate Interchange, Stand C'
+        }
+    };
+
+    const depotLocations = isDemoBreakdownSession() ? demoDepotLocations : realDepotLocations;
     
     // Load fleet database from API
     useEffect(() => {
@@ -172,10 +216,9 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
             } catch (err) {
                 console.warn('⚠️ Failed to load fleet from API, trying fallback JSON:', err);
 
-                // Demo sessions must never fall back to the real operator's fleet
-                // database (frontend/public/gne-fleet-database.json is real GNE
-                // fleet data, served publicly). If the demo API call itself fails,
-                // use a small generic placeholder instead of the real file.
+                // Static fallback: frontend/public/fleet-database.json is a
+                // fictional sample fleet (no real operator data). Demo sessions
+                // use a small generic placeholder if the demo API call fails.
                 let isDemo = false;
                 try { isDemo = JSON.parse(sessionStorage.getItem('currentDuty') || 'null')?.isDemo === true; } catch { /* noop */ }
 
@@ -183,8 +226,8 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                     console.warn('🎭 Demo session - skipping real fleet JSON fallback, using placeholder fleet');
                     setFleetData({
                         fleet: [
-                            { fleetNumber: '6301', regNo: 'DEMO6301', depot: 'Riverside', vehicleType: 'Wrightbus Streetlite' },
-                            { fleetNumber: '6078', regNo: 'DEMO6078', depot: 'Riverside', vehicleType: 'ADL Enviro400' }
+                            { fleetNumber: '6301', regNo: 'DEMO6301', depot: 'Northgate', vehicleType: 'Wrightbus Streetlite' },
+                            { fleetNumber: '6078', regNo: 'DEMO6078', depot: 'Northgate', vehicleType: 'ADL Enviro400' }
                         ]
                     });
                     setFleetLoading(false);
@@ -193,7 +236,7 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
 
                 // Fallback to static JSON file (real supervisors only)
                 try {
-                    const response = await fetch('/gne-fleet-database.json');
+                    const response = await fetch('/fleet-database.json');
                     if (!response.ok) {
                         throw new Error('Failed to load fleet database');
                     }

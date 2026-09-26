@@ -21,6 +21,8 @@ import express from 'express';
 import { query } from '../config/mysql.js';
 import { from } from '../utils/queryHelpers.js';
 import { demoSqlFilter, isDemoUser, DEMO_ENGINEER_PREFIX } from '../utils/demoFilter.js';
+import { DEMO_DEPOTS } from '../data/demoDepots.js';
+import { DEMO_FLEET } from '../data/demoFleet.js';
 import { validate } from '../middleware/validationMiddleware.js';
 import { analyticsSchemas } from '../validation/schemas.js';
 
@@ -471,31 +473,40 @@ router.get('/depot-comparison', validate(analyticsSchemas.summary), async (req, 
         startDate.setHours(0, 0, 0, 0);
     }
 
-    // Get all active depots
-    const depots = await query(
-      'SELECT * FROM depots WHERE is_active = ?',
-      [true]
-    );
+    const demo = isDemoUser(req.user);
+
+    // Get all active depots. Demo sessions compare against the fictional depot
+    // table instead of the real one so no real depot name/code is returned.
+    const depots = demo
+      ? DEMO_DEPOTS.map((d) => ({ code: d.code, name: d.name }))
+      : await query('SELECT * FROM depots WHERE is_active = ?', [true]);
 
     const depotData = [];
 
     for (const depot of depots) {
-      // Get breakdowns for this depot (demo isolation)
+      // Get breakdowns for this depot (demo isolation). Real breakdown rows
+      // store the depot code; demo breakdown rows store the fictional name.
       const breakdowns = await query(
         'SELECT * FROM breakdowns WHERE depot = ? AND created_at >= ?' + demoSqlFilter(req.user),
-        [depot.code, startDate]
+        [demo ? depot.name : depot.code, startDate]
       );
 
-      // Get vehicles for this depot
+      // Get vehicles for this depot. The demo fleet is synthetic (served by
+      // fleet.js, not the real fleet_vehicles table), so fleet size for demo
+      // depots comes from the fictional roster instead of a DB lookup.
       let vehicles = [];
-      try {
-        vehicles = await query(
-          'SELECT * FROM fleet_vehicles WHERE depot = ?',
-          [depot.code]
-        );
-      } catch (err) {
-        console.warn('Fleet vehicles table not accessible for depot:', err.message);
-        vehicles = [];
+      if (demo) {
+        vehicles = DEMO_FLEET.filter((v) => v.depot === depot.name);
+      } else {
+        try {
+          vehicles = await query(
+            'SELECT * FROM fleet_vehicles WHERE depot = ?',
+            [depot.code]
+          );
+        } catch (err) {
+          console.warn('Fleet vehicles table not accessible for depot:', err.message);
+          vehicles = [];
+        }
       }
 
       // Calculate metrics

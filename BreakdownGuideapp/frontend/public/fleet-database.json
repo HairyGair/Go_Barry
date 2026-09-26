@@ -1,0 +1,675 @@
+{
+  "lastUpdated": "2026-09-26T00:00:00.000Z",
+  "note": "Fictional sample fleet - not a real operator",
+  "totalVehicles": 110,
+  "activeDepots": [
+    "Northgate",
+    "Eastfield",
+    "Harbourside",
+    "Westmoor",
+    "Southbank",
+    "Hillcrest"
+  ],
+  "fleet": [
+    {
+      "fleetNumber": "6301",
+      "regNo": "DEMO6301",
+      "vehicleType": "Wrightbus Streetdeck",
+      "depot": "Northgate"
+    },
+    {
+      "fleetNumber": "6078",
+      "regNo": "DEMO6078",
+      "vehicleType": "Wrightbus Streetlite",
+      "depot": "Eastfield"
+    },
+    {
+      "fleetNumber": "5437",
+      "regNo": "DEMO5437",
+      "vehicleType": "ADL Enviro400",
+      "depot": "Harbourside"
+    },
+    {
+      "fleetNumber": "5292",
+      "regNo": "DEMO5292",
+      "vehicleType": "ADL Enviro200",
+      "depot": "Westmoor"
+    },
+    {
+      "fleetNumber": "6145",
+      "regNo": "DEMO6145",
+      "vehicleType": "Volvo B5TL",
+      "depot": "Southbank"
+    },
+    {
+      "fleetNumber": "5318",
+      "regNo": "DEMO5318",
+      "vehicleType": "Optare Versa",
+      "depot": "Hillcrest"
+    },
+    {
+      "fleetNumber": "6210",
+      "regNo": "DEMO6210",
+      "vehicleType": "Mercedes-Benz Citaro",
+      "depot": "Northgate"
+    },
+    {
+      "fleetNumber": "5195",
+      "regNo": "DEMO5195",
+      "vehicleType": "Wrightbus Streetdeck",
+      "depot": "Eastfield"
+    },
+    {
+      "fleetNumber": "6089",
+      "regNo": "DEMO6089",
+      "vehicleType": "Wrightbus Streetlite",
+      "depot": "Harbourside"
+    },
+    {
+      "fleetNumber": "5401",
+      "regNo": "DEMO5401",
+      "vehicleType": "ADL Enviro400",
+      "depot": "Westmoor"
+    },
+    {
+      "fleetNumber": "5510",
+      "regNo": "DEMO5510",
+      "vehicleType": "ADL Enviro200",
+      "depot": "Southbank"
+    },
+    {
+      "fleetNumber": "6322",
+      "regNo": "DEMO6322",
+      "vehicleType": "Volvo B5TL",
+      "depot": "Hillcrest"
+    },
+    {
+      "fleetNumber": "5267",
+      "regNo": "DEMO5267",
+      "vehicleType": "Optare Versa",
+      "depot": "Northgate"
+    },
+    {
+      "fleetNumber": "5155",
+      "regNo": "DEMO5155",
+      "vehicleType": "Mercedes-Benz Citaro",
+      "depot": "Eastfield"
+    },
+    {
+      "fleetNumber": "6312",
+      "regNo": "DEMO6312",
+      "vehicleType": "Wrightbus Streetdeck",
+      "depot": "Harbourside"
+    },
+    {
+      "fleetNumber": "5301",
+      "regNo": "DEMO5301",
+      "vehicleType": "Wrightbus Streetlite",
+      "depot": "Westmoor"
+    },
+    {
+      "fleetNumber": "5101",
+      "regNo": "DEMO5101",
+      "vehicleType": "ADL Enviro400",
+      "depot": "Southbank"
+    },
+    {
+      "fleetNumber": "5108",
+      "regNo": "DEMO5108",
+      "vehicleType": "ADL Enviro200",
+      "depot": "Hillcrest"
+    },
+    {
+      "fleetNumber": "5112",
+      "regNo": "DEMO5112",
+      "vehicleType": "Volvo B5TL",
+      "depot": "Northgate"
+    },
+    {
+      "fleetNumber": "5119",
+      "regNo": "DEMO5119",
+      "vehicleType": "Optare Versa",
+      "depot": "Eastfield"
+    },
+    {
+      "fleetNumber": "5124",
+      "regNo": "DEMO5124",
+      "vehicleType": "Mercedes-Benz Citaro",
+      "depot": "Harbourside"
+    },
+    {
+      "fleetNumber": "5130",
+      "regNo": "DEMO5130",
+      "vehicleType": "Wrightbus Streetdeck",
+      "depot": "Westmoor"
+    },
+    {
+      "fleetNumber": "5137",
+      "regNo": "DEMO5137",
+      "vehicleType": "Wrightbus Streetlite",
+      "depot": "Southbank"
+    },
+    {
+      "fleetNumber": "5142",
+      "regNo": "DEMO5142",
+      "vehicleType": "ADL Enviro400",
+      "depot": "Hillcrest"
+    },
+    {
+      "fleetNumber": "5148",
+      "regNo": "DEMO5148",
+      "vehicleType": "ADL Enviro200",
+      "depot": "Northgate"
+    },
+    {
+      "fleetNumber": "5153",
+      "regNo": "DEMO5153",
+      "vehicleType": "Volvo B5TL",
+      "depot": "Eastfield"
+    },
+    {
+      "fleetNumber": "5160",
+      "regNo": "DEMO5160",
+      "vehicleType": "Optare Versa",
+      "depot": "Harbourside"
+    },
+    {
+      "fleetNumber": "5167",
+      "regNo": "DEMO5167",
+      "vehicleType": "Mercedes-Benz Citaro",
+      "depot": "Westmoor"
+    },
+    {
+      "fleetNumber": "5172",
+      "regNo": "DEMO5172",
+      "vehicleType": "Wrightbus Streetdeck",
+      "depot": "Southbank"
+    },
+    {
+      "fleetNumber": "5178",
+      "regNo": "DEMO5178",
+      "vehicleType": "Wrightbus Streetlite",
+      "depot": "Hillcrest"
+    },
+    {
+      "fleetNumber": "5183",
+      "regNo": "DEMO5183",
+      "vehicleType": "ADL Enviro400",
+      "depot": "Northgate"
+    },
+    {
+      "fleetNumber": "5188",
+      "regNo": "DEMO5188",
+      "vehicleType": "ADL Enviro200",
+      "depot": "Eastfield"
+    },
+    {
+      "fleetNumber": "5192",
+      "regNo": "DEMO5192",
+      "vehicleType": "Volvo B5TL",
+      "depot": "Harbourside"
+    },
+    {
+      "fleetNumber": "5198",
+      "regNo": "DEMO5198",
+      "vehicleType": "Optare Versa",
+      "depot": "Westmoor"
+    },
+    {
+      "fleetNumber": "5203",
+      "regNo": "DEMO5203",
+      "vehicleType": "Mercedes-Benz Citaro",
+      "depot": "Southbank"
+    },
+    {
+      "fleetNumber": "5209",
+      "regNo": "DEMO5209",
+      "vehicleType": "Wrightbus Streetdeck",
+      "depot": "Hillcrest"
+    },
+    {
+      "fleetNumber": "5214",
+      "regNo": "DEMO5214",
+      "vehicleType": "Wrightbus Streetlite",
+      "depot": "Northgate"
+    },
+    {
+      "fleetNumber": "5220",
+      "regNo": "DEMO5220",
+      "vehicleType": "ADL Enviro400",
+      "depot": "Eastfield"
+    },
+    {
+      "fleetNumber": "5225",
+      "regNo": "DEMO5225",
+      "vehicleType": "ADL Enviro200",
+      "depot": "Harbourside"
+    },
+    {
+      "fleetNumber": "5231",
+      "regNo": "DEMO5231",
+      "vehicleType": "Volvo B5TL",
+      "depot": "Westmoor"
+    },
+    {
+      "fleetNumber": "5236",
+      "regNo": "DEMO5236",
+      "vehicleType": "Optare Versa",
+      "depot": "Southbank"
+    },
+    {
+      "fleetNumber": "5242",
+      "regNo": "DEMO5242",
+      "vehicleType": "Mercedes-Benz Citaro",
+      "depot": "Hillcrest"
+    },
+    {
+      "fleetNumber": "5248",
+      "regNo": "DEMO5248",
+      "vehicleType": "Wrightbus Streetdeck",
+      "depot": "Northgate"
+    },
+    {
+      "fleetNumber": "5253",
+      "regNo": "DEMO5253",
+      "vehicleType": "Wrightbus Streetlite",
+      "depot": "Eastfield"
+    },
+    {
+      "fleetNumber": "5259",
+      "regNo": "DEMO5259",
+      "vehicleType": "ADL Enviro400",
+      "depot": "Harbourside"
+    },
+    {
+      "fleetNumber": "5264",
+      "regNo": "DEMO5264",
+      "vehicleType": "ADL Enviro200",
+      "depot": "Westmoor"
+    },
+    {
+      "fleetNumber": "5271",
+      "regNo": "DEMO5271",
+      "vehicleType": "Volvo B5TL",
+      "depot": "Southbank"
+    },
+    {
+      "fleetNumber": "5276",
+      "regNo": "DEMO5276",
+      "vehicleType": "Optare Versa",
+      "depot": "Hillcrest"
+    },
+    {
+      "fleetNumber": "5282",
+      "regNo": "DEMO5282",
+      "vehicleType": "Mercedes-Benz Citaro",
+      "depot": "Northgate"
+    },
+    {
+      "fleetNumber": "5288",
+      "regNo": "DEMO5288",
+      "vehicleType": "Wrightbus Streetdeck",
+      "depot": "Eastfield"
+    },
+    {
+      "fleetNumber": "5295",
+      "regNo": "DEMO5295",
+      "vehicleType": "Wrightbus Streetlite",
+      "depot": "Harbourside"
+    },
+    {
+      "fleetNumber": "5304",
+      "regNo": "DEMO5304",
+      "vehicleType": "ADL Enviro400",
+      "depot": "Westmoor"
+    },
+    {
+      "fleetNumber": "5309",
+      "regNo": "DEMO5309",
+      "vehicleType": "ADL Enviro200",
+      "depot": "Southbank"
+    },
+    {
+      "fleetNumber": "5315",
+      "regNo": "DEMO5315",
+      "vehicleType": "Volvo B5TL",
+      "depot": "Hillcrest"
+    },
+    {
+      "fleetNumber": "5321",
+      "regNo": "DEMO5321",
+      "vehicleType": "Optare Versa",
+      "depot": "Northgate"
+    },
+    {
+      "fleetNumber": "5327",
+      "regNo": "DEMO5327",
+      "vehicleType": "Mercedes-Benz Citaro",
+      "depot": "Eastfield"
+    },
+    {
+      "fleetNumber": "5333",
+      "regNo": "DEMO5333",
+      "vehicleType": "Wrightbus Streetdeck",
+      "depot": "Harbourside"
+    },
+    {
+      "fleetNumber": "5339",
+      "regNo": "DEMO5339",
+      "vehicleType": "Wrightbus Streetlite",
+      "depot": "Westmoor"
+    },
+    {
+      "fleetNumber": "5345",
+      "regNo": "DEMO5345",
+      "vehicleType": "ADL Enviro400",
+      "depot": "Southbank"
+    },
+    {
+      "fleetNumber": "5352",
+      "regNo": "DEMO5352",
+      "vehicleType": "ADL Enviro200",
+      "depot": "Hillcrest"
+    },
+    {
+      "fleetNumber": "5358",
+      "regNo": "DEMO5358",
+      "vehicleType": "Volvo B5TL",
+      "depot": "Northgate"
+    },
+    {
+      "fleetNumber": "5365",
+      "regNo": "DEMO5365",
+      "vehicleType": "Optare Versa",
+      "depot": "Eastfield"
+    },
+    {
+      "fleetNumber": "5372",
+      "regNo": "DEMO5372",
+      "vehicleType": "Mercedes-Benz Citaro",
+      "depot": "Harbourside"
+    },
+    {
+      "fleetNumber": "5379",
+      "regNo": "DEMO5379",
+      "vehicleType": "Wrightbus Streetdeck",
+      "depot": "Westmoor"
+    },
+    {
+      "fleetNumber": "5385",
+      "regNo": "DEMO5385",
+      "vehicleType": "Wrightbus Streetlite",
+      "depot": "Southbank"
+    },
+    {
+      "fleetNumber": "5392",
+      "regNo": "DEMO5392",
+      "vehicleType": "ADL Enviro400",
+      "depot": "Hillcrest"
+    },
+    {
+      "fleetNumber": "6012",
+      "regNo": "DEMO6012",
+      "vehicleType": "ADL Enviro200",
+      "depot": "Northgate"
+    },
+    {
+      "fleetNumber": "6018",
+      "regNo": "DEMO6018",
+      "vehicleType": "Volvo B5TL",
+      "depot": "Eastfield"
+    },
+    {
+      "fleetNumber": "6025",
+      "regNo": "DEMO6025",
+      "vehicleType": "Optare Versa",
+      "depot": "Harbourside"
+    },
+    {
+      "fleetNumber": "6031",
+      "regNo": "DEMO6031",
+      "vehicleType": "Mercedes-Benz Citaro",
+      "depot": "Westmoor"
+    },
+    {
+      "fleetNumber": "6038",
+      "regNo": "DEMO6038",
+      "vehicleType": "Wrightbus Streetdeck",
+      "depot": "Southbank"
+    },
+    {
+      "fleetNumber": "6044",
+      "regNo": "DEMO6044",
+      "vehicleType": "Wrightbus Streetlite",
+      "depot": "Hillcrest"
+    },
+    {
+      "fleetNumber": "6051",
+      "regNo": "DEMO6051",
+      "vehicleType": "ADL Enviro400",
+      "depot": "Northgate"
+    },
+    {
+      "fleetNumber": "6057",
+      "regNo": "DEMO6057",
+      "vehicleType": "ADL Enviro200",
+      "depot": "Eastfield"
+    },
+    {
+      "fleetNumber": "6063",
+      "regNo": "DEMO6063",
+      "vehicleType": "Volvo B5TL",
+      "depot": "Harbourside"
+    },
+    {
+      "fleetNumber": "6070",
+      "regNo": "DEMO6070",
+      "vehicleType": "Optare Versa",
+      "depot": "Westmoor"
+    },
+    {
+      "fleetNumber": "6084",
+      "regNo": "DEMO6084",
+      "vehicleType": "Mercedes-Benz Citaro",
+      "depot": "Southbank"
+    },
+    {
+      "fleetNumber": "6091",
+      "regNo": "DEMO6091",
+      "vehicleType": "Wrightbus Streetdeck",
+      "depot": "Hillcrest"
+    },
+    {
+      "fleetNumber": "6098",
+      "regNo": "DEMO6098",
+      "vehicleType": "Wrightbus Streetlite",
+      "depot": "Northgate"
+    },
+    {
+      "fleetNumber": "6104",
+      "regNo": "DEMO6104",
+      "vehicleType": "ADL Enviro400",
+      "depot": "Eastfield"
+    },
+    {
+      "fleetNumber": "6111",
+      "regNo": "DEMO6111",
+      "vehicleType": "ADL Enviro200",
+      "depot": "Harbourside"
+    },
+    {
+      "fleetNumber": "6118",
+      "regNo": "DEMO6118",
+      "vehicleType": "Volvo B5TL",
+      "depot": "Westmoor"
+    },
+    {
+      "fleetNumber": "6124",
+      "regNo": "DEMO6124",
+      "vehicleType": "Optare Versa",
+      "depot": "Southbank"
+    },
+    {
+      "fleetNumber": "6131",
+      "regNo": "DEMO6131",
+      "vehicleType": "Mercedes-Benz Citaro",
+      "depot": "Hillcrest"
+    },
+    {
+      "fleetNumber": "6138",
+      "regNo": "DEMO6138",
+      "vehicleType": "Wrightbus Streetdeck",
+      "depot": "Northgate"
+    },
+    {
+      "fleetNumber": "6152",
+      "regNo": "DEMO6152",
+      "vehicleType": "Wrightbus Streetlite",
+      "depot": "Eastfield"
+    },
+    {
+      "fleetNumber": "6159",
+      "regNo": "DEMO6159",
+      "vehicleType": "ADL Enviro400",
+      "depot": "Harbourside"
+    },
+    {
+      "fleetNumber": "6166",
+      "regNo": "DEMO6166",
+      "vehicleType": "ADL Enviro200",
+      "depot": "Westmoor"
+    },
+    {
+      "fleetNumber": "6173",
+      "regNo": "DEMO6173",
+      "vehicleType": "Volvo B5TL",
+      "depot": "Southbank"
+    },
+    {
+      "fleetNumber": "6180",
+      "regNo": "DEMO6180",
+      "vehicleType": "Optare Versa",
+      "depot": "Hillcrest"
+    },
+    {
+      "fleetNumber": "6188",
+      "regNo": "DEMO6188",
+      "vehicleType": "Mercedes-Benz Citaro",
+      "depot": "Northgate"
+    },
+    {
+      "fleetNumber": "6195",
+      "regNo": "DEMO6195",
+      "vehicleType": "Wrightbus Streetdeck",
+      "depot": "Eastfield"
+    },
+    {
+      "fleetNumber": "6203",
+      "regNo": "DEMO6203",
+      "vehicleType": "Wrightbus Streetlite",
+      "depot": "Harbourside"
+    },
+    {
+      "fleetNumber": "6217",
+      "regNo": "DEMO6217",
+      "vehicleType": "ADL Enviro400",
+      "depot": "Westmoor"
+    },
+    {
+      "fleetNumber": "6224",
+      "regNo": "DEMO6224",
+      "vehicleType": "ADL Enviro200",
+      "depot": "Southbank"
+    },
+    {
+      "fleetNumber": "6231",
+      "regNo": "DEMO6231",
+      "vehicleType": "Volvo B5TL",
+      "depot": "Hillcrest"
+    },
+    {
+      "fleetNumber": "6238",
+      "regNo": "DEMO6238",
+      "vehicleType": "Optare Versa",
+      "depot": "Northgate"
+    },
+    {
+      "fleetNumber": "6245",
+      "regNo": "DEMO6245",
+      "vehicleType": "Mercedes-Benz Citaro",
+      "depot": "Eastfield"
+    },
+    {
+      "fleetNumber": "6252",
+      "regNo": "DEMO6252",
+      "vehicleType": "Wrightbus Streetdeck",
+      "depot": "Harbourside"
+    },
+    {
+      "fleetNumber": "6260",
+      "regNo": "DEMO6260",
+      "vehicleType": "Wrightbus Streetlite",
+      "depot": "Westmoor"
+    },
+    {
+      "fleetNumber": "6267",
+      "regNo": "DEMO6267",
+      "vehicleType": "ADL Enviro400",
+      "depot": "Southbank"
+    },
+    {
+      "fleetNumber": "6274",
+      "regNo": "DEMO6274",
+      "vehicleType": "ADL Enviro200",
+      "depot": "Hillcrest"
+    },
+    {
+      "fleetNumber": "6281",
+      "regNo": "DEMO6281",
+      "vehicleType": "Volvo B5TL",
+      "depot": "Northgate"
+    },
+    {
+      "fleetNumber": "6289",
+      "regNo": "DEMO6289",
+      "vehicleType": "Optare Versa",
+      "depot": "Eastfield"
+    },
+    {
+      "fleetNumber": "6296",
+      "regNo": "DEMO6296",
+      "vehicleType": "Mercedes-Benz Citaro",
+      "depot": "Harbourside"
+    },
+    {
+      "fleetNumber": "6308",
+      "regNo": "DEMO6308",
+      "vehicleType": "Wrightbus Streetdeck",
+      "depot": "Westmoor"
+    },
+    {
+      "fleetNumber": "6315",
+      "regNo": "DEMO6315",
+      "vehicleType": "Wrightbus Streetlite",
+      "depot": "Southbank"
+    },
+    {
+      "fleetNumber": "6329",
+      "regNo": "DEMO6329",
+      "vehicleType": "ADL Enviro400",
+      "depot": "Hillcrest"
+    },
+    {
+      "fleetNumber": "6336",
+      "regNo": "DEMO6336",
+      "vehicleType": "ADL Enviro200",
+      "depot": "Northgate"
+    },
+    {
+      "fleetNumber": "6343",
+      "regNo": "DEMO6343",
+      "vehicleType": "Volvo B5TL",
+      "depot": "Eastfield"
+    }
+  ]
+}

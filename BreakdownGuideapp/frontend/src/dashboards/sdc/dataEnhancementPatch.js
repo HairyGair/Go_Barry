@@ -175,7 +175,7 @@ const lookupFleetData = async (fleetNumber) => {
       try { isDemo = JSON.parse(sessionStorage.getItem('currentDuty') || 'null')?.isDemo === true; } catch { /* ignore */ }
       if (isDemo) return;
       try {
-        const response = await fetch('/gne-fleet-database.json');
+        const response = await fetch('/fleet-database.json');
         if (response.ok) {
           const data = await response.json();
           fleetDataCache = data.fleet?.reduce((map, v) => {

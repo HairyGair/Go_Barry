@@ -2,6 +2,10 @@ import React, { useEffect, useState } from 'react';
 import * as Icons from '../common/icons.jsx';
 import constants from '../common/constants.js';
 import { supervisorBreakdownLogger } from '../../supervisorBreakdownLogger.js';
+import { getDepotOptions } from '../../../config/demoDepots';
+
+const REAL_GARAGE_DEPOTS = ['Gateshead', 'Consett', 'Washington', 'Percy Main', 'Deptford', 'Hexham'];
+const GARAGE_DEPOTS = getDepotOptions(REAL_GARAGE_DEPOTS).map(d => (typeof d === 'string' ? d : d.name));
 
 // Road Traffic Incidents Wizard Component - Critical Incident Management
 // Uses icons and constants from common components
@@ -231,7 +235,7 @@ const RoadTrafficIncidentsWizard = ({ currentStep, responses, updateResponse, on
                         <h3 className="text-lg font-semibold text-white mb-4">Garage/Depot</h3>
                         <p className="text-gray-300 text-sm mb-4">Select the garage/depot associated with this incident:</p>
                         <div className="grid grid-cols-2 gap-3">
-                            {['Gateshead', 'Consett', 'Washington', 'Percy Main', 'Deptford', 'Hexham'].map((depot) => (
+                            {GARAGE_DEPOTS.map((depot) => (
                                 <button
                                     key={depot}
                                     type="button"

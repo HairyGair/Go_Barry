@@ -4,10 +4,11 @@
 import React from 'react';
 import { MapPin, ExternalLink } from 'lucide-react';
 import DarkPinMap from './DarkPinMap';
+import { isDemoSession, DEMO_DEPOTS } from '../../config/demoDepots';
 
 const SimpleLocationMap = ({ location, fleetNumber, depot }) => {
   // Default center points - VERIFIED from OpenStreetMap (December 2025)
-  const depotCoordinates = {
+  const realDepotCoordinates = {
     'Washington': { lat: 54.9068, lng: -1.5140, zoom: 12 },
     'Riverside': { lat: 54.9586, lng: -1.6579, zoom: 13 },
     'Percy Main': { lat: 55.0041, lng: -1.4774, zoom: 12 },
@@ -18,6 +19,15 @@ const SimpleLocationMap = ({ location, fleetNumber, depot }) => {
     'Gateshead': { lat: 54.9527, lng: -1.6034, zoom: 13 },
     'Newcastle': { lat: 54.9783, lng: -1.6178, zoom: 13 }
   };
+
+  // Fictional depot coordinates for demo sessions, keyed by name (+ a
+  // neutral fallback in place of "Newcastle").
+  const demoDepotCoordinates = DEMO_DEPOTS.reduce((acc, d) => {
+    acc[d.name] = { lat: d.lat, lng: d.lng, zoom: 12 };
+    return acc;
+  }, { 'Newcastle': { lat: 54.9783, lng: -1.6178, zoom: 11 } });
+
+  const depotCoordinates = isDemoSession() ? demoDepotCoordinates : realDepotCoordinates;
 
   // Try to extract coordinates from location string
   const extractCoords = (locationStr) => {

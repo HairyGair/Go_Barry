@@ -32,6 +32,7 @@ import { apiClient } from '../../services/api-client';
 import websocketService from '../../services/websocket';
 import GairWareLogo from '../../components/GairWareLogo';
 import { GOOGLE_MAPS_API_KEY } from '@/config/maps.js';
+import { DEMO_DEPOTS } from '../../config/demoDepots';
 import './EngineeringDisplay.css';
 
 // True when the current session is the demo account, so public displays
@@ -85,7 +86,12 @@ const EngineeringDisplay = () => {
     'Consett': { lat: 54.8403, lng: -1.8380, name: 'Consett Depot' },
     'Deptford': { lat: 54.9142, lng: -1.3976, name: 'Deptford Depot' },
     'Percy Main': { lat: 55.0041, lng: -1.4774, name: 'Percy Main Depot' },
-    'Hexham': { lat: 54.9756, lng: -2.0960, name: 'Hexham Depot' }
+    'Hexham': { lat: 54.9756, lng: -2.0960, name: 'Hexham Depot' },
+    // Fictional demo depots so ?depot= links from the demo user menu resolve too
+    ...DEMO_DEPOTS.reduce((acc, d) => {
+      acc[d.name] = { lat: d.lat, lng: d.lng, name: `${d.name} Depot` };
+      return acc;
+    }, {})
   };
 
   // Auto-hide cursor after 5 seconds of inactivity

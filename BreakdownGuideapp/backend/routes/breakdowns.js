@@ -22,6 +22,8 @@ import breakdownAssignmentService from '../services/breakdownAssignmentService.j
 import { calculateMileageLost } from '../services/mileageCalculationService.js';
 import { calculateRoadDistance } from '../services/googleDirectionsService.js';
 import { replacementSchemas } from '../validation/schemas.js';
+import { isDemoUser } from '../utils/demoFilter.js';
+import { findDemoDepot } from '../data/demoDepots.js';
 
 const router = express.Router();
 
@@ -2425,24 +2427,37 @@ router.post('/:id/replacement', validate(replacementSchemas.dispatch), async (re
       DAR: { name: 'Darlington', lat: 54.5245, lng: -1.5515 }
     };
 
-    // Look up depot coordinates from DB, fall back to hardcoded
+    // Look up depot coordinates. Demo sessions must never resolve to (or leak)
+    // the real depot roster - always resolve via the fictional demo depot table
+    // instead of the shared `depots` table / real-depot fallback above.
     let depotName, depotLat, depotLng;
-    try {
-      const { data: depot } = await from('depots')
-        .select('code, name, latitude, longitude')
-        .eq('code', sending_depot_code)
-        .single();
-
-      if (depot && depot.latitude && depot.longitude) {
-        depotName = depot.name;
-        depotLat = parseFloat(depot.latitude);
-        depotLng = parseFloat(depot.longitude);
+    if (isDemoUser(req.user)) {
+      const demoDepot = findDemoDepot(sending_depot_code);
+      if (!demoDepot) {
+        return res.status(400).json({ success: false, error: `Unknown depot code: ${sending_depot_code}` });
       }
-    } catch (dbErr) {
-      console.error('Depot DB lookup failed (using fallback):', dbErr.message);
+      depotName = demoDepot.name;
+      depotLat = demoDepot.lat;
+      depotLng = demoDepot.lng;
+    } else {
+      // Look up depot coordinates from DB, fall back to hardcoded
+      try {
+        const { data: depot } = await from('depots')
+          .select('code, name, latitude, longitude')
+          .eq('code', sending_depot_code)
+          .single();
+
+        if (depot && depot.latitude && depot.longitude) {
+          depotName = depot.name;
+          depotLat = parseFloat(depot.latitude);
+          depotLng = parseFloat(depot.longitude);
+        }
+      } catch (dbErr) {
+        console.error('Depot DB lookup failed (using fallback):', dbErr.message);
+      }
     }
 
-    // Fallback to hardcoded coordinates
+    // Fallback to hardcoded coordinates (real users only - demo already resolved above)
     if (!depotLat || !depotLng) {
       const fallback = DEPOT_COORDS[sending_depot_code];
       if (!fallback) {

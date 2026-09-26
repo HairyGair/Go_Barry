@@ -16,6 +16,7 @@ import { query, transaction } from '../config/mysql.js';
 import { validate } from '../middleware/validationMiddleware.js';
 import Joi from 'joi';
 import { activityLogger, ACTIVITY_TYPES, ACTOR_TYPES, ENTITY_TYPES, SEVERITY_LEVELS } from '../services/activityLogger.js';
+import { denyDemoWrite, isDemoUser } from '../utils/demoFilter.js';
 
 const router = express.Router();
 
@@ -131,6 +132,11 @@ router.post(
   authenticateAdmin,
   upload.single('csvFile'),
   async (req, res) => {
+    // The demo account carries role 'admin' (so it can preview every dashboard),
+    // which would otherwise let a demo session import rows into the real,
+    // shared fleet_vehicles table. Block it here, same as other shared-data
+    // mutations (see utils/demoFilter.js).
+    if (denyDemoWrite(req, res)) return;
     try {
       console.log('🚀 Fleet CSV import request received');
       console.log('   User:', req.user?.email);
@@ -398,7 +404,15 @@ router.post(
  * Download CSV template file for fleet imports
  */
 router.get('/import-template', authenticateAdmin, (req, res) => {
-  const template = `FleetNo,RegNumber,OperatingDepotCode,VehicleType Equinox
+  // Demo sessions (role 'admin') never see the real depot roster in example
+  // data - use the fictional demo depots instead (data/demoDepots.js).
+  const template = isDemoUser(req.user)
+    ? `FleetNo,RegNumber,OperatingDepotCode,VehicleType Equinox
+6377,NK19ABC,Eastfield,Streetlite
+6378,NK19ABD,Eastfield,Streetlite
+6379,NK19ABE,Northgate,Streetdeck
+6380,NK19ABF,Hillcrest,Versa`
+    : `FleetNo,RegNumber,OperatingDepotCode,VehicleType Equinox
 6377,NK19ABC,Washington,Streetlite
 6378,NK19ABD,Washington,Streetlite
 6379,NK19ABE,Riverside,Streetdeck

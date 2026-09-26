@@ -375,7 +375,10 @@ router.get('/depot-stats', async (req, res) => {
 
     if (error) throw error;
 
-    // Get fleet vehicle counts by depot (approximate based on data)
+    // Get fleet vehicle counts by depot (approximate based on data). Includes
+    // both the real depot names and the fictional demo depot names (see
+    // data/demoDepots.js) - only whichever set matches the current session's
+    // breakdown rows is ever used, so this never mixes across sessions.
     const depotVehicleCounts = {
       'Washington': 200,
       'Riverside': 180,
@@ -384,6 +387,13 @@ router.get('/depot-stats', async (req, res) => {
       'Percy Main': 100,
       'Hexham': 80,
       'SDC': 50, // Control centre
+      // Fictional demo depots
+      'Northgate': 180,
+      'Eastfield': 200,
+      'Harbourside': 100,
+      'Westmoor': 80,
+      'Southbank': 150,
+      'Hillcrest': 120,
       'Unknown': 0
     };
 

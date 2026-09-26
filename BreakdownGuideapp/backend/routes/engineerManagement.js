@@ -12,6 +12,7 @@ import express from 'express';
 import { query, select, insert, update } from '../config/mysql.js';
 import { from } from '../utils/queryHelpers.js';
 import { isDemoUser, demoSqlFilter, DEMO_SUPERVISOR_ID } from '../utils/demoFilter.js';
+import { findDemoDepot } from '../data/demoDepots.js';
 
 const router = express.Router();
 
@@ -53,10 +54,15 @@ router.get('/engineers', async (req, res) => {
     sql += ' ORDER BY e.name ASC';
 
     const engineers = await query(sql, params);
+    const demo = isDemoUser(req.user);
 
-    // Parse skills JSON
+    // Parse skills JSON. Demo engineers' home_depot_code is a fictional demo
+    // depot code (data/demoDepots.js), which never matches a row in the real
+    // `depots` table - so the LEFT JOIN above always leaves depot_name NULL
+    // for them. Resolve it from the fictional table instead.
     const parsed = engineers.map(e => ({
       ...e,
+      depot_name: demo ? (findDemoDepot(e.home_depot_code)?.name || e.depot_name) : e.depot_name,
       skills: typeof e.skills === 'string' ? JSON.parse(e.skills) : (e.skills || [])
     }));
 

@@ -7,11 +7,12 @@
 import React, { useState, useMemo } from 'react';
 import { Zap, CheckCircle2, Bus, Undo2, Minus } from 'lucide-react';
 import { theme } from '@styles/theme';
+import { isDemoSession, mapRealDepotToDemo } from '../../config/demoDepots';
 import './EVChargesDashboard.css';
 
 // Mock EV fleet data — replace with API call when real data feed is available
 // 6801-6824: Enviro400EV (Riverside), 8801-8809: Yutong (Riverside), 5801-5809: Yutong (Riverside)
-const MOCK_EV_VEHICLES = [
+const REAL_MOCK_EV_VEHICLES = [
   // Enviro400EV fleet: 6801-6824 (Riverside)
   { fleet_no: '6801', type: 'Enviro400EV', charge: 92, status: 'In Service', depot: 'Riverside', lastUpdated: '2 min ago' },
   { fleet_no: '6802', type: 'Enviro400EV', charge: 78, status: 'In Service', depot: 'Riverside', lastUpdated: '3 min ago' },
@@ -58,6 +59,12 @@ const MOCK_EV_VEHICLES = [
   { fleet_no: '5808', type: 'Yutong', charge: 69, status: 'In Service', depot: 'Riverside', lastUpdated: '1 min ago' },
   { fleet_no: '5809', type: 'Yutong', charge: 11, status: 'Returning to Depot', depot: 'Riverside', lastUpdated: '5 min ago' },
 ];
+
+// In a demo session, relabel the mock fleet's depot to the fictional
+// equivalent so the public demo never shows a real GNE depot name.
+const MOCK_EV_VEHICLES = isDemoSession()
+  ? REAL_MOCK_EV_VEHICLES.map(v => ({ ...v, depot: mapRealDepotToDemo(v.depot)?.name || v.depot }))
+  : REAL_MOCK_EV_VEHICLES;
 
 const getChargeLevel = (charge) => {
   if (charge >= 80) return 'high';

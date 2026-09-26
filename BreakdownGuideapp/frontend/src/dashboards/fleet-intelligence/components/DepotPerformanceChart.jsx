@@ -11,20 +11,17 @@
  */
 
 import React, { useMemo } from 'react';
+import { getDepotOptions } from '../../../config/demoDepots';
+
+const REAL_DEPOT_NAMES = ['Washington', 'Riverside', 'Percy Main', 'Deptford', 'Consett', 'Chester-le-Street'];
 
 const DepotPerformanceChart = ({ depots = [], loading }) => {
   // Process and sort depot data
   const chartData = useMemo(() => {
     if (!depots || depots.length === 0) {
       // Default depots with zero values
-      return [
-        { name: 'Washington', value: 0, trend: 0 },
-        { name: 'Riverside', value: 0, trend: 0 },
-        { name: 'Percy Main', value: 0, trend: 0 },
-        { name: 'Deptford', value: 0, trend: 0 },
-        { name: 'Consett', value: 0, trend: 0 },
-        { name: 'Chester-le-Street', value: 0, trend: 0 },
-      ];
+      const names = getDepotOptions(REAL_DEPOT_NAMES).map(d => (typeof d === 'string' ? d : d.name));
+      return names.map(name => ({ name, value: 0, trend: 0 }));
     }
 
     // /api/defects/depot-stats returns { name, defectCount } (camelCase),

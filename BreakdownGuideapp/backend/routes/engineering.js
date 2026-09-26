@@ -19,9 +19,10 @@
 import express from 'express';
 import { query, select, insert, update } from '../config/mysql.js';
 import { from } from '../utils/queryHelpers.js';
-import { applyEngineerDemoFilter } from '../utils/demoFilter.js';
+import { applyEngineerDemoFilter, isDemoUser } from '../utils/demoFilter.js';
 import { activityLogger, ACTIVITY_TYPES, ACTOR_TYPES, SEVERITY_LEVELS } from '../services/activityLogger.js';
 import { calculateRoadDistance } from '../services/googleDirectionsService.js';
+import { DEMO_DEPOTS, findDemoDepot } from '../data/demoDepots.js';
 
 const router = express.Router();
 
@@ -47,29 +48,38 @@ const broadcastEngineeringEvent = (type, data) => {
 // GET /api/engineering/depot-stats - Get depot performance statistics
 router.get('/depot-stats', async (req, res) => {
   try {
-    // Get all active depots
-    const { data: depots, error: depotError } = await from('depots')
-      .select('*')
-      .eq('is_active', true)
-      .execute();
+    const demo = isDemoUser(req.user);
 
-    if (depotError) throw depotError;
+    // Get all active depots. Demo sessions get the fictional depot table
+    // instead of the real one so no real depot name/code is ever returned.
+    let depots;
+    if (demo) {
+      depots = DEMO_DEPOTS.map((d) => ({ code: d.code, name: d.name }));
+    } else {
+      const { data, error: depotError } = await from('depots')
+        .select('*')
+        .eq('is_active', true)
+        .execute();
+      if (depotError) throw depotError;
+      depots = data;
+    }
 
     // Get engineer data for each depot
     const depotStats = {};
 
     for (const depot of depots) {
-      // Count breakdowns by depot in last 24 hours
+      // Count breakdowns by depot in last 24 hours. Real breakdown rows store
+      // the depot code; demo breakdown rows store the fictional depot name.
       const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
       let depotBreakdownQuery = from('breakdowns')
         .select('*')
-        .eq('depot', depot.code)
+        .eq('depot', demo ? depot.name : depot.code)
         .gte('created_at', oneDayAgo.toISOString())
         .in('status', ['active', 'pending', 'in_progress', 'dispatched', 'on_site']);
 
       // Demo sessions see only demo data; everyone else excludes it
-      if (req.user?.badge_number === 'DEMO01') {
+      if (demo) {
         depotBreakdownQuery = depotBreakdownQuery.eq('supervisor_badge', 'DEMO01');
       } else {
         depotBreakdownQuery = depotBreakdownQuery.neq('supervisor_badge', 'DEMO01');
@@ -1019,31 +1029,40 @@ router.get('/sla', async (req, res) => {
 // GET /api/engineering/teams - Get team availability and status
 router.get('/teams', async (req, res) => {
   try {
-    // Get all active depots
-    const { data: depots, error: depotError } = await from('depots')
-      .select('*')
-      .eq('is_active', true)
-      .execute();
+    const demo = isDemoUser(req.user);
 
-    if (depotError) throw depotError;
+    // Get all active depots. Demo sessions get the fictional depot table
+    // instead of the real one so no real depot name/code is ever returned.
+    let depots;
+    if (demo) {
+      depots = DEMO_DEPOTS.map((d) => ({ code: d.code, name: d.name }));
+    } else {
+      const { data, error: depotError } = await from('depots')
+        .select('*')
+        .eq('is_active', true)
+        .execute();
+      if (depotError) throw depotError;
+      depots = data;
+    }
 
     // Get team data for each depot
     const teams = [];
 
     for (const depot of depots) {
-      // Get active breakdowns for this depot
+      // Get active breakdowns for this depot. Real breakdown rows store the
+      // depot code; demo breakdown rows store the fictional depot name.
       let teamsSql = `
         SELECT * FROM breakdowns
         WHERE depot = ?
         AND status IN ('active', 'pending', 'in_progress', 'dispatched', 'on_site')
       `;
       // Demo sessions see only demo data; everyone else excludes it
-      if (req.user?.badge_number === 'DEMO01') {
+      if (demo) {
         teamsSql += " AND supervisor_badge = 'DEMO01'";
       } else {
         teamsSql += " AND supervisor_badge != 'DEMO01'";
       }
-      const activeBreakdowns = await query(teamsSql, [depot.code]);
+      const activeBreakdowns = await query(teamsSql, [demo ? depot.name : depot.code]);
 
       // Get engineer data for this depot
       const { data: depotEngineers } = await applyEngineerDemoFilter(from('engineers')
@@ -1686,7 +1705,12 @@ router.post('/calculate-eta', async (req, res) => {
       });
     }
 
-    const depot = DEPOT_COORDS[depot_code];
+    // Demo sessions use the fictional depot table; real depot codes never
+    // resolve there and vice versa, so this is safe to try regardless of
+    // isDemoUser (kept explicit for clarity and to match the other routes).
+    const depot = isDemoUser(req.user)
+      ? findDemoDepot(depot_code)
+      : DEPOT_COORDS[depot_code];
     if (!depot) {
       return res.status(400).json({
         success: false,
@@ -1718,7 +1742,9 @@ router.post('/calculate-eta', async (req, res) => {
 
     // Graceful fallback: estimate based on straight-line distance
     try {
-      const depot = DEPOT_COORDS[req.body.depot_code];
+      const depot = isDemoUser(req.user)
+        ? findDemoDepot(req.body.depot_code)
+        : DEPOT_COORDS[req.body.depot_code];
       if (depot) {
         const lat = parseFloat(req.body.breakdown_lat);
         const lng = parseFloat(req.body.breakdown_lng);

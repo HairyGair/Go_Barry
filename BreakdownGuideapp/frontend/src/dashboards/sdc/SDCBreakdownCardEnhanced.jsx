@@ -14,6 +14,7 @@ import EngineerEtaCountdown from '../../components/EngineerEtaCountdown';
 import QuickDecisionButtons from './QuickDecisionButtons';
 import apiClient from '../../services/api-client';
 import { GOOGLE_MAPS_API_KEY } from '@/config/maps.js';
+import { DEMO_DEPOTS } from '../../config/demoDepots';
 import './SDCBreakdownCard-Carousel.css';
 
 // standard procedure category mappings with icons
@@ -80,7 +81,12 @@ const extractCoordinates = (location) => {
     'Newcastle': { lat: 54.9783, lng: -1.6178 },
     'Chester-le-Street': { lat: 54.8543, lng: -1.5740 },
     'Gateshead': { lat: 54.9527, lng: -1.6034 },
-    'Sunderland': { lat: 54.9069, lng: -1.3838 }
+    'Sunderland': { lat: 54.9069, lng: -1.3838 },
+    // Fictional demo depots (distinct names, safe to keep alongside the real ones)
+    ...DEMO_DEPOTS.reduce((acc, d) => {
+      acc[d.name] = { lat: d.lat, lng: d.lng };
+      return acc;
+    }, {})
   };
   
   // Check if location contains any known place

@@ -6,9 +6,10 @@
  */
 
 import React, { useMemo } from 'react';
+import { getDepotOptions } from '../../config/demoDepots';
 import './DepotStatusGrid.css';
 
-const DEPOTS = [
+const REAL_DEPOTS = [
   { id: 'Washington', name: 'Washington', icon: '🏭' },
   { id: 'Riverside', name: 'Riverside', icon: '🏭' },
   { id: 'Consett', name: 'Consett', icon: '🏭' },
@@ -16,6 +17,10 @@ const DEPOTS = [
   { id: 'Percy Main', name: 'Percy Main', icon: '🏭' },
   { id: 'Hexham', name: 'Hexham', icon: '🏭' }
 ];
+
+const DEPOTS = getDepotOptions(REAL_DEPOTS).map(d => (
+  typeof d === 'string' ? { id: d, name: d, icon: '🏭' } : { id: d.name, name: d.name, icon: '🏭' }
+));
 
 const DepotStatusGrid = ({ breakdowns = [], onDepotClick }) => {
   // Calculate breakdown counts per depot

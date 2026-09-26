@@ -24,7 +24,8 @@ import { authSchemas } from '../validation/schemas.js';
 import webSocketHandler from './webSocketHandler.js';
 import { logAuditEvent, ACTION_TYPES as AUDIT_ACTIONS } from './dutyAudit.js';
 import { seedDemoData } from '../services/demoDataService.js';
-import { denyDemoWrite } from '../utils/demoFilter.js';
+import { denyDemoWrite, isDemoUser } from '../utils/demoFilter.js';
+import { DEMO_DEPOTS, getDemoDepotNames } from '../data/demoDepots.js';
 
 // Load environment variables
 dotenv.config();
@@ -84,7 +85,10 @@ router.get('/supervisors', async (req, res) => {
 
     if (error) throw error;
 
-    // Map to match frontend expectations
+    // Map to match frontend expectations. The demo supervisor row's `depot`
+    // column may still hold the real depot name it was seeded with (migration
+    // 033/035) - force the fictional depot here too, defensively, regardless
+    // of whether that migration has been applied.
     const supervisors = (data || []).map(supervisor => ({
       id: supervisor.id,
       username: supervisor.name,
@@ -92,7 +96,7 @@ router.get('/supervisors', async (req, res) => {
       name: supervisor.name,
       email: supervisor.email,
       role: supervisor.role || 'supervisor',
-      depot: supervisor.depot,
+      depot: supervisor.badge_number === 'DEMO01' ? DEMO_DEPOTS[0].name : supervisor.depot,
       badge_number: supervisor.badge_number,
       is_active: supervisor.is_active
     }));
@@ -501,6 +505,13 @@ router.post('/demo-login', rateLimitLogin, async (req, res) => {
       });
     }
 
+    // The demo supervisor row's `depot` column was originally seeded with a real
+    // Go North East depot name (migration 033: 'Riverside'; migration 035 updates
+    // the DB row to the fictional 'Northgate'). Override here too so the session
+    // response is correct even before migration 035 has been applied, and so it
+    // stays correct if the row is ever re-seeded.
+    supervisor.depot = DEMO_DEPOTS[0].name; // 'Northgate'
+
     // Seed fresh demo data (clears old, inserts new)
     try {
       await seedDemoData();
@@ -537,7 +548,7 @@ router.post('/demo-login', rateLimitLogin, async (req, res) => {
         email: supervisor.email,
         badge_number: supervisor.badge_number,
         current_duty: 'Duty 200',
-        depot: supervisor.depot || 'Riverside',
+        depot: supervisor.depot || DEMO_DEPOTS[0].name,
         role: supervisor.role || 'admin',
         login_time: new Date().toISOString().slice(0, 19).replace('T', ' '),
         last_activity: new Date().toISOString().slice(0, 19).replace('T', ' '),
@@ -990,6 +1001,13 @@ router.get('/validate', async (req, res) => {
 // GET /api/auth/depots - Get list of depots
 router.get('/depots', async (req, res) => {
   try {
+    // Demo sessions must never see the real depot roster. Demo is signalled by
+    // ?demo=true (this GET has no auth token most of the time) or by req.user.
+    const demo = req.query.demo === 'true' || isDemoUser(req.user);
+    if (demo) {
+      return res.json(getDemoDepotNames());
+    }
+
     const { data, error } = await from('supervisors')
       .select('depot')
       .notNull('depot')

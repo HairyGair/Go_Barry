@@ -8,6 +8,8 @@
 
 import React, { useState } from 'react';
 import { User, Phone, MessageSquare, Copy, Check, Mail, Building2, ClipboardList } from 'lucide-react';
+import { getDepotContactsTable } from '../../constants/depotContacts';
+import { isDemoSession } from '../../config/demoDepots';
 
 const ContactActions = ({ breakdown }) => {
   const [copied, setCopied] = useState(false);
@@ -19,8 +21,12 @@ const ContactActions = ({ breakdown }) => {
   const supervisorEmail = breakdown.supervisor_email || '';
   const depotName = breakdown.depot || '';
 
-  // Depot phone numbers (these should come from database in production)
-  const DEPOT_PHONES = {
+  // Depot phone numbers (these should come from database in production).
+  // In a demo session, look these up via the fictional depot contacts
+  // table instead (getDepotContactsTable() already resolves to the
+  // obviously-fake demo numbers), so a real GNE depot phone number is
+  // never shown in the public demo.
+  const REAL_DEPOT_PHONES = {
     'Washington': '0191 416 3322',
     'Riverside': '0191 420 3000',
     'Consett': '01207 501 201',
@@ -30,7 +36,19 @@ const ContactActions = ({ breakdown }) => {
     'SDC': '0191 420 3000'
   };
 
-  const depotPhone = DEPOT_PHONES[depotName] || '';
+  const getDepotPhone = (name) => {
+    if (!name) return '';
+    if (isDemoSession()) {
+      const table = getDepotContactsTable();
+      const entry = Object.values(table).find(
+        d => d.name.toLowerCase() === name.toLowerCase()
+      );
+      return entry?.contacts?.[0]?.number || '';
+    }
+    return REAL_DEPOT_PHONES[name] || '';
+  };
+
+  const depotPhone = getDepotPhone(depotName);
 
   // Handle copy to clipboard
   const handleCopy = (text, label) => {

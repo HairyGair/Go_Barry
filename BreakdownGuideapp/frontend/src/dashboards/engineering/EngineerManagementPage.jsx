@@ -2,10 +2,11 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Users, CheckCircle2, Wrench, Building2, MapPin } from 'lucide-react';
 import DashboardLayout from '../components/DashboardLayout';
 import { apiClient } from '../../services/api-client';
+import { getDepotOptions } from '../../config/demoDepots';
 
 const ACTIVE_JOB_STATUSES = new Set(['dispatched', 'on_site', 'in_progress']);
 
-const DEPOTS = [
+const REAL_DEPOTS = [
   { code: 'WAS', name: 'Washington' },
   { code: 'NCL', name: 'Riverside' },
   { code: 'CON', name: 'Consett' },
@@ -13,6 +14,8 @@ const DEPOTS = [
   { code: 'HEX', name: 'Hexham' },
   { code: 'DAR', name: 'Percy Main' }
 ];
+
+const DEPOTS = getDepotOptions(REAL_DEPOTS);
 
 // Display-only names for codes returned by the API that aren't dropdown
 // options (the depots table uses PM for Percy Main). NOTE: GTS/DAR labels above

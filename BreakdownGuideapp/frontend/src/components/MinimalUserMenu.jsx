@@ -15,7 +15,10 @@ import {
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { GoBarryBanner } from './GoBarryLogo.jsx';
 import ChangePasswordModal from './ChangePasswordModal.jsx';
+import { getDepotOptions } from '../config/demoDepots';
 import './MinimalUserMenu.css';
+
+const REAL_ENGINEERING_DEPOTS = ['Washington', 'Riverside', 'Consett', 'Deptford', 'Percy Main', 'Hexham'];
 
 const MinimalUserMenu = ({ currentDuty, onDutyClick }) => {
   const location = useLocation();
@@ -58,12 +61,15 @@ const MinimalUserMenu = ({ currentDuty, onDutyClick }) => {
       hasSubmenu: true,
       submenu: [
         { path: '/dashboards/engineering/display', label: 'All Depots', Icon: Factory, external: true },
-        { path: '/dashboards/engineering/display?depot=Washington', label: 'Washington', Icon: Building2, external: true },
-        { path: '/dashboards/engineering/display?depot=Riverside', label: 'Riverside', Icon: Building2, external: true },
-        { path: '/dashboards/engineering/display?depot=Consett', label: 'Consett', Icon: Building2, external: true },
-        { path: '/dashboards/engineering/display?depot=Deptford', label: 'Deptford', Icon: Building2, external: true },
-        { path: '/dashboards/engineering/display?depot=Percy%20Main', label: 'Percy Main', Icon: Building2, external: true },
-        { path: '/dashboards/engineering/display?depot=Hexham', label: 'Hexham', Icon: Building2, external: true },
+        ...getDepotOptions(REAL_ENGINEERING_DEPOTS).map((depot) => {
+          const name = typeof depot === 'string' ? depot : depot.name;
+          return {
+            path: `/dashboards/engineering/display?depot=${encodeURIComponent(name)}`,
+            label: name,
+            Icon: Building2,
+            external: true
+          };
+        }),
         { path: '/dashboards/engineering/manage', label: 'Manage Engineers', Icon: Wrench }
       ]
     },

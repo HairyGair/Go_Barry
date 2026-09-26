@@ -5,6 +5,7 @@ import { sendInterestNotification } from '../services/emailService.js';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { DEMO_FLEET } from '../data/demoFleet.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -247,8 +248,19 @@ router.get('/breakdowns/live', async (req, res) => {
 });
 
 // GET /api/public/fleet - Get fleet database
+// This endpoint does NOT require authentication (public wall displays), so a
+// demo session is signalled by ?demo=true. Demo sessions get the synthetic
+// demo fleet (fictional depots/registrations) instead of the real database.
 router.get('/fleet', (req, res) => {
   try {
+    if (req.query.demo === 'true') {
+      return res.json({
+        success: true,
+        fleet: DEMO_FLEET,
+        timestamp: new Date().toISOString()
+      });
+    }
+
     const fleetDbPath = join(__dirname, '..', 'data', 'fleet-database.json');
     const fleetData = JSON.parse(readFileSync(fleetDbPath, 'utf-8'));
 

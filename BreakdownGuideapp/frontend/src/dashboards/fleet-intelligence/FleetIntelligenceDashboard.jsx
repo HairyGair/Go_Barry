@@ -26,6 +26,7 @@ import DepotPerformanceChart from './components/DepotPerformanceChart';
 import TrendingIssuesList from './components/TrendingIssuesList';
 import PredictiveAlertsPanel from './components/PredictiveAlertsPanel';
 import useFleetIntelligence from './hooks/useFleetIntelligence';
+import { getDepotOptions } from '../../config/demoDepots';
 
 // SVG Icons
 const Icons = {
@@ -69,7 +70,8 @@ const Icons = {
 };
 
 // All known depots
-const ALL_DEPOTS = ['Washington', 'Riverside', 'Percy Main', 'Deptford', 'Consett', 'Chester-le-Street'];
+const REAL_DEPOTS = ['Washington', 'Riverside', 'Percy Main', 'Deptford', 'Consett', 'Chester-le-Street'];
+const ALL_DEPOTS = getDepotOptions(REAL_DEPOTS).map(d => (typeof d === 'string' ? d : d.name));
 
 const FleetIntelligenceDashboard = () => {
   const navigate = useNavigate();

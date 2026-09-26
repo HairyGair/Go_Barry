@@ -9,6 +9,7 @@ import React, { useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { DARK_BASE_TILES, DARK_LABEL_TILES } from '../../../config/mapTiles';
+import { isDemoSession, DEMO_DEPOTS } from '../../../config/demoDepots';
 
 // Fix for default marker icons in Leaflet with webpack/vite
 delete L.Icon.Default.prototype._getIconUrl;
@@ -19,7 +20,7 @@ L.Icon.Default.mergeOptions({
 });
 
 // Depot coordinates - Ocean Teal color palette
-const DEPOT_COORDS = {
+const REAL_DEPOT_COORDS = {
   'Washington': { lat: 54.8963, lng: -1.5238, color: '#0097A7' },
   'Riverside': { lat: 54.9619, lng: -1.6036, color: '#00838F' },
   'Percy Main': { lat: 55.0079, lng: -1.4631, color: '#10B981' },
@@ -27,6 +28,15 @@ const DEPOT_COORDS = {
   'Consett': { lat: 54.8500, lng: -1.8300, color: '#8B5CF6' },
   'Chester-le-Street': { lat: 54.8566, lng: -1.5707, color: '#00BCD4' },
 };
+
+// Fictional depot pins shown instead, in a demo session.
+const DEMO_DEPOT_COLORS = ['#0097A7', '#00838F', '#10B981', '#F59E0B', '#8B5CF6', '#00BCD4'];
+const DEMO_DEPOT_COORDS = DEMO_DEPOTS.reduce((acc, d, i) => {
+  acc[d.name] = { lat: d.lat, lng: d.lng, color: DEMO_DEPOT_COLORS[i % DEMO_DEPOT_COLORS.length] };
+  return acc;
+}, {});
+
+const DEPOT_COORDS = isDemoSession() ? DEMO_DEPOT_COORDS : REAL_DEPOT_COORDS;
 
 // Map bounds for the operator region
 const MAP_CONFIG = {
