@@ -42,11 +42,31 @@ fi
 rm -rf "$STAGING"
 mkdir -p "$STAGING"
 
-echo "Downloading latest release..."
-curl -fsSL "https://github.com/$REPO/releases/download/breakdown-latest/$TARBALL" -o "$TARBALL"
+# Optional: the commit CI just built. The release URL is fixed and can serve a
+# cached previous tarball right after a re-release, so verify BUILD_SHA and
+# retry rather than silently deploying stale code.
+EXPECTED_SHA="${1:-}"
 
-echo "Extracting to staging..."
-tar -xzf "$TARBALL" -C "$STAGING" --strip-components=1
+for attempt in 1 2 3 4 5 6; do
+  echo "Downloading latest release (attempt $attempt)..."
+  curl -fsSL "https://github.com/$REPO/releases/download/breakdown-latest/$TARBALL?t=$(date +%s)" -o "$TARBALL"
+
+  rm -rf "$STAGING" && mkdir -p "$STAGING"
+  echo "Extracting to staging..."
+  tar -xzf "$TARBALL" -C "$STAGING" --strip-components=1
+
+  BUILT_SHA="$(cat "$STAGING/BUILD_SHA" 2>/dev/null || echo unknown)"
+  if [ -z "$EXPECTED_SHA" ] || [ "$BUILT_SHA" = "$EXPECTED_SHA" ]; then
+    echo "Build: $BUILT_SHA"
+    break
+  fi
+  if [ "$attempt" = 6 ]; then
+    echo "ERROR: release is $BUILT_SHA, expected $EXPECTED_SHA - aborting (nothing deployed)"
+    exit 1
+  fi
+  echo "Release is $BUILT_SHA, expected $EXPECTED_SHA - retrying in 15s..."
+  sleep 15
+done
 
 # ── Deploy Backend ──────────────────────────────────────────────────────────
 

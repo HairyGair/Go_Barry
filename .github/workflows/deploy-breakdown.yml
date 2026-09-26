@@ -11,6 +11,11 @@ on:
 permissions:
   contents: write
 
+# Deploys share one release tag; never let two overlap
+concurrency:
+  group: deploy-breakdown
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -69,6 +74,9 @@ jobs:
           # Frontend dist
           cp -r frontend/dist/. ../deploy/breakdown-deploy/frontend-dist/   # "/." includes dotfiles (.htaccess)
 
+          # Stamp the build so the server can verify it installed this commit
+          echo "$GITHUB_SHA" > ../deploy/breakdown-deploy/BUILD_SHA
+
           # Clean up macOS artifacts
           find ../deploy -name '.DS_Store' -delete 2>/dev/null || true
           find ../deploy -name '.env' -not -name '.env.example' -delete 2>/dev/null || true
@@ -101,4 +109,4 @@ jobs:
             -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=accept-new \
             -o ConnectTimeout=20 \
-            gobarryco@85.234.151.224 'bash ~/update-breakdown.sh'
+            gobarryco@85.234.151.224 "bash ~/update-breakdown.sh $GITHUB_SHA"
