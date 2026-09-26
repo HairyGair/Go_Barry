@@ -1429,12 +1429,6 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
                           }
                         })()}
 
-                        {/* Bus number */}
-                        {primaryActivity.fleetNumber && (
-                          <span className="activity-bus-number">
-                            • Bus {primaryActivity.fleetNumber}
-                          </span>
-                        )}
 
                         {primaryActivity.isRealTime && (
                           <span className="real-time-indicator" title="Real-time update">
@@ -1444,13 +1438,8 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
                       </div>
 
                       {/* Metadata Bar (Time, Passengers, Location) */}
-                      {(primaryActivity.passengersOnBoard || primaryActivity.passengers_on_board ||
-                        (primaryActivity.location && !primaryActivity.location.includes('Click for location'))) && (
+                      {(primaryActivity.passengersOnBoard || primaryActivity.passengers_on_board) && (
                         <div className="metadata-bar">
-                          {/* Time Badge */}
-                          <span className="time-badge" title={getExactTimestamp(primaryActivity.timestamp || primaryActivity.created_at)}>
-                            <Clock size={11} /> {formatTimeAgo(primaryActivity.timestamp || primaryActivity.created_at)}
-                          </span>
 
                           {/* Passenger Indicator */}
                           {(primaryActivity.passengersOnBoard || primaryActivity.passengers_on_board) && (
@@ -1459,19 +1448,6 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
                             </span>
                           )}
 
-                          {/* Location Chip */}
-                          {primaryActivity.location && !primaryActivity.location.includes('Click for location') && (
-                            <span
-                              className="location-chip"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleLocationClick(primaryActivity);
-                              }}
-                              title="Click to view on map"
-                            >
-                              {primaryActivity.location.substring(0, 30)}{primaryActivity.location.length > 30 ? '...' : ''}
-                            </span>
-                          )}
                         </div>
                       )}
 
