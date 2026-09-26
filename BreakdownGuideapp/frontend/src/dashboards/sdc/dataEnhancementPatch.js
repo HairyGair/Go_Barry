@@ -3,6 +3,7 @@
  * Normalizes and enhances breakdown data from various sources
  */
 
+import { isDemoSession } from '../../config/demoDepots';
 import { GOOGLE_MAPS_API_KEY } from '@/config/maps.js';
 
 let googleApiKeyWarningShown = false;
@@ -206,6 +207,8 @@ const lookupFleetData = async (fleetNumber) => {
 
 // Reverse geocoding function
 const reverseGeocode = async (coordinates, apiKey) => {
+  // Demo pins sit on real geography; never turn them into real addresses
+  if (isDemoSession()) return null;
   // Parse coordinates
   const coordMatch = coordinates.match(/(-?\d+\.?\d*),?\s*(-?\d+\.?\d*)/);
   if (!coordMatch) {

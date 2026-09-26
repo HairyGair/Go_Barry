@@ -13,7 +13,7 @@ import { apiClient } from '../../services/api-client';
 import { createAssessmentSummary, getServiceImpact } from './utils/assessmentParser';
 import L from 'leaflet';
 import { STREET_TILES, SATELLITE_TILES } from '../../config/mapTiles';
-import { DEMO_DEPOTS } from '../../config/demoDepots';
+import { DEMO_DEPOTS, isDemoSession } from '../../config/demoDepots';
 
 // ── Reverse geocode cache (shared across all cards, survives re-renders) ──
 const geocodeCache = new Map();
@@ -116,9 +116,11 @@ const EngineeringCardEnhanced = ({
     return null;
   })();
 
-  // Reverse geocode into street + town
+  // Reverse geocode into street + town. Skipped in demo sessions: demo pins sit
+  // on real geography, so a geocoded address would reveal real place names —
+  // the demo's fictional location description is shown instead.
   useEffect(() => {
-    if (!cardCoords) return;
+    if (!cardCoords || isDemoSession()) return;
     let cancelled = false;
     reverseGeocode(cardCoords[0], cardCoords[1]).then(addr => {
       if (!cancelled && addr) setGeocodedAddress(addr);

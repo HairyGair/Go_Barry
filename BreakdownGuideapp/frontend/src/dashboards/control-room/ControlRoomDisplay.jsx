@@ -138,6 +138,8 @@ const ControlRoomDisplay = () => {
 
   // Reverse geocode coordinates to place name
   const reverseGeocode = async (lat, lng) => {
+    // Demo pins sit on real geography; never turn them into real addresses
+    if (isDemoSession()) return null;
     const cacheKey = `${lat},${lng}`;
 
     // Check if already geocoded

@@ -1,4 +1,5 @@
 import React, { useState, memo, useEffect, useCallback } from 'react';
+import { isDemoSession } from '../../config/demoDepots';
 import {
   ChevronDown, ChevronRight, Loader2, OctagonAlert, AlertTriangle, CheckCircle2, HelpCircle,
   BarChart3, MapPin, Search, ClipboardList, Clock3, Bus, Check, Wrench, StickyNote, Pencil,
@@ -331,6 +332,8 @@ const SDCBreakdownCardEnhanced = memo(({
 
   // Reverse geocode coordinates to street name (same as Control Room)
   const reverseGeocode = useCallback(async (lat, lng) => {
+    // Demo pins sit on real geography; never turn them into real addresses
+    if (isDemoSession()) return null;
     try {
       const response = await fetch(
         `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${GOOGLE_MAPS_API_KEY}`

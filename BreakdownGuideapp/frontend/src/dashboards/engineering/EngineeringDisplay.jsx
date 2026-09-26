@@ -178,6 +178,8 @@ const EngineeringDisplay = () => {
 
   // Reverse geocode coordinates to street address using Google API
   const reverseGeocode = async (lat, lng, cacheKey) => {
+    // Demo pins sit on real geography; never turn them into real addresses
+    if (isDemoSession()) return null;
     try {
       // Use Google Geocoding API directly (frontend key is already exposed in browser)
       if (!GOOGLE_MAPS_API_KEY) {
