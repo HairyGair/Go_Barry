@@ -32,7 +32,7 @@
 
 /* Badge Icon */
 .shift-ending-badge .badge-icon {
-  font-size: 1rem;
+  display: inline-flex;
 }
 
 .shift-ending-badge.critical .badge-icon {

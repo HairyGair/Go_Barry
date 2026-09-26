@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { Users, Bus, Map as MapIcon, CalendarDays, ClipboardList, Lock, FlaskConical, Microscope, Mail, Search } from 'lucide-react';
 import { apiClient } from '../../services/api-client.js';
 import AdminFleetImportSettings from '../AdminFleetImportSettings.jsx';
 import AdminGTFSSettings from '../AdminGTFSSettings.jsx';
@@ -323,246 +324,56 @@ const AdminSettings = () => {
       {/* Admin Tabs */}
       <div style={{
         display: 'flex',
-        gap: '12px',
+        gap: '4px',
+        flexWrap: 'wrap',
         marginBottom: '24px',
-        borderBottom: '1px solid var(--border-color, #444444)',
+        borderBottom: '1px solid var(--border-color, rgba(255, 255, 255, 0.08))',
         paddingBottom: '0'
       }}>
-        <button
-          onClick={() => setAdminTab('supervisors')}
-          style={{
-            padding: '12px 20px',
-            background: adminTab === 'supervisors' ? 'var(--primary-color, #667eea)' : 'transparent',
-            color: adminTab === 'supervisors' ? 'white' : 'var(--text-secondary)',
-            border: 'none',
-            borderBottom: adminTab === 'supervisors' ? '3px solid var(--primary-color, #667eea)' : 'none',
-            cursor: 'pointer',
-            fontSize: '14px',
-            fontWeight: '600',
-            transition: 'all 0.2s ease',
-            marginBottom: '-1px'
-          }}
-          onMouseEnter={(e) => {
-            if (adminTab !== 'supervisors') {
-              e.target.style.background = 'rgba(102, 126, 234, 0.1)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (adminTab !== 'supervisors') {
-              e.target.style.background = 'transparent';
-            }
-          }}
-        >
-          👥 Supervisors
-        </button>
-        <button
-          onClick={() => setAdminTab('fleet')}
-          style={{
-            padding: '12px 20px',
-            background: adminTab === 'fleet' ? 'var(--primary-color, #667eea)' : 'transparent',
-            color: adminTab === 'fleet' ? 'white' : 'var(--text-secondary)',
-            border: 'none',
-            borderBottom: adminTab === 'fleet' ? '3px solid var(--primary-color, #667eea)' : 'none',
-            cursor: 'pointer',
-            fontSize: '14px',
-            fontWeight: '600',
-            transition: 'all 0.2s ease',
-            marginBottom: '-1px'
-          }}
-          onMouseEnter={(e) => {
-            if (adminTab !== 'fleet') {
-              e.target.style.background = 'rgba(102, 126, 234, 0.1)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (adminTab !== 'fleet') {
-              e.target.style.background = 'transparent';
-            }
-          }}
-        >
-          🚌 Fleet Database
-        </button>
-        <button
-          onClick={() => setAdminTab('gtfs')}
-          style={{
-            padding: '12px 20px',
-            background: adminTab === 'gtfs' ? 'var(--primary-color, #667eea)' : 'transparent',
-            color: adminTab === 'gtfs' ? 'white' : 'var(--text-secondary)',
-            border: 'none',
-            borderBottom: adminTab === 'gtfs' ? '3px solid var(--primary-color, #667eea)' : 'none',
-            cursor: 'pointer',
-            fontSize: '14px',
-            fontWeight: '600',
-            transition: 'all 0.2s ease',
-            marginBottom: '-1px'
-          }}
-          onMouseEnter={(e) => {
-            if (adminTab !== 'gtfs') {
-              e.target.style.background = 'rgba(102, 126, 234, 0.1)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (adminTab !== 'gtfs') {
-              e.target.style.background = 'transparent';
-            }
-          }}
-        >
-          🗺️ GTFS Data
-        </button>
-        <button
-          onClick={() => setAdminTab('duty')}
-          style={{
-            padding: '12px 20px',
-            background: adminTab === 'duty' ? 'var(--primary-color, #667eea)' : 'transparent',
-            color: adminTab === 'duty' ? 'white' : 'var(--text-secondary)',
-            border: 'none',
-            borderBottom: adminTab === 'duty' ? '3px solid var(--primary-color, #667eea)' : 'none',
-            cursor: 'pointer',
-            fontSize: '14px',
-            fontWeight: '600',
-            transition: 'all 0.2s ease',
-            marginBottom: '-1px'
-          }}
-          onMouseEnter={(e) => {
-            if (adminTab !== 'duty') {
-              e.target.style.background = 'rgba(102, 126, 234, 0.1)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (adminTab !== 'duty') {
-              e.target.style.background = 'transparent';
-            }
-          }}
-        >
-          📅 Duty Schedules
-        </button>
-        <button
-          onClick={() => setAdminTab('audit')}
-          style={{
-            padding: '12px 20px',
-            background: adminTab === 'audit' ? 'var(--primary-color, #667eea)' : 'transparent',
-            color: adminTab === 'audit' ? 'white' : 'var(--text-secondary)',
-            border: 'none',
-            borderBottom: adminTab === 'audit' ? '3px solid var(--primary-color, #667eea)' : 'none',
-            cursor: 'pointer',
-            fontSize: '14px',
-            fontWeight: '600',
-            transition: 'all 0.2s ease',
-            marginBottom: '-1px'
-          }}
-          onMouseEnter={(e) => {
-            if (adminTab !== 'audit') {
-              e.target.style.background = 'rgba(102, 126, 234, 0.1)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (adminTab !== 'audit') {
-              e.target.style.background = 'transparent';
-            }
-          }}
-        >
-          📋 Audit Trail
-        </button>
-        <button
-          onClick={() => setAdminTab('compliance')}
-          style={{
-            padding: '12px 20px',
-            background: adminTab === 'compliance' ? 'var(--primary-color, #667eea)' : 'transparent',
-            color: adminTab === 'compliance' ? 'white' : 'var(--text-secondary)',
-            border: 'none',
-            borderBottom: adminTab === 'compliance' ? '3px solid var(--primary-color, #667eea)' : 'none',
-            cursor: 'pointer',
-            fontSize: '14px',
-            fontWeight: '600',
-            transition: 'all 0.2s ease',
-            marginBottom: '-1px'
-          }}
-          onMouseEnter={(e) => {
-            if (adminTab !== 'compliance') {
-              e.target.style.background = 'rgba(102, 126, 234, 0.1)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (adminTab !== 'compliance') {
-              e.target.style.background = 'transparent';
-            }
-          }}
-        >
-          &#x1F512; Compliance
-        </button>
-        <button
-          onClick={() => setAdminTab('test')}
-          style={{
-            padding: '12px 20px',
-            background: adminTab === 'test' ? 'var(--primary-color, #667eea)' : 'transparent',
-            color: adminTab === 'test' ? 'white' : 'var(--text-secondary)',
-            border: 'none',
-            borderBottom: adminTab === 'test' ? '3px solid var(--primary-color, #667eea)' : 'none',
-            cursor: 'pointer',
-            fontSize: '14px',
-            fontWeight: '600',
-            transition: 'all 0.2s ease',
-            marginBottom: '-1px'
-          }}
-          onMouseEnter={(e) => {
-            if (adminTab !== 'test') {
-              e.target.style.background = 'rgba(102, 126, 234, 0.1)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (adminTab !== 'test') {
-              e.target.style.background = 'transparent';
-            }
-          }}
-        >
-          🧪 Test Pages
-        </button>
-        <button
-          onClick={() => setAdminTab('diagnostics')}
-          style={{
-            padding: '10px 16px',
-            border: 'none',
-            background: adminTab === 'diagnostics' ? 'rgba(0, 151, 167, 0.2)' : 'transparent',
-            color: adminTab === 'diagnostics' ? '#0097A7' : '#94A3B8',
-            borderBottom: adminTab === 'diagnostics' ? '2px solid #0097A7' : '2px solid transparent',
-            cursor: 'pointer',
-            fontSize: '13px',
-            fontWeight: adminTab === 'diagnostics' ? '600' : '400',
-            transition: 'all 0.2s ease',
-            whiteSpace: 'nowrap'
-          }}
-          onMouseEnter={(e) => {
-            if (adminTab !== 'diagnostics') {
-              e.target.style.background = 'rgba(255,255,255,0.05)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (adminTab !== 'diagnostics') {
-              e.target.style.background = 'transparent';
-            }
-          }}
-        >
-          🔬 Diagnostics
-        </button>
-        <button
-          onClick={() => setAdminTab('enquiries')}
-          style={{
-            padding: '10px 16px',
-            border: 'none',
-            background: adminTab === 'enquiries' ? 'rgba(0, 151, 167, 0.2)' : 'transparent',
-            color: adminTab === 'enquiries' ? '#0097A7' : '#94A3B8',
-            borderBottom: adminTab === 'enquiries' ? '2px solid #0097A7' : '2px solid transparent',
-            cursor: 'pointer',
-            fontSize: '13px',
-            fontWeight: adminTab === 'enquiries' ? '600' : '400',
-            transition: 'all 0.2s ease',
-            whiteSpace: 'nowrap'
-          }}
-          onMouseEnter={(e) => { if (adminTab !== 'enquiries') e.target.style.background = 'rgba(255,255,255,0.05)'; }}
-          onMouseLeave={(e) => { if (adminTab !== 'enquiries') e.target.style.background = 'transparent'; }}
-        >
-          ✉️ Enquiries
-        </button>
+        {[
+          { id: 'supervisors', label: 'Supervisors', Icon: Users },
+          { id: 'fleet', label: 'Fleet Database', Icon: Bus },
+          { id: 'gtfs', label: 'GTFS Data', Icon: MapIcon },
+          { id: 'duty', label: 'Duty Schedules', Icon: CalendarDays },
+          { id: 'audit', label: 'Audit Trail', Icon: ClipboardList },
+          { id: 'compliance', label: 'Compliance', Icon: Lock },
+          { id: 'test', label: 'Test Pages', Icon: FlaskConical },
+          { id: 'diagnostics', label: 'Diagnostics', Icon: Microscope },
+          { id: 'enquiries', label: 'Enquiries', Icon: Mail },
+        ].map(({ id, label, Icon }) => {
+          const active = adminTab === id;
+          return (
+            <button
+              key={id}
+              onClick={() => setAdminTab(id)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 16px',
+                background: active ? 'rgba(0, 188, 212, 0.14)' : 'transparent',
+                color: active ? '#5eead4' : 'var(--text-secondary, #94a3b8)',
+                border: 'none',
+                borderBottom: active ? '2px solid #00bcd4' : '2px solid transparent',
+                borderRadius: '8px 8px 0 0',
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: active ? '600' : '500',
+                transition: 'all 0.2s ease',
+                whiteSpace: 'nowrap',
+                marginBottom: '-1px'
+              }}
+              onMouseEnter={(e) => {
+                if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+              }}
+              onMouseLeave={(e) => {
+                if (!active) e.currentTarget.style.background = 'transparent';
+              }}
+            >
+              <Icon size={15} /> {label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Supervisors Tab */}
@@ -658,12 +469,12 @@ const AdminSettings = () => {
                   </span>
                   <span style={{
                     textDecoration: 'underline',
-                    textDecorationColor: 'rgba(59, 130, 246, 0.5)',
+                    textDecorationColor: 'rgba(0, 188, 212, 0.5)',
                     textUnderlineOffset: '2px'
                   }}>
                     {supervisor.name || supervisor.full_name}
                   </span>
-                  <span style={{ fontSize: '10px', opacity: 0.6 }}>📋</span>
+                  <ClipboardList size={11} style={{ opacity: 0.6, flexShrink: 0 }} />
                 </div>
 
                 <div style={{
@@ -1049,13 +860,13 @@ const AdminSettings = () => {
             }}>
               {/* GTFS Live Route Status */}
               <div style={{
-                background: 'var(--bg-secondary, #1a1a1a)',
-                border: '1px solid var(--border-color, #444444)',
-                borderRadius: '8px',
+                background: 'var(--bg-secondary, #111a2b)',
+                border: '1px solid var(--border-color, rgba(255, 255, 255, 0.08))',
+                borderRadius: '10px',
                 padding: '20px'
               }}>
-                <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: '600' }}>
-                  🗺️ Live Route Status Dashboard
+                <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <MapIcon size={16} /> Live Route Status Dashboard
                 </h4>
                 <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: 'var(--text-secondary)' }}>
                   Real-time monitoring of all 225 bus routes with status indicators (Green/Amber/Red) based on active breakdowns.
@@ -1067,17 +878,17 @@ const AdminSettings = () => {
                   style={{
                     display: 'inline-block',
                     padding: '10px 16px',
-                    background: 'var(--primary-color, #667eea)',
-                    color: 'white',
+                    background: 'linear-gradient(135deg, #00bcd4 0%, #0097a7 100%)',
+                    color: '#06222a',
                     textDecoration: 'none',
-                    borderRadius: '6px',
+                    borderRadius: '8px',
                     fontSize: '13px',
                     fontWeight: '600',
                     transition: 'all 0.2s ease',
                     cursor: 'pointer'
                   }}
                   onMouseEnter={(e) => {
-                    e.target.style.opacity = '0.8';
+                    e.target.style.opacity = '0.85';
                     e.target.style.transform = 'translateY(-2px)';
                   }}
                   onMouseLeave={(e) => {
@@ -1091,13 +902,13 @@ const AdminSettings = () => {
 
               {/* Fleet Defect Intelligence */}
               <div style={{
-                background: 'var(--bg-secondary, #1a1a1a)',
-                border: '1px solid var(--border-color, #444444)',
-                borderRadius: '8px',
+                background: 'var(--bg-secondary, #111a2b)',
+                border: '1px solid var(--border-color, rgba(255, 255, 255, 0.08))',
+                borderRadius: '10px',
                 padding: '20px'
               }}>
-                <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: '600' }}>
-                  🔍 Fleet Defect Intelligence
+                <h4 style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Search size={16} /> Fleet Defect Intelligence
                 </h4>
                 <p style={{ margin: '0 0 16px 0', fontSize: '13px', color: 'var(--text-secondary)' }}>
                   Real-time monitoring of vehicle defects, repair trends, predictive maintenance alerts, and depot-specific issue hotspots across your entire fleet.
@@ -1109,17 +920,17 @@ const AdminSettings = () => {
                   style={{
                     display: 'inline-block',
                     padding: '10px 16px',
-                    background: '#dc2626',
-                    color: 'white',
+                    background: 'linear-gradient(135deg, #00bcd4 0%, #0097a7 100%)',
+                    color: '#06222a',
                     textDecoration: 'none',
-                    borderRadius: '6px',
+                    borderRadius: '8px',
                     fontSize: '13px',
                     fontWeight: '600',
                     transition: 'all 0.2s ease',
                     cursor: 'pointer'
                   }}
                   onMouseEnter={(e) => {
-                    e.target.style.opacity = '0.8';
+                    e.target.style.opacity = '0.85';
                     e.target.style.transform = 'translateY(-2px)';
                   }}
                   onMouseLeave={(e) => {

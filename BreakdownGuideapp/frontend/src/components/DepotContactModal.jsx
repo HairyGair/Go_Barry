@@ -7,6 +7,7 @@
  */
 
 import React from 'react';
+import { Phone, Smartphone, AlertTriangle, ChevronDown, X } from 'lucide-react';
 import { DEPOT_CONTACTS, getDepotByFleetNumber, getDepotContacts, getDepotName } from '../constants/depotContacts';
 import './DepotContactModal.css';
 
@@ -40,7 +41,7 @@ const DepotContactModal = ({
       <div className="depot-contact-modal">
         <div className="depot-contact-modal__header">
           <div className="depot-contact-modal__title-row">
-            <span className="depot-contact-modal__icon">📞</span>
+            <span className="depot-contact-modal__icon"><Phone size={22} /></span>
             <h2 className="depot-contact-modal__title">Contact {depotName}</h2>
           </div>
           <button
@@ -48,7 +49,7 @@ const DepotContactModal = ({
             onClick={onClose}
             aria-label="Close"
           >
-            ×
+            <X size={18} />
           </button>
         </div>
 
@@ -95,7 +96,7 @@ const DepotContactModal = ({
                       <span className="contact-item__number">{contact.number}</span>
                     </div>
                     <div className="contact-item__action">
-                      <span className="contact-item__call-icon">📱</span>
+                      <span className="contact-item__call-icon"><Smartphone size={20} /></span>
                       <span className="contact-item__call-text">
                         {index === 0 ? 'Call First' : 'Alternative'}
                       </span>
@@ -109,7 +110,7 @@ const DepotContactModal = ({
             </div>
           ) : (
             <div className="depot-contact-modal__no-contacts">
-              <span className="no-contacts__icon">⚠️</span>
+              <span className="no-contacts__icon"><AlertTriangle size={26} /></span>
               <p className="no-contacts__message">
                 No contact numbers available for this depot.
               </p>
@@ -123,7 +124,7 @@ const DepotContactModal = ({
           {/* All Depots Quick Reference */}
           <details className="depot-contact-modal__all-depots">
             <summary className="all-depots__summary">
-              <span className="all-depots__icon">📋</span>
+              <span className="all-depots__icon"><ChevronDown size={16} /></span>
               View All Depot Contacts
             </summary>
             <div className="all-depots__list">

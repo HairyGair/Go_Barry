@@ -13,111 +13,111 @@ const WheelchairRampWizard = ({ currentStep, responses, updateResponse, onNext, 
     switch (currentStep) {
         case 1:
             return (
-                <div className="bg-white rounded-lg shadow-sm p-6">
+                <div className="space-y-6">
                     <div className="mb-6">
-                        <h2 className="text-xl font-semibold text-gray-900 mb-2">♿ Wheelchair Ramp Assessment</h2>
-                        <p className="text-gray-600">Following standard operational safety procedures for wheelchair ramp systems - ensuring safe operation and compliance with disability access requirements.</p>
+                        <h2 className="text-2xl font-bold text-white mb-2 flex items-center gap-2"><Icons.Wrench className="w-6 h-6" /> Wheelchair Ramp Assessment</h2>
+                        <p className="text-gray-300">Following standard operational safety procedures for wheelchair ramp systems - ensuring safe operation and compliance with disability access requirements.</p>
                     </div>
                     
-                    <div className="bg-blue-50 border-l-4 border-blue-600 p-6 mb-6">
+                    <div className="bg-blue-500/20 border-l-4 border-blue-500 p-6 mb-6">
                         <div className="flex items-start">
                             <AlertTriangle className="w-6 h-6 text-blue-600 mt-1 mr-3" />
                             <div>
-                                <h3 className="text-lg font-semibold text-blue-800 mb-2">♿ Accessibility Legal Requirement</h3>
-                                <p className="text-blue-700">Wheelchair ramp systems are legally required under the Equality Act. A defective ramp requires immediate attention to ensure compliance.</p>
+                                <h3 className="text-lg font-semibold text-blue-200 mb-2">Accessibility Legal Requirement</h3>
+                                <p className="text-blue-300">Wheelchair ramp systems are legally required under the Equality Act. A defective ramp requires immediate attention to ensure compliance.</p>
                             </div>
                         </div>
                     </div>
 
                     <div className="space-y-6">
-                        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                            <h3 className="font-semibold text-red-900 mb-3">What is the current issue?</h3>
-                            <p className="text-red-700 text-sm mb-4">Select the primary problem with the wheelchair ramp.</p>
+                        <div className="bg-red-500/20 border border-red-400/30 rounded-lg p-4">
+                            <h3 className="font-semibold text-red-200 mb-3">What is the current issue?</h3>
+                            <p className="text-red-300 text-sm mb-4">Select the primary problem with the wheelchair ramp.</p>
                             <div className="space-y-3">
-                                <label className="flex items-start p-4 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <label className="flex items-start p-4 border border-white/15 rounded-lg hover:bg-white/10 cursor-pointer">
                                     <input
                                         type="radio"
                                         name="issue_type"
                                         checked={responses.issue_type === 'ramp_stuck_out'}
                                         onChange={() => updateResponse('issue_type', 'ramp_stuck_out')}
-                                        className="mt-1 mr-3 h-4 w-4 text-red-600 border-gray-300 focus:ring-red-500"
+                                        className="mt-1 mr-3 h-4 w-4 text-red-600 border-gray-500 focus:ring-red-500"
                                     />
                                     <div>
                                         <span className="font-medium text-red-600">🚨 Ramp stuck in deployed position</span>
-                                        <p className="text-sm text-gray-600 mt-1">Cannot retract ramp to stowed position</p>
+                                        <p className="text-sm text-gray-400 mt-1">Cannot retract ramp to stowed position</p>
                                     </div>
                                 </label>
-                                <label className="flex items-start p-4 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <label className="flex items-start p-4 border border-white/15 rounded-lg hover:bg-white/10 cursor-pointer">
                                     <input
                                         type="radio"
                                         name="issue_type"
                                         checked={responses.issue_type === 'wont_deploy'}
                                         onChange={() => updateResponse('issue_type', 'wont_deploy')}
-                                        className="mt-1 mr-3 h-4 w-4 text-orange-600 border-gray-300 focus:ring-orange-500"
+                                        className="mt-1 mr-3 h-4 w-4 text-orange-600 border-gray-500 focus:ring-orange-500"
                                     />
                                     <div>
                                         <span className="font-medium text-orange-600">❌ Ramp won\'t deploy</span>
-                                        <p className="text-sm text-gray-600 mt-1">Cannot extend ramp from stowed position</p>
+                                        <p className="text-sm text-gray-400 mt-1">Cannot extend ramp from stowed position</p>
                                     </div>
                                 </label>
-                                <label className="flex items-start p-4 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <label className="flex items-start p-4 border border-white/15 rounded-lg hover:bg-white/10 cursor-pointer">
                                     <input
                                         type="radio"
                                         name="issue_type"
                                         checked={responses.issue_type === 'operational_issues'}
                                         onChange={() => updateResponse('issue_type', 'operational_issues')}
-                                        className="mt-1 mr-3 h-4 w-4 text-yellow-600 border-gray-300 focus:ring-yellow-500"
+                                        className="mt-1 mr-3 h-4 w-4 text-yellow-600 border-gray-500 focus:ring-yellow-500"
                                     />
                                     <div>
                                         <span className="font-medium text-yellow-600">⚠️ Other operational issues</span>
-                                        <p className="text-sm text-gray-600 mt-1">Slow operation, jerky movement, or safety concerns</p>
+                                        <p className="text-sm text-gray-400 mt-1">Slow operation, jerky movement, or safety concerns</p>
                                     </div>
                                 </label>
-                                <label className="flex items-start p-4 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <label className="flex items-start p-4 border border-white/15 rounded-lg hover:bg-white/10 cursor-pointer">
                                     <input
                                         type="radio"
                                         name="issue_type"
                                         checked={responses.issue_type === 'routine_check'}
                                         onChange={() => updateResponse('issue_type', 'routine_check')}
-                                        className="mt-1 mr-3 h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                                        className="mt-1 mr-3 h-4 w-4 text-blue-600 border-gray-500 focus:ring-blue-500"
                                     />
                                     <div>
                                         <span className="font-medium text-blue-600">🔍 Routine functionality check</span>
-                                        <p className="text-sm text-gray-600 mt-1">Preventive assessment - no current issues</p>
+                                        <p className="text-sm text-gray-400 mt-1">Preventive assessment - no current issues</p>
                                     </div>
                                 </label>
                             </div>
                         </div>
                         
                         {responses.issue_type && (
-                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                                <h3 className="font-semibold text-yellow-900 mb-3">Current Service Context</h3>
-                                <p className="text-yellow-700 text-sm mb-4">Is there an immediate accessibility need?</p>
+                            <div className="bg-yellow-500/20 border border-yellow-400/30 rounded-lg p-4">
+                                <h3 className="font-semibold text-yellow-200 mb-3">Current Service Context</h3>
+                                <p className="text-yellow-300 text-sm mb-4">Is there an immediate accessibility need?</p>
                                 <div className="space-y-3">
-                                    <label className="flex items-start p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                    <label className="flex items-start p-3 border border-white/15 rounded-lg hover:bg-white/10 cursor-pointer">
                                         <input
                                             type="radio"
                                             name="wheelchair_user_waiting"
                                             checked={responses.wheelchair_user_waiting === 'yes'}
                                             onChange={() => updateResponse('wheelchair_user_waiting', 'yes')}
-                                            className="mt-1 mr-3 h-4 w-4 text-red-600 border-gray-300 focus:ring-red-500"
+                                            className="mt-1 mr-3 h-4 w-4 text-red-600 border-gray-500 focus:ring-red-500"
                                         />
                                         <div>
                                             <span className="font-medium text-red-600">♿ YES - Wheelchair user present/waiting</span>
-                                            <p className="text-sm text-gray-600 mt-1">Immediate accessibility requirement</p>
+                                            <p className="text-sm text-gray-400 mt-1">Immediate accessibility requirement</p>
                                         </div>
                                     </label>
-                                    <label className="flex items-start p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                    <label className="flex items-start p-3 border border-white/15 rounded-lg hover:bg-white/10 cursor-pointer">
                                         <input
                                             type="radio"
                                             name="wheelchair_user_waiting"
                                             checked={responses.wheelchair_user_waiting === 'no'}
                                             onChange={() => updateResponse('wheelchair_user_waiting', 'no')}
-                                            className="mt-1 mr-3 h-4 w-4 text-green-600 border-gray-300 focus:ring-green-500"
+                                            className="mt-1 mr-3 h-4 w-4 text-green-600 border-gray-500 focus:ring-green-500"
                                         />
                                         <div>
                                             <span className="font-medium text-green-600">✅ NO - No immediate wheelchair access needed</span>
-                                            <p className="text-sm text-gray-600 mt-1">Standard operational assessment</p>
+                                            <p className="text-sm text-gray-400 mt-1">Standard operational assessment</p>
                                         </div>
                                     </label>
                                 </div>
@@ -125,16 +125,16 @@ const WheelchairRampWizard = ({ currentStep, responses, updateResponse, onNext, 
                         )}
                         
                         {responses.wheelchair_user_waiting === 'yes' && (
-                            <div className="border-2 border-red-500 bg-red-50 rounded-lg p-6">
+                            <div className="border-2 border-red-500 bg-red-500/20 rounded-lg p-6">
                                 <div className="flex items-start">
                                     <AlertTriangle className="w-8 h-8 text-red-600 mt-1 mr-4" />
                                     <div className="flex-1">
-                                        <h3 className="text-xl font-bold text-red-800 mb-3">♿ URGENT - WHEELCHAIR USER WAITING</h3>
-                                        <div className="text-red-700 space-y-2">
+                                        <h3 className="text-xl font-bold text-red-200 mb-3">URGENT - WHEELCHAIR USER WAITING</h3>
+                                        <div className="text-red-300 space-y-2">
                                             <p className="font-semibold">Legal duty to provide access under Equality Act</p>
-                                            <div className="bg-white rounded p-4 mt-4">
-                                                <h4 className="font-semibold text-red-800 mb-2">Priority Actions:</h4>
-                                                <ul className="list-disc list-inside space-y-1 text-red-700">
+                                            <div className="bg-black/20 rounded p-4 mt-4">
+                                                <h4 className="font-semibold text-red-200 mb-2">Priority Actions:</h4>
+                                                <ul className="list-disc list-inside space-y-1 text-red-300">
                                                     <li>Cannot refuse wheelchair user due to ramp defect</li>
                                                     <li>Must provide accessibility or arrange immediate alternative</li>
                                                     <li>Contact the engineering team immediately if ramp not functional</li>
@@ -153,7 +153,7 @@ const WheelchairRampWizard = ({ currentStep, responses, updateResponse, onNext, 
                         <button
                             onClick={onNext}
                             disabled={!responses.issue_type || !responses.wheelchair_user_waiting}
-                            className="flex items-center px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                            className="flex items-center px-6 py-2 bg-cyan-600 text-white rounded hover:bg-cyan-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
                         >
                             Continue to Troubleshooting
                             <ArrowRight className="w-4 h-4 ml-1" />
@@ -166,29 +166,29 @@ const WheelchairRampWizard = ({ currentStep, responses, updateResponse, onNext, 
             // Step 2: Vehicle Reset and Manual Retraction Assessment (following standard operational procedures)
             if (responses.issue_type === 'ramp_stuck_out') {
                 return (
-                    <div className="bg-white rounded-lg shadow-sm p-6">
+                    <div className="space-y-6">
                         <div className="mb-6">
-                            <h2 className="text-xl font-semibold text-gray-900 mb-2">🔧 Ramp Stuck Out - Initial Troubleshooting</h2>
-                            <p className="text-gray-600">Following standard operational safety procedures for stuck ramp resolution.</p>
+                            <h2 className="text-2xl font-bold text-white mb-2 flex items-center gap-2"><Icons.Wrench className="w-6 h-6" /> Ramp Stuck Out - Initial Troubleshooting</h2>
+                            <p className="text-gray-300">Following standard operational safety procedures for stuck ramp resolution.</p>
                         </div>
                         
-                        <div className="bg-orange-50 border-l-4 border-orange-600 p-6 mb-6">
+                        <div className="bg-orange-500/20 border-l-4 border-orange-500 p-6 mb-6">
                             <div className="flex items-start">
                                 <AlertTriangle className="w-6 h-6 text-orange-600 mt-1 mr-3" />
                                 <div>
-                                    <h3 className="text-lg font-semibold text-orange-800 mb-2">⚠️ Safety Warning</h3>
-                                    <p className="text-orange-700">A ramp stuck in deployed position creates a safety hazard and must be resolved before continuing service.</p>
+                                    <h3 className="text-lg font-semibold text-orange-200 mb-2">Safety Warning</h3>
+                                    <p className="text-orange-300">A ramp stuck in deployed position creates a safety hazard and must be resolved before continuing service.</p>
                                 </div>
                             </div>
                         </div>
 
                         <div className="space-y-6">
-                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                                <h3 className="font-semibold text-blue-900 mb-3">Step 1: Reset the Vehicle</h3>
-                                <p className="text-blue-700 text-sm mb-4">First, attempt a system reset as per standard operational guidance.</p>
-                                <div className="bg-white rounded p-4">
-                                    <h4 className="font-semibold text-blue-800 mb-2">Reset Procedure:</h4>
-                                    <ol className="list-decimal list-inside space-y-1 text-blue-700">
+                            <div className="bg-blue-500/20 border border-blue-400/30 rounded-lg p-4">
+                                <h3 className="font-semibold text-blue-200 mb-3">Step 1: Reset the Vehicle</h3>
+                                <p className="text-blue-300 text-sm mb-4">First, attempt a system reset as per standard operational guidance.</p>
+                                <div className="bg-black/20 rounded p-4">
+                                    <h4 className="font-semibold text-blue-200 mb-2">Reset Procedure:</h4>
+                                    <ol className="list-decimal list-inside space-y-1 text-blue-300">
                                         <li>Switch off the ignition completely</li>
                                         <li>Wait 30 seconds</li>
                                         <li>Re-start the vehicle</li>
@@ -196,88 +196,88 @@ const WheelchairRampWizard = ({ currentStep, responses, updateResponse, onNext, 
                                     </ol>
                                 </div>
                                 <div className="mt-4 space-y-3">
-                                    <label className="flex items-start p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                    <label className="flex items-start p-3 border border-white/15 rounded-lg hover:bg-white/10 cursor-pointer">
                                         <input
                                             type="radio"
                                             name="reset_result"
                                             checked={responses.reset_result === 'resolved'}
                                             onChange={() => updateResponse('reset_result', 'resolved')}
-                                            className="mt-1 mr-3 h-4 w-4 text-green-600 border-gray-300 focus:ring-green-500"
+                                            className="mt-1 mr-3 h-4 w-4 text-green-600 border-gray-500 focus:ring-green-500"
                                         />
                                         <div>
                                             <span className="font-medium text-green-600">✅ Reset successful - ramp retracted</span>
-                                            <p className="text-sm text-gray-600 mt-1">System reset cleared the issue</p>
+                                            <p className="text-sm text-gray-400 mt-1">System reset cleared the issue</p>
                                         </div>
                                     </label>
-                                    <label className="flex items-start p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                    <label className="flex items-start p-3 border border-white/15 rounded-lg hover:bg-white/10 cursor-pointer">
                                         <input
                                             type="radio"
                                             name="reset_result"
                                             checked={responses.reset_result === 'still_stuck'}
                                             onChange={() => updateResponse('reset_result', 'still_stuck')}
-                                            className="mt-1 mr-3 h-4 w-4 text-red-600 border-gray-300 focus:ring-red-500"
+                                            className="mt-1 mr-3 h-4 w-4 text-red-600 border-gray-500 focus:ring-red-500"
                                         />
                                         <div>
                                             <span className="font-medium text-red-600">❌ Ramp still stuck out</span>
-                                            <p className="text-sm text-gray-600 mt-1">Reset did not resolve the issue</p>
+                                            <p className="text-sm text-gray-400 mt-1">Reset did not resolve the issue</p>
                                         </div>
                                     </label>
                                 </div>
                             </div>
                             
                             {responses.reset_result === 'still_stuck' && (
-                                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                                    <h3 className="font-semibold text-red-900 mb-3">Step 2: Manual Retraction Assessment</h3>
-                                    <p className="text-red-700 text-sm mb-4">Critical safety assessment required before manual intervention.</p>
+                                <div className="bg-red-500/20 border border-red-400/30 rounded-lg p-4">
+                                    <h3 className="font-semibold text-red-200 mb-3">Step 2: Manual Retraction Assessment</h3>
+                                    <p className="text-red-300 text-sm mb-4">Critical safety assessment required before manual intervention.</p>
                                     
-                                    <div className="bg-white border-2 border-red-500 rounded p-4 mb-4">
+                                    <div className="bg-black/20 border-2 border-red-500 rounded p-4 mb-4">
                                         <div className="flex items-start">
                                             <Shield className="w-6 h-6 text-red-600 mt-1 mr-3" />
                                             <div>
-                                                <h4 className="font-bold text-red-800 mb-2">⚠️ CRITICAL DISTINCTION</h4>
-                                                <p className="text-red-700 font-semibold">Being trained to USE manual ramps is NOT the same as being risk assessed to manually RETRACT a stuck ramp.</p>
+                                                <h4 className="font-bold text-red-200 mb-2">CRITICAL DISTINCTION</h4>
+                                                <p className="text-red-300 font-semibold">Being trained to USE manual ramps is NOT the same as being risk assessed to manually RETRACT a stuck ramp.</p>
                                             </div>
                                         </div>
                                     </div>
                                     
                                     <div className="space-y-3">
-                                        <label className="flex items-start p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                        <label className="flex items-start p-3 border border-white/15 rounded-lg hover:bg-white/10 cursor-pointer">
                                             <input
                                                 type="radio"
                                                 name="risk_assessed"
                                                 checked={responses.risk_assessed === 'yes'}
                                                 onChange={() => updateResponse('risk_assessed', 'yes')}
-                                                className="mt-1 mr-3 h-4 w-4 text-green-600 border-gray-300 focus:ring-green-500"
+                                                className="mt-1 mr-3 h-4 w-4 text-green-600 border-gray-500 focus:ring-green-500"
                                             />
                                             <div>
                                                 <span className="font-medium text-green-600">✅ Driver IS risk assessed for manual retraction</span>
-                                                <p className="text-sm text-gray-600 mt-1">Specifically trained and assessed for stuck ramp procedures</p>
+                                                <p className="text-sm text-gray-400 mt-1">Specifically trained and assessed for stuck ramp procedures</p>
                                             </div>
                                         </label>
-                                        <label className="flex items-start p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                        <label className="flex items-start p-3 border border-white/15 rounded-lg hover:bg-white/10 cursor-pointer">
                                             <input
                                                 type="radio"
                                                 name="risk_assessed"
                                                 checked={responses.risk_assessed === 'no'}
                                                 onChange={() => updateResponse('risk_assessed', 'no')}
-                                                className="mt-1 mr-3 h-4 w-4 text-red-600 border-gray-300 focus:ring-red-500"
+                                                className="mt-1 mr-3 h-4 w-4 text-red-600 border-gray-500 focus:ring-red-500"
                                             />
                                             <div>
                                                 <span className="font-medium text-red-600">❌ Driver is NOT risk assessed for manual retraction</span>
-                                                <p className="text-sm text-gray-600 mt-1">Only trained for normal ramp operation</p>
+                                                <p className="text-sm text-gray-400 mt-1">Only trained for normal ramp operation</p>
                                             </div>
                                         </label>
-                                        <label className="flex items-start p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                        <label className="flex items-start p-3 border border-white/15 rounded-lg hover:bg-white/10 cursor-pointer">
                                             <input
                                                 type="radio"
                                                 name="risk_assessed"
                                                 checked={responses.risk_assessed === 'unsure'}
                                                 onChange={() => updateResponse('risk_assessed', 'unsure')}
-                                                className="mt-1 mr-3 h-4 w-4 text-orange-600 border-gray-300 focus:ring-orange-500"
+                                                className="mt-1 mr-3 h-4 w-4 text-orange-600 border-gray-500 focus:ring-orange-500"
                                             />
                                             <div>
                                                 <span className="font-medium text-orange-600">❓ Unsure of risk assessment status</span>
-                                                <p className="text-sm text-gray-600 mt-1">Cannot confirm specific training</p>
+                                                <p className="text-sm text-gray-400 mt-1">Cannot confirm specific training</p>
                                             </div>
                                         </label>
                                     </div>
@@ -285,34 +285,34 @@ const WheelchairRampWizard = ({ currentStep, responses, updateResponse, onNext, 
                             )}
                             
                             {responses.risk_assessed === 'yes' && responses.reset_result === 'still_stuck' && (
-                                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                                    <h3 className="font-semibold text-yellow-900 mb-3">Manual Retraction Attempt</h3>
-                                    <p className="text-yellow-700 text-sm mb-4">Driver may attempt manual retraction using trained method.</p>
+                                <div className="bg-yellow-500/20 border border-yellow-400/30 rounded-lg p-4">
+                                    <h3 className="font-semibold text-yellow-200 mb-3">Manual Retraction Attempt</h3>
+                                    <p className="text-yellow-300 text-sm mb-4">Driver may attempt manual retraction using trained method.</p>
                                     <div className="space-y-3">
-                                        <label className="flex items-start p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                        <label className="flex items-start p-3 border border-white/15 rounded-lg hover:bg-white/10 cursor-pointer">
                                             <input
                                                 type="radio"
                                                 name="manual_attempt"
                                                 checked={responses.manual_attempt === 'successful'}
                                                 onChange={() => updateResponse('manual_attempt', 'successful')}
-                                                className="mt-1 mr-3 h-4 w-4 text-green-600 border-gray-300 focus:ring-green-500"
+                                                className="mt-1 mr-3 h-4 w-4 text-green-600 border-gray-500 focus:ring-green-500"
                                             />
                                             <div>
                                                 <span className="font-medium text-green-600">✅ Manual retraction successful</span>
-                                                <p className="text-sm text-gray-600 mt-1">Ramp now properly stowed</p>
+                                                <p className="text-sm text-gray-400 mt-1">Ramp now properly stowed</p>
                                             </div>
                                         </label>
-                                        <label className="flex items-start p-3 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                        <label className="flex items-start p-3 border border-white/15 rounded-lg hover:bg-white/10 cursor-pointer">
                                             <input
                                                 type="radio"
                                                 name="manual_attempt"
                                                 checked={responses.manual_attempt === 'failed'}
                                                 onChange={() => updateResponse('manual_attempt', 'failed')}
-                                                className="mt-1 mr-3 h-4 w-4 text-red-600 border-gray-300 focus:ring-red-500"
+                                                className="mt-1 mr-3 h-4 w-4 text-red-600 border-gray-500 focus:ring-red-500"
                                             />
                                             <div>
                                                 <span className="font-medium text-red-600">❌ Manual retraction failed</span>
-                                                <p className="text-sm text-gray-600 mt-1">Unable to retract manually</p>
+                                                <p className="text-sm text-gray-400 mt-1">Unable to retract manually</p>
                                             </div>
                                         </label>
                                     </div>
@@ -321,7 +321,7 @@ const WheelchairRampWizard = ({ currentStep, responses, updateResponse, onNext, 
                         </div>
 
                         <div className="mt-8 flex justify-between">
-                            <button onClick={onPrevious} className="flex items-center px-6 py-2 text-gray-600 hover:text-gray-800">
+                            <button onClick={onPrevious} className="flex items-center px-6 py-2 text-gray-400 hover:text-white">
                                 <ArrowLeft className="w-4 h-4 mr-1" />Previous
                             </button>
                             <button
@@ -329,7 +329,7 @@ const WheelchairRampWizard = ({ currentStep, responses, updateResponse, onNext, 
                                 disabled={!responses.reset_result || 
                                          (responses.reset_result === 'still_stuck' && !responses.risk_assessed) ||
                                          (responses.risk_assessed === 'yes' && !responses.manual_attempt)}
-                                className="flex items-center px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                                className="flex items-center px-6 py-2 bg-cyan-600 text-white rounded hover:bg-cyan-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
                             >
                                 Continue to Decision<ArrowRight className="w-4 h-4 ml-1" />
                             </button>
@@ -339,98 +339,98 @@ const WheelchairRampWizard = ({ currentStep, responses, updateResponse, onNext, 
             } else {
                 // For other issues, continue with operational testing
                 return (
-                    <div className="bg-white rounded-lg shadow-sm p-6">
+                    <div className="space-y-6">
                         <div className="mb-6">
-                            <h2 className="text-xl font-semibold text-gray-900 mb-2">🔧 Ramp Operation Test</h2>
-                            <p className="text-gray-600">Test the wheelchair ramp operation through its full cycle.</p>
+                            <h2 className="text-2xl font-bold text-white mb-2 flex items-center gap-2"><Icons.Wrench className="w-6 h-6" /> Ramp Operation Test</h2>
+                            <p className="text-gray-300">Test the wheelchair ramp operation through its full cycle.</p>
                         </div>
                         
-                        <div className="bg-orange-50 border-l-4 border-orange-600 p-6 mb-6">
+                        <div className="bg-orange-500/20 border-l-4 border-orange-500 p-6 mb-6">
                             <div className="flex items-start">
                                 <AlertTriangle className="w-6 h-6 text-orange-600 mt-1 mr-3" />
                                 <div>
-                                    <h3 className="text-lg font-semibold text-orange-800 mb-2">⚠️ Safety During Testing</h3>
-                                    <p className="text-orange-700">Ensure area is clear before testing. Follow safe operating procedures.</p>
+                                    <h3 className="text-lg font-semibold text-orange-200 mb-2">Safety During Testing</h3>
+                                    <p className="text-orange-300">Ensure area is clear before testing. Follow safe operating procedures.</p>
                                 </div>
                             </div>
                         </div>
 
                         <div className="space-y-6">
-                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                                <h3 className="font-semibold text-blue-900 mb-3">Ramp Functionality Test</h3>
-                                <p className="text-blue-700 text-sm mb-4">Test the complete operation cycle of the ramp.</p>
+                            <div className="bg-blue-500/20 border border-blue-400/30 rounded-lg p-4">
+                                <h3 className="font-semibold text-blue-200 mb-3">Ramp Functionality Test</h3>
+                                <p className="text-blue-300 text-sm mb-4">Test the complete operation cycle of the ramp.</p>
                                 <div className="space-y-3">
-                                    <label className="flex items-start p-4 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                    <label className="flex items-start p-4 border border-white/15 rounded-lg hover:bg-white/10 cursor-pointer">
                                         <input
                                             type="radio"
                                             name="functionality"
                                             checked={responses.functionality === 'fully_operational'}
                                             onChange={() => updateResponse('functionality', 'fully_operational')}
-                                            className="mt-1 mr-3 h-4 w-4 text-green-600 border-gray-300 focus:ring-green-500"
+                                            className="mt-1 mr-3 h-4 w-4 text-green-600 border-gray-500 focus:ring-green-500"
                                         />
                                         <div>
                                             <span className="font-medium text-green-600">✅ Fully operational</span>
-                                            <p className="text-sm text-gray-600 mt-1">Ramp deploys and retracts normally</p>
+                                            <p className="text-sm text-gray-400 mt-1">Ramp deploys and retracts normally</p>
                                         </div>
                                     </label>
-                                    <label className="flex items-start p-4 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                    <label className="flex items-start p-4 border border-white/15 rounded-lg hover:bg-white/10 cursor-pointer">
                                         <input
                                             type="radio"
                                             name="functionality"
                                             checked={responses.functionality === 'partial_function'}
                                             onChange={() => updateResponse('functionality', 'partial_function')}
-                                            className="mt-1 mr-3 h-4 w-4 text-yellow-600 border-gray-300 focus:ring-yellow-500"
+                                            className="mt-1 mr-3 h-4 w-4 text-yellow-600 border-gray-500 focus:ring-yellow-500"
                                         />
                                         <div>
                                             <span className="font-medium text-yellow-600">⚠️ Partially functional</span>
-                                            <p className="text-sm text-gray-600 mt-1">Slow, jerky, or requires assistance</p>
+                                            <p className="text-sm text-gray-400 mt-1">Slow, jerky, or requires assistance</p>
                                         </div>
                                     </label>
-                                    <label className="flex items-start p-4 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                    <label className="flex items-start p-4 border border-white/15 rounded-lg hover:bg-white/10 cursor-pointer">
                                         <input
                                             type="radio"
                                             name="functionality"
                                             checked={responses.functionality === 'not_functional'}
                                             onChange={() => updateResponse('functionality', 'not_functional')}
-                                            className="mt-1 mr-3 h-4 w-4 text-red-600 border-gray-300 focus:ring-red-500"
+                                            className="mt-1 mr-3 h-4 w-4 text-red-600 border-gray-500 focus:ring-red-500"
                                         />
                                         <div>
                                             <span className="font-medium text-red-600">❌ Not functional</span>
-                                            <p className="text-sm text-gray-600 mt-1">Ramp failure - cannot provide access</p>
+                                            <p className="text-sm text-gray-400 mt-1">Ramp failure - cannot provide access</p>
                                         </div>
                                     </label>
                                 </div>
                             </div>
                             
                             {(responses.functionality === 'fully_operational' || responses.functionality === 'partial_function') && (
-                                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-                                    <h3 className="font-semibold text-purple-900 mb-3">Safety Features Check</h3>
-                                    <p className="text-purple-700 text-sm mb-4">Test safety features and edge barriers.</p>
+                                <div className="bg-purple-500/20 border border-purple-400/30 rounded-lg p-4">
+                                    <h3 className="font-semibold text-purple-200 mb-3">Safety Features Check</h3>
+                                    <p className="text-purple-300 text-sm mb-4">Test safety features and edge barriers.</p>
                                     <div className="space-y-3">
-                                        <label className="flex items-start p-4 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                        <label className="flex items-start p-4 border border-white/15 rounded-lg hover:bg-white/10 cursor-pointer">
                                             <input
                                                 type="radio"
                                                 name="safety_features"
                                                 checked={responses.safety_features === 'all_working'}
                                                 onChange={() => updateResponse('safety_features', 'all_working')}
-                                                className="mt-1 mr-3 h-4 w-4 text-green-600 border-gray-300 focus:ring-green-500"
+                                                className="mt-1 mr-3 h-4 w-4 text-green-600 border-gray-500 focus:ring-green-500"
                                             />
                                             <div>
                                                 <span className="font-medium text-green-600">✅ All safety features working</span>
-                                                <p className="text-sm text-gray-600 mt-1">Edge barriers and safety interlocks functional</p>
+                                                <p className="text-sm text-gray-400 mt-1">Edge barriers and safety interlocks functional</p>
                                             </div>
                                         </label>
-                                        <label className="flex items-start p-4 border rounded-lg hover:bg-gray-50 cursor-pointer">
+                                        <label className="flex items-start p-4 border border-white/15 rounded-lg hover:bg-white/10 cursor-pointer">
                                             <input
                                                 type="radio"
                                                 name="safety_features"
                                                 checked={responses.safety_features === 'compromised'}
                                                 onChange={() => updateResponse('safety_features', 'compromised')}
-                                                className="mt-1 mr-3 h-4 w-4 text-red-600 border-gray-300 focus:ring-red-500"
+                                                className="mt-1 mr-3 h-4 w-4 text-red-600 border-gray-500 focus:ring-red-500"
                                             />
                                             <div>
                                                 <span className="font-medium text-red-600">❌ Safety features compromised</span>
-                                                <p className="text-sm text-gray-600 mt-1">Edge barriers or interlocks not working</p>
+                                                <p className="text-sm text-gray-400 mt-1">Edge barriers or interlocks not working</p>
                                             </div>
                                         </label>
                                     </div>
@@ -439,14 +439,14 @@ const WheelchairRampWizard = ({ currentStep, responses, updateResponse, onNext, 
                         </div>
 
                         <div className="mt-8 flex justify-between">
-                            <button onClick={onPrevious} className="flex items-center px-6 py-2 text-gray-600 hover:text-gray-800">
+                            <button onClick={onPrevious} className="flex items-center px-6 py-2 text-gray-400 hover:text-white">
                                 <ArrowLeft className="w-4 h-4 mr-1" />Previous
                             </button>
                             <button
                                 onClick={onNext}
                                 disabled={!responses.functionality || 
                                          ((responses.functionality === 'fully_operational' || responses.functionality === 'partial_function') && !responses.safety_features)}
-                                className="flex items-center px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+                                className="flex items-center px-6 py-2 bg-cyan-600 text-white rounded hover:bg-cyan-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
                             >
                                 Continue to Decision<ArrowRight className="w-4 h-4 ml-1" />
                             </button>
@@ -473,16 +473,16 @@ const WheelchairRampWizard = ({ currentStep, responses, updateResponse, onNext, 
                 !needsImmediateStop && !canContinueInService;
 
             return (
-                <div className="bg-white rounded-lg shadow-sm p-6">
+                <div className="space-y-6">
                     <div className="mb-6">
-                        <h2 className="text-xl font-semibold text-gray-900 mb-2">📋 Wheelchair Ramp Decision</h2>
-                        <p className="text-gray-600">Based on recognised industry best practice guidance, here is the required action:</p>
+                        <h2 className="text-2xl font-bold text-white mb-2 flex items-center gap-2"><FileText className="w-6 h-6" /> Wheelchair Ramp Decision</h2>
+                        <p className="text-gray-300">Based on recognised industry best practice guidance, here is the required action:</p>
                     </div>
 
                     <div className="space-y-6">
                         {/* Assessment Summary */}
-                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                            <h3 className="font-semibold text-gray-900 mb-3">Assessment Summary</h3>
+                        <div className="bg-gray-500/20 border border-gray-400/30 rounded-lg p-4">
+                            <h3 className="font-semibold text-gray-200 mb-3">Assessment Summary</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                                 <div>
                                     <span className="font-medium">Issue Type:</span> {
@@ -520,16 +520,16 @@ const WheelchairRampWizard = ({ currentStep, responses, updateResponse, onNext, 
 
                         {/* Decision Display */}
                         {needsImmediateStop ? (
-                            <div className="bg-red-50 border-l-4 border-red-600 p-6">
+                            <div className="bg-red-500/20 border-l-4 border-red-500 p-6">
                                 <div className="flex items-start">
                                     <XCircle className="w-8 h-8 text-red-600 mt-1 mr-4" />
                                     <div className="flex-1">
-                                        <h3 className="text-xl font-bold text-red-800 mb-3">🛑 STOP - AWAIT ENGINEERING</h3>
-                                        <div className="text-red-700 space-y-2">
+                                        <h3 className="text-xl font-bold text-red-200 mb-3">STOP - AWAIT ENGINEERING</h3>
+                                        <div className="text-red-300 space-y-2">
                                             <p className="font-semibold">Vehicle must stop immediately and await engineering assistance</p>
-                                            <div className="bg-white rounded p-4 mt-4">
-                                                <h4 className="font-semibold text-red-800 mb-2">Reason for Stop:</h4>
-                                                <ul className="list-disc list-inside space-y-1 text-red-700">
+                                            <div className="bg-black/20 rounded p-4 mt-4">
+                                                <h4 className="font-semibold text-red-200 mb-2">Reason for Stop:</h4>
+                                                <ul className="list-disc list-inside space-y-1 text-red-300">
                                                     {responses.risk_assessed !== 'yes' && responses.issue_type === 'ramp_stuck_out' && 
                                                         <li>Driver not risk assessed for manual ramp retraction</li>}
                                                     {responses.manual_attempt === 'failed' && 
@@ -541,8 +541,8 @@ const WheelchairRampWizard = ({ currentStep, responses, updateResponse, onNext, 
                                                     {responses.safety_features === 'compromised' && 
                                                         <li>Safety features compromised - unsafe for use</li>}
                                                 </ul>
-                                                <h4 className="font-semibold text-red-800 mb-2 mt-4">Required Actions:</h4>
-                                                <ul className="list-disc list-inside space-y-1 text-red-700">
+                                                <h4 className="font-semibold text-red-200 mb-2 mt-4">Required Actions:</h4>
+                                                <ul className="list-disc list-inside space-y-1 text-red-300">
                                                     <li>Do NOT attempt unauthorised manual intervention</li>
                                                     <li>Remain stationary and await engineering</li>
                                                     <li>If wheelchair user waiting, arrange alternative accessible vehicle</li>
@@ -555,16 +555,16 @@ const WheelchairRampWizard = ({ currentStep, responses, updateResponse, onNext, 
                                 </div>
                             </div>
                         ) : canContinueInService ? (
-                            <div className="bg-green-50 border-l-4 border-green-600 p-6">
+                            <div className="bg-green-500/20 border-l-4 border-green-500 p-6">
                                 <div className="flex items-start">
                                     <CheckCircle className="w-8 h-8 text-green-600 mt-1 mr-4" />
                                     <div className="flex-1">
-                                        <h3 className="text-xl font-bold text-green-800 mb-3">✅ CONTINUE IN SERVICE</h3>
-                                        <div className="text-green-700 space-y-2">
+                                        <h3 className="text-xl font-bold text-green-200 mb-3">CONTINUE IN SERVICE</h3>
+                                        <div className="text-green-300 space-y-2">
                                             <p className="font-semibold">Issue resolved - vehicle can continue normal service</p>
-                                            <div className="bg-white rounded p-4 mt-4">
-                                                <h4 className="font-semibold text-green-800 mb-2">Resolution:</h4>
-                                                <ul className="list-disc list-inside space-y-1 text-green-700">
+                                            <div className="bg-black/20 rounded p-4 mt-4">
+                                                <h4 className="font-semibold text-green-200 mb-2">Resolution:</h4>
+                                                <ul className="list-disc list-inside space-y-1 text-green-300">
                                                     {responses.reset_result === 'resolved' && 
                                                         <li>Vehicle reset successfully cleared the ramp issue</li>}
                                                     {responses.manual_attempt === 'successful' && 
@@ -572,8 +572,8 @@ const WheelchairRampWizard = ({ currentStep, responses, updateResponse, onNext, 
                                                     {responses.functionality === 'fully_operational' && 
                                                         <li>Ramp tested and fully operational</li>}
                                                 </ul>
-                                                <h4 className="font-semibold text-green-800 mb-2 mt-4">Follow-up Actions:</h4>
-                                                <ul className="list-disc list-inside space-y-1 text-green-700">
+                                                <h4 className="font-semibold text-green-200 mb-2 mt-4">Follow-up Actions:</h4>
+                                                <ul className="list-disc list-inside space-y-1 text-green-300">
                                                     <li>Continue normal service</li>
                                                     <li>Record incident on their handheld device for tracking</li>
                                                     <li>Monitor ramp for any recurrence</li>
@@ -585,22 +585,22 @@ const WheelchairRampWizard = ({ currentStep, responses, updateResponse, onNext, 
                                 </div>
                             </div>
                         ) : (
-                            <div className="bg-yellow-50 border-l-4 border-yellow-600 p-6">
+                            <div className="bg-yellow-500/20 border-l-4 border-yellow-500 p-6">
                                 <div className="flex items-start">
                                     <AlertTriangle className="w-8 h-8 text-yellow-600 mt-1 mr-4" />
                                     <div className="flex-1">
-                                        <h3 className="text-xl font-bold text-yellow-800 mb-3">⚠️ CHANGEOVER REQUIRED</h3>
-                                        <div className="text-yellow-700 space-y-2">
+                                        <h3 className="text-xl font-bold text-yellow-200 mb-3">CHANGEOVER REQUIRED</h3>
+                                        <div className="text-yellow-300 space-y-2">
                                             <p className="font-semibold">Continue to convenient changeover point</p>
-                                            <div className="bg-white rounded p-4 mt-4">
-                                                <h4 className="font-semibold text-yellow-800 mb-2">Issues Identified:</h4>
-                                                <ul className="list-disc list-inside space-y-1 text-yellow-700">
+                                            <div className="bg-black/20 rounded p-4 mt-4">
+                                                <h4 className="font-semibold text-yellow-200 mb-2">Issues Identified:</h4>
+                                                <ul className="list-disc list-inside space-y-1 text-yellow-300">
                                                     {responses.functionality === 'partial_function' && 
                                                         <li>Ramp partially functional - may deteriorate</li>}
                                                     <li>Wheelchair ramp requires engineering attention</li>
                                                 </ul>
-                                                <h4 className="font-semibold text-yellow-800 mb-2 mt-4">Required Actions:</h4>
-                                                <ul className="list-disc list-inside space-y-1 text-yellow-700">
+                                                <h4 className="font-semibold text-yellow-200 mb-2 mt-4">Required Actions:</h4>
+                                                <ul className="list-disc list-inside space-y-1 text-yellow-300">
                                                     <li>Continue to next convenient changeover point</li>
                                                     <li>Avoid picking up wheelchair users if possible</li>
                                                     <li>If wheelchair user boards, test ramp first</li>
@@ -615,13 +615,13 @@ const WheelchairRampWizard = ({ currentStep, responses, updateResponse, onNext, 
                         )}
 
                         {/* Recording Reminder */}
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div className="bg-blue-500/20 border border-blue-400/30 rounded-lg p-4">
                             <div className="flex items-start">
                                 <FileText className="w-6 h-6 text-blue-600 mt-1 mr-3" />
                                 <div>
-                                    <h3 className="text-lg font-semibold text-blue-800 mb-2">📝 Record on their handheld device</h3>
-                                    <p className="text-blue-700">All wheelchair ramp defects must be recorded in the reporting device immediately, including:</p>
-                                    <ul className="list-disc list-inside mt-2 text-blue-700">
+                                    <h3 className="text-lg font-semibold text-blue-200 mb-2">Record on their handheld device</h3>
+                                    <p className="text-blue-300">All wheelchair ramp defects must be recorded in the reporting device immediately, including:</p>
+                                    <ul className="list-disc list-inside mt-2 text-blue-300">
                                         <li>Nature of the defect</li>
                                         <li>Actions taken (reset attempts, manual intervention)</li>
                                         <li>Current status of the ramp</li>
@@ -633,7 +633,7 @@ const WheelchairRampWizard = ({ currentStep, responses, updateResponse, onNext, 
                     </div>
 
                     <div className="mt-8 flex justify-between">
-                        <button onClick={onPrevious} className="flex items-center px-6 py-2 text-gray-600 hover:text-gray-800">
+                        <button onClick={onPrevious} className="flex items-center px-6 py-2 text-gray-400 hover:text-white">
                             <ArrowLeft className="w-4 h-4 mr-1" />Previous
                         </button>
                         <button onClick={onComplete} className="flex items-center px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700">

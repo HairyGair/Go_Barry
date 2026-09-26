@@ -77,19 +77,19 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
         return (
           <div className="space-y-6">
             <div className="text-center">
-              <div className="mx-auto w-16 h-16 bg-purple-500/20 rounded-full flex items-center justify-center mb-4">
-                <Users className="w-8 h-8 text-purple-400" />
+              <div className="mx-auto w-16 h-16 bg-amber-500/20 rounded-full flex items-center justify-center mb-4">
+                <Users className="w-8 h-8 text-amber-400" />
               </div>
-              <h2 className="text-2xl font-bold text-white mb-2">🚌 Passenger Status Assessment</h2>
+              <h2 className="text-2xl font-bold text-white mb-2">Passenger Status Assessment</h2>
               <p className="text-gray-300">Essential safety information before brake system diagnosis</p>
             </div>
 
-            <div className="bg-purple-500/20 backdrop-blur-sm rounded-lg p-6 border border-purple-400/30">
+            <div className="bg-amber-500/20 backdrop-blur-sm rounded-lg p-6 border border-amber-400/30">
               <div className="flex items-start gap-3">
-                <AlertTriangle className="w-5 h-5 text-purple-400 flex-shrink-0 mt-0.5" />
+                <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="font-semibold text-purple-200 mb-1">Passenger Safety Priority</h4>
-                  <p className="text-purple-200/80 text-sm">
+                  <h4 className="font-semibold text-amber-200 mb-1">Passenger Safety Priority</h4>
+                  <p className="text-amber-200/80 text-sm">
                     Understanding passenger status is critical for brake system emergencies. This information helps prioritize emergency response and evacuation planning if needed.
                   </p>
                 </div>
@@ -145,9 +145,9 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
 
               {/* Passenger Count Input */}
               {responses.passengersOnBoard === true && (
-                <div className="passenger-count-input fade-in bg-gray-700/30 backdrop-blur-sm rounded-lg p-4 border border-purple-500/30 mt-4">
+                <div className="passenger-count-input fade-in bg-gray-700/30 backdrop-blur-sm rounded-lg p-4 border border-amber-500/30 mt-4">
                   <div className="flex items-center gap-3 mb-3">
-                    <Users className="w-5 h-5 text-purple-400" />
+                    <Users className="w-5 h-5 text-amber-400" />
                     <h4 className="font-semibold text-white">Passenger Count</h4>
                   </div>
                   <div className="space-y-3">
@@ -161,7 +161,7 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
                       value={responses.passengerCount || ''}
                       onChange={(e) => updateResponse('passengerCount', e.target.value)}
                       placeholder="Enter number"
-                      className="count-input w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 transition-colors"
+                      className="count-input w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-amber-500 transition-colors"
                     />
                     <p className="text-gray-500 text-xs">
                       Optional: Helps prioritize emergency response and evacuation planning if needed.
@@ -187,7 +187,7 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
                   <div className="flex items-start gap-3">
                     <AlertTriangle className="w-5 h-5 text-orange-400 flex-shrink-0 mt-0.5" />
                     <div>
-                      <h4 className="font-semibold text-orange-200 mb-1">⚠️ Critical Brake Scenarios with Passengers</h4>
+                      <h4 className="font-semibold text-orange-200 mb-1">Critical Brake Scenarios with Passengers</h4>
                       <p className="text-orange-200/80 text-sm">
                         If critical brake issues are identified, passenger evacuation may be required. Ensure passenger safety is the absolute priority during brake system assessment.
                       </p>
@@ -226,7 +226,7 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
                 {locationStatus === 'error' && (
                   <button
                     onClick={detectLocation}
-                    className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-500 transition-colors"
+                    className="px-3 py-1 bg-cyan-600 text-white text-xs rounded hover:bg-cyan-500 transition-colors"
                   >
                     Retry
                   </button>
@@ -245,7 +245,7 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
               <button
                 onClick={onNext}
                 disabled={responses.passengersOnBoard === null || responses.passengersOnBoard === undefined}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Continue to Brake Assessment
               </button>
@@ -265,7 +265,7 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
             </div>
 
             <div className="bg-red-500/20 backdrop-blur-sm rounded-lg p-6 border border-red-400/30">
-              <h3 className="text-lg font-semibold text-red-200 mb-4">🛑 Safety Critical - DVSA Dangerous Defects</h3>
+              <h3 className="text-lg font-semibold text-red-200 mb-4">Safety Critical - DVSA Dangerous Defects</h3>
               <p className="text-red-300/80 text-sm leading-relaxed">
               Brake defects are safety critical. The issues listed below are classified as "Dangerous" defects under DVSA standards and could result in a PG9 prohibition. If any are identified, advise the driver to switch off the vehicle and await engineering attendance.
               </p>
@@ -406,7 +406,7 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
             <div className="flex justify-end">
               <button
                 onClick={onNext}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors"
+                className="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 transition-colors"
               >
                 Continue Assessment
               </button>
@@ -433,7 +433,7 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
 
             {hasCriticalIssue ? (
               <div className="bg-red-500/20 backdrop-blur-sm rounded-lg p-6 border border-red-400/30">
-                <h3 className="text-lg font-semibold text-red-200 mb-4">🛑 CRITICAL BRAKE FAULT DETECTED</h3>
+                <h3 className="text-lg font-semibold text-red-200 mb-4">CRITICAL BRAKE FAULT DETECTED</h3>
                 <div className="space-y-4 text-red-300/90">
                   <p className="font-semibold">
                     Advise the driver to switch off the vehicle and await engineering attendance.
@@ -513,7 +513,7 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
               <button
                 onClick={onNext}
                 disabled={!hasCriticalIssue && !responses.otherBrakeConcerns}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Continue
               </button>
@@ -550,8 +550,8 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
                 
                 {(responses.brakeToFloor || responses.delayedBraking) && (
                   <div className="bg-red-600/30 backdrop-blur-sm rounded-lg p-6 border-2 border-red-500/50 mb-6">
-                    <h3 className="text-lg font-bold text-red-100 mb-4 flex items-center">
-                      <span className="mr-2">🚨</span>
+                    <h3 className="text-lg font-bold text-red-100 mb-4 flex items-center gap-2">
+                      <AlertTriangle className="w-5 h-5" />
                       CRITICAL: Total Brake Failure Protocol
                     </h3>
                     <div className="space-y-3 text-red-200">
@@ -580,7 +580,7 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
                   </ul>
                   <div className="mt-4 bg-amber-600/20 rounded p-3 border border-amber-400/40">
                     <p className="text-amber-200 text-sm font-semibold">
-                      📋 EP Morris: Record as code <span className="font-mono bg-amber-900/50 px-2 py-1 rounded">BDBR - Brake Issue</span>
+                      EP Morris: Record as code <span className="font-mono bg-amber-900/50 px-2 py-1 rounded">BDBR - Brake Issue</span>
                     </p>
                   </div>
                 </div>
@@ -606,7 +606,7 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
                   
                   <div className="mt-4 bg-amber-600/20 rounded p-3 border border-amber-400/40">
                     <p className="text-amber-200 text-sm font-semibold">
-                      📋 EP Morris: Record as code <span className="font-mono bg-amber-900/50 px-2 py-1 rounded">BDBR - Brake Issue</span>
+                      EP Morris: Record as code <span className="font-mono bg-amber-900/50 px-2 py-1 rounded">BDBR - Brake Issue</span>
                     </p>
                   </div>
                 </div>
@@ -633,7 +633,7 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
                   console.log('BrakesWizard Step 3 - Continue clicked, moving to step 4');
                   onNext();
                 }}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors"
+                className="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 transition-colors"
               >
                 Continue to Summary
               </button>
@@ -677,17 +677,17 @@ function BrakesWizard({ currentStep, responses, updateResponse, onNext, onPrevio
                   <p className="font-semibold text-blue-200 mb-2">Action Taken:</p>
                   <p className="text-gray-300 text-sm">
                     {criticalIssues
-                      ? "🛑 Vehicle stopped - Awaiting engineering"
+                      ? "Vehicle stopped - Awaiting engineering"
                       : responses.otherBrakeConcerns === 'yes'
-                      ? "⚠️ Changeover arranged at next convenient location"
-                      : "✅ Vehicle continuing in service"}
+                      ? "Changeover arranged at next convenient location"
+                      : "Vehicle continuing in service"}
                   </p>
                 </div>
                 
                 {(responses.brakeToFloor || responses.delayedBraking) && (
                   <div className="bg-red-600/20 rounded p-3 border border-red-400/50 mt-3">
                     <p className="font-semibold text-red-200 text-sm">
-                      🚨 EP Morris: Sent as "URGENT PLEASE READ" → Code: BDBR
+                      EP Morris: Sent as "URGENT PLEASE READ" → Code: BDBR
                     </p>
                   </div>
                 )}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Siren, X, Inbox } from 'lucide-react';
 import notificationService, { NotificationPriority, formatNotification } from '../../services/notificationService';
 import './EnhancedNotifications.css';
 
@@ -126,10 +127,14 @@ const EnhancedNotifications = ({
             <span className="unread-badge">{unreadCount} new</span>
           )}
           {criticalCount > 0 && (
-            <span className="critical-badge">🚨 {criticalCount}</span>
+            <span className="critical-badge">
+              <Siren size={12} strokeWidth={2.25} aria-hidden="true" /> {criticalCount}
+            </span>
           )}
         </div>
-        <button className="close-btn" onClick={onClose}>✕</button>
+        <button className="close-btn" onClick={onClose} aria-label="Close">
+          <X size={16} strokeWidth={2.25} aria-hidden="true" />
+        </button>
       </div>
 
       <div className="notifications-filters">
@@ -184,7 +189,7 @@ const EnhancedNotifications = ({
           </div>
         ) : filteredNotifications.length === 0 ? (
           <div className="empty-state">
-            <span className="empty-icon">📭</span>
+            <span className="empty-icon"><Inbox size={32} strokeWidth={1.75} aria-hidden="true" /></span>
             <p>No notifications</p>
             <span className="empty-subtitle">You're all caught up!</span>
           </div>

@@ -47,12 +47,12 @@
   top: 0;
   left: 0;
   height: 100%;
-  background: linear-gradient(90deg, #E4002B 0%, #ff1744 50%, #E4002B 100%);
+  background: linear-gradient(90deg, #00BCD4 0%, #0097A7 50%, #00BCD4 100%);
   background-size: 200% 100%;
   border-radius: 3px;
   transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   animation: progress-shimmer 2s ease-in-out infinite;
-  box-shadow: 0 0 12px rgba(228, 0, 43, 0.5);
+  box-shadow: 0 0 12px rgba(0, 188, 212, 0.5);
 }
 
 @keyframes progress-shimmer {
@@ -100,26 +100,26 @@
 
 /* Active Step */
 .wizard-step-dot.active {
-  background: #E4002B;
-  border: 3px solid rgba(228, 0, 43, 0.3);
+  background: #00BCD4;
+  border: 3px solid rgba(0, 188, 212, 0.3);
   color: white;
   transform: scale(1.15);
   box-shadow:
-    0 0 0 4px rgba(228, 0, 43, 0.2),
-    0 4px 12px rgba(228, 0, 43, 0.4);
+    0 0 0 4px rgba(0, 188, 212, 0.2),
+    0 4px 12px rgba(0, 188, 212, 0.4);
   animation: active-pulse 2s ease-in-out infinite;
 }
 
 @keyframes active-pulse {
   0%, 100% {
     box-shadow:
-      0 0 0 4px rgba(228, 0, 43, 0.2),
-      0 4px 12px rgba(228, 0, 43, 0.4);
+      0 0 0 4px rgba(0, 188, 212, 0.2),
+      0 4px 12px rgba(0, 188, 212, 0.4);
   }
   50% {
     box-shadow:
-      0 0 0 8px rgba(228, 0, 43, 0.1),
-      0 4px 16px rgba(228, 0, 43, 0.5);
+      0 0 0 8px rgba(0, 188, 212, 0.1),
+      0 4px 16px rgba(0, 188, 212, 0.5);
   }
 }
 
@@ -159,7 +159,7 @@
 }
 
 .step-label.active {
-  color: #E4002B;
+  color: #00BCD4;
   font-weight: 600;
 }
 
@@ -180,7 +180,7 @@
 .wizard-step-counter .current-step {
   font-size: 18px;
   font-weight: 700;
-  color: #E4002B;
+  color: #00BCD4;
 }
 
 .wizard-step-counter .step-separator {
@@ -287,12 +287,12 @@
   }
 
   .wizard-progress-fill {
-    background: #E4002B;
+    background: #00BCD4;
   }
 }
 
 /* Focus visible for keyboard navigation */
 .wizard-step-dot:focus-visible {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid #22d3ee;
   outline-offset: 3px;
 }

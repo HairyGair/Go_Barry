@@ -3,60 +3,68 @@
  * Floating note widget for shift notes
  */
 
-/* Widget Container */
+/* Widget Container — part of the bottom-right floating dock (stacked above QuickFeedback) */
 .duty-notes-widget {
   position: fixed;
   z-index: 9000;
 }
 
 .duty-notes-widget--bottom-left {
-  bottom: 100px;
-  left: 20px;
+  bottom: 80px;
+  left: 24px;
 }
 
 .duty-notes-widget--bottom-right {
-  bottom: 100px;
-  right: 20px;
+  bottom: 80px;
+  right: 24px;
 }
 
 .duty-notes-widget--top-right {
   top: 100px;
-  right: 20px;
+  right: 24px;
 }
 
-/* Floating Trigger Button */
+/* Floating Trigger Button — 44px glass dock button */
 .duty-notes-widget__trigger {
-  width: 56px;
-  height: 56px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #3B82F6, #8B5CF6);
-  border: none;
+  background: rgba(17, 26, 43, 0.9);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.09);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow:
-    0 4px 20px rgba(59, 130, 246, 0.4),
-    0 0 0 4px rgba(59, 130, 246, 0.1);
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
   position: relative;
+  color: #94a3b8;
 }
 
 .duty-notes-widget__trigger:hover {
-  transform: scale(1.1);
-  box-shadow:
-    0 6px 28px rgba(59, 130, 246, 0.5),
-    0 0 0 6px rgba(59, 130, 246, 0.15);
+  transform: translateY(-2px);
+  color: #22d3ee;
+  border-color: rgba(0, 188, 212, 0.4);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+.duty-notes-widget__trigger:focus-visible {
+  outline: 2px solid #22d3ee;
+  outline-offset: 2px;
 }
 
 .duty-notes-widget__trigger.active {
-  background: linear-gradient(135deg, #EF4444, #DC2626);
-  transform: rotate(90deg);
+  background: rgba(0, 151, 167, 0.18);
+  border-color: rgba(0, 188, 212, 0.5);
+  color: #22d3ee;
 }
 
 .duty-notes-widget__trigger-icon {
-  font-size: 1.5rem;
-  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Badge for unread count */
@@ -75,7 +83,7 @@
   align-items: center;
   justify-content: center;
   padding: 0 6px;
-  border: 2px solid #1a1a2e;
+  border: 2px solid #0b1220;
   animation: pulse-badge 2s ease-in-out infinite;
 }
 
@@ -87,15 +95,14 @@
 /* Expanded Panel */
 .duty-notes-widget__panel {
   position: absolute;
-  bottom: 70px;
+  bottom: 54px;
   left: 0;
   width: 340px;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  background: #111a2b;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
-  box-shadow:
-    0 25px 50px rgba(0, 0, 0, 0.4),
-    0 0 0 1px rgba(255, 255, 255, 0.1);
-  animation: slideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.2s ease;
   overflow: hidden;
 }
 
@@ -152,7 +159,7 @@
 }
 
 .duty-notes-widget__tab.active {
-  background: linear-gradient(135deg, #3B82F6, #8B5CF6);
+  background: linear-gradient(135deg, #0097A7, #00BCD4);
   border-color: transparent;
   color: white;
 }
@@ -211,10 +218,6 @@
   font-size: 0.6875rem;
 }
 
-.duty-notes-widget__type-btn span:first-child {
-  font-size: 1.25rem;
-}
-
 .duty-notes-widget__type-btn:hover {
   background: rgba(255, 255, 255, 0.1);
 }
@@ -241,7 +244,8 @@
 
 .duty-notes-widget__input:focus {
   outline: none;
-  border-color: #3B82F6;
+  border-color: #00BCD4;
+  box-shadow: 0 0 0 3px rgba(0, 188, 212, 0.15);
 }
 
 .duty-notes-widget__input::placeholder {
@@ -263,7 +267,7 @@
 
 .duty-notes-widget__submit {
   padding: 8px 20px;
-  background: linear-gradient(135deg, #3B82F6, #8B5CF6);
+  background: linear-gradient(135deg, #0097A7, #00BCD4);
   border: none;
   border-radius: 8px;
   color: white;
@@ -275,7 +279,7 @@
 
 .duty-notes-widget__submit:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 188, 212, 0.35);
 }
 
 .duty-notes-widget__submit:disabled {

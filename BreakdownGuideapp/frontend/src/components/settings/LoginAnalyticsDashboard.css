@@ -38,7 +38,8 @@
 }
 
 .refresh-button:hover {
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  background: linear-gradient(135deg, #00bcd4 0%, #0097a7 100%);
+  color: #06222a;
   transform: rotate(180deg);
 }
 
@@ -161,12 +162,14 @@
 }
 
 .stat-card-purple {
-  border-color: #8b5cf6;
-  color: #8b5cf6;
+  border-color: #00bcd4;
+  color: #00bcd4;
 }
 
 .stat-icon {
-  font-size: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   opacity: 0.9;
 }
 

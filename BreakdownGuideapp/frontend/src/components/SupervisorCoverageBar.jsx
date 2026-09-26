@@ -7,6 +7,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { AlertTriangle, RefreshCw, Bus, Check, Timer } from 'lucide-react';
 import { apiClient } from '../services/api-client';
 import './SupervisorCoverageBar.css';
 
@@ -60,7 +61,7 @@ const SupervisorCoverageBar = ({ refreshInterval = 60000 }) => {
   if (error) {
     return (
       <div className="supervisor-coverage-bar error">
-        <span className="coverage-bar__icon">⚠️</span>
+        <span className="coverage-bar__icon"><AlertTriangle size={16} /></span>
         <span>{error}</span>
         <button onClick={fetchCoverageStatus} className="coverage-bar__retry">Retry</button>
       </div>
@@ -128,17 +129,17 @@ const SupervisorCoverageBar = ({ refreshInterval = 60000 }) => {
               </div>
               <div className="coverage-bar__supervisor-stats">
                 <span className="coverage-bar__stat" title="Active breakdowns">
-                  <span className="coverage-bar__stat-icon">🚌</span>
+                  <span className="coverage-bar__stat-icon"><Bus size={12} /></span>
                   <span className={`coverage-bar__stat-value ${sup.activeBreakdowns > 2 ? 'high' : ''}`}>
                     {sup.activeBreakdowns}
                   </span>
                 </span>
                 <span className="coverage-bar__stat" title="Resolved today">
-                  <span className="coverage-bar__stat-icon">✓</span>
+                  <span className="coverage-bar__stat-icon"><Check size={12} /></span>
                   <span className="coverage-bar__stat-value">{sup.todayResolved}</span>
                 </span>
                 <span className="coverage-bar__stat" title="Avg response time">
-                  <span className="coverage-bar__stat-icon">⏱</span>
+                  <span className="coverage-bar__stat-icon"><Timer size={12} /></span>
                   <span className={`coverage-bar__stat-value ${sup.avgResponseTime > 30 ? 'slow' : ''}`}>
                     {formatResponseTime(sup.avgResponseTime)}
                   </span>
@@ -168,8 +169,9 @@ const SupervisorCoverageBar = ({ refreshInterval = 60000 }) => {
         className="coverage-bar__refresh"
         onClick={fetchCoverageStatus}
         title="Refresh coverage data"
+        aria-label="Refresh coverage data"
       >
-        🔄
+        <RefreshCw size={14} />
       </button>
     </div>
   );

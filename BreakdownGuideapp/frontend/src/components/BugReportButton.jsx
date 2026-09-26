@@ -4,6 +4,7 @@
  */
 
 import React, { useState } from 'react';
+import { Bug, X, Check } from 'lucide-react';
 import './BugReportButton.css';
 
 export default function BugReportButton() {
@@ -88,9 +89,10 @@ export default function BugReportButton() {
       <button
         className="bug-report-fab"
         onClick={() => setIsOpen(true)}
-        title="Report a Bug or Give Feedback"
+        title="Report a bug or give feedback"
+        aria-label="Report a bug or give feedback"
       >
-        🐛
+        <Bug size={22} strokeWidth={2} aria-hidden="true" />
       </button>
     );
   }
@@ -104,14 +106,15 @@ export default function BugReportButton() {
             className="bug-report-close"
             onClick={() => setIsOpen(false)}
             disabled={isSubmitting}
+            aria-label="Close"
           >
-            ✕
+            <X size={18} strokeWidth={2.25} aria-hidden="true" />
           </button>
         </div>
 
         {submitted ? (
           <div className="bug-report-success">
-            <div className="success-icon">✓</div>
+            <div className="success-icon"><Check size={30} strokeWidth={3} aria-hidden="true" /></div>
             <h3>Thank You!</h3>
             <p>Your bug report has been submitted successfully.</p>
             <p className="success-subtext">
@@ -130,10 +133,10 @@ export default function BugReportButton() {
                   onChange={handleChange}
                   required
                 >
-                  <option value="bug">🐛 Bug</option>
-                  <option value="error">❌ Error/Crash</option>
-                  <option value="feature">💡 Feature Request</option>
-                  <option value="feedback">💬 Feedback</option>
+                  <option value="bug">Bug</option>
+                  <option value="error">Error / Crash</option>
+                  <option value="feature">Feature Request</option>
+                  <option value="feedback">Feedback</option>
                 </select>
               </div>
 
@@ -221,9 +224,9 @@ export default function BugReportButton() {
 
             <div className="bug-report-context-info">
               <small>
-                📍 Current page: {window.location.pathname}
+                Current page: {window.location.pathname}
                 <br />
-                🌐 Browser: {navigator.userAgent.split('(')[1]?.split(')')[0] || 'Unknown'}
+                Browser: {navigator.userAgent.split('(')[1]?.split(')')[0] || 'Unknown'}
               </small>
             </div>
 

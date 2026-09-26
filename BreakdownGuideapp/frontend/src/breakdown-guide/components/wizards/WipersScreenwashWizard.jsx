@@ -228,7 +228,7 @@ const WipersScreenwashWizard = ({ currentStep, responses, updateResponse, onNext
                         <button
                             onClick={onNext}
                             disabled={!responses.blade_missing || !responses.affected_side || !responses.wipers_moving || !responses.motor_sound}
-                            className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex items-center px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             Next
                             <ArrowRight className="w-4 h-4 ml-2" />
@@ -432,7 +432,7 @@ const WipersScreenwashWizard = ({ currentStep, responses, updateResponse, onNext
                         <button
                             onClick={onNext}
                             disabled={!responses.vision_impaired || (responses.vision_impaired === 'no' && (!responses.weather_conditions || !responses.route_type || !responses.washers_working))}
-                            className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex items-center px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             Next
                             <ArrowRight className="w-4 h-4 ml-2" />
@@ -572,7 +572,7 @@ const WipersScreenwashWizard = ({ currentStep, responses, updateResponse, onNext
                         </button>
                         <button
                             onClick={onNext}
-                            className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            className="flex items-center px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors"
                         >
                             Next
                             <ArrowRight className="w-4 h-4 ml-2" />

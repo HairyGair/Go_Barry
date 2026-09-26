@@ -17,6 +17,13 @@
 
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
+import {
+    Siren, Cog, Zap, BatteryCharging, DoorOpen, Thermometer, Wrench,
+    Disc3, Navigation2, CircleDot, TriangleAlert, Ban, Droplet, Settings2,
+    ArrowUpDown, Fuel, Wind, BatteryWarning, AlertOctagon, Lightbulb, LightbulbOff,
+    Tv, Frame, Eye, Accessibility, Hammer, Fan, CloudRain, Droplets, Disc, Waves,
+    GaugeCircle, BellRing, RotateCw, BatteryLow
+} from 'lucide-react';
 
 // Import styles
 import './styles/main.css';
@@ -674,53 +681,93 @@ const App = () => {
         {
             id: 'critical',
             name: 'Critical Safety',
-            icon: '🚨',
+            icon: Siren,
             color: '#DC2626',
             wizardKeys: ['brakes', 'steering', 'loose-wheel-nuts', 'road-traffic-incidents']
         },
         {
             id: 'engine',
             name: 'Engine & Drivetrain',
-            icon: '⚙️',
+            icon: Cog,
             color: '#F59E0B',
             wizardKeys: ['non-starter', 'overheating', 'cooling-system', 'oil-warning', 'gearbox', 'gearbox-temperature', 'gear-selection', 'cutting-out-fuel', 'excessive-smoke']
         },
         {
             id: 'electrical',
             name: 'Electrical Systems',
-            icon: '⚡',
+            icon: Zap,
             color: '#3B82F6',
             wizardKeys: ['battery', 'battery-light', 'abs-light', 'exterior-lights', 'interior-lights', 'warning-lights', 'destination-display']
         },
         {
             id: 'ev',
             name: 'Electric Vehicle',
-            icon: '⚡',
+            icon: BatteryCharging,
             color: '#10B981',
             wizardKeys: ['ev-low-charge']
         },
         {
             id: 'bodywork',
             name: 'Bodywork & Access',
-            icon: '🚪',
+            icon: DoorOpen,
             color: '#0097A7',
             wizardKeys: ['doors', 'broken-windows', 'wing-mirrors', 'ramp', 'wheelchair-ramp', 'interior-exterior-damage']
         },
         {
             id: 'climate',
             name: 'Climate & Visibility',
-            icon: '🌡️',
-            color: '#8B5CF6',
+            icon: Thermometer,
+            color: '#0EA5E9',
             wizardKeys: ['demisters-heaters', 'wipers-screenwash', 'low-water']
         },
         {
             id: 'other',
             name: 'Other Issues',
-            icon: '🔧',
+            icon: Wrench,
             color: '#6B7280',
             wizardKeys: ['puncture', 'suspension', 'speedo', 'buzzers', 'repeat-defects']
         }
     ];
+
+    // Lucide fallback icon per assessment type - shown if the raster icon fails to load,
+    // and used directly for assessment types that have no bespoke icon file.
+    const wizardIconFallback = {
+        'brakes': Disc3,
+        'steering': Navigation2,
+        'loose-wheel-nuts': CircleDot,
+        'road-traffic-incidents': TriangleAlert,
+        'non-starter': Ban,
+        'oil-warning': Droplet,
+        'gearbox': Settings2,
+        'gearbox-temperature': Settings2,
+        'gear-selection': ArrowUpDown,
+        'cutting-out-fuel': Fuel,
+        'battery': BatteryWarning,
+        'battery-light': BatteryWarning,
+        'abs-light': AlertOctagon,
+        'exterior-lights': Lightbulb,
+        'interior-lights': LightbulbOff,
+        'destination-display': Tv,
+        'doors': DoorOpen,
+        'broken-windows': Frame,
+        'wing-mirrors': Eye,
+        'ramp': Accessibility,
+        'wheelchair-ramp': Accessibility,
+        'interior-exterior-damage': Hammer,
+        'demisters-heaters': Fan,
+        'cooling-system': Thermometer,
+        'overheating': Thermometer,
+        'low-water': Droplets,
+        'excessive-smoke': Wind,
+        'wipers-screenwash': CloudRain,
+        'suspension': Waves,
+        'warning-lights': TriangleAlert,
+        'speedo': GaugeCircle,
+        'buzzers': BellRing,
+        'repeat-defects': RotateCw,
+        'ev-low-charge': BatteryLow,
+        'puncture': Disc
+    };
 
     // Icon mapping for wizards
     const iconMapping = {
@@ -761,21 +808,6 @@ const App = () => {
         'ev-low-charge': null
     };
 
-    // Emoji fallbacks
-    const emojiFallbacks = {
-        'cooling-system': '🌡️',
-        'overheating': '🌡️',
-        'low-water': '💧',
-        'excessive-smoke': '💨',
-        'wipers-screenwash': '🌧️',
-        'suspension': '🚙',
-        'warning-lights': '⚠️',
-        'speedo': '🏁',
-        'interior-exterior-damage': '⚠️',
-        'buzzers': '🔔',
-        'ev-low-charge': '⚡'
-    };
-
     // Main dashboard view - Two Column Layout
     const Dashboard = () => {
         const activeCategory = categories.find(c => c.id === selectedCategory);
@@ -790,18 +822,21 @@ const App = () => {
                             <h2>Categories</h2>
                         </div>
                         <nav className="category-nav">
-                            {categories.map(category => (
-                                <button
-                                    key={category.id}
-                                    className={`category-btn ${selectedCategory === category.id ? 'active' : ''}`}
-                                    onClick={() => setSelectedCategory(category.id)}
-                                    style={{ '--category-color': category.color }}
-                                >
-                                    <span className="category-icon">{category.icon}</span>
-                                    <span className="category-name">{category.name}</span>
-                                    <span className="category-count">{category.wizardKeys.filter(k => wizards[k]).length}</span>
-                                </button>
-                            ))}
+                            {categories.map(category => {
+                                const CategoryIcon = category.icon;
+                                return (
+                                    <button
+                                        key={category.id}
+                                        className={`category-btn ${selectedCategory === category.id ? 'active' : ''}`}
+                                        onClick={() => setSelectedCategory(category.id)}
+                                        style={{ '--category-color': category.color }}
+                                    >
+                                        <span className="category-icon"><CategoryIcon size={20} strokeWidth={2} /></span>
+                                        <span className="category-name">{category.name}</span>
+                                        <span className="category-count">{category.wizardKeys.filter(k => wizards[k]).length}</span>
+                                    </button>
+                                );
+                            })}
                         </nav>
                     </aside>
 
@@ -809,7 +844,9 @@ const App = () => {
                     <main className="wizard-content">
                         <div className="content-header">
                             <h1 style={{ '--header-color': activeCategory?.color }}>
-                                <span className="header-icon">{activeCategory?.icon}</span>
+                                <span className="header-icon">
+                                    {activeCategory && <activeCategory.icon size={28} strokeWidth={2} />}
+                                </span>
                                 {activeCategory?.name}
                             </h1>
                             <p className="header-subtitle">Select an assessment type to begin</p>
@@ -822,6 +859,7 @@ const App = () => {
 
                                 const iconFile = iconMapping[key];
                                 const hasIcon = iconFile !== null && iconFile !== undefined;
+                                const FallbackIcon = wizardIconFallback[key] || Wrench;
 
                                 return (
                                     <button
@@ -832,13 +870,26 @@ const App = () => {
                                     >
                                         <div className="card-icon-wrapper">
                                             {hasIcon ? (
-                                                <img
-                                                    src={`/icons/${iconFile}`}
-                                                    alt={wizard.title}
-                                                    className="card-icon-img"
-                                                />
+                                                <>
+                                                    <img
+                                                        src={`/icons/${iconFile}`}
+                                                        alt=""
+                                                        aria-hidden="true"
+                                                        className="card-icon-img"
+                                                        onError={(e) => {
+                                                            e.currentTarget.style.display = 'none';
+                                                            const fallback = e.currentTarget.nextElementSibling;
+                                                            if (fallback) fallback.style.display = 'flex';
+                                                        }}
+                                                    />
+                                                    <span className="card-icon-fallback" style={{ display: 'none' }}>
+                                                        <FallbackIcon size={28} strokeWidth={1.75} />
+                                                    </span>
+                                                </>
                                             ) : (
-                                                <span className="card-icon-emoji">{emojiFallbacks[key] || '🔧'}</span>
+                                                <span className="card-icon-fallback">
+                                                    <FallbackIcon size={28} strokeWidth={1.75} />
+                                                </span>
                                             )}
                                         </div>
                                         <div className="card-content">

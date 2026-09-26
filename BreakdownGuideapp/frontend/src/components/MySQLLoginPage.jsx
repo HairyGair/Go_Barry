@@ -6,6 +6,10 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+    LogIn, ChevronDown, X, Eye, EyeOff, Play, ArrowRight, Heart, CheckCircle2,
+    ListChecks, Activity, BarChart3, Route as RouteIcon,
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { GoBarryLogo } from './GoBarryLogo.jsx';
 import PixelishLogo from './PixelishLogo.jsx';
@@ -199,14 +203,9 @@ const MySQLLoginPage = () => {
                             aria-haspopup="true"
                             aria-expanded={loginOpen}
                         >
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                                <circle cx="8" cy="5" r="3" stroke="currentColor" strokeWidth="1.5" fill="none"/>
-                                <path d="M2 14c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none"/>
-                            </svg>
+                            <LogIn size={15} strokeWidth={2} />
                             Sign In
-                            <svg className={`lp-nav-chevron ${loginOpen ? 'open' : ''}`} width="10" height="10" viewBox="0 0 10 10" fill="none">
-                                <path d="M2 3.5L5 6.5L8 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                            </svg>
+                            <ChevronDown className={`lp-nav-chevron ${loginOpen ? 'open' : ''}`} size={14} strokeWidth={2} />
                         </button>
 
                         {/* Login Dropdown Panel */}
@@ -235,9 +234,7 @@ const MySQLLoginPage = () => {
                                         />
                                         {emailWasPrefilled && email && (
                                             <button type="button" className="lp-clear-btn" onClick={handleClearEmail} disabled={isLoading} aria-label="Clear email">
-                                                <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-                                                    <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                                                </svg>
+                                                <X size={12} strokeWidth={2} />
                                             </button>
                                         )}
                                     </div>
@@ -267,18 +264,7 @@ const MySQLLoginPage = () => {
                                             aria-label={showPassword ? 'Hide password' : 'Show password'}
                                             aria-pressed={showPassword}
                                         >
-                                            {showPassword ? (
-                                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                                                    <path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z" stroke="currentColor" strokeWidth="1.2"/>
-                                                    <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.2"/>
-                                                </svg>
-                                            ) : (
-                                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                                                    <path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z" stroke="currentColor" strokeWidth="1.2"/>
-                                                    <circle cx="8" cy="8" r="2" stroke="currentColor" strokeWidth="1.2"/>
-                                                    <path d="M2 14L14 2" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-                                                </svg>
-                                            )}
+                                            {showPassword ? <EyeOff size={16} strokeWidth={1.6} /> : <Eye size={16} strokeWidth={1.6} />}
                                         </button>
                                     </div>
                                     {capsLockOn && (
@@ -330,42 +316,40 @@ const MySQLLoginPage = () => {
                             A fully configurable breakdown management platform, tailored to your fleet,
                             your depots, and the way your supervisors work.
                         </p>
-                        <div className="lp-hero-actions">
-                            <button
-                                className="lp-demo-btn"
-                                onClick={handleDemoLogin}
-                                disabled={isLoading || isDemoLoading}
-                            >
-                                {isDemoLoading ? (
-                                    <><span className="lp-btn-spinner" /> Loading Demo...</>
-                                ) : (
-                                    <>
-                                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                                            <polygon points="6,3 15,9 6,15" fill="currentColor"/>
-                                        </svg>
-                                        Try Live Demo
-                                    </>
-                                )}
-                            </button>
-                            <a href="/showcase.html" className="lp-learn-more-btn">
-                                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                                    <path d="M3 9h12m0 0L11 5m4 4L11 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                </svg>
-                                See The Full Platform
-                            </a>
-                            <button
-                                type="button"
-                                className="lp-interest-btn"
-                                onClick={() => setShowInterest(true)}
-                            >
-                                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                                    <path d="M9 2.5c-1.6-1.8-5.5-1-5.5 2.2C3.5 8 9 12 9 12s5.5-4 5.5-7.3C14.5 1.5 10.6.7 9 2.5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
-                                </svg>
-                                I'm Interested
-                            </button>
-                            <span className="lp-demo-hint">No account needed</span>
-                        </div>
                     </div>
+
+                    <div className="lp-hero-actions">
+                        <button
+                            className="lp-demo-btn lp-cta-primary"
+                            onClick={handleDemoLogin}
+                            disabled={isLoading || isDemoLoading}
+                        >
+                            {isDemoLoading ? (
+                                <><span className="lp-btn-spinner" /> Loading Demo...</>
+                            ) : (
+                                <>
+                                    <Play size={16} strokeWidth={2} fill="currentColor" />
+                                    Try Live Demo
+                                </>
+                            )}
+                        </button>
+                        <a href="/showcase.html" className="lp-learn-more-btn lp-cta-secondary">
+                            See The Full Platform
+                            <ArrowRight size={16} strokeWidth={2} />
+                        </a>
+                        <button
+                            type="button"
+                            className="lp-interest-btn lp-cta-ghost"
+                            onClick={() => setShowInterest(true)}
+                        >
+                            <Heart size={15} strokeWidth={2} />
+                            I'm Interested
+                        </button>
+                    </div>
+                    <p className="lp-cta-caption">
+                        <CheckCircle2 size={14} strokeWidth={2} />
+                        No account needed &mdash; the demo opens instantly
+                    </p>
 
                     {/* Stats Strip */}
                     <div className="lp-stats">
@@ -396,45 +380,30 @@ const MySQLLoginPage = () => {
 
                 {/* ─── Feature Cards ─── */}
                 <section className="lp-features">
-                    <div className="lp-feature-card" style={{ animationDelay: '0.1s' }}>
+                    <div className="lp-feature-card" style={{ animationDelay: '0s' }}>
                         <div className="lp-feature-icon">
-                            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-                                <rect x="3" y="5" width="22" height="16" rx="3" stroke="currentColor" strokeWidth="1.5"/>
-                                <rect x="7" y="8" width="14" height="7" rx="1.5" stroke="currentColor" strokeWidth="1.2"/>
-                                <circle cx="9" cy="19" r="1.5" fill="currentColor"/>
-                                <circle cx="19" cy="19" r="1.5" fill="currentColor"/>
-                                <path d="M10 23h8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
-                            </svg>
+                            <ListChecks size={24} strokeWidth={1.75} />
                         </div>
                         <h3>Guided Diagnostics</h3>
                         <p>Custom assessment wizards built around your fleet types, guiding supervisors through fault identification with intelligent decision trees.</p>
                     </div>
-                    <div className="lp-feature-card" style={{ animationDelay: '0.2s' }}>
+                    <div className="lp-feature-card" style={{ animationDelay: '0.06s' }}>
                         <div className="lp-feature-icon">
-                            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-                                <circle cx="14" cy="14" r="10" stroke="currentColor" strokeWidth="1.5"/>
-                                <path d="M14 8v6l4 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                <circle cx="14" cy="14" r="1.5" fill="currentColor"/>
-                            </svg>
+                            <Activity size={24} strokeWidth={1.75} />
                         </div>
                         <h3>Live Fleet Status</h3>
                         <p>Real-time breakdown tracking across every depot, with engineer dispatch, ETA countdowns, and replacement vehicle coordination.</p>
                     </div>
-                    <div className="lp-feature-card" style={{ animationDelay: '0.3s' }}>
+                    <div className="lp-feature-card" style={{ animationDelay: '0.12s' }}>
                         <div className="lp-feature-icon">
-                            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-                                <path d="M4 20l4-6 4 3 5-8 7 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                <path d="M4 24h20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-                            </svg>
+                            <BarChart3 size={24} strokeWidth={1.75} />
                         </div>
                         <h3>Operations Intelligence</h3>
                         <p>Dashboards shaped to your KPIs - trend analysis, dead mileage reporting, and route impact assessment tailored to your operation.</p>
                     </div>
-                    <div className="lp-feature-card" style={{ animationDelay: '0.4s' }}>
+                    <div className="lp-feature-card" style={{ animationDelay: '0.18s' }}>
                         <div className="lp-feature-icon">
-                            <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-                                <path d="M14 3l2.5 6H23l-5 4 2 6.5L14 16l-6 3.5 2-6.5-5-4h6.5z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
-                            </svg>
+                            <RouteIcon size={24} strokeWidth={1.75} />
                         </div>
                         <h3>Smart Route Matching</h3>
                         <p>Automatically identifies affected routes from breakdown locations, scoring service impact across your entire network.</p>

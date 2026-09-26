@@ -702,7 +702,7 @@ const WarningLightsWizard = ({ currentStep, responses, updateResponse, onNext, o
               (currentStep === 2 && (responses.lightColor === 'red' || responses.lightColor === 'mixed') && !responses.lightBehavior) ||
               (currentStep === 3 && Object.keys(verificationChecks).filter(key => verificationChecks[key]).length < 5)
             }
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-700 disabled:text-slate-500 text-white rounded-lg transition-colors"
+            className="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 disabled:bg-slate-700 disabled:text-slate-500 text-white rounded-lg transition-colors"
           >
             Next
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

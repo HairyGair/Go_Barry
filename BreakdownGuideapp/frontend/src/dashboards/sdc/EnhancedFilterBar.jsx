@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Users, BarChart3, Wrench } from 'lucide-react';
 
 /**
  * Enhanced Filter Bar for SDC Dashboard
@@ -78,15 +79,15 @@ const EnhancedFilterBar = ({
                 <div className="tooltip-header">Assessment Details</div>
                 <div className="tooltip-content">
                   <div className="tooltip-item">
-                    <span className="tooltip-icon">👥</span>
+                    <span className="tooltip-icon"><Users size={14} /></span>
                     <span>{filter.details.supervisors.length} active supervisor{filter.details.supervisors.length !== 1 ? 's' : ''}</span>
                   </div>
                   <div className="tooltip-item">
-                    <span className="tooltip-icon">📊</span>
+                    <span className="tooltip-icon"><BarChart3 size={14} /></span>
                     <span>{filter.details.avgProgress}% average progress</span>
                   </div>
                   <div className="tooltip-item">
-                    <span className="tooltip-icon">🔧</span>
+                    <span className="tooltip-icon"><Wrench size={14} /></span>
                     <span>{filter.details.types.length} assessment type{filter.details.types.length !== 1 ? 's' : ''}</span>
                   </div>
                 </div>
@@ -139,12 +140,12 @@ const EnhancedFilterBar = ({
 
         .enhanced-filter-btn.active {
           background: linear-gradient(135deg,
-            rgba(228, 0, 43, 0.2) 0%,
-            rgba(228, 0, 43, 0.1) 100%
+            rgba(0, 151, 167, 0.22) 0%,
+            rgba(0, 151, 167, 0.1) 100%
           );
-          border-color: rgba(228, 0, 43, 0.5);
+          border-color: rgba(0, 188, 212, 0.5);
           box-shadow:
-            0 4px 16px rgba(228, 0, 43, 0.2),
+            0 4px 16px rgba(0, 151, 167, 0.2),
             inset 0 1px 0 rgba(255, 255, 255, 0.1);
         }
 
@@ -161,8 +162,14 @@ const EnhancedFilterBar = ({
         }
 
         .filter-icon {
-          font-size: 18px;
+          display: flex;
+          align-items: center;
           min-width: 20px;
+          color: #94a3b8;
+        }
+
+        .enhanced-filter-btn.active .filter-icon {
+          color: #22d3ee;
         }
 
         .filter-label {
@@ -173,20 +180,20 @@ const EnhancedFilterBar = ({
         }
 
         .filter-count {
-          background: linear-gradient(135deg, #E4002B, #ff1744);
-          color: white;
+          background: rgba(255, 255, 255, 0.1);
+          color: #f8fafc;
           padding: 4px 10px;
           border-radius: 8px;
           font-size: 12px;
           font-weight: 700;
+          font-variant-numeric: tabular-nums;
           min-width: 28px;
           text-align: center;
-          box-shadow: 0 2px 8px rgba(228, 0, 43, 0.3);
         }
 
         .enhanced-filter-btn.active .filter-count {
-          background: linear-gradient(135deg, #ff1744, #E4002B);
-          box-shadow: 0 4px 12px rgba(228, 0, 43, 0.4);
+          background: rgba(0, 188, 212, 0.25);
+          color: #f8fafc;
         }
 
         .filter-subtitle {
@@ -308,24 +315,29 @@ const EnhancedFilterBar = ({
         }
 
         .tooltip-icon {
-          font-size: 14px;
+          display: flex;
+          align-items: center;
+          color: #22d3ee;
         }
 
-        /* Filter-specific colors */
+        /* Filter-specific colors — status colour reserved for filters that
+           represent an actual status; the rest stay neutral. */
         .enhanced-filter-btn[data-filter="critical"] .filter-count {
-          background: linear-gradient(135deg, #ef4444, #dc2626);
+          background: rgba(239, 68, 68, 0.2);
+          color: #fca5a5;
+        }
+
+        .enhanced-filter-btn[data-filter="critical"] .filter-icon {
+          color: #f87171;
         }
 
         .enhanced-filter-btn[data-filter="pending"] .filter-count {
-          background: linear-gradient(135deg, #f59e0b, #d97706);
+          background: rgba(245, 158, 11, 0.2);
+          color: #fcd34d;
         }
 
-        .enhanced-filter-btn[data-filter="in-assessment"] .filter-count {
-          background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-        }
-
-        .enhanced-filter-btn[data-filter="my-breakdowns"] .filter-count {
-          background: linear-gradient(135deg, #3b82f6, #2563eb);
+        .enhanced-filter-btn[data-filter="pending"] .filter-icon {
+          color: #fbbf24;
         }
 
         @media (max-width: 768px) {

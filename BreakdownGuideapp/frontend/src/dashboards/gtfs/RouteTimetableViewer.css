@@ -193,7 +193,7 @@
   font-size: 22px;
   font-weight: 700;
   color: #00BCD4;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   letter-spacing: 1px;
 }
 
@@ -410,7 +410,7 @@
   display: inline-block;
   padding: 3px 8px;
   border-radius: 5px;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 500;
   background: rgba(255, 255, 255, 0.06);
@@ -550,7 +550,7 @@
   text-align: center;
   border-bottom: 2px solid rgba(0, 188, 212, 0.25);
   min-width: 52px;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
 }
 
 /* Body cells */
@@ -559,7 +559,7 @@
   text-align: center;
   color: rgba(224, 247, 250, 0.85);
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
 }
 
@@ -730,10 +730,18 @@ th.rtv-col-now {
 .rtv-empty {
   text-align: center;
   padding: 60px 20px;
-  color: rgba(224, 247, 250, 0.5);
+  color: rgba(224, 247, 250, 0.65);
   font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.rtv-empty svg {
+  color: rgba(224, 247, 250, 0.3);
 }
 
 .rtv-empty p {
-  margin: 8px 0;
+  margin: 0;
 }

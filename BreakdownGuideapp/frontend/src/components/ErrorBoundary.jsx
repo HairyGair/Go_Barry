@@ -4,6 +4,7 @@
  */
 
 import React from 'react';
+import { AlertTriangle, Check } from 'lucide-react';
 import './ErrorBoundary.css';
 
 class ErrorBoundary extends React.Component {
@@ -100,7 +101,7 @@ class ErrorBoundary extends React.Component {
       return (
         <div className="error-boundary-container" role="alert" aria-live="assertive">
           <div className="error-boundary-content">
-            <div className="error-icon" aria-hidden="true">⚠️</div>
+            <div className="error-icon" aria-hidden="true"><AlertTriangle size={48} strokeWidth={1.75} /></div>
             <h1>Oops! Something went wrong</h1>
             <p className="error-message">
               We're sorry, but something unexpected happened. The error has been
@@ -134,7 +135,7 @@ class ErrorBoundary extends React.Component {
 
             {this.state.errorReported && (
               <p className="error-reported-notice" role="status" aria-live="polite">
-                ✓ Error report submitted successfully
+                <Check size={14} strokeWidth={2.5} aria-hidden="true" /> Error report submitted successfully
               </p>
             )}
           </div>

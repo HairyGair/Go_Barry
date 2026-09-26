@@ -53,8 +53,11 @@
 /* ===== BASE CONTAINER ===== */
 .sdc-dashboard {
   min-height: 100vh;
-  padding-top: 70px;
-  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  /* The shared shell (.main-container) already reserves space for the fixed
+     header/banner (DashboardLayout no longer adds its own offset on top of
+     that), so this page must not add any extra top clearance of its own. */
+  padding-top: 0;
+  font-family: var(--font-display, 'Outfit'), -apple-system, BlinkMacSystemFont, sans-serif;
   color: var(--sdc-text-primary);
 
   /* Layered atmospheric background */

@@ -85,7 +85,7 @@ function DoorsWizard({ currentStep, responses, updateResponse, onNext, onPreviou
               <button
                 onClick={onNext}
                 disabled={!responses.initialChecks}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Next Step
               </button>
@@ -252,7 +252,7 @@ function DoorsWizard({ currentStep, responses, updateResponse, onNext, onPreviou
               <button
                 onClick={onNext}
                 disabled={!responses.airSystemCheck}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Next Step
               </button>
@@ -323,7 +323,7 @@ function DoorsWizard({ currentStep, responses, updateResponse, onNext, onPreviou
             </div>
 
             <div className="bg-red-500/20 backdrop-blur-sm rounded-lg p-6 border border-red-400/30">
-              <h3 className="text-lg font-semibold text-red-200 mb-4">⚠️ Safety Critical Defects</h3>
+              <h3 className="text-lg font-semibold text-red-200 mb-4 flex items-center gap-2"><AlertTriangle className="w-5 h-5" /> Safety Critical Defects</h3>
               <p className="text-white mb-4">STOP and seek engineering assistance if ANY of these are present:</p>
               <div className="space-y-2 text-sm text-gray-300">
                 <p>• Doors are jammed closed</p>
@@ -376,7 +376,7 @@ function DoorsWizard({ currentStep, responses, updateResponse, onNext, onPreviou
               <button
                 onClick={onNext}
                 disabled={!responses.safetyDefects}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Final Assessment
               </button>
@@ -399,7 +399,7 @@ function DoorsWizard({ currentStep, responses, updateResponse, onNext, onPreviou
 
             {responses.safetyDefects === 'present' ? (
               <div className="bg-red-500/20 backdrop-blur-sm rounded-lg p-6 border border-red-400/30">
-                <h3 className="text-lg font-semibold text-red-200 mb-4">🛑 STOP Immediately</h3>
+                <h3 className="text-lg font-semibold text-red-200 mb-4 flex items-center gap-2"><AlertTriangle className="w-5 h-5" /> STOP Immediately</h3>
                 <div className="space-y-3 text-gray-300">
                   <p>• Vehicle must STOP and await engineering assistance</p>
                   <p>• Safety-critical door defects present</p>

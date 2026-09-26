@@ -12,6 +12,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { AlertTriangle, AlertOctagon, CheckCircle2, Info, BarChart3, RefreshCw } from 'lucide-react';
 import { apiClient } from '../services/api-client';
 import './CoverageAlertWidget.css';
 
@@ -49,12 +50,13 @@ const CoverageAlertWidget = ({ variant = 'compact', refreshInterval = 60000 }) =
 
   // Get alert icon based on level
   const getAlertIcon = (level) => {
+    const iconProps = { size: 16 };
     switch (level) {
-      case 'critical': return '🚨';
-      case 'warning': return '⚠️';
-      case 'normal': return '✅';
-      case 'info': return 'ℹ️';
-      default: return '📊';
+      case 'critical': return <AlertOctagon {...iconProps} />;
+      case 'warning': return <AlertTriangle {...iconProps} />;
+      case 'normal': return <CheckCircle2 {...iconProps} />;
+      case 'info': return <Info {...iconProps} />;
+      default: return <BarChart3 {...iconProps} />;
     }
   };
 
@@ -80,7 +82,7 @@ const CoverageAlertWidget = ({ variant = 'compact', refreshInterval = 60000 }) =
   if (error) {
     return (
       <div className={`coverage-widget coverage-widget--${variant} error`}>
-        <span className="coverage-widget__icon">⚠️</span>
+        <span className="coverage-widget__icon"><AlertTriangle size={16} /></span>
         <span>{error}</span>
         <button onClick={fetchCoverageStatus} className="coverage-widget__retry">Retry</button>
       </div>
@@ -269,7 +271,7 @@ const CoverageAlertWidget = ({ variant = 'compact', refreshInterval = 60000 }) =
       </div>
 
       <button className="coverage-widget__refresh" onClick={fetchCoverageStatus} title="Refresh">
-        🔄
+        <RefreshCw size={15} />
       </button>
     </div>
   );

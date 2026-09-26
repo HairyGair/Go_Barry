@@ -12,48 +12,53 @@
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
+import {
+  Zap, Trophy, Flame, Footprints, Sparkles, PartyPopper, Star,
+  Bus, CheckCircle2, ClipboardList, AlertTriangle, Award, StickyNote,
+  Loader2, Check
+} from 'lucide-react';
 import './ShiftSummaryModal.css';
 
 // Achievement definitions
 const ACHIEVEMENTS = {
   QUICK_RESPONDER: {
     id: 'quick_responder',
-    icon: '⚡',
+    Icon: Zap,
     title: 'Quick Responder',
     description: 'Average response under 5 minutes',
     condition: (stats) => stats.avgResponseTime < 5
   },
   PROBLEM_SOLVER: {
     id: 'problem_solver',
-    icon: '🏆',
+    Icon: Trophy,
     title: 'Problem Solver',
     description: 'Resolved all assigned breakdowns',
     condition: (stats) => stats.breakdownsResolved > 0 && stats.breakdownsPending === 0
   },
   BUSY_BEE: {
     id: 'busy_bee',
-    icon: '🐝',
+    Icon: Flame,
     title: 'Busy Bee',
     description: 'Handled 5+ breakdowns',
     condition: (stats) => stats.breakdownsHandled >= 5
   },
   MARATHON_RUNNER: {
     id: 'marathon_runner',
-    icon: '🏃',
+    Icon: Footprints,
     title: 'Marathon Runner',
     description: 'Extended shift to help team',
     condition: (stats) => stats.shiftExtended
   },
   CLEAN_SLATE: {
     id: 'clean_slate',
-    icon: '✨',
+    Icon: Sparkles,
     title: 'Clean Slate',
     description: 'No pending breakdowns at handover',
     condition: (stats) => stats.breakdownsPending === 0
   },
   FIRST_SHIFT: {
     id: 'first_shift',
-    icon: '🎉',
+    Icon: PartyPopper,
     title: 'First Shift',
     description: 'Welcome to the team!',
     condition: (stats) => stats.isFirstShift
@@ -171,12 +176,12 @@ const ShiftSummaryModal = ({
 
   if (!isVisible || !currentDuty) return null;
 
-  // Get duty theme color
+  // Get duty theme color — kept within the brand teal/cyan family
   const dutyColors = {
-    '100': { primary: '#3B82F6', gradient: 'linear-gradient(135deg, #3B82F6, #60A5FA)' },
-    '200': { primary: '#10B981', gradient: 'linear-gradient(135deg, #10B981, #34D399)' },
-    '400': { primary: '#F59E0B', gradient: 'linear-gradient(135deg, #F59E0B, #FCD34D)' },
-    '500': { primary: '#8B5CF6', gradient: 'linear-gradient(135deg, #8B5CF6, #A78BFA)' }
+    '100': { primary: '#00ACC1', gradient: 'linear-gradient(135deg, #00ACC1, #26C6DA)' },
+    '200': { primary: '#0097A7', gradient: 'linear-gradient(135deg, #0097A7, #00BCD4)' },
+    '400': { primary: '#00838F', gradient: 'linear-gradient(135deg, #00838F, #00ACC1)' },
+    '500': { primary: '#006064', gradient: 'linear-gradient(135deg, #006064, #00838F)' }
   };
   const dutyTheme = dutyColors[currentDuty.code] || dutyColors['200'];
 
@@ -207,7 +212,9 @@ const ShiftSummaryModal = ({
           {/* Header */}
           <div className="shift-summary-modal__header" style={{ background: dutyTheme.gradient }}>
             <div className="shift-summary-modal__header-content">
-              <span className="shift-summary-modal__icon">{currentDuty.icon || '🌟'}</span>
+              <span className="shift-summary-modal__icon">
+                {currentDuty.icon || <Star size={40} strokeWidth={1.75} aria-hidden="true" />}
+              </span>
               <div className="shift-summary-modal__title-group">
                 <h2 className="shift-summary-modal__title">Shift Complete!</h2>
                 <p className="shift-summary-modal__subtitle">
@@ -236,22 +243,22 @@ const ShiftSummaryModal = ({
           {/* Stats Grid */}
           <div className={`shift-summary-modal__stats ${animationPhase >= 2 ? 'visible' : ''}`}>
             <div className="stat-item">
-              <span className="stat-icon">🚌</span>
+              <span className="stat-icon"><Bus size={26} strokeWidth={1.75} aria-hidden="true" /></span>
               <span className="stat-value">{stats.breakdownsHandled}</span>
               <span className="stat-label">Breakdowns Handled</span>
             </div>
             <div className="stat-item">
-              <span className="stat-icon">✅</span>
+              <span className="stat-icon"><CheckCircle2 size={26} strokeWidth={1.75} aria-hidden="true" /></span>
               <span className="stat-value">{stats.breakdownsResolved}</span>
               <span className="stat-label">Resolved</span>
             </div>
             <div className="stat-item">
-              <span className="stat-icon">📋</span>
+              <span className="stat-icon"><ClipboardList size={26} strokeWidth={1.75} aria-hidden="true" /></span>
               <span className="stat-value">{stats.assessmentsCompleted}</span>
               <span className="stat-label">Assessments</span>
             </div>
             <div className="stat-item">
-              <span className="stat-icon">⚡</span>
+              <span className="stat-icon"><Zap size={26} strokeWidth={1.75} aria-hidden="true" /></span>
               <span className="stat-value">
                 {stats.avgResponseTime !== null ? `${stats.avgResponseTime}m` : '--'}
               </span>
@@ -262,7 +269,7 @@ const ShiftSummaryModal = ({
           {/* Pending Breakdowns Warning */}
           {stats.breakdownsPending > 0 && (
             <div className="shift-summary-modal__pending-warning">
-              <span className="pending-icon">⚠️</span>
+              <span className="pending-icon"><AlertTriangle size={17} strokeWidth={2} aria-hidden="true" /></span>
               <span className="pending-text">
                 {stats.breakdownsPending} breakdown{stats.breakdownsPending > 1 ? 's' : ''} still pending - ensure proper handover
               </span>
@@ -272,7 +279,9 @@ const ShiftSummaryModal = ({
           {/* Achievements Section */}
           {earnedAchievements.length > 0 && (
             <div className={`shift-summary-modal__achievements ${animationPhase >= 3 ? 'visible' : ''}`}>
-              <h3 className="achievements-title">🏅 Achievements Earned</h3>
+              <h3 className="achievements-title">
+                <Award size={18} strokeWidth={2} aria-hidden="true" /> Achievements Earned
+              </h3>
               <div className="achievements-grid">
                 {earnedAchievements.map((achievement, index) => (
                   <div
@@ -280,7 +289,7 @@ const ShiftSummaryModal = ({
                     className="achievement-badge"
                     style={{ '--delay': `${index * 0.15}s` }}
                   >
-                    <span className="achievement-icon">{achievement.icon}</span>
+                    <span className="achievement-icon"><achievement.Icon size={22} strokeWidth={1.75} aria-hidden="true" /></span>
                     <div className="achievement-info">
                       <span className="achievement-title">{achievement.title}</span>
                       <span className="achievement-desc">{achievement.description}</span>
@@ -294,7 +303,7 @@ const ShiftSummaryModal = ({
           {/* Shift Notes */}
           <div className={`shift-summary-modal__notes ${animationPhase >= 4 ? 'visible' : ''}`}>
             <label className="notes-label">
-              <span className="notes-icon">📝</span>
+              <span className="notes-icon"><StickyNote size={15} strokeWidth={2} aria-hidden="true" /></span>
               Add Shift Notes (Optional)
             </label>
             <textarea
@@ -321,7 +330,11 @@ const ShiftSummaryModal = ({
               disabled={isSubmitting}
               style={{ background: dutyTheme.gradient }}
             >
-              {isSubmitting ? '⏳ Ending...' : '✓ End Shift'}
+              {isSubmitting ? (
+                <><Loader2 size={15} strokeWidth={2} className="shift-summary-modal__spin" aria-hidden="true" /> Ending...</>
+              ) : (
+                <><Check size={15} strokeWidth={2.25} aria-hidden="true" /> End Shift</>
+              )}
             </button>
           </div>
 

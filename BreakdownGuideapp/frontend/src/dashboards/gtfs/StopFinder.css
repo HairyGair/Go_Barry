@@ -286,10 +286,18 @@
   text-align: center;
   font-size: 13px;
   color: #64748B;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.sf-empty svg {
+  color: #475569;
 }
 
 .sf-empty p {
-  margin: 6px 0;
+  margin: 0;
 }
 
 .sf-refresh-note {

@@ -4,8 +4,11 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Database, Trash2, Download, CloudOff, BarChart3 } from 'lucide-react';
 
 const DataManagement = ({ user, settings }) => {
+  const navigate = useNavigate();
   const [storageInfo, setStorageInfo] = useState({
     used: 0,
     total: 0,
@@ -65,14 +68,9 @@ const DataManagement = ({ user, settings }) => {
     }
   };
 
-  // Export breakdown history
-  const exportBreakdownHistory = async () => {
-    try {
-      // This would call an API endpoint in Phase 2
-      alert('📊 Data Export Feature\n\nThis will be available in Phase 2 and will include:\n\n• All your breakdown assessments\n• Export formats: CSV, JSON, PDF\n• Date range filtering\n• Depot filtering\n\nFor now, you can view your breakdown history in the Management Dashboard.');
-    } catch (error) {
-      alert('❌ Export failed: ' + error.message);
-    }
+  // Export breakdown history — the CSV export lives on Fleet Intelligence
+  const exportBreakdownHistory = () => {
+    navigate('/fleet-intelligence');
   };
 
   // Download settings backup
@@ -109,7 +107,7 @@ const DataManagement = ({ user, settings }) => {
 
   return (
     <div className="settings-section">
-      <h2>💾 Data & Storage</h2>
+      <h2><Database size={18} /> Data & Storage</h2>
       <p className="section-description">
         Manage your local data, cache, and storage usage
       </p>
@@ -159,7 +157,7 @@ const DataManagement = ({ user, settings }) => {
 
       {/* Clear Cache Options */}
       <div className="settings-section" style={{ marginTop: '40px' }}>
-        <h2>🗑️ Clear Data</h2>
+        <h2><Trash2 size={18} /> Clear Data</h2>
         <p className="section-description">
           Remove cached data to free up space or troubleshoot issues
         </p>
@@ -182,7 +180,7 @@ const DataManagement = ({ user, settings }) => {
         <div className="setting-item">
           <div className="setting-label">
             <h3>Clear All Browser Data</h3>
-            <p>⚠️ Removes ALL data including settings (you will be logged out)</p>
+            <p>Removes ALL data including settings (you will be logged out)</p>
           </div>
           <div className="setting-control">
             <button
@@ -197,7 +195,7 @@ const DataManagement = ({ user, settings }) => {
 
       {/* Export Options */}
       <div className="settings-section" style={{ marginTop: '40px' }}>
-        <h2>📤 Export Data</h2>
+        <h2><Download size={18} /> Export Data</h2>
         <p className="section-description">
           Download your data for backup or analysis
         </p>
@@ -205,14 +203,14 @@ const DataManagement = ({ user, settings }) => {
         <div className="setting-item">
           <div className="setting-label">
             <h3>Export Breakdown History</h3>
-            <p>Download all your breakdown assessments (CSV, JSON, or PDF)</p>
+            <p>Export breakdown history as CSV from Fleet Intelligence</p>
           </div>
           <div className="setting-control">
             <button
               className="settings-button"
               onClick={exportBreakdownHistory}
             >
-              Export History
+              Open Export
             </button>
           </div>
         </div>
@@ -235,13 +233,13 @@ const DataManagement = ({ user, settings }) => {
 
       {/* Offline Mode */}
       <div className="settings-section" style={{ marginTop: '40px' }}>
-        <h2>📴 Offline Mode</h2>
+        <h2><CloudOff size={18} /> Offline Mode</h2>
         <p className="section-description">
           Configure how the app works without internet connection
         </p>
 
         <div className="info-box warning">
-          <p>⚠️ Offline mode is currently in beta. Some features may not work properly without an internet connection.</p>
+          <p>Offline mode is in beta. Some features need an internet connection.</p>
         </div>
 
         <div className="setting-item">
@@ -262,7 +260,7 @@ const DataManagement = ({ user, settings }) => {
 
       {/* Data Statistics */}
       <div className="settings-section" style={{ marginTop: '40px' }}>
-        <h2>📊 Data Statistics</h2>
+        <h2><BarChart3 size={18} /> Data Statistics</h2>
         <p className="section-description">
           Information about your data usage
         </p>
@@ -276,7 +274,7 @@ const DataManagement = ({ user, settings }) => {
           gap: '16px'
         }}>
           <div>
-            <div style={{ fontSize: '28px', fontWeight: '700', color: '#3b82f6' }}>
+            <div style={{ fontSize: '28px', fontWeight: '700', color: '#00bcd4' }}>
               {Object.keys(localStorage).length}
             </div>
             <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>

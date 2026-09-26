@@ -87,7 +87,7 @@ const WizardButtonGroup = ({
 
   // Get button variant styles
   const getNextButtonStyles = () => {
-    const baseStyles = 'px-8 py-4 rounded-lg font-semibold text-white transition-all duration-200 transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg';
+    const baseStyles = 'px-8 py-4 rounded-lg font-semibold text-white transition-all duration-200 transform hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-300 focus-visible:outline-offset-2';
 
     switch (nextVariant) {
       case 'success':
@@ -98,11 +98,11 @@ const WizardButtonGroup = ({
         return `${baseStyles} bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 disabled:from-gray-700 disabled:to-gray-700 shadow-amber-500/25`;
       case 'primary':
       default:
-        return `${baseStyles} bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 disabled:from-gray-700 disabled:to-gray-700 shadow-blue-500/25`;
+        return `${baseStyles} bg-gradient-to-r from-cyan-500 to-cyan-600 hover:from-cyan-400 hover:to-cyan-500 disabled:from-gray-700 disabled:to-gray-700 shadow-cyan-500/25`;
     }
   };
 
-  const previousButtonStyles = 'px-8 py-4 rounded-lg font-medium text-gray-300 bg-gray-700/80 hover:bg-gray-600/80 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 backdrop-blur-sm';
+  const previousButtonStyles = 'px-8 py-4 rounded-lg font-medium text-gray-300 bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 backdrop-blur-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400 focus-visible:outline-offset-2';
 
   // Get appropriate icon for next button
   const getNextIcon = () => {

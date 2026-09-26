@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { AlertTriangle, Clock } from 'lucide-react';
 import { DutyBadge as DutyBadgeIcon } from './icons/DutyBadgeIcons';
 import './DutyIndicator.css';
 
@@ -156,7 +157,7 @@ const DutyIndicator = ({ currentDuty, onClick, isAdmin }) => {
                     className="duty-progress-fill"
                     style={{
                         width: `${progressPercent}%`,
-                        background: `linear-gradient(90deg, ${currentDuty.color} 0%, ${currentDuty.color}AA 100%)`
+                        backgroundColor: currentDuty.color
                     }}
                 />
             </div>
@@ -164,7 +165,7 @@ const DutyIndicator = ({ currentDuty, onClick, isAdmin }) => {
             {/* Warning Indicator */}
             {warningState !== 'normal' && (
                 <div className={`warning-pulse ${warningState}`}>
-                    {warningState === 'urgent' ? '⚠️' : '⏰'}
+                    {warningState === 'urgent' ? <AlertTriangle size={14} /> : <Clock size={14} />}
                 </div>
             )}
         </div>

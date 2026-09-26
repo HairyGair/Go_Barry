@@ -72,14 +72,18 @@
 }
 
 /* ========== BASE LAYOUT ========== */
+/* This is a hideNav / full-screen wall display: the shell adds no header
+   clearance here, but the demo-mode banner (position: fixed, top: 0) can
+   still render above it, so we offset by --app-banner-h (0 outside demo
+   mode) rather than assuming a bare 100vh viewport. */
 .control-room-display {
   position: fixed;
-  top: 0;
+  top: var(--app-banner-h, 0px);
   left: 0;
   right: 0;
   bottom: 0;
   width: 100vw;
-  height: 100vh;
+  height: calc(100vh - var(--app-banner-h, 0px));
   margin: 0;
   padding: 0;
   overflow: hidden;
@@ -116,7 +120,7 @@
 /* ========== HIDDEN NAVIGATION ========== */
 .home-button {
   position: fixed;
-  top: 16px;
+  top: calc(16px + var(--app-banner-h, 0px));
   left: 16px;
   width: 44px;
   height: 44px;
@@ -147,7 +151,7 @@
 
 .gairware-logo-hidden {
   position: fixed;
-  top: 70px;
+  top: calc(70px + var(--app-banner-h, 0px));
   left: 16px;
   width: 44px;
   height: 44px;
@@ -633,7 +637,10 @@
 }
 
 .last-bus-alert-cr-icon {
-  font-size: 28px;
+  width: 28px;
+  height: 28px;
+  color: #F44336;
+  flex-shrink: 0;
 }
 
 .last-bus-alert-cr-text {
@@ -1012,8 +1019,10 @@
 }
 
 .map-error-icon {
-  font-size: 80px;
+  width: 64px;
+  height: 64px;
   margin-bottom: 20px;
+  color: var(--brand-teal-light);
   opacity: 0.7;
   filter: drop-shadow(0 4px 20px rgba(0, 151, 167, 0.5));
 }
@@ -1044,7 +1053,9 @@
 }
 
 .no-breakdowns-icon {
-  font-size: 160px;
+  width: 140px;
+  height: 140px;
+  color: #10B981;
   margin-bottom: 40px;
   animation: successFloat 4s ease-in-out infinite;
   filter: drop-shadow(0 15px 50px rgba(16, 185, 129, 0.5));
@@ -1193,15 +1204,15 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  opacity: 0.3;
+  opacity: 0.55;
   font-size: 12px;
   font-family: 'JetBrains Mono', monospace;
   transition: opacity 0.3s ease;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .footer-watermark:hover {
-  opacity: 0.5;
+  opacity: 0.85;
 }
 
 .watermark-text {

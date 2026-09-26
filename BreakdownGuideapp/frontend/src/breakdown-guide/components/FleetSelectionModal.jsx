@@ -1,6 +1,19 @@
 // Fleet Selection Modal - Enhanced Version with Route Selection and Storage Integration
 import React, { useState, useEffect } from 'react';
+import { Building2, Factory, Anchor, Construction, Castle, Waves, PenLine, RotateCw, Sparkles, Clock3, Zap, AlertTriangle } from 'lucide-react';
 import * as Icons from './common/icons.jsx';
+
+// Lucide icon per depot (matches depotLocations below) - used everywhere the icon
+// is rendered as a React node. The <select> options below still use the emoji
+// (native <option> elements can only render plain text, not components).
+const depotIconMap = {
+    'Consett': Building2,
+    'Deptford': Factory,
+    'Percy Main': Anchor,
+    'Washington': Construction,
+    'Hexham': Castle,
+    'Riverside': Waves
+};
 import storageService from '../../services/storageService.js';
 import breakdownDataService from '../../services/breakdownDataService.js';
 import { useFrequentRoutes, useRecentFleetNumbers, useBreakdownDraft } from '../../hooks/useStorage.js';
@@ -586,7 +599,7 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                 <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto overflow-x-hidden border border-gray-700">
                     {/* Header */}
-                    <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 relative">
+                    <div className="bg-gradient-to-r from-cyan-600 to-cyan-700 p-6 relative">
                         <button
                             onClick={onClose}
                             className="absolute top-4 right-4 text-white/80 hover:text-white transition-colors"
@@ -621,7 +634,7 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
                                         placeholder="Search by fleet number, registration, or depot..."
-                                        className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 transition-colors"
+                                        className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-cyan-500 transition-colors"
                                         autoFocus
                                         list="recent-fleet-numbers"
                                     />
@@ -709,13 +722,13 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
 
                                     {/* Depot Override Option */}
                                     <div className="mt-3 pt-3 border-t border-gray-700">
-                                        <label className="block text-sm font-medium text-gray-300 mb-2">
-                                            ⚠️ Incorrect depot? Reallocate here:
+                                        <label className="flex items-center gap-1.5 text-sm font-medium text-gray-300 mb-2">
+                                            <AlertTriangle className="w-3.5 h-3.5 text-amber-400" /> Incorrect depot? Reallocate here:
                                         </label>
                                         <select
                                             value={selectedVehicle.depot}
                                             onChange={(e) => handleDepotChangeRequest(e.target.value)}
-                                            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
                                         >
                                             <option value="">Select Depot</option>
                                             {Object.keys(depotLocations).map(depot => (
@@ -810,7 +823,7 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                                     <div className="space-y-3 bg-gradient-to-r from-green-500/10 to-emerald-500/10 rounded-lg p-4 border border-green-500/30">
                                         <div className="flex items-center gap-2 mb-2">
                                             <div className="w-6 h-6 rounded-full bg-green-500/30 flex items-center justify-center">
-                                                <span className="text-xs">✨</span>
+                                                <Sparkles className="w-3.5 h-3.5 text-green-300" />
                                             </div>
                                             <p className="text-sm font-semibold text-green-400">
                                                 Smart Route Suggestions ({smartSuggestions.length})
@@ -856,13 +869,13 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                                                         onClick={() => handleQuickRouteClick(routeShortName)}
                                                         className={`p-3 rounded-lg border transition-all text-center font-semibold ${
                                                             selectedRoute === routeShortName
-                                                                ? 'bg-blue-600 border-blue-500 text-white'
+                                                                ? 'bg-cyan-600 border-cyan-500 text-white'
                                                                 : 'bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700 hover:border-gray-500'
                                                         }`}
                                                     >
                                                         <div className="text-lg">{routeShortName}</div>
                                                         {route?.isExpress && (
-                                                            <div className="text-xs text-blue-300">Express</div>
+                                                            <div className="text-xs text-cyan-300">Express</div>
                                                         )}
                                                     </button>
                                                 );
@@ -877,7 +890,7 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                                         <p className="text-sm text-gray-400">Other Routes</p>
                                         <button
                                             onClick={() => setShowRouteSearch(!showRouteSearch)}
-                                            className="text-blue-400 hover:text-blue-300 text-sm transition-colors"
+                                            className="text-cyan-400 hover:text-cyan-300 text-sm transition-colors"
                                         >
                                             {showRouteSearch ? 'Hide Search' : 'Search Routes'}
                                         </button>
@@ -894,7 +907,7 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                                                     value={routeSearch}
                                                     onChange={(e) => setRouteSearch(e.target.value)}
                                                     placeholder="Search routes (e.g., X10, 21, Quayside)..."
-                                                    className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-blue-500 transition-colors"
+                                                    className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-cyan-500 transition-colors"
                                                 />
                                             </div>
 
@@ -907,7 +920,7 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                                                             onClick={() => handleRouteSelect(route)}
                                                             className={`w-full p-3 text-left rounded-lg border transition-all ${
                                                                 selectedRoute === route.routeShortName
-                                                                    ? 'bg-blue-600 border-blue-500 text-white'
+                                                                    ? 'bg-cyan-600 border-cyan-500 text-white'
                                                                     : 'bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700'
                                                             }`}
                                                         >
@@ -922,7 +935,7 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                                                                             {route.routeShortName}
                                                                         </span>
                                                                         <span>{route.displayName}</span>
-                                                                        {route.isExpress && <span className="text-red-400">⚡</span>}
+                                                                        {route.isExpress && <Zap className="w-3.5 h-3.5 text-amber-400 inline" />}
                                                                     </div>
                                                                     <div className="text-sm text-gray-400 mt-1">
                                                                         {route.agency} • {route.category} • {route.depot}
@@ -965,7 +978,7 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                                 {selectedRoute && !notInService && (
                                     <div className="space-y-3">
                                         <h4 className="text-sm font-semibold text-gray-300 flex items-center gap-2">
-                                            <span>🕐</span> Which journey was the driver operating?
+                                            <Clock3 className="w-4 h-4" /> Which journey was the driver operating?
                                             <span className="text-xs font-normal text-gray-500">(optional)</span>
                                         </h4>
 
@@ -1092,7 +1105,7 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                                         disabled={!selectedRoute}
                                         className={`flex-1 px-4 py-3 rounded-lg transition-colors font-semibold ${
                                             selectedRoute
-                                                ? 'bg-blue-600 hover:bg-blue-500 text-white'
+                                                ? 'bg-cyan-600 hover:bg-cyan-500 text-white'
                                                 : 'bg-gray-600 text-gray-400 cursor-not-allowed'
                                         }`}
                                     >
@@ -1131,8 +1144,8 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                                         onClick={handleTicketerClick}
                                         className="w-full p-4 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg transition-all duration-200 text-left flex items-center gap-4 group"
                                     >
-                                        <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center text-2xl">
-                                            📍
+                                        <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center">
+                                            <Icons.MapPin className="w-6 h-6 text-green-400" />
                                         </div>
                                         <div className="flex-1">
                                             <div className="font-semibold text-white group-hover:text-green-400 transition-colors">
@@ -1149,8 +1162,8 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                                         onClick={() => setCurrentStep('depot')}
                                         className="w-full p-4 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg transition-all duration-200 text-left flex items-center gap-4 group"
                                     >
-                                        <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center text-2xl">
-                                            🏢
+                                        <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center">
+                                            <Building2 className="w-6 h-6 text-blue-400" />
                                         </div>
                                         <div className="flex-1">
                                             <div className="font-semibold text-white group-hover:text-blue-400 transition-colors">
@@ -1167,8 +1180,8 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                                         onClick={handleSkipLocation}
                                         className="w-full p-4 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg transition-all duration-200 text-left flex items-center gap-4 group"
                                     >
-                                        <div className="w-12 h-12 bg-gray-500/20 rounded-xl flex items-center justify-center text-2xl opacity-60">
-                                            ✏️
+                                        <div className="w-12 h-12 bg-gray-500/20 rounded-xl flex items-center justify-center opacity-60">
+                                            <PenLine className="w-6 h-6 text-gray-300" />
                                         </div>
                                         <div className="flex-1">
                                             <div className="font-semibold text-white opacity-80 group-hover:opacity-100 transition-opacity">
@@ -1199,20 +1212,23 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                                 <h3 className="text-lg font-semibold text-white mb-6">Select Depot Location</h3>
                                 
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                                    {Object.entries(depotLocations).map(([name, depot]) => (
-                                        <button
-                                            key={name}
-                                            onClick={() => handleDepotSelect(name)}
-                                            className="p-4 rounded-xl border transition-all duration-200 hover:scale-105 hover:shadow-lg"
-                                            style={{
-                                                background: `linear-gradient(135deg, ${depot.color}22, ${depot.color}11)`,
-                                                borderColor: `${depot.color}44`
-                                            }}
-                                        >
-                                            <div className="text-3xl mb-2">{depot.icon}</div>
-                                            <div className="font-semibold text-white">{name}</div>
-                                        </button>
-                                    ))}
+                                    {Object.entries(depotLocations).map(([name, depot]) => {
+                                        const DepotIcon = depotIconMap[name] || Building2;
+                                        return (
+                                            <button
+                                                key={name}
+                                                onClick={() => handleDepotSelect(name)}
+                                                className="p-4 rounded-xl border transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
+                                                style={{
+                                                    background: `linear-gradient(135deg, ${depot.color}22, ${depot.color}11)`,
+                                                    borderColor: `${depot.color}44`
+                                                }}
+                                            >
+                                                <DepotIcon className="w-7 h-7 mb-2 mx-auto" style={{ color: depot.color }} />
+                                                <div className="font-semibold text-white">{name}</div>
+                                            </button>
+                                        );
+                                    })}
                                 </div>
                                 
                                 <button
@@ -1272,7 +1288,7 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                     <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-6 border border-orange-500/30">
                         <div className="text-center mb-6">
                             <div className="w-16 h-16 bg-orange-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <span className="text-3xl">🔄</span>
+                                <RotateCw className="w-7 h-7 text-orange-400" />
                             </div>
                             <h3 className="text-xl font-bold text-white mb-2">Confirm Depot Reallocation</h3>
                             <p className="text-gray-400">
@@ -1305,7 +1321,7 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
 
                         <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-3 mb-6">
                             <p className="text-orange-400 text-sm text-center">
-                                ⚠️ This will update the fleet master database. All future breakdowns for this vehicle will show the new depot.
+                                <AlertTriangle className="w-3.5 h-3.5 inline mr-1 -mt-0.5" />This will update the fleet master database. All future breakdowns for this vehicle will show the new depot.
                             </p>
                         </div>
 

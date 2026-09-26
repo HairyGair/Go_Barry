@@ -4,6 +4,10 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import {
+  LogIn, LogOut, Siren, FileEdit, CheckCircle2, Clock, Flag,
+  StickyNote, Pin, ClipboardList, X, AlertTriangle
+} from 'lucide-react';
 import './SupervisorHistoryModal.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
@@ -81,15 +85,15 @@ const SupervisorHistoryModal = ({ supervisorId, onClose }) => {
 
   const getActivityIcon = (type) => {
     const icons = {
-      'login': '🔐',
-      'logout': '🚪',
-      'breakdown_created': '🚨',
-      'breakdown_updated': '📝',
-      'breakdown_resolved': '✅',
-      'duty_started': '⏰',
-      'duty_ended': '🏁',
-      'note_added': '📋',
-      'default': '📌'
+      'login': <LogIn size={15} strokeWidth={2} aria-hidden="true" />,
+      'logout': <LogOut size={15} strokeWidth={2} aria-hidden="true" />,
+      'breakdown_created': <Siren size={15} strokeWidth={2} aria-hidden="true" />,
+      'breakdown_updated': <FileEdit size={15} strokeWidth={2} aria-hidden="true" />,
+      'breakdown_resolved': <CheckCircle2 size={15} strokeWidth={2} aria-hidden="true" />,
+      'duty_started': <Clock size={15} strokeWidth={2} aria-hidden="true" />,
+      'duty_ended': <Flag size={15} strokeWidth={2} aria-hidden="true" />,
+      'note_added': <ClipboardList size={15} strokeWidth={2} aria-hidden="true" />,
+      'default': <Pin size={15} strokeWidth={2} aria-hidden="true" />
     };
     return icons[type] || icons.default;
   };
@@ -141,8 +145,8 @@ const SupervisorHistoryModal = ({ supervisorId, onClose }) => {
               <h2>Supervisor History</h2>
             )}
           </div>
-          <button className="supervisor-history-modal__close" onClick={onClose}>
-            ✕
+          <button className="supervisor-history-modal__close" onClick={onClose} aria-label="Close">
+            <X size={17} strokeWidth={2.25} aria-hidden="true" />
           </button>
         </div>
 
@@ -226,7 +230,7 @@ const SupervisorHistoryModal = ({ supervisorId, onClose }) => {
             </div>
           ) : error ? (
             <div className="supervisor-history-modal__error">
-              <span>⚠️</span>
+              <span><AlertTriangle size={17} strokeWidth={2} aria-hidden="true" /></span>
               <p>{error}</p>
               <button onClick={fetchHistory}>Retry</button>
             </div>
@@ -301,7 +305,9 @@ const SupervisorHistoryModal = ({ supervisorId, onClose }) => {
                     data?.loginHistory?.map((login, idx) => (
                       <div key={login.id || idx} className="history-item login-item">
                         <div className="item-icon">
-                          {login.action?.includes('logout') ? '🚪' : '🔐'}
+                          {login.action?.includes('logout')
+                            ? <LogOut size={15} strokeWidth={2} aria-hidden="true" />
+                            : <LogIn size={15} strokeWidth={2} aria-hidden="true" />}
                         </div>
                         <div className="item-content">
                           <div className="item-action">{login.action}</div>
@@ -325,7 +331,9 @@ const SupervisorHistoryModal = ({ supervisorId, onClose }) => {
                     data?.dutyNotes?.map((note, idx) => (
                       <div key={note.id || idx} className={`history-item note-item ${note.is_priority ? 'priority' : ''}`}>
                         <div className="item-icon">
-                          {note.is_priority ? '📌' : '📝'}
+                          {note.is_priority
+                            ? <Pin size={15} strokeWidth={2} aria-hidden="true" />
+                            : <StickyNote size={15} strokeWidth={2} aria-hidden="true" />}
                         </div>
                         <div className="item-content">
                           <div className="item-note">{note.note}</div>
@@ -349,7 +357,7 @@ const SupervisorHistoryModal = ({ supervisorId, onClose }) => {
                   ) : (
                     data?.auditEntries?.map((entry, idx) => (
                       <div key={entry.id || idx} className="history-item audit-item">
-                        <div className="item-icon">📋</div>
+                        <div className="item-icon"><ClipboardList size={15} strokeWidth={2} aria-hidden="true" /></div>
                         <div className="item-content">
                           <div className="item-action-type">{entry.action_type?.replace(/_/g, ' ')}</div>
                           {entry.duty_code && (

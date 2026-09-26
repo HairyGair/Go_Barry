@@ -1,30 +1,30 @@
-// Enhanced Location Display Component with Interactive Map - DEBUG VERSION
+// Enhanced Location Display Component with Interactive Map
 import React, { useState, useEffect } from 'react';
+import { Bus } from 'lucide-react';
 import * as Icons from './icons.jsx';
 
 const LocationDisplay = ({ vehicle, location }) => {
-    const { MapPin, Building } = Icons;
+    const { MapPin, Building, AlertCircle } = Icons;
     const [mapError, setMapError] = useState(false);
     const [address, setAddress] = useState('');
-    
-    console.log('LocationDisplay component rendered');
-    console.log('Vehicle:', vehicle);
-    console.log('Location:', location);
-    
-    // Always show something for debugging
+
     if (!vehicle) {
         return (
-            <div className="bg-red-800 rounded-lg p-4 mb-6 border border-red-700">
-                <p className="text-white">LocationDisplay: No vehicle data provided</p>
+            <div className="bg-white/5 backdrop-blur-sm rounded-lg p-4 mb-6 border border-amber-400/30 flex items-center gap-3">
+                <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0" />
+                <p className="text-amber-200 text-sm">No vehicle data available for this assessment.</p>
             </div>
         );
     }
-    
+
     if (!location) {
         return (
-            <div className="bg-yellow-800 rounded-lg p-4 mb-6 border border-yellow-700">
-                <p className="text-white">LocationDisplay: No location data provided</p>
-                <p className="text-sm text-gray-300 mt-2">Vehicle: {vehicle.fleetNumber} - {vehicle.regNo}</p>
+            <div className="bg-white/5 backdrop-blur-sm rounded-lg p-4 mb-6 border border-white/10 flex items-center gap-3">
+                <MapPin className="w-5 h-5 text-gray-400 flex-shrink-0" />
+                <div>
+                    <p className="text-gray-300 text-sm">Location not yet captured</p>
+                    <p className="text-xs text-gray-500 mt-0.5">Vehicle: {vehicle.fleetNumber} - {vehicle.regNo}</p>
+                </div>
             </div>
         );
     }
@@ -69,13 +69,6 @@ const LocationDisplay = ({ vehicle, location }) => {
     
     return (
         <div className="bg-gray-800 rounded-lg overflow-hidden mb-6 border border-gray-700">
-            {/* Debug info */}
-            <div className="bg-blue-800 p-2 text-xs text-white">
-                <p>DEBUG: LocationDisplay is rendering</p>
-                <p>Location type: {location.type}</p>
-                {location.lat && <p>Lat: {location.lat}, Lng: {location.lng}</p>}
-            </div>
-            
             {/* Interactive Map Display - Full Width */}
             {location.lat && location.lng && !mapError && (
                 <div className="relative w-full h-64 bg-gray-900">
@@ -94,9 +87,9 @@ const LocationDisplay = ({ vehicle, location }) => {
                         <div className="relative transform -translate-y-8">
                             {/* Shadow */}
                             <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-16 h-4 bg-black/20 rounded-full blur-md" />
-                            {/* Bus Marker - Using emoji as fallback */}
-                            <div className="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center text-2xl shadow-lg">
-                                🚌
+                            {/* Bus Marker */}
+                            <div className="w-14 h-14 bg-cyan-600 rounded-full flex items-center justify-center shadow-lg border-2 border-white/30">
+                                <Bus className="w-7 h-7 text-white" />
                             </div>
                         </div>
                     </div>
@@ -117,7 +110,7 @@ const LocationDisplay = ({ vehicle, location }) => {
                             href={getMapUrl()}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium shadow-lg transition-colors inline-flex items-center gap-1"
+                            className="bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1.5 rounded-lg text-sm font-medium shadow-lg transition-colors inline-flex items-center gap-1"
                         >
                             Open in Google Maps
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

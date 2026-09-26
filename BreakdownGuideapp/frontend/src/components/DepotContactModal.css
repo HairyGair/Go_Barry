@@ -1,5 +1,5 @@
 /**
- * Depot Contact Modal Styles
+ * Depot Contact Modal Styles — dark theme
  */
 
 .depot-contact-modal-backdrop {
@@ -8,7 +8,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.65);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -23,15 +23,14 @@
 }
 
 .depot-contact-modal {
-  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  background: linear-gradient(180deg, #131c2e 0%, #0f172a 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 20px;
   width: 90%;
   max-width: 420px;
   max-height: 90vh;
   overflow: hidden;
-  box-shadow:
-    0 25px 50px -12px rgba(0, 0, 0, 0.25),
-    0 0 0 1px rgba(255, 255, 255, 0.1);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
   animation: slideUp 0.3s ease-out;
 }
 
@@ -52,7 +51,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  background: linear-gradient(135deg, #0097A7 0%, #00838F 100%);
   color: white;
 }
 
@@ -63,23 +62,24 @@
 }
 
 .depot-contact-modal__icon {
-  font-size: 24px;
+  display: flex;
+  align-items: center;
 }
 
 .depot-contact-modal__title {
   margin: 0;
-  font-size: 20px;
+  font-size: 19px;
   font-weight: 700;
+  font-family: var(--font-display, 'Outfit'), sans-serif;
 }
 
 .depot-contact-modal__close {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.16);
   border: none;
   color: white;
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  font-size: 24px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -88,8 +88,7 @@
 }
 
 .depot-contact-modal__close:hover {
-  background: rgba(255, 255, 255, 0.3);
-  transform: scale(1.1);
+  background: rgba(255, 255, 255, 0.28);
 }
 
 /* Content */
@@ -101,7 +100,8 @@
 
 /* Breakdown Info */
 .depot-contact-modal__breakdown-info {
-  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 12px;
   padding: 16px;
   margin-bottom: 20px;
@@ -117,21 +117,21 @@
 
 .breakdown-detail__label {
   font-size: 13px;
-  color: #64748b;
+  color: #94a3b8;
   font-weight: 500;
 }
 
 .breakdown-detail__value {
   font-size: 14px;
-  color: #1e293b;
+  color: #f1f5f9;
   font-weight: 600;
 }
 
 /* Contacts */
 .depot-contact-modal__contacts-title {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-  color: #1e293b;
+  color: #f1f5f9;
   margin: 0 0 16px 0;
 }
 
@@ -150,28 +150,29 @@
   text-decoration: none;
   transition: all 0.2s ease;
   cursor: pointer;
+  border: 1px solid transparent;
 }
 
 .depot-contact-modal__contact-item.primary {
   background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   color: white;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
 }
 
 .depot-contact-modal__contact-item.primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35);
 }
 
 .depot-contact-modal__contact-item.secondary {
-  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
-  border: 2px solid #e2e8f0;
-  color: #1e293b;
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.09);
+  color: #f1f5f9;
 }
 
 .depot-contact-modal__contact-item.secondary:hover {
-  border-color: #3b82f6;
-  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border-color: rgba(0, 188, 212, 0.4);
+  background: rgba(0, 151, 167, 0.1);
 }
 
 .contact-item__info {
@@ -181,18 +182,20 @@
 }
 
 .contact-item__role {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
 }
 
 .contact-item__number {
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 800;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
+  font-family: var(--font-mono, 'JetBrains Mono'), monospace;
+  font-variant-numeric: tabular-nums;
 }
 
 .depot-contact-modal__contact-item.secondary .contact-item__number {
-  color: #3b82f6;
+  color: #22d3ee;
 }
 
 .contact-item__action {
@@ -203,14 +206,14 @@
 }
 
 .contact-item__call-icon {
-  font-size: 24px;
+  display: flex;
 }
 
 .contact-item__call-text {
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.05em;
 }
 
 .depot-contact-modal__contact-item.primary .contact-item__call-text {
@@ -230,33 +233,35 @@
 .depot-contact-modal__no-contacts {
   text-align: center;
   padding: 24px;
-  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.25);
   border-radius: 12px;
 }
 
 .no-contacts__icon {
-  font-size: 32px;
-  display: block;
+  display: flex;
+  justify-content: center;
   margin-bottom: 12px;
+  color: #fbbf24;
 }
 
 .no-contacts__message {
   font-size: 14px;
-  color: #92400e;
+  color: #fcd34d;
   font-weight: 500;
   margin: 0 0 8px 0;
 }
 
 .no-contacts__hint {
   font-size: 12px;
-  color: #b45309;
+  color: #94a3b8;
   margin: 0;
 }
 
 /* All Depots */
 .depot-contact-modal__all-depots {
   margin-top: 20px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
   padding-top: 16px;
 }
 
@@ -266,18 +271,18 @@
   gap: 8px;
   font-size: 14px;
   font-weight: 600;
-  color: #64748b;
+  color: #94a3b8;
   cursor: pointer;
   padding: 8px 0;
   transition: color 0.2s ease;
 }
 
 .all-depots__summary:hover {
-  color: #3b82f6;
+  color: #22d3ee;
 }
 
 .all-depots__icon {
-  font-size: 16px;
+  display: flex;
 }
 
 .all-depots__list {
@@ -292,7 +297,8 @@
   justify-content: space-between;
   align-items: center;
   padding: 10px 12px;
-  background: #f8fafc;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 8px;
   flex-wrap: wrap;
   gap: 8px;
@@ -301,7 +307,7 @@
 .all-depots__depot-name {
   font-size: 13px;
   font-weight: 600;
-  color: #1e293b;
+  color: #f1f5f9;
   min-width: 100px;
 }
 
@@ -313,32 +319,32 @@
 
 .all-depots__number {
   font-size: 12px;
-  color: #3b82f6;
+  color: #22d3ee;
   text-decoration: none;
   padding: 4px 8px;
-  background: rgba(59, 130, 246, 0.1);
+  background: rgba(0, 151, 167, 0.12);
   border-radius: 4px;
   transition: all 0.2s ease;
 }
 
 .all-depots__number:hover {
-  background: rgba(59, 130, 246, 0.2);
-  color: #2563eb;
+  background: rgba(0, 151, 167, 0.22);
+  color: #67e8f9;
 }
 
 /* Footer */
 .depot-contact-modal__footer {
   padding: 16px 24px;
-  border-top: 1px solid #e2e8f0;
-  background: #f8fafc;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.15);
 }
 
 .depot-contact-modal__close-btn {
   width: 100%;
-  padding: 14px;
-  background: linear-gradient(135deg, #64748b 0%, #475569 100%);
-  color: white;
-  border: none;
+  padding: 13px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #f1f5f9;
   border-radius: 12px;
   font-size: 15px;
   font-weight: 600;
@@ -347,8 +353,8 @@
 }
 
 .depot-contact-modal__close-btn:hover {
-  background: linear-gradient(135deg, #475569 0%, #334155 100%);
-  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
 }
 
 /* Mobile Optimizations */

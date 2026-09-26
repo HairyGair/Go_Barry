@@ -135,7 +135,7 @@ const InteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, 
                         <button
                             onClick={onNext}
                             disabled={!responses.hours_of_darkness || !responses.vehicle_type}
-                            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                             Continue to 50% Check
                         </button>
@@ -282,7 +282,7 @@ const InteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, 
                         <button
                             onClick={onNext}
                             disabled={responses.vehicle_type === 'single_deck' ? !responses.fifty_percent_met : (!responses.lower_deck_fifty || !responses.upper_deck_fifty)}
-                            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                             Continue to Step Light Check
                         </button>
@@ -367,7 +367,7 @@ const InteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, 
                         <button
                             onClick={onNext}
                             disabled={!responses.step_light_working}
-                            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                             Continue to Decision
                         </button>

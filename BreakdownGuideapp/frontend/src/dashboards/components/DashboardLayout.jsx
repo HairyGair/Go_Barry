@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Wrench, Radio, AlertTriangle, Timer, Menu, ArrowRight, BarChart3, LayoutDashboard } from 'lucide-react';
 import { theme } from '@styles/theme';
 
 
@@ -16,7 +17,6 @@ const DashboardLayout = ({ children, title, icon, breakdownCount, criticalCount,
           backgroundColor: theme.colors.bgPrimary,
           color: theme.colors.textPrimary,
           minHeight: '100vh',
-          paddingTop: '90px', // Space for fixed header
           paddingBottom: '80px', // Space for mobile nav
           paddingLeft: '20px',
           paddingRight: '20px',
@@ -63,7 +63,7 @@ const DashboardLayout = ({ children, title, icon, breakdownCount, criticalCount,
           onMouseEnter={(e) => e.currentTarget.style.color = theme.colors.primary}
           onMouseLeave={(e) => e.currentTarget.style.color = theme.colors.textSecondary}
         >
-          <span style={{ fontSize: '20px', marginBottom: '4px' }}>🔧</span>
+          <Wrench size={20} style={{ marginBottom: '4px' }} />
           <span>Guide</span>
         </Link>
         
@@ -87,7 +87,7 @@ const DashboardLayout = ({ children, title, icon, breakdownCount, criticalCount,
           onMouseEnter={(e) => e.currentTarget.style.color = theme.colors.primary}
           onMouseLeave={(e) => e.currentTarget.style.color = theme.colors.textSecondary}
         >
-          <span style={{ fontSize: '20px', marginBottom: '4px' }}>📡</span>
+          <Radio size={20} style={{ marginBottom: '4px' }} />
           <span>Ops</span>
         </Link>
         
@@ -109,7 +109,7 @@ const DashboardLayout = ({ children, title, icon, breakdownCount, criticalCount,
             boxShadow: theme.shadows.lg,
           }}
         >
-          <span style={{ fontSize: '24px' }}>🚨</span>
+          <AlertTriangle size={24} />
         </Link>
         
         <Link 
@@ -132,7 +132,7 @@ const DashboardLayout = ({ children, title, icon, breakdownCount, criticalCount,
           onMouseEnter={(e) => e.currentTarget.style.color = theme.colors.primary}
           onMouseLeave={(e) => e.currentTarget.style.color = theme.colors.textSecondary}
         >
-          <span style={{ fontSize: '20px', marginBottom: '4px' }}>⏱️</span>
+          <Timer size={20} style={{ marginBottom: '4px' }} />
           <span>Tracker</span>
         </Link>
         
@@ -156,7 +156,7 @@ const DashboardLayout = ({ children, title, icon, breakdownCount, criticalCount,
           onMouseEnter={(e) => e.currentTarget.style.color = theme.colors.primary}
           onMouseLeave={(e) => e.currentTarget.style.color = theme.colors.textSecondary}
         >
-          <span style={{ fontSize: '20px', marginBottom: '4px' }}>☰</span>
+          <Menu size={20} style={{ marginBottom: '4px' }} />
           <span>More</span>
         </button>
       </div>
@@ -197,7 +197,7 @@ const DashboardLayout = ({ children, title, icon, breakdownCount, criticalCount,
             fontSize: '20px',
           }}
         >
-          {isQuickPanelOpen ? '→' : '☰'}
+          {isQuickPanelOpen ? <ArrowRight size={20} /> : <Menu size={20} />}
         </button>
         
         <div style={{ padding: '20px' }}>
@@ -213,30 +213,42 @@ const DashboardLayout = ({ children, title, icon, breakdownCount, criticalCount,
           
           {/* Quick actions content */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <button 
+            <Link
+              to="/breakdown-guide"
               className="theme-btn theme-btn-danger"
-              style={{ width: '100%' }}
-              onClick={() => window.location.href = '/breakdown-guide'}
+              style={{ width: '100%', textDecoration: 'none' }}
+              onClick={() => setIsQuickPanelOpen(false)}
             >
-              🚨 Emergency Breakdown
-            </button>
-            <button 
+              <AlertTriangle size={16} /> Report Breakdown
+            </Link>
+            <Link
+              to="/dashboards/sdc"
               className="theme-btn theme-btn-primary"
-              style={{ width: '100%' }}
+              style={{ width: '100%', textDecoration: 'none' }}
+              onClick={() => setIsQuickPanelOpen(false)}
             >
-              📞 Contact Ops
-            </button>
-            <button 
+              <LayoutDashboard size={16} /> Operations
+            </Link>
+            <Link
+              to="/dashboards/management"
               className="theme-btn theme-btn-secondary"
-              style={{ width: '100%' }}
+              style={{ width: '100%', textDecoration: 'none' }}
+              onClick={() => setIsQuickPanelOpen(false)}
             >
-              📊 View Reports
-            </button>
+              <BarChart3 size={16} /> Reports
+            </Link>
           </div>
         </div>
       </div>
 
       <style jsx>{`
+        /* Desktop: navigation lives in the user menu, so the quick panel is
+           mobile-only (opened from the bottom nav's "More") */
+        @media (min-width: 769px) {
+          .panel-toggle-btn { display: none !important; }
+          .floating-quick-panel:not(.active) { visibility: hidden; }
+        }
+
         /* Mobile responsive */
         @media (max-width: 768px) {
           .mobile-bottom-nav {

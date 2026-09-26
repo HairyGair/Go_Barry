@@ -5,6 +5,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
+import { Zap, CheckCircle2, Bus, Undo2, Minus } from 'lucide-react';
 import { theme } from '@styles/theme';
 import './EVChargesDashboard.css';
 
@@ -72,13 +73,14 @@ const getChargeColor = (charge) => {
   return theme.colors.danger;
 };
 
-const getStatusIcon = (status) => {
+const StatusIcon = ({ status }) => {
+  const size = 12;
   switch (status) {
-    case 'Charging': return '⚡';
-    case 'Charging Complete': return '✓';
-    case 'In Service': return '🚌';
-    case 'Returning to Depot': return '↩';
-    default: return '—';
+    case 'Charging': return <Zap size={size} />;
+    case 'Charging Complete': return <CheckCircle2 size={size} />;
+    case 'In Service': return <Bus size={size} />;
+    case 'Returning to Depot': return <Undo2 size={size} />;
+    default: return <Minus size={size} />;
   }
 };
 
@@ -212,7 +214,7 @@ const EVChargesDashboard = () => {
               <div className="evc-card-header">
                 <span className="evc-fleet-no">{vehicle.fleet_no}</span>
                 <span className="evc-status-badge" data-status={vehicle.status.toLowerCase().replace(/\s+/g, '-')}>
-                  {getStatusIcon(vehicle.status)} {vehicle.status}
+                  <StatusIcon status={vehicle.status} /> {vehicle.status}
                 </span>
               </div>
 

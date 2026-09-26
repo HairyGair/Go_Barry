@@ -11,17 +11,18 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { StickyNote, X, Pin, Wrench, Info, Trash2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import './DutyNotesWidget.css';
 
 const NOTE_TYPES = [
-  { value: 'general', label: 'General', icon: '📝', color: '#3B82F6' },
-  { value: 'priority', label: 'Priority', icon: '📌', color: '#EF4444' },
-  { value: 'breakdown', label: 'Breakdown', icon: '🔧', color: '#F59E0B' },
-  { value: 'info', label: 'Info', icon: 'ℹ️', color: '#8B5CF6' }
+  { value: 'general', label: 'General', Icon: StickyNote, color: '#00BCD4' },
+  { value: 'priority', label: 'Priority', Icon: Pin, color: '#ef4444' },
+  { value: 'breakdown', label: 'Breakdown', Icon: Wrench, color: '#f59e0b' },
+  { value: 'info', label: 'Info', Icon: Info, color: '#3b82f6' }
 ];
 
-const DutyNotesWidget = ({ currentDuty, position = 'bottom-left' }) => {
+const DutyNotesWidget = ({ currentDuty, position = 'bottom-right' }) => {
   const { currentUser } = useAuth();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isViewingNotes, setIsViewingNotes] = useState(false);
@@ -196,10 +197,11 @@ const DutyNotesWidget = ({ currentDuty, position = 'bottom-left' }) => {
           setIsExpanded(!isExpanded);
           setIsViewingNotes(false);
         }}
-        aria-label="Add shift note"
+        aria-label={isExpanded ? 'Close shift notes' : 'Add shift note'}
+        title="Shift notes"
       >
-        <span className="duty-notes-widget__trigger-icon">
-          {isExpanded ? '✕' : '📝'}
+        <span className="duty-notes-widget__trigger-icon" aria-hidden="true">
+          {isExpanded ? <X size={19} strokeWidth={2.25} /> : <StickyNote size={19} strokeWidth={2} />}
         </span>
         {unreadCount > 0 && !isExpanded && (
           <span className="duty-notes-widget__badge">{unreadCount}</span>
@@ -253,7 +255,7 @@ const DutyNotesWidget = ({ currentDuty, position = 'bottom-left' }) => {
                     }}
                     style={{ '--type-color': type.color }}
                   >
-                    <span>{type.icon}</span>
+                    <type.Icon size={16} strokeWidth={2} aria-hidden="true" />
                     <span>{type.label}</span>
                   </button>
                 ))}
@@ -304,7 +306,7 @@ const DutyNotesWidget = ({ currentDuty, position = 'bottom-left' }) => {
                           className="duty-notes-widget__note-type"
                           style={{ backgroundColor: typeConfig.color }}
                         >
-                          {typeConfig.icon} {typeConfig.label}
+                          <typeConfig.Icon size={12} strokeWidth={2.25} aria-hidden="true" /> {typeConfig.label}
                         </span>
                         <div className="duty-notes-widget__note-actions">
                           <span className="duty-notes-widget__note-time">
@@ -317,7 +319,7 @@ const DutyNotesWidget = ({ currentDuty, position = 'bottom-left' }) => {
                             title="Delete note"
                             aria-label="Delete note"
                           >
-                            {isDeleting ? '...' : '🗑️'}
+                            <Trash2 size={13} strokeWidth={2} aria-hidden="true" />
                           </button>
                         </div>
                       </div>

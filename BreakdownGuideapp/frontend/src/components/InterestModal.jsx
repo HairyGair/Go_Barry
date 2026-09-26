@@ -7,6 +7,7 @@
  */
 
 import React, { useState } from 'react';
+import { X, Check } from 'lucide-react';
 import AccessibleModal from './AccessibleModal.jsx';
 import './InterestModal.css';
 
@@ -104,11 +105,13 @@ export default function InterestModal({ isOpen, onClose }) {
       containerClassName="im-container"
       closeOnOverlay={status !== 'submitting'}
     >
-      <button className="im-close" onClick={handleClose} aria-label="Close" type="button">×</button>
+      <button className="im-close" onClick={handleClose} aria-label="Close" type="button">
+        <X size={18} strokeWidth={2} />
+      </button>
 
       {status === 'success' ? (
         <div className="im-success">
-          <div className="im-success-icon" aria-hidden="true">✓</div>
+          <div className="im-success-icon" aria-hidden="true"><Check size={30} strokeWidth={2.5} /></div>
           <h2 id="im-title">Thank you</h2>
           <p>
             Your enquiry has been sent. We'll be in touch with you shortly to talk through how

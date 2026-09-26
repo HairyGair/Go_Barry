@@ -89,10 +89,11 @@ const BreakdownGuide = () => {
 
 // Placeholder Components
 const ComingSoon = ({ title }) => (
-  <div className="coming-soon">
-    <h2>{title}</h2>
-    <p>This feature is coming soon!</p>
-    <p className="coming-soon-date">Expected: September 2025</p>
+  <div className="shell-state">
+    <span className="shell-state-eyebrow">In development</span>
+    <h1 className="shell-state-title">{title}</h1>
+    <p className="shell-state-text">This area is being prepared and will be available in a future release.</p>
+    <Link to="/" className="shell-state-btn">Back to home</Link>
   </div>
 )
 
@@ -683,8 +684,8 @@ const AppContent = () => {
       {isDemoUser && showDemoBanner && (
         <div className="demo-mode-banner">
           <span className="demo-mode-banner-text">
-            <strong>Demo Mode</strong> — sample data. Everything here — screens, fields, wizards, workflows,
-            depots, branding — is configured per operator and can be tweaked to fit your team. Got an idea? We'll build it.
+            <strong>Demo</strong>
+            Sample data. Every screen, wizard, workflow and depot is configured to your operation.
           </span>
           <button
             className="demo-mode-cta-btn"
@@ -742,10 +743,11 @@ const AppContent = () => {
             <Route
               path="*"
               element={
-                <div className="not-found">
-                  <h2>404 - Page Not Found</h2>
-                  <p>The page you're looking for doesn't exist.</p>
-                  <Link to="/">Go back home</Link>
+                <div className="shell-state">
+                  <span className="shell-state-eyebrow">Error 404</span>
+                  <h1 className="shell-state-title">Page not found</h1>
+                  <p className="shell-state-text">The page you're looking for doesn't exist or has moved.</p>
+                  <Link to="/" className="shell-state-btn">Back to home</Link>
                 </div>
               }
             />
@@ -763,7 +765,7 @@ const AppContent = () => {
       {isAuthenticated && currentDuty && !hideNav && (
         <DutyNotesWidget
           currentDuty={currentDuty}
-          position="bottom-left"
+          position="bottom-right"
         />
       )}
 

@@ -1140,7 +1140,7 @@ input:focus, select:focus, textarea:focus {
 .two-column-layout {
   display: grid;
   grid-template-columns: 300px 1fr;
-  min-height: 100vh;
+  min-height: calc(100vh - var(--app-top-offset, 84px));
   background: linear-gradient(180deg, #0F172A 0%, #1E293B 100%);
 }
 
@@ -1148,12 +1148,12 @@ input:focus, select:focus, textarea:focus {
 .category-sidebar {
   background: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(10, 15, 30, 0.98));
   border-right: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 80px 0 24px 0; /* Top padding for floating header */
+  padding: 24px 0; /* Shell already provides top clearance via .main-container */
   display: flex;
   flex-direction: column;
   position: sticky;
   top: 0;
-  height: 100vh;
+  height: calc(100vh - var(--app-top-offset, 84px));
   overflow-y: auto;
 }
 
@@ -1224,9 +1224,11 @@ input:focus, select:focus, textarea:focus {
 }
 
 .category-icon {
-  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 32px;
-  text-align: center;
+  color: var(--category-color, #0097A7);
   flex-shrink: 0;
 }
 
@@ -1254,7 +1256,7 @@ input:focus, select:focus, textarea:focus {
 
 /* Wizard Content Area */
 .wizard-content {
-  padding: 80px 48px 48px; /* Top padding for floating header */
+  padding: 32px 48px 48px; /* Shell already provides top clearance via .main-container */
   overflow-y: auto;
 }
 
@@ -1282,7 +1284,9 @@ input:focus, select:focus, textarea:focus {
 }
 
 .header-icon {
-  font-size: 36px;
+  display: flex;
+  align-items: center;
+  color: var(--header-color, #0097A7);
 }
 
 .header-subtitle {
@@ -1339,25 +1343,38 @@ input:focus, select:focus, textarea:focus {
 }
 
 .card-icon-wrapper {
-  width: 64px;
-  height: 64px;
+  position: relative;
+  width: 56px;
+  height: 56px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 12px;
   flex-shrink: 0;
+  overflow: hidden;
 }
 
 .card-icon-img {
-  width: 48px;
-  height: 48px;
-  object-fit: contain;
-  transition: transform 0.3s ease;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 11px;
+  transition: transform 0.2s ease;
 }
 
 .wizard-card-two-col:hover .card-icon-img {
-  transform: scale(1.1);
+  transform: scale(1.05);
+}
+
+.card-icon-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: var(--card-accent, #0097A7);
 }
 
 .card-icon-emoji {

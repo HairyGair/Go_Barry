@@ -106,6 +106,7 @@ const ExecutiveKPIs = ({ kpiData, period }) => {
   }
 
   function formatValue(value, format) {
+    if (value === null || value === undefined) return '—';
     if (format === 'percentage') {
       return `${value}%`;
     } else if (format === 'time') {
@@ -158,20 +159,28 @@ const ExecutiveKPIs = ({ kpiData, period }) => {
             <div key={card.key} className={`ekpi-card ${getStatusClass(kpi)}`}>
               <div className="ekpi-header">
                 <div className="ekpi-icon">{card.icon}</div>
-                <div className="ekpi-trend">
-                  <span className={getTrendClass(kpi.trend, positiveIsGood[card.key])}>
-                    {getTrendIcon(kpi.trend)} {Math.abs(kpi.trend)}%
-                  </span>
-                </div>
+                {typeof kpi.trend === 'number' && (
+                  <div className="ekpi-trend">
+                    <span className={getTrendClass(kpi.trend, positiveIsGood[card.key])}>
+                      {getTrendIcon(kpi.trend)} {Math.abs(kpi.trend)}%
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="ekpi-value">
                 {formatValue(kpi.value, card.format)}
-                {kpi.unit && <span className="ekpi-unit">{kpi.unit}</span>}
+                {/* formatValue() already appends % / min for percentage & time KPIs,
+                    so only show the separate unit badge for plain numbers (hours, incidents, etc.) */}
+                {card.format === 'number' && kpi.unit && kpi.value != null && (
+                  <span className="ekpi-unit">{kpi.unit}</span>
+                )}
               </div>
 
               <div className="ekpi-title">{card.title}</div>
-              <div className="ekpi-subtitle">{card.subtitle}</div>
+              <div className="ekpi-subtitle">
+                {kpi.value == null ? 'Not enough data for this period' : card.subtitle}
+              </div>
 
               {kpi.target && (
                 <div className="ekpi-target">
@@ -180,7 +189,7 @@ const ExecutiveKPIs = ({ kpiData, period }) => {
               )}
 
               {/* Progress bar for percentage KPIs */}
-              {card.format === 'percentage' && (
+              {card.format === 'percentage' && kpi.value != null && (
                 <div className="ekpi-progress">
                   <div
                     className="ekpi-progress-bar"
@@ -208,7 +217,9 @@ const ExecutiveKPIs = ({ kpiData, period }) => {
 
         .ekpi-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+          /* Fixed column counts (rather than auto-fit) so 6 KPI cards always
+             fill complete rows instead of leaving a lone orphan card. */
+          grid-template-columns: repeat(3, 1fr);
           gap: 20px;
         }
 
@@ -326,6 +337,12 @@ const ExecutiveKPIs = ({ kpiData, period }) => {
           height: 100%;
           background: linear-gradient(90deg, #0097A7, #00838F);
           transition: width 0.5s ease;
+        }
+
+        @media (max-width: 1180px) {
+          .ekpi-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
         }
 
         @media (max-width: 768px) {

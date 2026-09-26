@@ -27,21 +27,22 @@
 
 .search-input-container:hover {
   background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(227, 6, 19, 0.3);
-  box-shadow: 0 4px 12px rgba(227, 6, 19, 0.15);
+  border-color: rgba(0, 188, 212, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 188, 212, 0.15);
 }
 
 .search-input-container:focus-within {
   background: rgba(255, 255, 255, 0.1);
-  border-color: var(--color-red-primary, #E30613);
-  box-shadow: 0 0 0 3px rgba(227, 6, 19, 0.1);
+  border-color: #00BCD4;
+  box-shadow: 0 0 0 3px rgba(0, 188, 212, 0.15);
 }
 
 .search-icon {
-  font-size: 1.25rem;
+  display: inline-flex;
   margin-right: 0.75rem;
   opacity: 0.6;
   transition: opacity 0.3s;
+  color: #94a3b8;
 }
 
 .search-input-container:focus-within .search-icon {
@@ -63,8 +64,9 @@
 }
 
 .loading-indicator {
-  font-size: 1rem;
+  display: inline-flex;
   margin-left: 0.5rem;
+  color: #00BCD4;
   animation: spin 1s linear infinite;
 }
 
@@ -134,7 +136,8 @@
 }
 
 .shift-history-icon {
-  font-size: 1rem;
+  display: inline-flex;
+  color: #00BCD4;
 }
 
 .shift-duty-badge {
@@ -212,8 +215,8 @@
 
 .search-result-item:hover,
 .search-result-item.highlighted {
-  background: rgba(227, 6, 19, 0.1);
-  border-left: 3px solid var(--color-red-primary, #E30613);
+  background: rgba(0, 188, 212, 0.1);
+  border-left: 3px solid #00BCD4;
   padding-left: calc(1rem - 3px);
 }
 
@@ -319,9 +322,10 @@
 }
 
 .modal-close-btn:hover {
-  background: rgba(227, 6, 19, 0.2);
-  border-color: var(--color-red-primary, #E30613);
-  transform: scale(1.1);
+  background: rgba(239, 68, 68, 0.15);
+  border-color: #ef4444;
+  color: #ef4444;
+  transform: scale(1.05);
 }
 
 /* Modal Header */
@@ -384,7 +388,9 @@
 }
 
 .alert-icon {
-  font-size: 1.5rem;
+  display: inline-flex;
+  color: #f59e0b;
+  flex-shrink: 0;
 }
 
 .alert-content {

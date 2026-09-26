@@ -4,11 +4,12 @@
  */
 
 import React from 'react';
+import { Palette, Eye, Sparkles, CheckCircle2 } from 'lucide-react';
 
 const AppearanceSettings = ({ settings, updateSetting }) => {
   return (
     <div className="settings-section">
-      <h2>🎨 Appearance</h2>
+      <h2><Palette size={18} /> Appearance</h2>
       <p className="section-description">
         Customize how the Breakdown Guide looks and feels to match your preferences
       </p>
@@ -25,8 +26,8 @@ const AppearanceSettings = ({ settings, updateSetting }) => {
             value={settings.theme}
             onChange={(e) => updateSetting('theme', e.target.value)}
           >
-            <option value="dark">🌙 Dark Mode</option>
-            <option value="light">☀️ Light Mode</option>
+            <option value="dark">Dark Mode</option>
+            <option value="light">Light Mode</option>
           </select>
         </div>
       </div>
@@ -71,13 +72,13 @@ const AppearanceSettings = ({ settings, updateSetting }) => {
 
       {/* Theme Preview */}
       <div className="settings-section" style={{ marginTop: '40px' }}>
-        <h2>👁️ Preview</h2>
+        <h2><Eye size={18} /> Preview</h2>
         <p className="section-description">
           See how your settings look
         </p>
 
         <div className="info-box success">
-          <p>✓ Changes are applied immediately. No need to save or refresh!</p>
+          <p><CheckCircle2 size={15} style={{ verticalAlign: '-2px', marginRight: '6px' }} />Changes are applied immediately. No need to save or refresh!</p>
         </div>
 
         <div style={{
@@ -111,8 +112,8 @@ const AppearanceSettings = ({ settings, updateSetting }) => {
             <button
               style={{
                 padding: settings.view_density === 'compact' ? '8px 14px' : settings.view_density === 'spacious' ? '14px 24px' : '10px 18px',
-                background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                color: 'white',
+                background: 'linear-gradient(135deg, #00bcd4 0%, #0097a7 100%)',
+                color: '#06222a',
                 border: 'none',
                 borderRadius: '8px',
                 fontWeight: '600',
@@ -140,7 +141,7 @@ const AppearanceSettings = ({ settings, updateSetting }) => {
 
       {/* Advanced Appearance Options */}
       <div className="settings-section" style={{ marginTop: '40px' }}>
-        <h2>⚡ Advanced</h2>
+        <h2><Sparkles size={18} /> Advanced</h2>
         <p className="section-description">
           Additional visual customization options
         </p>

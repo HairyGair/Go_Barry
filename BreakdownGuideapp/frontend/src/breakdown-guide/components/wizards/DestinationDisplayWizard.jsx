@@ -182,7 +182,7 @@ const DestinationDisplayWizard = ({ currentStep, responses, updateResponse, onNe
                         <button
                             onClick={onNext}
                             disabled={!responses.affected_display || !responses.fault_type}
-                            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                             Continue Assessment
                         </button>

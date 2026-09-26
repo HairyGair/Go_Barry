@@ -10,14 +10,15 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { Clock, Timer, X, CheckCircle2, AlertTriangle, Loader2, Send } from 'lucide-react';
 import { apiClient } from '../services/api-client.js';
 import './DutyExtensionModal.css';
 
 const EXTENSION_OPTIONS = [
-  { value: 30, label: '30 minutes', icon: '⏱️' },
-  { value: 60, label: '1 hour', icon: '🕐' },
-  { value: 90, label: '1.5 hours', icon: '🕜' },
-  { value: 120, label: '2 hours', icon: '🕑' }
+  { value: 30, label: '30 minutes', Icon: Timer },
+  { value: 60, label: '1 hour', Icon: Clock },
+  { value: 90, label: '1.5 hours', Icon: Clock },
+  { value: 120, label: '2 hours', Icon: Clock }
 ];
 
 const DutyExtensionModal = ({
@@ -111,19 +112,21 @@ const DutyExtensionModal = ({
         {/* Header */}
         <div className="extension-modal__header">
           <div className="extension-modal__header-content">
-            <span className="extension-modal__icon">⏰</span>
+            <span className="extension-modal__icon"><Clock size={22} strokeWidth={2} aria-hidden="true" /></span>
             <div>
               <h2 className="extension-modal__title">Request Shift Extension</h2>
               <p className="extension-modal__subtitle">Duty {currentDuty?.code} - {currentDuty?.endTime}</p>
             </div>
           </div>
-          <button className="extension-modal__close" onClick={onClose}>✕</button>
+          <button className="extension-modal__close" onClick={onClose} aria-label="Close">
+            <X size={16} strokeWidth={2.25} aria-hidden="true" />
+          </button>
         </div>
 
         {/* Success State */}
         {success ? (
           <div className="extension-modal__success">
-            <span className="extension-modal__success-icon">✅</span>
+            <span className="extension-modal__success-icon"><CheckCircle2 size={40} strokeWidth={1.75} aria-hidden="true" /></span>
             <h3>Extension Request Submitted</h3>
             <p>Your request for {selectedDuration} minutes has been submitted for approval.</p>
             <p className="extension-modal__success-time">New end time will be: {newEndTime}</p>
@@ -156,7 +159,7 @@ const DutyExtensionModal = ({
                     }`}
                     onClick={() => setSelectedDuration(option.value)}
                   >
-                    <span className="extension-modal__duration-icon">{option.icon}</span>
+                    <span className="extension-modal__duration-icon"><option.Icon size={18} strokeWidth={2} aria-hidden="true" /></span>
                     <span className="extension-modal__duration-label">{option.label}</span>
                   </button>
                 ))}
@@ -184,7 +187,7 @@ const DutyExtensionModal = ({
             {/* Error Message */}
             {error && (
               <div className="extension-modal__error">
-                ⚠️ {error}
+                <AlertTriangle size={14} strokeWidth={2} aria-hidden="true" /> {error}
               </div>
             )}
 
@@ -203,7 +206,11 @@ const DutyExtensionModal = ({
                 className="extension-modal__btn extension-modal__btn--submit"
                 disabled={isSubmitting || !reason.trim()}
               >
-                {isSubmitting ? '⏳ Submitting...' : '📝 Submit Request'}
+                {isSubmitting ? (
+                  <><Loader2 size={15} strokeWidth={2} className="extension-modal__spin" aria-hidden="true" /> Submitting...</>
+                ) : (
+                  <><Send size={15} strokeWidth={2} aria-hidden="true" /> Submit Request</>
+                )}
               </button>
             </div>
 

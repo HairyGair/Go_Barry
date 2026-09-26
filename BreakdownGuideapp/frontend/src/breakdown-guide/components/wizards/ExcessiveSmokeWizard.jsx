@@ -107,7 +107,7 @@ const ExcessiveSmokeWizard = ({ currentStep, responses, updateResponse, onNext, 
                             <button
                                 onClick={onNext}
                                 disabled={!responses[1]}
-                                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                className="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             >
                                 Continue Assessment
                             </button>
@@ -184,7 +184,7 @@ const ExcessiveSmokeWizard = ({ currentStep, responses, updateResponse, onNext, 
                             <button
                                 onClick={onNext}
                                 disabled={!responses[2] || !responses[3]}
-                                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                className="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             >
                                 Get Guidance
                             </button>
@@ -288,7 +288,7 @@ const ExcessiveSmokeWizard = ({ currentStep, responses, updateResponse, onNext, 
                             </button>
                             <button
                                 onClick={onNext}
-                                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                className="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors"
                             >
                                 Continue to Summary
                             </button>

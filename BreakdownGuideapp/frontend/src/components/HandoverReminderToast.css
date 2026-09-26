@@ -8,7 +8,8 @@
 /* Base Toast Container */
 .handover-toast {
   position: fixed;
-  bottom: 20px;
+  /* Clears the QuickFeedback / DutyNotes dock buttons stacked in the same corner */
+  bottom: 148px;
   right: 20px;
   min-width: 320px;
   max-width: 420px;
@@ -123,8 +124,15 @@
 
 /* Icon */
 .handover-toast__icon {
-  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+  color: #f59e0b;
+}
+
+.handover-toast--critical .handover-toast__icon {
+  color: #ef4444;
 }
 
 .handover-toast--critical .handover-toast__icon,
@@ -339,6 +347,10 @@
 
 .handover-toast__btn {
   flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   padding: 10px 16px;
   border-radius: 8px;
   font-size: 13px;
@@ -349,14 +361,14 @@
 }
 
 .handover-toast__btn--primary {
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  background: linear-gradient(135deg, #0097A7, #00BCD4);
   color: #fff;
 }
 
 .handover-toast__btn--primary:hover {
-  background: linear-gradient(135deg, #60a5fa, #3b82f6);
+  background: linear-gradient(135deg, #00ACC1, #26C6DA);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 188, 212, 0.35);
 }
 
 .handover-toast__btn--secondary {
@@ -387,7 +399,7 @@
   .handover-toast {
     left: 10px;
     right: 10px;
-    bottom: 10px;
+    bottom: 76px;
     min-width: unset;
     max-width: unset;
   }

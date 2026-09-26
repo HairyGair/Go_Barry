@@ -454,7 +454,7 @@
 
 .error-message {
   color: #fecaca;
-  font-family: monospace;
+  font-family: var(--font-mono);
   background: rgba(0, 0, 0, 0.3);
   padding: 12px;
   border-radius: 6px;

@@ -208,7 +208,7 @@ const EnhancedSteeringWizard = ({ currentStep, responses, updateResponse, onNext
                         <button
                             onClick={handleNextWithLogging}
                             disabled={!responses.initial_concern}
-                            className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex items-center px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             Next
                             <ArrowRight className="w-5 h-5 ml-2" />
@@ -303,7 +303,7 @@ const EnhancedSteeringWizard = ({ currentStep, responses, updateResponse, onNext
                             <button
                                 onClick={handleNextWithLogging}
                                 disabled={!responses.excessive_play}
-                                className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="flex items-center px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 Next
                                 <ArrowRight className="w-5 h-5 ml-2" />
@@ -331,7 +331,7 @@ const EnhancedSteeringWizard = ({ currentStep, responses, updateResponse, onNext
                         </button>
                         <button
                             onClick={handleNextWithLogging}
-                            className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            className="flex items-center px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors"
                         >
                             Next
                             <ArrowRight className="w-5 h-5 ml-2" />

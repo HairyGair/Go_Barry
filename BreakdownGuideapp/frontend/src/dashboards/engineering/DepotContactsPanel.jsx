@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Phone, ChevronDown, ChevronRight } from 'lucide-react';
 import { DEPOT_CONTACTS } from '../../constants/depotContacts';
 
 const DepotContactsPanel = () => {
@@ -15,9 +16,9 @@ const DepotContactsPanel = () => {
         className="toggle-button"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <span className="icon">📞</span>
+        <Phone className="icon" size={18} strokeWidth={2} />
         <span className="label">Depot Contacts</span>
-        <span className="expand-icon">{isExpanded ? '▼' : '▶'}</span>
+        {isExpanded ? <ChevronDown className="expand-icon" size={14} /> : <ChevronRight className="expand-icon" size={14} />}
       </button>
 
       {isExpanded && (
@@ -39,7 +40,7 @@ const DepotContactsPanel = () => {
                           onClick={() => handleCall(contact.number)}
                           title={`Call ${depot.name} ${contact.role}`}
                         >
-                          📞
+                          <Phone size={16} strokeWidth={2} />
                         </button>
                       </div>
                     ))}
@@ -79,18 +80,20 @@ const DepotContactsPanel = () => {
         }
 
         .toggle-button .icon {
-          font-size: 20px;
+          color: #22d3ee;
+          flex-shrink: 0;
         }
 
         .toggle-button .label {
           flex: 1;
           text-align: left;
           font-weight: 600;
+          font-family: var(--font-body, 'Inter'), sans-serif;
         }
 
         .toggle-button .expand-icon {
-          font-size: 12px;
-          color: #64b5f6;
+          color: #22d3ee;
+          flex-shrink: 0;
         }
 
         .contacts-content {
@@ -114,10 +117,11 @@ const DepotContactsPanel = () => {
 
         .depot-name {
           margin: 0 0 12px 0;
-          color: #64b5f6;
+          color: #22d3ee;
           font-size: 16px;
           font-weight: 700;
-          border-bottom: 2px solid rgba(100, 181, 246, 0.3);
+          font-family: var(--font-display, 'Outfit'), sans-serif;
+          border-bottom: 2px solid rgba(0, 151, 167, 0.3);
           padding-bottom: 8px;
         }
 
@@ -150,22 +154,24 @@ const DepotContactsPanel = () => {
         }
 
         .contact-role {
-          color: #999;
+          color: #64748b;
           font-size: 12px;
           text-transform: uppercase;
           letter-spacing: 0.5px;
         }
 
         .contact-number {
-          color: white;
+          color: #f1f5f9;
           font-size: 16px;
           font-weight: 700;
-          font-family: 'Courier New', monospace;
+          font-family: var(--font-mono, 'JetBrains Mono'), monospace;
+          font-variant-numeric: tabular-nums;
         }
 
         .call-button {
-          background: rgba(100, 181, 246, 0.2);
-          border: 1px solid #64b5f6;
+          background: rgba(0, 151, 167, 0.15);
+          border: 1px solid rgba(0, 188, 212, 0.4);
+          color: #22d3ee;
           border-radius: 6px;
           width: 38px;
           height: 38px;
@@ -174,12 +180,11 @@ const DepotContactsPanel = () => {
           justify-content: center;
           cursor: pointer;
           transition: all 0.2s;
-          font-size: 18px;
         }
 
         .call-button:hover {
-          background: rgba(100, 181, 246, 0.4);
-          transform: scale(1.1);
+          background: rgba(0, 151, 167, 0.3);
+          transform: scale(1.05);
         }
 
         .call-button:active {

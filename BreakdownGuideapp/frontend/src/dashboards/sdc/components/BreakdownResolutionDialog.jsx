@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { CheckCircle2, RefreshCw, XCircle, Copy, Wrench, X } from 'lucide-react';
 
 /**
  * Resolution Dialog Component
@@ -46,11 +47,11 @@ const BreakdownResolutionDialog = ({
   };
 
   const resolutionTypes = [
-    { value: 'fixed', label: '✅ Fixed', description: 'Issue resolved, vehicle repaired' },
-    { value: 'changeover', label: '🔄 Changeover', description: 'Vehicle swapped/replaced' },
-    { value: 'cancelled', label: '❌ Cancelled', description: 'Breakdown report cancelled' },
-    { value: 'duplicate', label: '📋 Duplicate', description: 'Duplicate report' },
-    { value: 'other', label: '🔧 Other', description: 'Other resolution method' }
+    { value: 'fixed', label: 'Fixed', icon: <CheckCircle2 size={17} />, description: 'Issue resolved, vehicle repaired' },
+    { value: 'changeover', label: 'Changeover', icon: <RefreshCw size={17} />, description: 'Vehicle swapped/replaced' },
+    { value: 'cancelled', label: 'Cancelled', icon: <XCircle size={17} />, description: 'Breakdown report cancelled' },
+    { value: 'duplicate', label: 'Duplicate', icon: <Copy size={17} />, description: 'Duplicate report' },
+    { value: 'other', label: 'Other', icon: <Wrench size={17} />, description: 'Other resolution method' }
   ];
 
   return (
@@ -58,7 +59,7 @@ const BreakdownResolutionDialog = ({
       <div className="resolution-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="resolution-dialog-header">
           <h2>Mark Breakdown as Resolved</h2>
-          <button className="close-btn" onClick={onClose} type="button">×</button>
+          <button className="close-btn" onClick={onClose} type="button" aria-label="Close"><X size={16} /></button>
         </div>
 
         <div className="resolution-dialog-body">
@@ -102,7 +103,10 @@ const BreakdownResolutionDialog = ({
                       onChange={(e) => setResolutionType(e.target.value)}
                     />
                     <div className="option-content">
-                      <div className="option-label">{type.label}</div>
+                      <div className="option-label">
+                        <span className="option-icon">{type.icon}</span>
+                        {type.label}
+                      </div>
                       <div className="option-description">{type.description}</div>
                     </div>
                   </label>
@@ -187,13 +191,14 @@ const BreakdownResolutionDialog = ({
         }
 
         .resolution-dialog {
-          background: white;
+          background: linear-gradient(180deg, #131c2e 0%, #0f172a 100%);
+          border: 1px solid rgba(255, 255, 255, 0.08);
           border-radius: 16px;
           max-width: 600px;
           width: 90%;
           max-height: 90vh;
           overflow-y: auto;
-          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
           animation: slideUp 0.3s ease;
         }
 
@@ -210,7 +215,7 @@ const BreakdownResolutionDialog = ({
 
         .resolution-dialog-header {
           padding: 24px 24px 16px;
-          border-bottom: 1px solid #e5e7eb;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
           display: flex;
           justify-content: space-between;
           align-items: center;
@@ -218,16 +223,17 @@ const BreakdownResolutionDialog = ({
 
         .resolution-dialog-header h2 {
           margin: 0;
-          font-size: 20px;
+          font-size: 19px;
           font-weight: 700;
-          color: #111827;
+          color: #f8fafc;
+          font-family: var(--font-display, 'Outfit'), sans-serif;
         }
 
         .close-btn {
-          background: none;
-          border: none;
-          font-size: 32px;
-          color: #6b7280;
+          background: rgba(255, 255, 255, 0.06);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          font-size: 20px;
+          color: #94a3b8;
           cursor: pointer;
           padding: 0;
           width: 32px;
@@ -240,8 +246,8 @@ const BreakdownResolutionDialog = ({
         }
 
         .close-btn:hover {
-          background: #f3f4f6;
-          color: #111827;
+          background: rgba(255, 255, 255, 0.1);
+          color: #f8fafc;
         }
 
         .resolution-dialog-body {
@@ -249,18 +255,18 @@ const BreakdownResolutionDialog = ({
         }
 
         .breakdown-summary {
-          background: linear-gradient(135deg, #f9fafb, #f3f4f6);
+          background: rgba(255, 255, 255, 0.04);
           border-radius: 12px;
           padding: 16px;
           margin-bottom: 24px;
-          border: 1px solid #e5e7eb;
+          border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
         .summary-item {
           display: flex;
           justify-content: space-between;
           padding: 8px 0;
-          border-bottom: 1px solid #e5e7eb;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.07);
         }
 
         .summary-item:last-child {
@@ -269,15 +275,15 @@ const BreakdownResolutionDialog = ({
 
         .summary-item .label {
           font-weight: 600;
-          color: #6b7280;
+          color: #94a3b8;
           font-size: 14px;
         }
 
         .summary-item .value {
           font-weight: 600;
-          color: #111827;
+          color: #f1f5f9;
           font-size: 14px;
-          font-family: 'Monaco', 'Consolas', monospace;
+          font-family: var(--font-mono, 'JetBrains Mono'), monospace;
         }
 
         .form-group {
@@ -287,14 +293,14 @@ const BreakdownResolutionDialog = ({
         .form-group label {
           display: block;
           font-weight: 600;
-          color: #374151;
+          color: #cbd5e1;
           margin-bottom: 8px;
           font-size: 14px;
         }
 
         .optional {
           font-weight: 400;
-          color: #9ca3af;
+          color: #64748b;
           margin-left: 4px;
           font-size: 13px;
         }
@@ -306,7 +312,7 @@ const BreakdownResolutionDialog = ({
         }
 
         .resolution-type-option {
-          border: 2px solid #e5e7eb;
+          border: 1px solid rgba(255, 255, 255, 0.09);
           border-radius: 12px;
           padding: 12px;
           cursor: pointer;
@@ -314,17 +320,18 @@ const BreakdownResolutionDialog = ({
           display: flex;
           align-items: flex-start;
           gap: 12px;
+          background: rgba(255, 255, 255, 0.02);
         }
 
         .resolution-type-option:hover {
-          border-color: #3b82f6;
-          background: #eff6ff;
+          border-color: rgba(0, 188, 212, 0.35);
+          background: rgba(0, 151, 167, 0.08);
         }
 
         .resolution-type-option.selected {
-          border-color: #3b82f6;
-          background: linear-gradient(135deg, #dbeafe, #eff6ff);
-          box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+          border-color: rgba(0, 188, 212, 0.5);
+          background: rgba(0, 151, 167, 0.14);
+          box-shadow: 0 2px 8px rgba(0, 151, 167, 0.15);
         }
 
         .resolution-type-option input[type="radio"] {
@@ -332,6 +339,7 @@ const BreakdownResolutionDialog = ({
           width: 18px;
           height: 18px;
           cursor: pointer;
+          accent-color: #0097A7;
         }
 
         .option-content {
@@ -339,37 +347,51 @@ const BreakdownResolutionDialog = ({
         }
 
         .option-label {
+          display: flex;
+          align-items: center;
+          gap: 8px;
           font-weight: 600;
-          color: #111827;
+          color: #f1f5f9;
           font-size: 15px;
           margin-bottom: 2px;
         }
 
+        .option-icon {
+          display: flex;
+          color: #22d3ee;
+        }
+
         .option-description {
           font-size: 13px;
-          color: #6b7280;
+          color: #94a3b8;
         }
 
         textarea {
           width: 100%;
           padding: 12px;
-          border: 2px solid #e5e7eb;
+          background: rgba(5, 10, 20, 0.4);
+          border: 1px solid rgba(255, 255, 255, 0.1);
           border-radius: 8px;
           font-family: inherit;
           font-size: 14px;
+          color: #f1f5f9;
           resize: vertical;
           transition: border-color 0.2s ease;
         }
 
+        textarea::placeholder {
+          color: #64748b;
+        }
+
         textarea:focus {
           outline: none;
-          border-color: #3b82f6;
-          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+          border-color: #0097A7;
+          box-shadow: 0 0 0 3px rgba(0, 151, 167, 0.15);
         }
 
         .char-count {
           font-size: 12px;
-          color: #9ca3af;
+          color: #64748b;
           text-align: right;
           margin-top: 4px;
         }
@@ -380,18 +402,19 @@ const BreakdownResolutionDialog = ({
           gap: 8px;
           cursor: pointer;
           font-weight: 600;
-          color: #374151;
+          color: #cbd5e1;
         }
 
         .checkbox-label input[type="checkbox"] {
           width: 18px;
           height: 18px;
           cursor: pointer;
+          accent-color: #0097A7;
         }
 
         .help-text {
           font-size: 13px;
-          color: #6b7280;
+          color: #64748b;
           margin-top: 6px;
           margin-bottom: 0;
         }
@@ -402,7 +425,7 @@ const BreakdownResolutionDialog = ({
           justify-content: flex-end;
           margin-top: 32px;
           padding-top: 24px;
-          border-top: 1px solid #e5e7eb;
+          border-top: 1px solid rgba(255, 255, 255, 0.08);
         }
 
         .btn {
@@ -412,7 +435,7 @@ const BreakdownResolutionDialog = ({
           font-size: 14px;
           cursor: pointer;
           transition: all 0.2s ease;
-          border: none;
+          border: 1px solid transparent;
         }
 
         .btn:disabled {
@@ -421,12 +444,13 @@ const BreakdownResolutionDialog = ({
         }
 
         .btn-cancel {
-          background: #f3f4f6;
-          color: #374151;
+          background: rgba(255, 255, 255, 0.05);
+          border-color: rgba(255, 255, 255, 0.1);
+          color: #cbd5e1;
         }
 
         .btn-cancel:hover:not(:disabled) {
-          background: #e5e7eb;
+          background: rgba(255, 255, 255, 0.09);
         }
 
         .btn-confirm {

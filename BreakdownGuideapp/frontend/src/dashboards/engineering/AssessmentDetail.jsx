@@ -7,6 +7,7 @@
  */
 
 import React, { useState } from 'react';
+import { AlertTriangle, Search, Zap, ClipboardList, ChevronDown, ChevronRight } from 'lucide-react';
 import { parseWizardResponses, getKeySymptoms, getSafetyFlags } from './utils/assessmentParser';
 
 const AssessmentDetail = ({ breakdown, compact = false }) => {
@@ -48,12 +49,12 @@ const AssessmentDetail = ({ breakdown, compact = false }) => {
       {/* Safety Flags - Always Visible */}
       {safety.hasConcerns && (
         <div className="safety-section">
-          <h4 className="section-title">⚠️ Safety Concerns</h4>
+          <h4 className="section-title"><AlertTriangle size={14} className="section-title-icon" /> Safety Concerns</h4>
           <div className="safety-flags">
             {safety.flags.map((flag, idx) => (
               <div key={idx} className={`safety-flag ${flag.severity}`}>
                 <span className="flag-icon">
-                  {flag.severity === 'critical' ? '🚨' : '⚠️'}
+                  <AlertTriangle size={16} />
                 </span>
                 <span className="flag-message">{flag.message}</span>
               </div>
@@ -65,7 +66,7 @@ const AssessmentDetail = ({ breakdown, compact = false }) => {
       {/* Key Symptoms Summary */}
       {symptoms.length > 0 && (
         <div className="symptoms-section">
-          <h4 className="section-title">🔍 Key Symptoms</h4>
+          <h4 className="section-title"><Search size={14} className="section-title-icon" /> Key Symptoms</h4>
           <ul className="symptoms-list">
             {symptoms.map((symptom, idx) => (
               <li key={idx}>{symptom}</li>
@@ -80,7 +81,7 @@ const AssessmentDetail = ({ breakdown, compact = false }) => {
           className="expand-toggle"
           onClick={() => setExpanded(!expanded)}
         >
-          {expanded ? '▼' : '▶'} Full Assessment Details ({responses.length} responses)
+          {expanded ? <ChevronDown size={14} style={{ verticalAlign: '-2px' }} /> : <ChevronRight size={14} style={{ verticalAlign: '-2px' }} />} Full Assessment Details ({responses.length} responses)
         </button>
       )}
 
@@ -89,7 +90,7 @@ const AssessmentDetail = ({ breakdown, compact = false }) => {
           {/* Critical Responses */}
           {criticalResponses.length > 0 && (
             <div className="response-group critical">
-              <h4 className="group-title">🚨 Critical Information</h4>
+              <h4 className="group-title"><AlertTriangle size={14} className="section-title-icon" /> Critical Information</h4>
               <div className="responses">
                 {criticalResponses.map((response, idx) => (
                   <ResponseItem key={idx} response={response} />
@@ -101,7 +102,7 @@ const AssessmentDetail = ({ breakdown, compact = false }) => {
           {/* High Priority Responses */}
           {highResponses.length > 0 && (
             <div className="response-group high">
-              <h4 className="group-title">⚡ Important Details</h4>
+              <h4 className="group-title"><Zap size={14} className="section-title-icon" /> Important Details</h4>
               <div className="responses">
                 {highResponses.map((response, idx) => (
                   <ResponseItem key={idx} response={response} />
@@ -113,7 +114,7 @@ const AssessmentDetail = ({ breakdown, compact = false }) => {
           {/* Other Responses */}
           {otherResponses.length > 0 && (
             <div className="response-group other">
-              <h4 className="group-title">📋 Additional Information</h4>
+              <h4 className="group-title"><ClipboardList size={14} className="section-title-icon" /> Additional Information</h4>
               <div className="responses">
                 {otherResponses.map((response, idx) => (
                   <ResponseItem key={idx} response={response} />
@@ -133,12 +134,20 @@ const AssessmentDetail = ({ breakdown, compact = false }) => {
         }
 
         .section-title {
+          display: flex;
+          align-items: center;
+          gap: 6px;
           margin: 0 0 12px 0;
           color: white;
           font-size: 14px;
           font-weight: 600;
           text-transform: uppercase;
           letter-spacing: 0.5px;
+        }
+
+        .section-title-icon {
+          color: #f59e0b;
+          flex-shrink: 0;
         }
 
         .safety-section {
@@ -175,7 +184,8 @@ const AssessmentDetail = ({ breakdown, compact = false }) => {
         }
 
         .flag-icon {
-          font-size: 18px;
+          display: flex;
+          flex-shrink: 0;
         }
 
         .flag-message {
@@ -202,12 +212,15 @@ const AssessmentDetail = ({ breakdown, compact = false }) => {
         }
 
         .expand-toggle {
+          display: flex;
+          align-items: center;
+          gap: 6px;
           width: 100%;
           padding: 10px 14px;
-          background: rgba(100, 181, 246, 0.15);
-          border: 1px solid rgba(100, 181, 246, 0.3);
+          background: rgba(0, 151, 167, 0.15);
+          border: 1px solid rgba(0, 151, 167, 0.3);
           border-radius: 6px;
-          color: #64b5f6;
+          color: #22d3ee;
           font-size: 13px;
           font-weight: 600;
           cursor: pointer;
@@ -217,8 +230,8 @@ const AssessmentDetail = ({ breakdown, compact = false }) => {
         }
 
         .expand-toggle:hover {
-          background: rgba(100, 181, 246, 0.25);
-          border-color: rgba(100, 181, 246, 0.5);
+          background: rgba(0, 151, 167, 0.25);
+          border-color: rgba(0, 151, 167, 0.5);
         }
 
         .full-assessment {
@@ -245,6 +258,9 @@ const AssessmentDetail = ({ breakdown, compact = false }) => {
         }
 
         .group-title {
+          display: flex;
+          align-items: center;
+          gap: 6px;
           margin: 0 0 10px 0;
           color: white;
           font-size: 13px;
@@ -277,7 +293,7 @@ const ResponseItem = ({ response }) => {
         }
 
         .response-question {
-          color: #999;
+          color: #94a3b8;
           font-size: 11px;
           font-weight: 600;
           text-transform: uppercase;

@@ -14,6 +14,7 @@
  */
 
 import React from 'react';
+import { Wrench, MapPin, Bus } from 'lucide-react';
 import './WizardContextHeader.css';
 
 const WizardContextHeader = ({
@@ -44,14 +45,14 @@ const WizardContextHeader = ({
       <div className="context-details">
         {/* Wizard Type */}
         <div className="context-row">
-          <span className="context-icon">🔧</span>
+          <span className="context-icon"><Wrench size={14} /></span>
           <span className="context-label">{wizardType || 'Assessment'}</span>
         </div>
 
         {/* Location */}
         {location?.name && (
           <div className="context-row">
-            <span className="context-icon">📍</span>
+            <span className="context-icon"><MapPin size={14} /></span>
             <span className="context-value location-value">{location.name}</span>
           </div>
         )}
@@ -59,7 +60,7 @@ const WizardContextHeader = ({
         {/* Route */}
         {routeInfo?.route && (
           <div className="context-row">
-            <span className="context-icon">🚌</span>
+            <span className="context-icon"><Bus size={14} /></span>
             <span className="context-value">
               Route {routeInfo.route}
               {routeInfo.routeName && ` - ${routeInfo.routeName}`}

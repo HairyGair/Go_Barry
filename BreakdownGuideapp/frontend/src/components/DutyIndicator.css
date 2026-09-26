@@ -167,8 +167,13 @@
     position: absolute;
     top: 8px;
     right: 8px;
-    font-size: 20px;
+    display: flex;
+    color: #f59e0b;
     filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.warning-pulse.urgent {
+    color: #ef4444;
 }
 
 .warning-pulse.warning {

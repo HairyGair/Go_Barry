@@ -258,35 +258,35 @@
 
 /* Acknowledge button - for pre-warnings */
 .end-of-shift-modal__btn--acknowledge {
-  background: linear-gradient(135deg, #3B82F6, #60A5FA);
+  background: linear-gradient(135deg, #0097A7, #00BCD4);
   color: white;
 }
 
 .end-of-shift-modal__btn--acknowledge:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 8px 24px rgba(0, 188, 212, 0.35);
 }
 
 /* Handover button - primary action */
 .end-of-shift-modal__btn--handover {
-  background: linear-gradient(135deg, #3B82F6, #8B5CF6);
+  background: linear-gradient(135deg, #0097A7, #00BCD4);
   color: white;
 }
 
 .end-of-shift-modal__btn--handover:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(139, 92, 246, 0.4);
+  box-shadow: 0 8px 24px rgba(0, 188, 212, 0.35);
 }
 
 /* Handover secondary - for pre-warnings */
 .end-of-shift-modal__btn--handover-secondary {
-  background: rgba(139, 92, 246, 0.2);
-  border: 1px solid rgba(139, 92, 246, 0.5);
-  color: #A78BFA;
+  background: rgba(0, 188, 212, 0.15);
+  border: 1px solid rgba(0, 188, 212, 0.4);
+  color: #22d3ee;
 }
 
 .end-of-shift-modal__btn--handover-secondary:hover {
-  background: rgba(139, 92, 246, 0.3);
+  background: rgba(0, 188, 212, 0.25);
 }
 
 /* Extend button */

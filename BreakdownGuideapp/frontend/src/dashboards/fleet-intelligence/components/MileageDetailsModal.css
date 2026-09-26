@@ -64,6 +64,14 @@
   font-size: 24px;
   font-weight: 700;
   color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.modal-title-icon {
+  color: #0097A7;
+  flex-shrink: 0;
 }
 
 .modal-subtitle {
@@ -205,6 +213,9 @@
 }
 
 .tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
   color: rgba(255, 255, 255, 0.6);
@@ -268,7 +279,7 @@
 }
 
 .error-icon {
-  font-size: 48px;
+  color: #F59E0B;
   margin-bottom: 16px;
 }
 
@@ -298,8 +309,8 @@
   color: rgba(255, 255, 255, 0.5);
 }
 
-.empty-state span {
-  font-size: 48px;
+.empty-state .empty-icon {
+  opacity: 0.4;
   margin-bottom: 16px;
 }
 
@@ -404,6 +415,9 @@
 }
 
 .capped-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   background: rgba(245, 158, 11, 0.2);
   color: #FCD34D;
   padding: 3px 8px;
@@ -462,6 +476,14 @@
   font-size: 14px;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.section-title-icon {
+  color: #0097A7;
+  flex-shrink: 0;
 }
 
 .calculation-grid,
@@ -521,14 +543,14 @@
 
 .formula {
   margin: 0 0 8px;
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 14px;
   color: rgba(255, 255, 255, 0.8);
 }
 
 .formula-breakdown {
   margin: 0;
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
   color: rgba(255, 255, 255, 0.5);
   word-break: break-all;
@@ -546,7 +568,7 @@
 .breakdown-id {
   font-size: 12px;
   color: rgba(255, 255, 255, 0.4);
-  font-family: monospace;
+  font-family: var(--font-mono);
 }
 
 .status-badge {

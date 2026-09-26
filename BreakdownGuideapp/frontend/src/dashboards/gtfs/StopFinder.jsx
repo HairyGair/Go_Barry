@@ -804,11 +804,19 @@ const StopFinder = () => {
               )}
 
               {!loadingStops && stops.length === 0 && placeSuggestions.length === 0 && searchQuery.length >= 2 && !error && (
-                <div className="sf-empty"><p>No stops or places found</p></div>
+                <div className="sf-empty">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  <p>No stops or places found</p>
+                </div>
               )}
 
               {!loadingStops && stops.length === 0 && searchQuery.length < 2 && !error && (
                 <div className="sf-empty">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 21s-7-5.686-7-11a7 7 0 0 1 14 0c0 5.314-7 11-7 11z" /><circle cx="12" cy="10" r="2.5" />
+                  </svg>
                   <p>Type a stop name, place, or landmark</p>
                   <p>or click on the map to find nearby stops</p>
                 </div>

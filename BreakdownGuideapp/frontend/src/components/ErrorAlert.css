@@ -1,8 +1,8 @@
 /* Error Alert - Inline error component */
 .error-alert {
-  background: #fee;
-  border-left: 4px solid #d32f2f;
-  border-radius: 4px;
+  background: rgba(239, 68, 68, 0.1);
+  border-left: 4px solid #ef4444;
+  border-radius: 8px;
   padding: 12px 16px;
   margin-bottom: 16px;
   animation: slideIn 0.3s ease;
@@ -15,8 +15,9 @@
 }
 
 .error-icon {
-  font-size: 20px;
+  display: flex;
   flex-shrink: 0;
+  color: #f87171;
 }
 
 .error-text {
@@ -24,14 +25,14 @@
 }
 
 .error-text strong {
-  color: #d32f2f;
+  color: #f87171;
   display: block;
   margin-bottom: 4px;
   font-weight: 600;
 }
 
 .error-text p {
-  color: #c62828;
+  color: #fca5a5;
   margin: 0;
   font-size: 14px;
   line-height: 1.5;
@@ -45,10 +46,10 @@
 
 .btn-small {
   padding: 6px 14px;
-  background: #d32f2f;
+  background: #ef4444;
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   font-size: 13px;
   font-weight: 500;
@@ -56,16 +57,16 @@
 }
 
 .btn-small:hover {
-  background: #c62828;
+  background: #dc2626;
   transform: translateY(-1px);
 }
 
 .btn-small-secondary {
   padding: 6px 14px;
   background: transparent;
-  color: #d32f2f;
-  border: 1px solid #d32f2f;
-  border-radius: 4px;
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 6px;
   cursor: pointer;
   font-size: 13px;
   font-weight: 500;
@@ -73,7 +74,7 @@
 }
 
 .btn-small-secondary:hover {
-  background: #fff5f5;
+  background: rgba(239, 68, 68, 0.12);
 }
 
 @keyframes slideIn {

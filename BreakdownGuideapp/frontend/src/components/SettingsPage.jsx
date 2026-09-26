@@ -13,6 +13,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { User, Palette, LayoutDashboard, Database, Bell, ShieldCheck, BarChart3, ArrowLeft, RotateCcw } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import preferencesAPI from '../services/preferencesAPI.js';
 import ProfileSettings from './settings/ProfileSettings.jsx';
@@ -213,15 +214,15 @@ const SettingsPage = () => {
 
   // Build tabs array - conditionally include Admin tab for admin users
   const tabs = [
-    { id: 'profile', label: 'Profile & Account', icon: '👤' },
-    { id: 'appearance', label: 'Appearance', icon: '🎨' },
-    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-    { id: 'data', label: 'Data & Storage', icon: '💾' },
-    { id: 'notifications', label: 'Notifications', icon: '🔔' },
+    { id: 'profile', label: 'Profile & Account', icon: User },
+    { id: 'appearance', label: 'Appearance', icon: Palette },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'data', label: 'Data & Storage', icon: Database },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
     // Admin tabs - only show for admin users
     ...(currentUser?.role === 'admin' ? [
-      { id: 'admin', label: 'Admin', icon: '🔐' },
-      { id: 'analytics', label: 'Login Analytics', icon: '📈' }
+      { id: 'admin', label: 'Admin', icon: ShieldCheck },
+      { id: 'analytics', label: 'Login Analytics', icon: BarChart3 }
     ] : []),
     // Future:
     // { id: 'security', label: 'Security', icon: '🔒' },
@@ -244,7 +245,7 @@ const SettingsPage = () => {
           onClick={() => navigate(-1)}
           title="Go back"
         >
-          ← Back
+          <ArrowLeft size={16} /> Back
         </button>
         <h1>Settings</h1>
         <button
@@ -252,23 +253,26 @@ const SettingsPage = () => {
           onClick={resetAllSettings}
           title="Reset all settings to default"
         >
-          Reset All
+          <RotateCcw size={15} /> Reset All
         </button>
       </div>
 
       <div className="settings-container">
         {/* Sidebar Tabs */}
         <div className="settings-sidebar">
-          {tabs.map(tab => (
-            <button
-              key={tab.id}
-              className={`settings-tab ${activeTab === tab.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab.id)}
-            >
-              <span className="tab-icon">{tab.icon}</span>
-              <span className="tab-label">{tab.label}</span>
-            </button>
-          ))}
+          {tabs.map(tab => {
+            const TabIcon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                className={`settings-tab ${activeTab === tab.id ? 'active' : ''}`}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                <span className="tab-icon"><TabIcon size={18} /></span>
+                <span className="tab-label">{tab.label}</span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Content Area */}

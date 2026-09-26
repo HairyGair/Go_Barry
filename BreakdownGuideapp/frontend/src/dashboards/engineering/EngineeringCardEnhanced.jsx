@@ -509,7 +509,7 @@ const EngineeringCardEnhanced = ({
             align-items: center;
             gap: 6px;
             padding: 7px 16px;
-            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            background: linear-gradient(135deg, #0097a7, #00838f);
             color: white;
             border: none;
             border-radius: 6px;
@@ -523,7 +523,7 @@ const EngineeringCardEnhanced = ({
           }
 
           .dt-nav:hover {
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            background: linear-gradient(135deg, #00bcd4, #0097a7);
             box-shadow: 0 4px 16px rgba(37,99,235,0.35);
             transform: translateY(-1px);
           }
@@ -1075,7 +1075,7 @@ const LocationMapModal = ({ breakdown, locationText, sevKey, sevLabel, onNavigat
 
     const [lat, lng] = coordKey.split(',').map(Number);
     const sevColors = { stop: '#dc2626', amber: '#d97706', continue: '#059669' };
-    const markerColor = sevColors[sevKey] || '#2563eb';
+    const markerColor = sevColors[sevKey] || '#0097a7';
     const fleetNum = breakdown.fleet_number || breakdown.fleet_no || '?';
 
     const map = L.map(mapRef.current, {
@@ -1472,12 +1472,12 @@ const LocationMapModal = ({ breakdown, locationText, sevKey, sevLabel, onNavigat
             color: #e2e8f0;
           }
           .dt-loc-modal-sat-on {
-            background: #2563eb;
-            border-color: #3b82f6;
+            background: #0097a7;
+            border-color: #00bcd4;
             color: white;
           }
           .dt-loc-modal-sat-on:hover {
-            background: #1d4ed8;
+            background: #00838f;
           }
 
           .dt-loc-modal-nomap {
@@ -1507,7 +1507,7 @@ const LocationMapModal = ({ breakdown, locationText, sevKey, sevLabel, onNavigat
             justify-content: center;
             gap: 8px;
             padding: 10px 20px;
-            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            background: linear-gradient(135deg, #0097a7, #00838f);
             color: white;
             border: none;
             border-radius: 8px;
@@ -1518,7 +1518,7 @@ const LocationMapModal = ({ breakdown, locationText, sevKey, sevLabel, onNavigat
             transition: all 0.15s;
           }
           .dt-loc-modal-navbtn:hover {
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            background: linear-gradient(135deg, #00bcd4, #0097a7);
             box-shadow: 0 6px 20px rgba(37,99,235,0.35);
             transform: translateY(-1px);
           }

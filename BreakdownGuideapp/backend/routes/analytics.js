@@ -20,7 +20,7 @@
 import express from 'express';
 import { query } from '../config/mysql.js';
 import { from } from '../utils/queryHelpers.js';
-import { demoSqlFilter, isDemoUser } from '../utils/demoFilter.js';
+import { demoSqlFilter, isDemoUser, DEMO_ENGINEER_PREFIX } from '../utils/demoFilter.js';
 import { validate } from '../middleware/validationMiddleware.js';
 import { analyticsSchemas } from '../validation/schemas.js';
 
@@ -70,95 +70,113 @@ router.get('/kpis', validate(analyticsSchemas.kpis), async (req, res) => {
       [previousStartDate, startDate]
     );
 
-    // Get fleet data - with error handling
-    let vehicles = [];
+    // Fleet availability = active fleet minus vehicles currently off the road
+    // (open STOP breakdowns). fleet_vehicles has no health data, so availability
+    // is derived from live breakdown state rather than a per-vehicle score.
+    let totalVehicles = 0;
+    let offRoadVehicles = 0;
     try {
-      vehicles = await query('SELECT * FROM fleet_vehicles');
+      const [fleetRow] = await query('SELECT COUNT(*) AS total FROM fleet_vehicles WHERE is_active = 1');
+      totalVehicles = Number(fleetRow?.total) || 0;
+      const [offRoadRow] = await query(
+        `SELECT COUNT(DISTINCT fleet_no) AS off_road FROM breakdowns
+         WHERE severity = 'STOP' AND status NOT IN ('resolved', 'completed', 'cancelled')` + demoSqlFilter(req.user)
+      );
+      offRoadVehicles = Number(offRoadRow?.off_road) || 0;
     } catch (err) {
-      console.warn('Fleet vehicles table not accessible:', err.message);
-      vehicles = [];
+      console.warn('Fleet availability not computable:', err.message);
     }
 
-    // Calculate KPIs
-    const totalVehicles = vehicles.length;
-    const operationalVehicles = vehicles.filter(v => v.health_score > 50).length;
-    const fleetAvailability = totalVehicles > 0 ? (operationalVehicles / totalVehicles) * 100 : 0;
+    // Calculate KPIs (null = unknown; the dashboard renders it as unavailable, not 0%)
+    const fleetAvailability = totalVehicles > 0
+      ? ((totalVehicles - Math.min(offRoadVehicles, totalVehicles)) / totalVehicles) * 100
+      : null;
 
-    // Calculate MTBF (Mean Time Between Failures)
-    const hoursInPeriod = (new Date() - startDate) / (1000 * 60 * 60);
-    const mtbf = currentBreakdowns.length > 0
-      ? Math.round(hoursInPeriod / currentBreakdowns.length)
-      : hoursInPeriod;
-
-    // Calculate response times and SLA
-    let totalResponseTime = 0;
-    let responseCount = 0;
-    let slaMetCount = 0;
-
-    for (const breakdown of currentBreakdowns) {
-      if (breakdown.acknowledged_at && breakdown.received_at) {
-        const responseTime = (new Date(breakdown.acknowledged_at) - new Date(breakdown.received_at)) / 60000;
-        totalResponseTime += responseTime;
-        responseCount++;
-        if (responseTime <= 30) slaMetCount++;
+    // Period metrics — computed identically for the current and previous
+    // period so every trend is a real period-over-period change.
+    const periodMetrics = (breakdowns, from, to) => {
+      const hours = Math.max((to - from) / (1000 * 60 * 60), 1);
+      let total = 0, count = 0, met = 0;
+      for (const b of breakdowns) {
+        if (b.acknowledged_at && b.received_at) {
+          const mins = (new Date(b.acknowledged_at) - new Date(b.received_at)) / 60000;
+          total += mins; count++;
+          if (mins <= 30) met++;
+        }
       }
+      return {
+        count: breakdowns.length,
+        mtbf: breakdowns.length > 0 ? Math.round(hours / breakdowns.length) : null,
+        avgResponse: count > 0 ? Math.round(total / count) : null,
+        sla: count > 0 ? (met / count) * 100 : null
+      };
+    };
+    const pctChange = (cur, prev) =>
+      cur == null || prev == null || prev === 0 ? null : Math.round(((cur - prev) / prev) * 1000) / 10;
+    const round1 = (v) => (v == null ? null : Math.round(v * 10) / 10);
+
+    const cur = periodMetrics(currentBreakdowns, startDate, new Date());
+    const prev = periodMetrics(previousBreakdowns, previousStartDate, startDate);
+    const currentCount = cur.count;
+    const previousCount = prev.count;
+
+    // Engineer utilisation — share of active engineers currently on a job
+    let engineerUtilization = null;
+    try {
+      const demo = isDemoUser(req.user);
+      const [engRow] = await query(
+        `SELECT COUNT(*) AS total, SUM(status = 'on_job') AS busy FROM engineers
+         WHERE is_active = 1 AND badge_number ${demo ? 'LIKE' : 'NOT LIKE'} ?`,
+        [DEMO_ENGINEER_PREFIX]
+      );
+      const total = Number(engRow?.total) || 0;
+      if (total > 0) engineerUtilization = Math.round(((Number(engRow.busy) || 0) / total) * 100);
+    } catch (err) {
+      console.warn('Engineer utilisation not computable:', err.message);
     }
-
-    const avgResponseTime = responseCount > 0 ? Math.round(totalResponseTime / responseCount) : 0;
-    const slaCompliance = responseCount > 0 ? (slaMetCount / responseCount) * 100 : 100;
-
-    // Calculate trends
-    const previousCount = previousBreakdowns.length;
-    const currentCount = currentBreakdowns.length;
-    const breakdownTrend = previousCount > 0
-      ? ((currentCount - previousCount) / previousCount) * 100
-      : 0;
-
-    // Engineer utilization (simulated)
-    const engineerUtilization = 78;
 
     const kpiData = {
       mtbf: {
-        value: mtbf,
+        value: cur.mtbf,
         unit: 'hours',
-        trend: 12.5, // This would be calculated from historical data
+        trend: pctChange(cur.mtbf, prev.mtbf),
         target: 1200,
-        status: mtbf >= 1200 ? 'good' : mtbf >= 1000 ? 'normal' : 'warning'
+        status: cur.mtbf == null ? 'normal' : cur.mtbf >= 1200 ? 'good' : cur.mtbf >= 1000 ? 'normal' : 'warning'
       },
       slaCompliance: {
-        value: Math.round(slaCompliance * 10) / 10,
+        value: round1(cur.sla),
         unit: '%',
-        trend: -2.3, // This would be calculated from historical data
+        trend: pctChange(cur.sla, prev.sla),
         target: 95,
-        status: slaCompliance >= 95 ? 'good' : slaCompliance >= 90 ? 'warning' : 'critical'
+        status: cur.sla == null ? 'normal' : cur.sla >= 95 ? 'good' : cur.sla >= 90 ? 'warning' : 'critical'
       },
       avgResponseTime: {
-        value: avgResponseTime,
+        value: cur.avgResponse,
         unit: 'minutes',
-        trend: -8.1, // This would be calculated from historical data
+        trend: pctChange(cur.avgResponse, prev.avgResponse),
         target: 30,
-        status: avgResponseTime <= 30 ? 'good' : avgResponseTime <= 40 ? 'warning' : 'critical'
+        status: cur.avgResponse == null ? 'normal' : cur.avgResponse <= 30 ? 'good' : cur.avgResponse <= 40 ? 'warning' : 'critical'
       },
       fleetAvailability: {
-        value: Math.round(fleetAvailability * 10) / 10,
+        value: round1(fleetAvailability),
         unit: '%',
-        trend: 0.5, // This would be calculated from historical data
+        trend: null, // point-in-time snapshot; no historical availability series yet
         target: 95,
-        status: fleetAvailability >= 95 ? 'good' : fleetAvailability >= 90 ? 'warning' : 'critical'
+        status: fleetAvailability == null ? 'normal' : fleetAvailability >= 95 ? 'good' : fleetAvailability >= 90 ? 'warning' : 'critical'
       },
       breakdownsToday: {
         value: currentCount,
         unit: 'incidents',
-        trend: breakdownTrend,
+        trend: pctChange(currentCount, previousCount),
         previousValue: previousCount,
         status: 'normal'
       },
       engineerUtilization: {
-        value: engineerUtilization,
+        value: engineerUtilization, // live snapshot: engineers currently on a job
         unit: '%',
-        trend: 5.2, // This would be calculated from historical data
+        trend: null,
         target: 80,
-        status: engineerUtilization >= 80 ? 'good' : engineerUtilization >= 70 ? 'normal' : 'warning'
+        status: engineerUtilization == null ? 'normal' : engineerUtilization >= 80 ? 'good' : engineerUtilization >= 70 ? 'normal' : 'warning'
       }
     };
 
@@ -407,8 +425,8 @@ router.get('/depot-comparison', validate(analyticsSchemas.summary), async (req, 
         performance = 'warning';
       }
 
-      // Engineer efficiency (simulated)
-      const engineerEfficiency = 70 + Math.floor(Math.random() * 20);
+      // Engineer efficiency isn't tracked yet (no engineer busy-time data)
+      const engineerEfficiency = null;
 
       depotData.push({
         depot: depot.name,
@@ -443,10 +461,11 @@ router.get('/depot-comparison', validate(analyticsSchemas.summary), async (req, 
 // GET /api/analytics/fleet-health - Get fleet health overview
 router.get('/fleet-health', async (req, res) => {
   try {
-    // Get all vehicles
+    // Active fleet (fleet_vehicles carries no health data — status is derived
+    // from live breakdowns: a vehicle with an open breakdown is off the road)
     let vehicles = [];
     try {
-      vehicles = await query('SELECT * FROM fleet_vehicles');
+      vehicles = await query('SELECT fleet_no, vehicle_type FROM fleet_vehicles WHERE is_active = 1');
     } catch (err) {
       console.warn('Fleet vehicles table not accessible:', err.message);
       vehicles = [];
@@ -461,13 +480,17 @@ router.get('/fleet-health', async (req, res) => {
       [thirtyDaysAgo]
     );
 
+    const openBreakdowns = await query(
+      `SELECT fleet_no FROM breakdowns
+       WHERE status NOT IN ('resolved', 'completed', 'cancelled')` + demoSqlFilter(req.user)
+    );
+    const offRoad = new Set(openBreakdowns.map(b => String(b.fleet_no)));
+
     // Calculate vehicle statuses
     const totalVehicles = vehicles.length;
-    const inMaintenance = vehicles.filter(v => v.health_score < 50).length;
-    const breakdown = recentBreakdowns.filter(b =>
-      ['active', 'pending', 'in_progress'].includes(b.status)
-    ).length;
-    const operational = totalVehicles - inMaintenance - breakdown;
+    const inMaintenance = 0; // planned maintenance isn't tracked in this system
+    const breakdown = offRoad.size;
+    const operational = Math.max(totalVehicles - breakdown, 0);
 
     // Group vehicles by type
     const vehicleTypes = {};
@@ -477,7 +500,7 @@ router.get('/fleet-health', async (req, res) => {
         vehicleTypes[type] = { total: 0, operational: 0 };
       }
       vehicleTypes[type].total++;
-      if (v.health_score >= 50) {
+      if (!offRoad.has(String(v.fleet_no))) {
         vehicleTypes[type].operational++;
       }
     });
@@ -490,24 +513,26 @@ router.get('/fleet-health', async (req, res) => {
       percentage: data.total > 0 ? Math.round((data.operational / data.total) * 100) : 0
     }));
 
-    // Count breakdown issues
+    // Count breakdown issues — trend compares the last 15 days with the 15 before
+    const midpoint = new Date();
+    midpoint.setDate(midpoint.getDate() - 15);
     const issueCounts = {};
     recentBreakdowns.forEach(b => {
       const issue = b.issue_category || 'Other';
-      issueCounts[issue] = (issueCounts[issue] || 0) + 1;
+      if (!issueCounts[issue]) issueCounts[issue] = { count: 0, recent: 0, earlier: 0 };
+      issueCounts[issue].count++;
+      if (new Date(b.created_at) >= midpoint) issueCounts[issue].recent++;
+      else issueCounts[issue].earlier++;
     });
 
-    // Get top issues
     const topIssues = Object.entries(issueCounts)
-      .map(([issue, count]) => ({ issue, count, trend: 'stable' }))
+      .map(([issue, c]) => ({
+        issue,
+        count: c.count,
+        trend: c.recent > c.earlier ? 'up' : c.recent < c.earlier ? 'down' : 'stable'
+      }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
-
-    // Add trend indicators (would be calculated from historical data)
-    topIssues.forEach((issue, index) => {
-      if (index === 0 || index === 4) issue.trend = 'up';
-      else if (index === 1 || index === 3) issue.trend = 'down';
-    });
 
     const fleetHealthData = {
       totalVehicles: totalVehicles,

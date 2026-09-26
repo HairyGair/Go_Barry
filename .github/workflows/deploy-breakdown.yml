@@ -67,7 +67,7 @@ jobs:
           done
 
           # Frontend dist
-          cp -r frontend/dist/* ../deploy/breakdown-deploy/frontend-dist/
+          cp -r frontend/dist/. ../deploy/breakdown-deploy/frontend-dist/   # "/." includes dotfiles (.htaccess)
 
           # Clean up macOS artifacts
           find ../deploy -name '.DS_Store' -delete 2>/dev/null || true

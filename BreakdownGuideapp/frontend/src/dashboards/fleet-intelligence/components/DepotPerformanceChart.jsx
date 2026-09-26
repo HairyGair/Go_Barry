@@ -27,10 +27,12 @@ const DepotPerformanceChart = ({ depots = [], loading }) => {
       ];
     }
 
+    // /api/defects/depot-stats returns { name, defectCount } (camelCase),
+    // not the depot/defect_count shape the demo fixtures used.
     return depots
       .map(depot => ({
         name: depot.depot || depot.name || depot.depot_id,
-        value: depot.defect_count || depot.breakdown_count || depot.count || 0,
+        value: depot.defectCount ?? depot.defect_count ?? depot.breakdown_count ?? depot.count ?? 0,
         trend: depot.trend || depot.weekly_change || 0,
       }))
       .sort((a, b) => b.value - a.value);

@@ -10,49 +10,51 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 
-// Theme configurations for each duty shift
+// Theme configurations for each duty shift — kept within the brand's teal/cyan
+// family (no off-brand blue/amber/purple) so primary buttons stay consistent
+// across the app regardless of which shift is active.
 const DUTY_THEMES = {
   '100': {
     name: 'Early Shift',
-    primary: '#3B82F6',
-    secondary: '#60A5FA',
-    accent: 'rgba(59, 130, 246, 0.08)',
-    glow: 'rgba(59, 130, 246, 0.2)',
-    gradient: 'linear-gradient(135deg, rgba(59, 130, 246, 0.03), rgba(96, 165, 250, 0.02))'
+    primary: '#00ACC1',
+    secondary: '#26C6DA',
+    accent: 'rgba(0, 172, 193, 0.08)',
+    glow: 'rgba(0, 172, 193, 0.2)',
+    gradient: 'linear-gradient(135deg, rgba(0, 172, 193, 0.03), rgba(38, 198, 218, 0.02))'
   },
   '200': {
     name: 'Day Shift',
-    primary: '#10B981',
-    secondary: '#34D399',
-    accent: 'rgba(16, 185, 129, 0.08)',
-    glow: 'rgba(16, 185, 129, 0.2)',
-    gradient: 'linear-gradient(135deg, rgba(16, 185, 129, 0.03), rgba(52, 211, 153, 0.02))'
+    primary: '#0097A7',
+    secondary: '#00BCD4',
+    accent: 'rgba(0, 188, 212, 0.08)',
+    glow: 'rgba(0, 188, 212, 0.2)',
+    gradient: 'linear-gradient(135deg, rgba(0, 151, 167, 0.03), rgba(0, 188, 212, 0.02))'
   },
   '400': {
     name: 'Late Shift',
-    primary: '#F59E0B',
-    secondary: '#FCD34D',
-    accent: 'rgba(245, 158, 11, 0.08)',
-    glow: 'rgba(245, 158, 11, 0.2)',
-    gradient: 'linear-gradient(135deg, rgba(245, 158, 11, 0.03), rgba(252, 211, 77, 0.02))'
+    primary: '#00838F',
+    secondary: '#00ACC1',
+    accent: 'rgba(0, 131, 143, 0.08)',
+    glow: 'rgba(0, 131, 143, 0.2)',
+    gradient: 'linear-gradient(135deg, rgba(0, 131, 143, 0.03), rgba(0, 172, 193, 0.02))'
   },
   '500': {
     name: 'Night Shift',
-    primary: '#8B5CF6',
-    secondary: '#A78BFA',
-    accent: 'rgba(139, 92, 246, 0.08)',
-    glow: 'rgba(139, 92, 246, 0.2)',
-    gradient: 'linear-gradient(135deg, rgba(139, 92, 246, 0.03), rgba(167, 139, 250, 0.02))'
+    primary: '#006064',
+    secondary: '#00838F',
+    accent: 'rgba(0, 96, 100, 0.08)',
+    glow: 'rgba(0, 96, 100, 0.2)',
+    gradient: 'linear-gradient(135deg, rgba(0, 96, 100, 0.03), rgba(0, 131, 143, 0.02))'
   }
 };
 
 // Default theme when no duty is selected
 const DEFAULT_THEME = {
   name: 'Default',
-  primary: '#E30613',
-  secondary: '#ff4757',
-  accent: 'rgba(227, 6, 19, 0.08)',
-  glow: 'rgba(227, 6, 19, 0.2)',
+  primary: '#0097A7',
+  secondary: '#00BCD4',
+  accent: 'rgba(0, 188, 212, 0.08)',
+  glow: 'rgba(0, 188, 212, 0.2)',
   gradient: 'linear-gradient(135deg, transparent, transparent)'
 };
 

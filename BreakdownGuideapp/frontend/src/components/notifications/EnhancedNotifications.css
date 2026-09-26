@@ -71,7 +71,10 @@
 }
 
 .critical-badge {
-  background: #ff0030;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #ef4444;
   color: white;
   font-size: 12px;
   font-weight: 600;
@@ -436,7 +439,8 @@
 }
 
 .empty-icon {
-  font-size: 48px;
+  display: flex;
+  justify-content: center;
   margin-bottom: 16px;
   opacity: 0.5;
 }

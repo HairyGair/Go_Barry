@@ -12,6 +12,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { AlertTriangle, BarChart3, ClipboardList, CheckCircle2, Users, Star, Trophy, User, TrendingUp } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
 
@@ -68,7 +69,7 @@ const SupervisorPerformance = ({ period = 'week' }) => {
   if (error) {
     return (
       <div className="performance-error">
-        <span className="error-icon">⚠️</span>
+        <AlertTriangle className="error-icon" size={32} />
         <p>{error}</p>
         <button onClick={fetchPerformanceData}>Retry</button>
       </div>
@@ -99,7 +100,7 @@ const SupervisorPerformance = ({ period = 'week' }) => {
       {/* Header */}
       <div className="performance-header">
         <div className="performance-title">
-          <h2>📊 Supervisor Performance</h2>
+          <h2><BarChart3 size={20} className="section-title-icon" /> Supervisor Performance</h2>
           <span className="period-label">{periodInfo?.label || 'Last 7 Days'}</span>
         </div>
         <div className="performance-controls">
@@ -126,28 +127,28 @@ const SupervisorPerformance = ({ period = 'week' }) => {
       {/* Overall Stats */}
       <div className="overall-stats">
         <div className="stat-card">
-          <span className="stat-icon">📋</span>
+          <ClipboardList className="stat-icon" size={24} />
           <div className="stat-content">
             <span className="stat-value">{overallStats?.totalBreakdowns || 0}</span>
             <span className="stat-label">Total Breakdowns</span>
           </div>
         </div>
         <div className="stat-card">
-          <span className="stat-icon">✅</span>
+          <CheckCircle2 className="stat-icon" size={24} />
           <div className="stat-content">
             <span className="stat-value">{overallStats?.totalResolved || 0}</span>
             <span className="stat-label">Resolved</span>
           </div>
         </div>
         <div className="stat-card">
-          <span className="stat-icon">👥</span>
+          <Users className="stat-icon" size={24} />
           <div className="stat-content">
             <span className="stat-value">{overallStats?.activeSupervisors || 0}</span>
             <span className="stat-label">Active Supervisors</span>
           </div>
         </div>
         <div className="stat-card">
-          <span className="stat-icon">⭐</span>
+          <Star className="stat-icon" size={24} />
           <div className="stat-content">
             <span className="stat-value" style={{ color: getScoreColor(overallStats?.avgPerformanceScore || 0) }}>
               {overallStats?.avgPerformanceScore || 0}
@@ -160,7 +161,7 @@ const SupervisorPerformance = ({ period = 'week' }) => {
       {/* Leaderboard */}
       {showLeaderboard && leaderboard && leaderboard.length > 0 && (
         <div className="leaderboard-section">
-          <h3>🏆 Top Performers</h3>
+          <h3><Trophy size={17} className="section-title-icon" /> Top Performers</h3>
           <div className="leaderboard-table">
             <div className="leaderboard-header">
               <span className="lb-rank">Rank</span>
@@ -177,7 +178,9 @@ const SupervisorPerformance = ({ period = 'week' }) => {
                 onClick={() => setSelectedSupervisor(entry.badge === selectedSupervisor ? null : entry.badge)}
               >
                 <span className="lb-rank">
-                  {entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : entry.rank === 3 ? '🥉' : entry.rank}
+                  {entry.rank <= 3 ? (
+                    <span className={`lb-rank-medal lb-rank-medal--${entry.rank}`}>{entry.rank}</span>
+                  ) : entry.rank}
                 </span>
                 <span className="lb-name">{entry.name}</span>
                 <span className="lb-depot">{entry.depot || '-'}</span>
@@ -195,7 +198,7 @@ const SupervisorPerformance = ({ period = 'week' }) => {
       {/* Supervisor Details */}
       {supervisors && supervisors.length > 0 && (
         <div className="supervisor-details-section">
-          <h3>👤 Supervisor Details</h3>
+          <h3><User size={17} className="section-title-icon" /> Supervisor Details</h3>
           <div className="supervisor-grid">
             {supervisors.map((sup) => (
               <div
@@ -265,7 +268,7 @@ const SupervisorPerformance = ({ period = 'week' }) => {
       {/* Response Time Trends */}
       {trends && trends.length > 0 && (
         <div className="trends-section">
-          <h3>📈 Response Time Trends</h3>
+          <h3><TrendingUp size={17} className="section-title-icon" /> Response Time Trends</h3>
           <div className="trends-chart">
             <div className="chart-bars">
               {trends.slice(-14).map((day, index) => (
@@ -314,6 +317,14 @@ const SupervisorPerformance = ({ period = 'week' }) => {
         .performance-title h2 {
           margin: 0;
           font-size: 1.5rem;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .section-title-icon {
+          color: #0097A7;
+          flex-shrink: 0;
         }
 
         .period-label {
@@ -364,7 +375,8 @@ const SupervisorPerformance = ({ period = 'week' }) => {
         }
 
         .stat-icon {
-          font-size: 1.5rem;
+          color: #0097A7;
+          flex-shrink: 0;
         }
 
         .stat-content {
@@ -393,7 +405,26 @@ const SupervisorPerformance = ({ period = 'week' }) => {
         .trends-section h3 {
           margin: 0 0 var(--spacing-md, 16px);
           font-size: 1.125rem;
+          display: flex;
+          align-items: center;
+          gap: 8px;
         }
+
+        .lb-rank-medal {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 22px;
+          height: 22px;
+          border-radius: 50%;
+          font-size: 0.7rem;
+          font-weight: 700;
+          color: #0b1220;
+        }
+
+        .lb-rank-medal--1 { background: #FBBF24; }
+        .lb-rank-medal--2 { background: #CBD5E1; }
+        .lb-rank-medal--3 { background: #D97706; }
 
         .leaderboard-table {
           background: rgba(0,0,0,0.2);
@@ -641,7 +672,7 @@ const SupervisorPerformance = ({ period = 'week' }) => {
         }
 
         .error-icon {
-          font-size: 2rem;
+          color: #F59E0B;
           margin-bottom: var(--spacing-sm, 8px);
         }
 

@@ -356,7 +356,7 @@
   border: none;
   color: #888;
   font-size: 12px;
-  font-family: 'Courier New', monospace;
+  font-family: var(--font-mono);
   outline: none;
 }
 

@@ -11,6 +11,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { Clock, AlertTriangle, Siren, OctagonAlert, Bus, RefreshCw, Plus, LogOut, Check } from 'lucide-react';
 import './EndOfShiftModal.css';
 
 // Warning thresholds in minutes
@@ -107,15 +108,15 @@ const EndOfShiftModal = ({
   const getWarningIcon = () => {
     switch (warningLevel) {
       case 30:
-        return '⏰';
+        return Clock;
       case 15:
-        return '⚠️';
+        return AlertTriangle;
       case 5:
-        return '🚨';
+        return Siren;
       case 0:
-        return '🛑';
+        return OctagonAlert;
       default:
-        return '⏰';
+        return Clock;
     }
   };
 
@@ -158,7 +159,9 @@ const EndOfShiftModal = ({
         <div className="end-of-shift-modal__card">
           {/* Header */}
           <div className="end-of-shift-modal__header">
-            <span className="end-of-shift-modal__icon" aria-hidden="true">{getWarningIcon()}</span>
+            <span className="end-of-shift-modal__icon" aria-hidden="true">
+              {React.createElement(getWarningIcon(), { size: 22, strokeWidth: 2 })}
+            </span>
             <h2 className="end-of-shift-modal__title" id="eos-title">{getWarningTitle()}</h2>
           </div>
 
@@ -176,7 +179,7 @@ const EndOfShiftModal = ({
           {/* Active Breakdowns Alert */}
           {hasActiveBreakdowns && (
             <div className="end-of-shift-modal__breakdowns-alert">
-              <span className="end-of-shift-modal__breakdowns-icon">🚌</span>
+              <span className="end-of-shift-modal__breakdowns-icon"><Bus size={18} strokeWidth={2} aria-hidden="true" /></span>
               <div className="end-of-shift-modal__breakdowns-info">
                 <strong>{activeBreakdowns} Active Breakdown{activeBreakdowns > 1 ? 's' : ''}</strong>
                 <span>These need to be resolved or handed over</span>
@@ -201,7 +204,7 @@ const EndOfShiftModal = ({
                     className="end-of-shift-modal__btn end-of-shift-modal__btn--handover"
                     onClick={onStartHandover}
                   >
-                    🔄 Start Handover
+                    <RefreshCw size={15} strokeWidth={2} aria-hidden="true" /> Start Handover
                   </button>
                 )}
 
@@ -210,7 +213,7 @@ const EndOfShiftModal = ({
                     className="end-of-shift-modal__btn end-of-shift-modal__btn--extend"
                     onClick={onExtendShift}
                   >
-                    ➕ Extend 30 Minutes
+                    <Plus size={15} strokeWidth={2} aria-hidden="true" /> Extend 30 Minutes
                   </button>
                 )}
 
@@ -218,7 +221,7 @@ const EndOfShiftModal = ({
                   className="end-of-shift-modal__btn end-of-shift-modal__btn--end"
                   onClick={onEndShift}
                 >
-                  🚪 End Shift
+                  <LogOut size={15} strokeWidth={2} aria-hidden="true" /> End Shift
                 </button>
               </>
             ) : (
@@ -228,7 +231,7 @@ const EndOfShiftModal = ({
                   className="end-of-shift-modal__btn end-of-shift-modal__btn--acknowledge"
                   onClick={handleAcknowledge}
                 >
-                  ✓ Got it, continue working
+                  <Check size={15} strokeWidth={2.25} aria-hidden="true" /> Got it, continue working
                 </button>
 
                 {isUrgent && hasActiveBreakdowns && onStartHandover && (
@@ -236,7 +239,7 @@ const EndOfShiftModal = ({
                     className="end-of-shift-modal__btn end-of-shift-modal__btn--handover-secondary"
                     onClick={onStartHandover}
                   >
-                    🔄 Start Handover Now
+                    <RefreshCw size={15} strokeWidth={2} aria-hidden="true" /> Start Handover Now
                   </button>
                 )}
               </>

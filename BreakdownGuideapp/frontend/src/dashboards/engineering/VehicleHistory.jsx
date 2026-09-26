@@ -7,6 +7,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { ClipboardList, AlertTriangle, Check, Repeat, ChevronDown, ChevronRight } from 'lucide-react';
 import { apiClient } from '../../services/api-client';
 
 const VehicleHistory = ({ fleetNo, compact = false }) => {
@@ -55,7 +56,7 @@ const VehicleHistory = ({ fleetNo, compact = false }) => {
             text-align: center;
           }
           .loading-spinner {
-            color: #999;
+            color: #94a3b8;
             font-size: 12px;
           }
         `}</style>
@@ -74,10 +75,10 @@ const VehicleHistory = ({ fleetNo, compact = false }) => {
     return (
       <div className="vehicle-history no-history">
         <div className="history-header">
-          <span className="history-icon">📋</span>
+          <ClipboardList className="history-icon" size={14} />
           <span className="history-title">Vehicle History</span>
         </div>
-        <div className="no-history-message">✓ No previous breakdowns</div>
+        <div className="no-history-message"><Check size={14} style={{ verticalAlign: '-2px' }} /> No previous breakdowns</div>
         <style>{`
           .vehicle-history.no-history {
             padding: 12px 16px;
@@ -114,9 +115,9 @@ const VehicleHistory = ({ fleetNo, compact = false }) => {
     <div className={`vehicle-history ${statistics.isProblemVehicle ? 'problem-vehicle' : ''}`}>
       <div className="history-header">
         <div className="header-left">
-          <span className="history-icon">
-            {statistics.isProblemVehicle ? '⚠️' : '📋'}
-          </span>
+          {statistics.isProblemVehicle
+            ? <AlertTriangle className="history-icon" size={14} />
+            : <ClipboardList className="history-icon" size={14} />}
           <span className="history-title">Vehicle History - Fleet {fleetNo}</span>
         </div>
         {compact && (
@@ -124,7 +125,7 @@ const VehicleHistory = ({ fleetNo, compact = false }) => {
             className="expand-btn"
             onClick={() => setExpanded(!expanded)}
           >
-            {expanded ? '▼' : '▶'}
+            {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
           </button>
         )}
       </div>
@@ -133,7 +134,8 @@ const VehicleHistory = ({ fleetNo, compact = false }) => {
       <div className="history-stats">
         {statistics.isProblemVehicle && (
           <div className="problem-flag">
-            ⚠️ PROBLEM VEHICLE: {statistics.last90Days} breakdowns in 90 days
+            <AlertTriangle size={13} style={{ verticalAlign: '-2px', marginRight: '4px' }} />
+            PROBLEM VEHICLE: {statistics.last90Days} breakdowns in 90 days
           </div>
         )}
         <div className="stat-row">
@@ -157,7 +159,7 @@ const VehicleHistory = ({ fleetNo, compact = false }) => {
       {/* Recurring Issues */}
       {recurringIssues && recurringIssues.length > 0 && (
         <div className="recurring-issues">
-          <div className="section-title">🔁 Recurring Issues</div>
+          <div className="section-title"><Repeat size={12} style={{ verticalAlign: '-2px', marginRight: '4px' }} /> Recurring Issues</div>
           <div className="issue-tags">
             {recurringIssues.map((item, idx) => (
               <span key={idx} className="issue-tag">
@@ -188,7 +190,7 @@ const VehicleHistory = ({ fleetNo, compact = false }) => {
                       {breakdown.severity || 'Unknown'}
                     </span>
                     {breakdown.status === 'cleared' || breakdown.status === 'resolved' ? (
-                      <span className="status resolved">✓ Resolved</span>
+                      <span className="status resolved"><Check size={11} style={{ verticalAlign: '-1px' }} /> Resolved</span>
                     ) : (
                       <span className="status pending">Pending</span>
                     )}
@@ -205,7 +207,7 @@ const VehicleHistory = ({ fleetNo, compact = false }) => {
           padding: 12px 16px;
           background: rgba(0, 0, 0, 0.2);
           border-top: 1px solid rgba(255, 255, 255, 0.1);
-          border-left: 3px solid rgba(100, 181, 246, 0.5);
+          border-left: 3px solid rgba(0, 151, 167, 0.5);
         }
 
         .vehicle-history.problem-vehicle {
@@ -231,7 +233,7 @@ const VehicleHistory = ({ fleetNo, compact = false }) => {
         }
 
         .history-title {
-          color: #64b5f6;
+          color: #22d3ee;
           font-size: 11px;
           font-weight: 600;
           text-transform: uppercase;
@@ -245,7 +247,7 @@ const VehicleHistory = ({ fleetNo, compact = false }) => {
         .expand-btn {
           background: transparent;
           border: none;
-          color: #64b5f6;
+          color: #22d3ee;
           cursor: pointer;
           padding: 4px 8px;
           font-size: 12px;
@@ -284,7 +286,7 @@ const VehicleHistory = ({ fleetNo, compact = false }) => {
         }
 
         .stat-label {
-          color: #999;
+          color: #94a3b8;
           font-size: 11px;
         }
 
@@ -301,7 +303,7 @@ const VehicleHistory = ({ fleetNo, compact = false }) => {
         }
 
         .section-title {
-          color: #999;
+          color: #94a3b8;
           font-size: 11px;
           font-weight: 600;
           text-transform: uppercase;
@@ -356,7 +358,7 @@ const VehicleHistory = ({ fleetNo, compact = false }) => {
         .timeline-dot {
           width: 10px;
           height: 10px;
-          background: #64b5f6;
+          background: #22d3ee;
           border-radius: 50%;
           margin-top: 4px;
           flex-shrink: 0;
@@ -370,7 +372,7 @@ const VehicleHistory = ({ fleetNo, compact = false }) => {
         }
 
         .timeline-date {
-          color: #999;
+          color: #94a3b8;
           font-size: 10px;
           margin-bottom: 4px;
         }
@@ -421,7 +423,7 @@ const VehicleHistory = ({ fleetNo, compact = false }) => {
         }
 
         .status.pending {
-          color: #999;
+          color: #94a3b8;
         }
       `}</style>
     </div>

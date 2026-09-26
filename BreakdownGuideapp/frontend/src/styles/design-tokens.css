@@ -8,11 +8,11 @@
    Version: 3.0.0 - Ocean Teal Modern Transport Theme
    ============================================================================ */
 
-/* Adobe Fonts loaded via index.html <link> tag (Typekit project jug1pdv) */
+/* Fonts are self-hosted via @fontsource (imported in main.jsx) */
 
 :root {
-  /* Force light mode — prevents OS dark mode from inverting CSS variables */
-  color-scheme: light;
+  /* Dark-only product: native controls, scrollbars and form widgets render dark */
+  color-scheme: dark;
 
   /* =========================================================================
      COLOR SYSTEM - Ocean Teal Primary Palette
@@ -140,13 +140,13 @@
      TYPOGRAPHY SYSTEM - Modern Transport
      ========================================================================= */
 
-  /* Font Family - Adobe Fonts (Typekit) */
-  --font-display: 'boiga', 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-body: 'aileron', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: 'new-astro-soft', 'JetBrains Mono', 'Monaco', 'Menlo', monospace;
+  /* Font Family - self-hosted via @fontsource */
+  --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
 
   /* Legacy font-family for compatibility */
-  --font-family: 'aileron', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
 
   /* Font Weights */
   --font-light: 300;
@@ -413,10 +413,12 @@
 /* No additional light mode needed - :root is light mode */
 
 /* ============================================================================
-   DARK MODE - For system preference
+   DARK PALETTE — always on. The product is dark-only; these overrides used to
+   apply only under prefers-color-scheme: dark, so visitors on a light-mode OS
+   got light-theme text tokens (near-black) on the dark UI.
    ============================================================================ */
 
-@media (prefers-color-scheme: dark) {
+@media all {
   :root {
     /* Override colors for dark mode while maintaining excellent contrast */
 

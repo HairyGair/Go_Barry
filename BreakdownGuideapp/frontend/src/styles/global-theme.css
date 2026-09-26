@@ -95,9 +95,9 @@
   --z-tooltip: 1060;
 }
 
-/* Global Light Theme Styles (Default) */
+/* Dark-only product (see design-tokens.css) */
 html {
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 body {

@@ -132,7 +132,7 @@ const DefectHotspotMap = ({ breakdowns = [], onMarkerClick, loading }) => {
             </svg>
             Live Defect Hotspots
           </h3>
-          <span className="fi__card-badge--count">0 active</span>
+          <span className="fi__card-badge fi__card-badge--count">0 active</span>
         </div>
         <div className="fi__empty">
           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -154,7 +154,7 @@ const DefectHotspotMap = ({ breakdowns = [], onMarkerClick, loading }) => {
           </svg>
           Live Defect Hotspots
         </h3>
-        <span className="fi__card-badge--count">{validBreakdowns.length} active</span>
+        <span className="fi__card-badge fi__card-badge--count">{validBreakdowns.length} active</span>
       </div>
 
       <div className="fi__map-wrap">

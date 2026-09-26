@@ -12,6 +12,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { AlertTriangle, Calendar, Clock, RefreshCw, BarChart3, Lightbulb, Trophy } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
 
@@ -80,7 +81,7 @@ const CoverageGapsAnalysis = ({ depot = null }) => {
   if (error) {
     return (
       <div className="coverage-error">
-        <span className="error-icon">⚠️</span>
+        <AlertTriangle className="error-icon" size={32} />
         <p>{error}</p>
         <button onClick={fetchCoverageData}>Retry</button>
       </div>
@@ -110,7 +111,7 @@ const CoverageGapsAnalysis = ({ depot = null }) => {
       {/* Header */}
       <div className="coverage-header">
         <div className="coverage-title">
-          <h2>📅 Shift Coverage Analysis</h2>
+          <h2><Calendar size={20} className="section-title-icon" /> Shift Coverage Analysis</h2>
           <span className="period-label">
             {periodInfo?.depot !== 'All' ? `${periodInfo.depot} • ` : ''}
             {selectedPeriod === 'week' ? 'Last 7 Days' : 'Last 30 Days'}
@@ -137,21 +138,21 @@ const CoverageGapsAnalysis = ({ depot = null }) => {
           <span className="stat-label">Average Coverage</span>
         </div>
         <div className="stat-card">
-          <span className="stat-icon">⚠️</span>
+          <AlertTriangle className="stat-icon" size={24} />
           <div className="stat-content">
             <span className="stat-value">{summary?.totalGaps || 0}</span>
             <span className="stat-label">Coverage Gaps</span>
           </div>
         </div>
         <div className="stat-card">
-          <span className="stat-icon">⏱️</span>
+          <Clock className="stat-icon" size={24} />
           <div className="stat-content">
             <span className="stat-value">{summary?.totalGapHours || 0}h</span>
             <span className="stat-label">Total Gap Time</span>
           </div>
         </div>
         <div className="stat-card">
-          <span className="stat-icon">🔄</span>
+          <RefreshCw className="stat-icon" size={24} />
           <div className="stat-content">
             <span className="stat-value">{summary?.totalOverlaps || 0}</span>
             <span className="stat-label">Shift Overlaps</span>
@@ -172,7 +173,7 @@ const CoverageGapsAnalysis = ({ depot = null }) => {
 
       {/* Coverage Timeline */}
       <div className="coverage-timeline-section">
-        <h3>📊 Daily Coverage</h3>
+        <h3><BarChart3 size={17} className="section-title-icon" /> Daily Coverage</h3>
         <div className="coverage-timeline">
           {(coverageByDay || []).map((day, index) => (
             <div
@@ -226,7 +227,7 @@ const CoverageGapsAnalysis = ({ depot = null }) => {
       {/* Coverage Gaps List */}
       {gaps && gaps.length > 0 && (
         <div className="gaps-section">
-          <h3>⚠️ Coverage Gaps ({gaps.length})</h3>
+          <h3><AlertTriangle size={17} className="section-title-icon section-title-icon--warn" /> Coverage Gaps ({gaps.length})</h3>
           <div className="gaps-list">
             {gaps.slice(0, 10).map((gap, index) => (
               <div key={index} className="gap-card">
@@ -257,7 +258,7 @@ const CoverageGapsAnalysis = ({ depot = null }) => {
       {/* Overlap Periods */}
       {overlaps && overlaps.length > 0 && (
         <div className="overlaps-section">
-          <h3>🔄 Shift Overlaps ({overlaps.length})</h3>
+          <h3><RefreshCw size={17} className="section-title-icon" /> Shift Overlaps ({overlaps.length})</h3>
           <div className="overlaps-list">
             {overlaps.slice(0, 8).map((overlap, index) => (
               <div key={index} className="overlap-card">
@@ -284,13 +285,11 @@ const CoverageGapsAnalysis = ({ depot = null }) => {
       {/* Suggestions */}
       {suggestions && suggestions.length > 0 && (
         <div className="suggestions-section">
-          <h3>💡 Optimization Suggestions</h3>
+          <h3><Lightbulb size={17} className="section-title-icon" /> Optimization Suggestions</h3>
           <div className="suggestions-list">
             {suggestions.map((suggestion, index) => (
               <div key={index} className={`suggestion-card priority-${suggestion.priority}`}>
-                <span className="suggestion-icon">
-                  {suggestion.priority === 'high' ? '🔴' : suggestion.priority === 'medium' ? '🟡' : '🟢'}
-                </span>
+                <span className={`suggestion-icon suggestion-icon--${suggestion.priority}`} />
                 <div className="suggestion-content">
                   <span className="suggestion-type">{suggestion.type}</span>
                   <p className="suggestion-message">{suggestion.message}</p>
@@ -304,11 +303,11 @@ const CoverageGapsAnalysis = ({ depot = null }) => {
       {/* Best/Worst Days */}
       {(summary?.bestDay || summary?.worstDay) && (
         <div className="extremes-section">
-          <h3>📅 Coverage Extremes</h3>
+          <h3><Calendar size={17} className="section-title-icon" /> Coverage Extremes</h3>
           <div className="extremes-grid">
             {summary.bestDay && (
               <div className="extreme-card best">
-                <span className="extreme-icon">🏆</span>
+                <Trophy className="extreme-icon" size={22} />
                 <div className="extreme-content">
                   <span className="extreme-label">Best Coverage</span>
                   <span className="extreme-date">{summary.bestDay.dayOfWeek} ({summary.bestDay.date})</span>
@@ -320,7 +319,7 @@ const CoverageGapsAnalysis = ({ depot = null }) => {
             )}
             {summary.worstDay && (
               <div className="extreme-card worst">
-                <span className="extreme-icon">⚠️</span>
+                <AlertTriangle className="extreme-icon" size={22} />
                 <div className="extreme-content">
                   <span className="extreme-label">Lowest Coverage</span>
                   <span className="extreme-date">{summary.worstDay.dayOfWeek} ({summary.worstDay.date})</span>
@@ -354,6 +353,18 @@ const CoverageGapsAnalysis = ({ depot = null }) => {
         .coverage-title h2 {
           margin: 0;
           font-size: 1.5rem;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .section-title-icon {
+          color: #0097A7;
+          flex-shrink: 0;
+        }
+
+        .section-title-icon--warn {
+          color: #F59E0B;
         }
 
         .period-label {
@@ -424,7 +435,8 @@ const CoverageGapsAnalysis = ({ depot = null }) => {
         }
 
         .stat-icon {
-          font-size: 1.5rem;
+          color: #0097A7;
+          flex-shrink: 0;
         }
 
         .stat-content {
@@ -478,6 +490,9 @@ const CoverageGapsAnalysis = ({ depot = null }) => {
         .extremes-section h3 {
           margin: 0 0 var(--spacing-md, 16px);
           font-size: 1.125rem;
+          display: flex;
+          align-items: center;
+          gap: 8px;
         }
 
         .coverage-timeline {
@@ -707,8 +722,17 @@ const CoverageGapsAnalysis = ({ depot = null }) => {
         }
 
         .suggestion-icon {
-          font-size: 1.25rem;
+          display: inline-block;
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          flex-shrink: 0;
+          margin-top: 4px;
         }
+
+        .suggestion-icon--high { background: #EF4444; }
+        .suggestion-icon--medium { background: #F59E0B; }
+        .suggestion-icon--low { background: #10B981; }
 
         .suggestion-type {
           display: block;
@@ -747,8 +771,11 @@ const CoverageGapsAnalysis = ({ depot = null }) => {
         }
 
         .extreme-icon {
-          font-size: 2rem;
+          flex-shrink: 0;
         }
+
+        .extreme-card.best .extreme-icon { color: #10B981; }
+        .extreme-card.worst .extreme-icon { color: #EF4444; }
 
         .extreme-content {
           display: flex;
@@ -795,7 +822,7 @@ const CoverageGapsAnalysis = ({ depot = null }) => {
         }
 
         .error-icon {
-          font-size: 2rem;
+          color: #F59E0B;
           margin-bottom: var(--spacing-sm, 8px);
         }
 

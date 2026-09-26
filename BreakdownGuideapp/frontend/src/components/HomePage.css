@@ -55,7 +55,7 @@
 
 .hp-container {
   min-height: 100vh;
-  padding: 80px 24px 24px 24px;
+  padding: 24px;
   background-color: #0B1120;
 }
 
@@ -189,7 +189,7 @@
 }
 
 .hp-emergency-icon {
-  font-size: 18px;
+  display: inline-flex;
 }
 
 /* ===========================================
@@ -219,11 +219,13 @@
   -webkit-box-pack: center;
   -ms-flex-pack: center;
   justify-content: center;
-  padding: 20px 16px;
+  padding: 18px 16px 16px;
   background-color: #141D2B;
   border: 1px solid #1E293B;
+  border-top: 3px solid #1E293B;
   border-radius: 10px;
   text-align: center;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 
 .hp-stat-value {
@@ -256,12 +258,13 @@
 }
 
 .hp-stat--critical {
-  border-bottom: 3px solid #DC2626;
+  border-top-color: #EF4444;
 }
 
 .hp-stat--alert {
-  background-color: #1C1517;
-  border-color: #7F1D1D;
+  background-color: rgba(239, 68, 68, 0.06);
+  border-color: rgba(239, 68, 68, 0.25);
+  border-top-color: #EF4444;
 }
 
 .hp-stat--positive .hp-stat-value {
@@ -269,7 +272,7 @@
 }
 
 .hp-stat--positive {
-  border-bottom: 3px solid #10B981;
+  border-top-color: #10B981;
 }
 
 /* ===========================================
@@ -409,10 +412,10 @@
   flex: 1;
 }
 
-/* Fleet Search in center - more prominent */
+/* Fleet Search in center - accented, not filled */
 .hp-main .hp-search-card {
-  background-color: #0C2A2E;
-  border: 1px solid #0097A7;
+  background-color: #141D2B;
+  border: 1px solid rgba(0, 151, 167, 0.35);
   overflow: visible;
   position: relative;
   z-index: 200;
@@ -420,11 +423,12 @@
 
 .hp-main .hp-search-card .hp-card-body {
   overflow: visible;
+  padding: 14px 18px 18px;
 }
 
 .hp-main .hp-search-card .hp-card-header {
-  background-color: rgba(0, 151, 167, 0.1);
-  border-bottom-color: rgba(0, 151, 167, 0.3);
+  background-color: rgba(0, 151, 167, 0.08);
+  border-bottom-color: rgba(0, 151, 167, 0.25);
 }
 
 .hp-main .hp-search-card .hp-card-icon {
@@ -639,7 +643,7 @@
 
 @media (min-width: 1600px) {
   .hp-container {
-    padding: 80px 40px 40px 40px;
+    padding: 40px;
   }
 
   .hp-grid {
@@ -718,7 +722,7 @@
 
 @media (max-width: 992px) {
   .hp-container {
-    padding: 80px 16px 16px 16px;
+    padding: 16px;
   }
 
   .hp-topbar {
@@ -748,13 +752,33 @@
   .hp-grid {
     -ms-grid-columns: 1fr;
     grid-template-columns: 1fr;
+    -ms-grid-rows: auto 16px auto 16px auto;
+    grid-template-rows: auto auto auto;
   }
 
+  /* Single column below 992px — reset the 2-col row pairing from the
+     1200px breakpoint (sidebar+main sharing row 1) so sections stack
+     in document order instead of overlapping. */
   .hp-sidebar,
   .hp-main,
   .hp-feed {
     -ms-grid-column: 1;
     grid-column: 1;
+  }
+
+  .hp-sidebar {
+    -ms-grid-row: 1;
+    grid-row: 1;
+  }
+
+  .hp-main {
+    -ms-grid-row: 2;
+    grid-row: 2;
+  }
+
+  .hp-feed {
+    -ms-grid-row: 3;
+    grid-row: 3;
   }
 
   .hp-actions {
@@ -769,7 +793,7 @@
 
 @media (max-width: 768px) {
   .hp-container {
-    padding: 70px 12px 12px 12px;
+    padding: 12px;
   }
 
   .hp-topbar {

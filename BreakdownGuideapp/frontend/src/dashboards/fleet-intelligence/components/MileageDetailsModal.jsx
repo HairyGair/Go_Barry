@@ -8,6 +8,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { Ruler, ClipboardList, Bus, Factory, AlertTriangle, Inbox, MapPin, Clock, Calendar, BarChart3, Calculator } from 'lucide-react';
 import './MileageDetailsModal.css';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://api.breakdowns.gobarry.co.uk';
@@ -91,7 +92,7 @@ const MileageDetailsModal = ({ isOpen, onClose, initialDays = 7 }) => {
         {/* Header */}
         <div className="mileage-modal-header">
           <div className="modal-title-section">
-            <h2>📏 Mileage Lost Analysis</h2>
+            <h2><Ruler size={20} className="modal-title-icon" /> Mileage Lost Analysis</h2>
             <p className="modal-subtitle">Detailed breakdown of service mileage lost</p>
           </div>
           <button className="modal-close-btn" onClick={onClose}>×</button>
@@ -171,19 +172,19 @@ const MileageDetailsModal = ({ isOpen, onClose, initialDays = 7 }) => {
             className={`tab-btn ${activeTab === 'breakdowns' ? 'active' : ''}`}
             onClick={() => setActiveTab('breakdowns')}
           >
-            📋 All Breakdowns
+            <ClipboardList size={15} /> All Breakdowns
           </button>
           <button
             className={`tab-btn ${activeTab === 'routes' ? 'active' : ''}`}
             onClick={() => setActiveTab('routes')}
           >
-            🚌 By Route
+            <Bus size={15} /> By Route
           </button>
           <button
             className={`tab-btn ${activeTab === 'depots' ? 'active' : ''}`}
             onClick={() => setActiveTab('depots')}
           >
-            🏭 By Depot
+            <Factory size={15} /> By Depot
           </button>
         </div>
 
@@ -198,7 +199,7 @@ const MileageDetailsModal = ({ isOpen, onClose, initialDays = 7 }) => {
 
           {error && (
             <div className="error-state">
-              <span className="error-icon">⚠️</span>
+              <AlertTriangle className="error-icon" size={30} />
               <p>{error}</p>
               <button onClick={fetchData}>Retry</button>
             </div>
@@ -211,7 +212,7 @@ const MileageDetailsModal = ({ isOpen, onClose, initialDays = 7 }) => {
                 <div className="breakdowns-list">
                   {data.breakdowns.length === 0 ? (
                     <div className="empty-state">
-                      <span>📭</span>
+                      <Inbox size={28} className="empty-icon" />
                       <p>No breakdowns found with mileage data for this period.</p>
                     </div>
                   ) : (
@@ -235,26 +236,26 @@ const MileageDetailsModal = ({ isOpen, onClose, initialDays = 7 }) => {
                             <span className="mileage-value">{breakdown.mileage.total.toFixed(1)}</span>
                             <span className="mileage-unit">mi lost</span>
                             {breakdown.mileage.wasCapped && (
-                              <span className="capped-badge" title="Capped at 500 miles">⚠️ CAPPED</span>
+                              <span className="capped-badge" title="Capped at 500 miles"><AlertTriangle size={11} /> CAPPED</span>
                             )}
                           </div>
                         </div>
 
                         <div className="breakdown-card-meta">
                           <span className="meta-item">
-                            <span className="meta-icon">📍</span>
+                            <MapPin size={13} className="meta-icon" />
                             {breakdown.location.description || 'Unknown location'}
                           </span>
                           <span className="meta-item">
-                            <span className="meta-icon">🏭</span>
+                            <Factory size={13} className="meta-icon" />
                             {breakdown.depot || 'Unknown depot'}
                           </span>
                           <span className="meta-item">
-                            <span className="meta-icon">⏱️</span>
+                            <Clock size={13} className="meta-icon" />
                             {breakdown.durationFormatted}
                           </span>
                           <span className="meta-item">
-                            <span className="meta-icon">📅</span>
+                            <Calendar size={13} className="meta-icon" />
                             {formatDate(breakdown.createdAt)}
                           </span>
                         </div>
@@ -263,7 +264,7 @@ const MileageDetailsModal = ({ isOpen, onClose, initialDays = 7 }) => {
                         {selectedBreakdown?.id === breakdown.id && (
                           <div className="breakdown-details">
                             <div className="details-section">
-                              <h4>📊 Mileage Calculation Breakdown</h4>
+                              <h4><BarChart3 size={15} className="section-title-icon" /> Mileage Calculation Breakdown</h4>
                               <div className="calculation-grid">
                                 <div className="calc-item">
                                   <span className="calc-label">Current Trip Lost</span>
@@ -282,7 +283,7 @@ const MileageDetailsModal = ({ isOpen, onClose, initialDays = 7 }) => {
 
                             {breakdown.routeInfo && (
                               <div className="details-section">
-                                <h4>🚌 Route Information</h4>
+                                <h4><Bus size={15} className="section-title-icon" /> Route Information</h4>
                                 <div className="info-grid">
                                   <div className="info-item">
                                     <span className="info-label">Route Length</span>
@@ -298,7 +299,7 @@ const MileageDetailsModal = ({ isOpen, onClose, initialDays = 7 }) => {
 
                             {breakdown.serviceImpact && (
                               <div className="details-section">
-                                <h4>⏱️ Service Impact</h4>
+                                <h4><Clock size={15} className="section-title-icon" /> Service Impact</h4>
                                 <div className="info-grid">
                                   <div className="info-item">
                                     <span className="info-label">Downtime</span>
@@ -323,7 +324,7 @@ const MileageDetailsModal = ({ isOpen, onClose, initialDays = 7 }) => {
 
                             {breakdown.calculation && (
                               <div className="details-section formula-section">
-                                <h4>🧮 Formula</h4>
+                                <h4><Calculator size={15} className="section-title-icon" /> Formula</h4>
                                 <p className="formula">{breakdown.calculation.formula}</p>
                                 <p className="formula-breakdown">{breakdown.calculation.breakdown}</p>
                               </div>
@@ -348,7 +349,7 @@ const MileageDetailsModal = ({ isOpen, onClose, initialDays = 7 }) => {
                 <div className="routes-analysis">
                   {data.byRoute.length === 0 ? (
                     <div className="empty-state">
-                      <span>📭</span>
+                      <Inbox size={28} className="empty-icon" />
                       <p>No route data available.</p>
                     </div>
                   ) : (
@@ -394,7 +395,7 @@ const MileageDetailsModal = ({ isOpen, onClose, initialDays = 7 }) => {
                 <div className="depots-analysis">
                   {data.byDepot.length === 0 ? (
                     <div className="empty-state">
-                      <span>📭</span>
+                      <Inbox size={28} className="empty-icon" />
                       <p>No depot data available.</p>
                     </div>
                   ) : (

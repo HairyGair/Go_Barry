@@ -146,7 +146,7 @@ const LowWaterWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                         <button
                             onClick={responses.warning_light === 'red_light' ? onComplete : onNext}
                             disabled={!responses.warning_light}
-                            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                             {responses.warning_light === 'red_light' ? 'Complete Assessment' : 'Continue Assessment'}
                         </button>
@@ -299,7 +299,7 @@ const LowWaterWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                         <button
                             onClick={onNext}
                             disabled={!responses.leak_check}
-                            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                             Continue Assessment
                         </button>
@@ -405,7 +405,7 @@ const LowWaterWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                         <button
                             onClick={onNext}
                             disabled={!responses.water_buzzer}
-                            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                             Continue Assessment
                         </button>
@@ -546,7 +546,7 @@ const LowWaterWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                         <button
                             onClick={onNext}
                             disabled={!responses.recent_topup}
-                            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                             Continue to Decision
                         </button>

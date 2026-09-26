@@ -289,12 +289,24 @@ const DispatchEngineerModal = ({ breakdownId, breakdownDepot, breakdownLat, brea
         .dem-header {
           display: flex; justify-content: space-between; align-items: center;
           padding: 16px 20px;
-          background: linear-gradient(135deg, #0097A7, #00838F);
+          background: rgba(255,255,255,0.03);
+          border-bottom: 1px solid rgba(255,255,255,0.08);
+          position: relative;
+        }
+
+        .dem-header::before {
+          content: '';
+          position: absolute;
+          top: 0; left: 0; right: 0;
+          height: 2px;
+          background: linear-gradient(90deg, #0097A7, #22d3ee, transparent);
         }
 
         .dem-header-left {
-          display: flex; align-items: center; gap: 10px; color: white;
+          display: flex; align-items: center; gap: 10px; color: #f1f5f9;
         }
+
+        .dem-header-left svg { color: #22d3ee; }
 
         .dem-header-left h3 {
           margin: 0; font-size: 16px; font-weight: 700;
@@ -302,13 +314,13 @@ const DispatchEngineerModal = ({ breakdownId, breakdownDepot, breakdownLat, brea
         }
 
         .dem-close {
-          background: rgba(255,255,255,0.15); border: none;
-          color: white; width: 32px; height: 32px;
+          background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08);
+          color: #94a3b8; width: 32px; height: 32px;
           border-radius: 8px; cursor: pointer;
           display: flex; align-items: center; justify-content: center;
-          transition: background 0.15s;
+          transition: all 0.15s;
         }
-        .dem-close:hover { background: rgba(255,255,255,0.25); }
+        .dem-close:hover { background: rgba(255,255,255,0.1); color: #e2e8f0; }
 
         .dem-filter-row {
           display: flex; align-items: center; gap: 10px;

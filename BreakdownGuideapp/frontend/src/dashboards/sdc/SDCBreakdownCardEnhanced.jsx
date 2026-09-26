@@ -1,4 +1,9 @@
 import React, { useState, memo, useEffect, useCallback } from 'react';
+import {
+  ChevronDown, ChevronRight, Loader2, OctagonAlert, AlertTriangle, CheckCircle2, HelpCircle,
+  BarChart3, MapPin, Search, ClipboardList, Clock3, Bus, Check, Wrench, StickyNote, Pencil,
+  Phone
+} from 'lucide-react';
 import { getWizardInfo } from './utils/wizardTypeMapping';
 import SimpleLocationMap from './SimpleLocationMap';
 import DepotContactBadge from '../../components/DepotContactBadge';
@@ -456,32 +461,32 @@ const SDCBreakdownCardEnhanced = memo(({
     switch (decision) {
       case 'STOP':
         return {
-          class: 'decision-stop',
-          icon: '🛑',
+          class: 'sdc-decision-stop',
+          icon: <OctagonAlert size={30} />,
           text: 'STOP',
           description: 'Vehicle must not continue - Engineering required immediately',
           actions: ['Dispatch Engineer', 'Arrange Recovery', 'Notify Depot']
         };
       case 'AMBER':
         return {
-          class: 'decision-amber',
-          icon: '⚠️',
+          class: 'sdc-decision-amber',
+          icon: <AlertTriangle size={30} />,
           text: 'AMBER',
           description: 'Changeover at earliest convenience',
           actions: ['Schedule Changeover', 'Monitor Vehicle', 'Update Driver']
         };
       case 'CONTINUE':
         return {
-          class: 'decision-continue',
-          icon: '✅',
+          class: 'sdc-decision-continue',
+          icon: <CheckCircle2 size={30} />,
           text: 'CONTINUE',
           description: 'Vehicle can continue in service',
           actions: ['Log Defect', 'Schedule Inspection', 'Continue Service']
         };
       default:
         return {
-          class: 'decision-pending',
-          icon: '❓',
+          class: 'sdc-decision-pending',
+          icon: <HelpCircle size={30} />,
           text: 'PENDING',
           description: 'Assessment required',
           actions: ['Start Assessment', 'Contact Driver', 'Request Info']
@@ -499,12 +504,12 @@ const SDCBreakdownCardEnhanced = memo(({
   // Define card sections for carousel
   const hasRoute = !!(breakdown.route_id || breakdown.wizard_assessment_data?.route);
   const cardSections = [
-    { id: 'overview', title: 'Overview', icon: '📊' },
-    { id: 'location', title: 'Location', icon: '📍' },
-    { id: 'assessment', title: 'Assessment', icon: '🔍' },
-    { id: 'details', title: 'Details', icon: '📋' },
-    { id: 'timeline', title: 'Timeline', icon: '⏱️' },
-    ...(hasRoute ? [{ id: 'journey', title: 'Journey', icon: '🚌' }] : [])
+    { id: 'overview', title: 'Overview', icon: <BarChart3 size={16} /> },
+    { id: 'location', title: 'Location', icon: <MapPin size={16} /> },
+    { id: 'assessment', title: 'Assessment', icon: <Search size={16} /> },
+    { id: 'details', title: 'Details', icon: <ClipboardList size={16} /> },
+    { id: 'timeline', title: 'Timeline', icon: <Clock3 size={16} /> },
+    ...(hasRoute ? [{ id: 'journey', title: 'Journey', icon: <Bus size={16} /> }] : [])
   ];
 
   const handlePrevCard = () => {
@@ -563,15 +568,20 @@ const SDCBreakdownCardEnhanced = memo(({
           )}
           {breakdown.isResolving && (
             <div className="resolving-badge">
-              <span className="spinner">⏳</span>
+              <span className="spinner"><Loader2 size={13} /></span>
               Resolving...
             </div>
           )}
           <div className={`timer-compact ${slaStatus}`}>
             {formatTime(timeElapsed)} ELAPSED
           </div>
-          <button className="expand-toggle" onClick={(e) => { e.stopPropagation(); toggleExpanded(); }}>
-            {isExpanded ? '▼' : '▶'}
+          <button
+            className="expand-toggle"
+            onClick={(e) => { e.stopPropagation(); toggleExpanded(); }}
+            aria-label={isExpanded ? 'Collapse card' : 'Expand card'}
+            aria-expanded={isExpanded}
+          >
+            {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
           </button>
         </div>
       </div>
@@ -608,7 +618,7 @@ const SDCBreakdownCardEnhanced = memo(({
             {activeCardIndex === 0 && (
               <div className="info-card overview-card">
                 <h3 className="card-title">
-                  <span className="card-icon">📊</span>
+                  <span className="card-icon"><BarChart3 size={20} /></span>
                   Breakdown Overview
                 </h3>
                 <div className="overview-grid">
@@ -646,7 +656,7 @@ const SDCBreakdownCardEnhanced = memo(({
             {activeCardIndex === 1 && (
               <div className="info-card location-card">
                 <h3 className="card-title">
-                  <span className="card-icon">📍</span>
+                  <span className="card-icon"><MapPin size={20} /></span>
                   Location Details
                 </h3>
                 <div className="location-info-detailed">
@@ -686,7 +696,7 @@ const SDCBreakdownCardEnhanced = memo(({
                       title="Breakdown Location Map"
                     />
                     <div className="map-coordinates">
-                      📍 {mapData.lat.toFixed(6)}, {mapData.lng.toFixed(6)}
+                      <MapPin size={12} style={{ verticalAlign: '-2px' }} /> {mapData.lat.toFixed(6)}, {mapData.lng.toFixed(6)}
                     </div>
                     <a
                       href={`https://www.openstreetmap.org/?mlat=${mapData.lat}&mlon=${mapData.lng}#map=16/${mapData.lat}/${mapData.lng}`}
@@ -711,7 +721,7 @@ const SDCBreakdownCardEnhanced = memo(({
             {activeCardIndex === 2 && (
               <div className="info-card assessment-card">
                 <h3 className="card-title">
-                  <span className="card-icon">🔍</span>
+                  <span className="card-icon"><Search size={20} /></span>
                   Assessment & Decision
                 </h3>
                 <div className="issue-display-large">
@@ -747,7 +757,7 @@ const SDCBreakdownCardEnhanced = memo(({
             {activeCardIndex === 3 && (
               <div className="info-card details-card">
                 <h3 className="card-title">
-                  <span className="card-icon">📋</span>
+                  <span className="card-icon"><ClipboardList size={20} /></span>
                   Breakdown Details
                 </h3>
                 <div className="details-list">
@@ -801,7 +811,7 @@ const SDCBreakdownCardEnhanced = memo(({
             {activeCardIndex === 4 && (
               <div className="info-card timeline-card">
                 <h3 className="card-title">
-                  <span className="card-icon">⏱️</span>
+                  <span className="card-icon"><Clock3 size={20} /></span>
                   Progress Timeline
                 </h3>
                 <div className="timeline-display">
@@ -844,7 +854,7 @@ const SDCBreakdownCardEnhanced = memo(({
             {hasRoute && activeCardIndex === cardSections.findIndex(s => s.id === 'journey') && (
               <div className="info-card journey-card">
                 <h3 className="card-title">
-                  <span className="card-icon">🚌</span>
+                  <span className="card-icon"><Bus size={20} /></span>
                   Journey Link
                 </h3>
 
@@ -966,46 +976,46 @@ const SDCBreakdownCardEnhanced = memo(({
           <div className="action-buttons">
             {breakdown.currentStage === 'received' && (
               <button className="btn btn-acknowledge" onClick={() => onAcknowledge(breakdown.breakdown_id)}>
-                <span>✓</span> Acknowledge
+                <span><Check size={15} /></span> Acknowledge
               </button>
             )}
             {breakdown.currentStage === 'acknowledged' && (
               <button className="btn btn-decision" onClick={() => onMakeDecision(breakdown.breakdown_id)}>
-                <span>📋</span> Full Assessment
+                <span><ClipboardList size={15} /></span> Full Assessment
               </button>
             )}
             {breakdown.currentStage === 'decision' && (
               <button className="btn btn-engineering" onClick={() => onRequestEngineering(breakdown.breakdown_id)}>
-                <span>🔧</span> Engineering
+                <span><Wrench size={15} /></span> Engineering
               </button>
             )}
             <button className="btn btn-notes" onClick={() => setShowNotes(!showNotes)}>
-              <span>📝</span> Notes
+              <span><StickyNote size={15} /></span> Notes
             </button>
             {breakdown.wizard_decision && onEditAssessment && (
               <button className="btn btn-edit" onClick={() => onEditAssessment(breakdown.breakdown_id)}>
-                <span>✏️</span> Edit
+                <span><Pencil size={15} /></span> Edit
               </button>
             )}
             {onResolve && breakdown.status !== 'resolved' && (
               <button className="btn btn-resolve" onClick={onResolve}>
-                <span>✅</span> Resolve
+                <span><CheckCircle2 size={15} /></span> Resolve
               </button>
             )}
             <button className="btn btn-contact" onClick={() => onContact ? onContact(breakdown) : null}>
-              <span>📞</span> Contact
+              <span><Phone size={15} /></span> Contact
             </button>
             {/* Dispatch Replacement - show when STOP severity or replacement required, and no replacement dispatched yet */}
             {onDispatchReplacement && !breakdown.replacement_vehicle &&
               (breakdown.severity === 'STOP' || breakdown.wizard_decision === 'STOP' || breakdown.replacement_vehicle_required) && (
               <button className="btn btn-replacement" onClick={() => onDispatchReplacement(breakdown)}>
-                <span>🚌</span> Replacement
+                <span><Bus size={15} /></span> Replacement
               </button>
             )}
             {/* Return to Service - show when replacement dispatched but not yet in service */}
             {onReturnToService && breakdown.replacement_vehicle && breakdown.replacement_vehicle.status === 'dispatched' && (
               <button className="btn btn-return-service" onClick={() => onReturnToService(breakdown)}>
-                <span>📍</span> Return to Service
+                <span><MapPin size={15} /></span> Return to Service
               </button>
             )}
           </div>

@@ -99,21 +99,27 @@ const DepotComparison = ({ depotData }) => {
             </div>
 
             <div className="dc-cell dc-metric">
-              <span
-                className="dc-value"
-                style={{ color: getMetricColor('engineerEfficiency', depot.engineerEfficiency) }}
-              >
-                {depot.engineerEfficiency}%
-              </span>
-              <div className="dc-mini-bar">
-                <div
-                  className="dc-mini-bar-fill"
-                  style={{
-                    width: `${depot.engineerEfficiency}%`,
-                    backgroundColor: getMetricColor('engineerEfficiency', depot.engineerEfficiency)
-                  }}
-                ></div>
-              </div>
+              {depot.engineerEfficiency == null ? (
+                <span className="dc-value" title="Engineer efficiency isn't tracked yet">—</span>
+              ) : (
+                <>
+                  <span
+                    className="dc-value"
+                    style={{ color: getMetricColor('engineerEfficiency', depot.engineerEfficiency) }}
+                  >
+                    {depot.engineerEfficiency}%
+                  </span>
+                  <div className="dc-mini-bar">
+                    <div
+                      className="dc-mini-bar-fill"
+                      style={{
+                        width: `${depot.engineerEfficiency}%`,
+                        backgroundColor: getMetricColor('engineerEfficiency', depot.engineerEfficiency)
+                      }}
+                    ></div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         ))}

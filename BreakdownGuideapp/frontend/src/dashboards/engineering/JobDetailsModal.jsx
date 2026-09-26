@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { LayoutDashboard, ClipboardList, Clock, FileText, X, AlertTriangle, CheckCircle2, MapPin, Wrench } from 'lucide-react';
 import { apiClient } from '../../services/api-client';
 
 const JobDetailsModal = ({ show, onClose, breakdownId }) => {
@@ -30,10 +31,10 @@ const JobDetailsModal = ({ show, onClose, breakdownId }) => {
   if (!show) return null;
 
   const tabs = [
-    { id: 'overview', label: 'Overview', icon: '📊' },
-    { id: 'assessment', label: 'Assessment', icon: '📋' },
-    { id: 'timeline', label: 'Timeline', icon: '⏱️' },
-    { id: 'notes', label: 'Engineer Notes', icon: '📝' }
+    { id: 'overview', label: 'Overview', Icon: LayoutDashboard },
+    { id: 'assessment', label: 'Assessment', Icon: ClipboardList },
+    { id: 'timeline', label: 'Timeline', Icon: Clock },
+    { id: 'notes', label: 'Engineer Notes', Icon: FileText }
   ];
 
   return (
@@ -46,7 +47,7 @@ const JobDetailsModal = ({ show, onClose, breakdownId }) => {
               <p className="fleet-number">Fleet {jobDetails.fleet_number}</p>
             )}
           </div>
-          <button className="close-button" onClick={onClose}>✕</button>
+          <button className="close-button" onClick={onClose}><X size={20} /></button>
         </div>
 
         {loading ? (
@@ -63,7 +64,7 @@ const JobDetailsModal = ({ show, onClose, breakdownId }) => {
                   className={`tab-button ${activeTab === tab.id ? 'active' : ''}`}
                   onClick={() => setActiveTab(tab.id)}
                 >
-                  <span className="tab-icon">{tab.icon}</span>
+                  <tab.Icon className="tab-icon" size={16} />
                   {tab.label}
                 </button>
               ))}
@@ -114,7 +115,7 @@ const JobDetailsModal = ({ show, onClose, breakdownId }) => {
         }
 
         .modal-container {
-          background: #1a1a2e;
+          background: #0d1420;
           border-radius: 12px;
           max-width: 900px;
           width: 100%;
@@ -140,14 +141,14 @@ const JobDetailsModal = ({ show, onClose, breakdownId }) => {
 
         .fleet-number {
           margin: 4px 0 0 0;
-          color: #64b5f6;
+          color: #22d3ee;
           font-size: 14px;
         }
 
         .close-button {
           background: none;
           border: none;
-          color: #999;
+          color: #94a3b8;
           font-size: 28px;
           cursor: pointer;
           padding: 0;
@@ -176,7 +177,7 @@ const JobDetailsModal = ({ show, onClose, breakdownId }) => {
         .tab-button {
           background: none;
           border: none;
-          color: #999;
+          color: #94a3b8;
           padding: 12px 20px;
           cursor: pointer;
           font-size: 14px;
@@ -195,8 +196,8 @@ const JobDetailsModal = ({ show, onClose, breakdownId }) => {
         }
 
         .tab-button.active {
-          color: #64b5f6;
-          border-bottom-color: #64b5f6;
+          color: #22d3ee;
+          border-bottom-color: #22d3ee;
         }
 
         .tab-icon {
@@ -239,7 +240,7 @@ const JobDetailsModal = ({ show, onClose, breakdownId }) => {
         .loading-spinner {
           text-align: center;
           padding: 60px 20px;
-          color: #999;
+          color: #94a3b8;
         }
       `}</style>
     </div>
@@ -284,7 +285,7 @@ const OverviewTab = ({ job }) => (
 
         {job.assessment_summary.safety_concerns.length > 0 && (
           <div className="summary-item safety-critical">
-            <h4>⚠️ Safety Concerns:</h4>
+            <h4><AlertTriangle size={14} style={{ verticalAlign: '-2px', marginRight: '4px' }} /> Safety Concerns:</h4>
             <ul>
               {job.assessment_summary.safety_concerns.map((concern, idx) => (
                 <li key={idx}>{concern}</li>
@@ -341,7 +342,7 @@ const OverviewTab = ({ job }) => (
 
       .summary-item h4 {
         margin: 0 0 8px 0;
-        color: #64b5f6;
+        color: #22d3ee;
         font-size: 14px;
         font-weight: 600;
       }
@@ -349,7 +350,7 @@ const OverviewTab = ({ job }) => (
       .summary-item ul {
         margin: 0;
         padding-left: 20px;
-        color: #ccc;
+        color: #cbd5e1;
       }
 
       .summary-item li {
@@ -401,7 +402,7 @@ const AssessmentTab = ({ job }) => {
         .no-data {
           text-align: center;
           padding: 40px;
-          color: #999;
+          color: #94a3b8;
         }
 
         .wizard-data {
@@ -419,7 +420,7 @@ const AssessmentTab = ({ job }) => {
         }
 
         .data-key {
-          color: #64b5f6;
+          color: #22d3ee;
           font-weight: 600;
           min-width: 200px;
         }
@@ -438,11 +439,11 @@ const TimelineTab = ({ job }) => {
   const timeline = job.timeline || {};
 
   const events = [
-    { label: 'Breakdown Created', time: job.created_at, icon: '🚨' },
-    { label: 'Engineer Accepted', time: job.engineer_accepted_at, icon: '✓', duration: timeline.time_to_accept },
-    { label: 'Engineer On Site', time: job.engineer_on_site_at, icon: '📍', duration: timeline.time_to_site },
-    { label: 'Fixing Started', time: job.engineer_fixing_at, icon: '🔧' },
-    { label: 'Job Completed', time: job.engineer_completed_at, icon: '✅', duration: timeline.time_on_site }
+    { label: 'Breakdown Created', time: job.created_at, Icon: AlertTriangle },
+    { label: 'Engineer Accepted', time: job.engineer_accepted_at, Icon: CheckCircle2, duration: timeline.time_to_accept },
+    { label: 'Engineer On Site', time: job.engineer_on_site_at, Icon: MapPin, duration: timeline.time_to_site },
+    { label: 'Fixing Started', time: job.engineer_fixing_at, Icon: Wrench },
+    { label: 'Job Completed', time: job.engineer_completed_at, Icon: CheckCircle2, duration: timeline.time_on_site }
   ].filter(event => event.time);
 
   return (
@@ -450,7 +451,7 @@ const TimelineTab = ({ job }) => {
       <div className="timeline-container">
         {events.map((event, idx) => (
           <div key={idx} className="timeline-event">
-            <div className="event-icon">{event.icon}</div>
+            <div className="event-icon"><event.Icon size={16} /></div>
             <div className="event-content">
               <div className="event-label">{event.label}</div>
               <div className="event-time">{formatDateTime(event.time)}</div>
@@ -487,7 +488,7 @@ const TimelineTab = ({ job }) => {
           top: 10px;
           bottom: 10px;
           width: 2px;
-          background: rgba(100, 181, 246, 0.3);
+          background: rgba(0, 151, 167, 0.3);
         }
 
         .timeline-event {
@@ -502,8 +503,8 @@ const TimelineTab = ({ job }) => {
           left: -40px;
           width: 32px;
           height: 32px;
-          background: #1a1a2e;
-          border: 2px solid #64b5f6;
+          background: #0d1420;
+          border: 2px solid #22d3ee;
           border-radius: 50%;
           display: flex;
           align-items: center;
@@ -525,26 +526,26 @@ const TimelineTab = ({ job }) => {
         }
 
         .event-time {
-          color: #999;
+          color: #94a3b8;
           font-size: 13px;
         }
 
         .event-duration {
-          color: #64b5f6;
+          color: #22d3ee;
           font-size: 12px;
           margin-top: 4px;
         }
 
         .timeline-summary {
-          background: rgba(100, 181, 246, 0.1);
+          background: rgba(0, 151, 167, 0.1);
           padding: 16px;
           border-radius: 8px;
-          border-left: 3px solid #64b5f6;
+          border-left: 3px solid #22d3ee;
         }
 
         .timeline-summary h4 {
           margin: 0;
-          color: #64b5f6;
+          color: #22d3ee;
         }
       `}</style>
     </div>
@@ -586,7 +587,7 @@ const NotesTab = ({ job }) => {
         .no-notes {
           text-align: center;
           padding: 40px;
-          color: #999;
+          color: #94a3b8;
         }
 
         .notes-list {
@@ -599,7 +600,7 @@ const NotesTab = ({ job }) => {
           background: rgba(255, 255, 255, 0.05);
           padding: 16px;
           border-radius: 8px;
-          border-left: 3px solid #64b5f6;
+          border-left: 3px solid #22d3ee;
         }
 
         .note-header {
@@ -609,20 +610,20 @@ const NotesTab = ({ job }) => {
         }
 
         .note-engineer {
-          color: #64b5f6;
+          color: #22d3ee;
           font-weight: 600;
         }
 
         .note-time {
-          color: #999;
+          color: #94a3b8;
           font-size: 13px;
         }
 
         .note-status {
           display: inline-block;
           padding: 2px 8px;
-          background: rgba(100, 181, 246, 0.2);
-          color: #64b5f6;
+          background: rgba(0, 151, 167, 0.2);
+          color: #22d3ee;
           border-radius: 4px;
           font-size: 11px;
           font-weight: 600;
@@ -653,7 +654,7 @@ const InfoCard = ({ label, value, className = '' }) => (
       }
 
       .info-label {
-        color: #999;
+        color: #94a3b8;
         font-size: 12px;
         text-transform: uppercase;
         margin-bottom: 8px;

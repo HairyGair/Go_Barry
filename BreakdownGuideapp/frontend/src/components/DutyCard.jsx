@@ -13,6 +13,10 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import {
+  ClipboardList, AlertTriangle, Coffee, Pause, Play,
+  Loader2, Utensils, Toilet, RefreshCw, Plus, Clock, Sparkles
+} from 'lucide-react';
 import { apiClient } from '../services/api-client.js';
 import { DutyBadge as DutyBadgeIcon } from './icons/DutyBadgeIcons';
 import './DutyCard.css';
@@ -232,7 +236,7 @@ const DutyCard = ({ currentDuty, onChangeDuty, onStartHandover, onExtendShift, s
     return (
       <div className="duty-card duty-card--empty">
         <div className="duty-card__empty-content">
-          <span className="duty-card__empty-icon">📋</span>
+          <span className="duty-card__empty-icon"><ClipboardList size={32} strokeWidth={1.5} /></span>
           <h3>{currentDuty?.viewOnly ? 'View Only Mode' : 'No Active Duty'}</h3>
           <p>{currentDuty?.viewOnly ? 'You are browsing in view-only mode' : 'Select a duty shift to get started'}</p>
           {onChangeDuty && !currentDuty?.viewOnly && (
@@ -279,11 +283,12 @@ const DutyCard = ({ currentDuty, onChangeDuty, onStartHandover, onExtendShift, s
           <span className="duty-card__subtitle">{dutyConfig.name}</span>
         </div>
         <div className={`duty-card__status duty-card__status--${status}`}>
-          {status === 'active' && '● Active'}
-          {status === 'warning' && '⚠ Ending Soon'}
-          {status === 'ending' && '🔴 Almost Done'}
-          {status === 'expired' && '⏹ Ended'}
-          {status === 'overtime' && '🚨 OVERTIME'}
+          <span className="duty-card__status-dot" />
+          {status === 'active' && 'Active'}
+          {status === 'warning' && 'Ending Soon'}
+          {status === 'ending' && 'Almost Done'}
+          {status === 'expired' && 'Ended'}
+          {status === 'overtime' && 'Overtime'}
         </div>
       </div>
 
@@ -348,7 +353,7 @@ const DutyCard = ({ currentDuty, onChangeDuty, onStartHandover, onExtendShift, s
       {/* Phase 2.3: Break Section */}
       <div className={`duty-card__break-section ${onBreak ? 'duty-card__break-section--active' : ''}`}>
         <div className="duty-card__break-info">
-          <span className="duty-card__break-icon">{onBreak ? '☕' : '⏸️'}</span>
+          <span className="duty-card__break-icon">{onBreak ? <Coffee size={20} /> : <Pause size={20} />}</span>
           <div className="duty-card__break-details">
             {onBreak ? (
               <>
@@ -372,7 +377,7 @@ const DutyCard = ({ currentDuty, onChangeDuty, onStartHandover, onExtendShift, s
               onClick={handleEndBreak}
               disabled={breakLoading}
             >
-              {breakLoading ? '⏳' : '▶️'} End Break
+              {breakLoading ? <Loader2 size={14} className="duty-card__spin" /> : <Play size={14} />} End Break
             </button>
           ) : (
             <div className="duty-card__break-menu-wrapper">
@@ -381,7 +386,7 @@ const DutyCard = ({ currentDuty, onChangeDuty, onStartHandover, onExtendShift, s
                 onClick={() => setShowBreakTypeMenu(!showBreakTypeMenu)}
                 disabled={breakLoading || status === 'expired' || status === 'overtime'}
               >
-                {breakLoading ? '⏳' : '☕'} Take Break
+                {breakLoading ? <Loader2 size={14} className="duty-card__spin" /> : <Coffee size={14} />} Take Break
               </button>
               {showBreakTypeMenu && (
                 <div className="duty-card__break-menu">
@@ -390,21 +395,21 @@ const DutyCard = ({ currentDuty, onChangeDuty, onStartHandover, onExtendShift, s
                     onClick={() => handleStartBreak('meal')}
                     disabled={breakLoading}
                   >
-                    🍽️ Meal Break
+                    <Utensils size={14} /> Meal Break
                   </button>
                   <button
                     className="duty-card__break-menu-btn"
                     onClick={() => handleStartBreak('comfort')}
                     disabled={breakLoading}
                   >
-                    🚻 Comfort Break
+                    <Toilet size={14} /> Comfort Break
                   </button>
                   <button
                     className="duty-card__break-menu-btn"
                     onClick={() => handleStartBreak('other')}
                     disabled={breakLoading}
                   >
-                    ⏸️ Other Break
+                    <Pause size={14} /> Other Break
                   </button>
                 </div>
               )}
@@ -413,7 +418,7 @@ const DutyCard = ({ currentDuty, onChangeDuty, onStartHandover, onExtendShift, s
         </div>
         {currentBreakMinutes > 60 && onBreak && (
           <div className="duty-card__break-warning">
-            ⚠️ Break exceeds 1 hour
+            <AlertTriangle size={13} /> Break exceeds 1 hour
           </div>
         )}
       </div>
@@ -422,10 +427,10 @@ const DutyCard = ({ currentDuty, onChangeDuty, onStartHandover, onExtendShift, s
       {shiftStats.performance && shiftStats.performance !== 'good' && (
         <div className={`duty-card__performance duty-card__performance--${shiftStats.performance}`}>
           {shiftStats.performance === 'excellent' && (
-            <>⭐ Excellent shift performance!</>
+            <><Sparkles size={14} /> Excellent shift performance!</>
           )}
           {shiftStats.performance === 'needs-attention' && (
-            <>⚠️ High severity incidents this shift</>
+            <><AlertTriangle size={14} /> High severity incidents this shift</>
           )}
         </div>
       )}
@@ -433,7 +438,7 @@ const DutyCard = ({ currentDuty, onChangeDuty, onStartHandover, onExtendShift, s
       {/* Overtime Alert Banner */}
       {status === 'overtime' && (
         <div className="duty-card__overtime-alert">
-          <span className="duty-card__overtime-icon">⏰</span>
+          <span className="duty-card__overtime-icon"><Clock size={22} /></span>
           <div className="duty-card__overtime-message">
             <strong>You are working {overtimeMinutes}+ minutes overtime!</strong>
             <span>Please end your shift or request an extension.</span>
@@ -449,7 +454,7 @@ const DutyCard = ({ currentDuty, onChangeDuty, onStartHandover, onExtendShift, s
             className="duty-card__action-btn duty-card__action-btn--handover"
             onClick={onStartHandover}
           >
-            🔄 Start Handover
+            <RefreshCw size={14} /> Start Handover
           </button>
         )}
         {/* Extend shift button - shows during overtime */}
@@ -458,7 +463,7 @@ const DutyCard = ({ currentDuty, onChangeDuty, onStartHandover, onExtendShift, s
             className="duty-card__action-btn duty-card__action-btn--extend"
             onClick={onExtendShift}
           >
-            ➕ Extend Shift
+            <Plus size={14} /> Extend Shift
           </button>
         )}
         {onChangeDuty && (

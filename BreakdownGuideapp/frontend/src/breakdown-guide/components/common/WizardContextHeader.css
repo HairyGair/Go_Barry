@@ -9,9 +9,9 @@
   justify-content: space-between;
   gap: 16px;
   padding: 12px 16px;
-  background: linear-gradient(135deg, rgba(228, 0, 43, 0.15) 0%, rgba(0, 59, 92, 0.15) 100%);
+  background: linear-gradient(135deg, rgba(0, 188, 212, 0.14) 0%, rgba(15, 23, 42, 0.4) 100%);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(228, 0, 43, 0.2);
+  border: 1px solid rgba(0, 188, 212, 0.25);
   border-radius: 12px;
   margin-bottom: 20px;
 }
@@ -26,11 +26,13 @@
 }
 
 .fleet-number {
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-variant-numeric: tabular-nums;
   font-size: 28px;
   font-weight: 800;
-  color: #E4002B;
+  color: #22d3ee;
   line-height: 1;
-  text-shadow: 0 2px 8px rgba(228, 0, 43, 0.3);
+  text-shadow: 0 2px 8px rgba(0, 188, 212, 0.3);
 }
 
 .vehicle-type-badge {
@@ -61,7 +63,9 @@
 }
 
 .context-icon {
-  font-size: 14px;
+  display: flex;
+  align-items: center;
+  color: #22d3ee;
   flex-shrink: 0;
 }
 
@@ -221,7 +225,7 @@
 @media (prefers-contrast: high) {
   .wizard-context-header {
     border-width: 2px;
-    border-color: #E4002B;
+    border-color: #00BCD4;
   }
 
   .context-pill {

@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
+import { MessageCircle, X, Smile, Meh, Frown, Mic, Check } from 'lucide-react';
 import './QuickFeedback.css';
 
 export default function QuickFeedback() {
@@ -168,9 +169,10 @@ Page: ${context.page}
         <button
           className="quick-feedback-trigger"
           onClick={() => setMode('quick')}
-          title="Give Feedback"
+          title="Give feedback"
+          aria-label="Give feedback"
         >
-          💬
+          <MessageCircle size={19} strokeWidth={2} aria-hidden="true" />
         </button>
       </div>
     );
@@ -179,9 +181,11 @@ Page: ${context.page}
   if (mode === 'success') {
     return (
       <div className="quick-feedback-widget expanded">
-        <div className="quick-feedback-success">
-          <div className="success-checkmark">✓</div>
-          <p>Thanks for your feedback!</p>
+        <div className="quick-feedback-panel">
+          <div className="quick-feedback-success">
+            <div className="success-checkmark"><Check size={28} strokeWidth={3} aria-hidden="true" /></div>
+            <p>Thanks for your feedback!</p>
+          </div>
         </div>
       </div>
     );
@@ -196,8 +200,9 @@ Page: ${context.page}
             <button
               className="close-btn"
               onClick={() => setMode('button')}
+              aria-label="Close feedback"
             >
-              ✕
+              <X size={16} strokeWidth={2.25} aria-hidden="true" />
             </button>
           </div>
 
@@ -208,21 +213,21 @@ Page: ${context.page}
                 className="sentiment-btn happy"
                 onClick={() => setSentiment('happy')}
               >
-                <span className="emoji">😊</span>
+                <Smile className="sentiment-icon" size={26} strokeWidth={1.75} aria-hidden="true" />
                 <span className="label">Great!</span>
               </button>
               <button
                 className="sentiment-btn neutral"
                 onClick={() => setSentiment('neutral')}
               >
-                <span className="emoji">😐</span>
+                <Meh className="sentiment-icon" size={26} strokeWidth={1.75} aria-hidden="true" />
                 <span className="label">Okay</span>
               </button>
               <button
                 className="sentiment-btn sad"
                 onClick={() => setSentiment('sad')}
               >
-                <span className="emoji">😞</span>
+                <Frown className="sentiment-icon" size={26} strokeWidth={1.75} aria-hidden="true" />
                 <span className="label">Issue</span>
               </button>
             </div>
@@ -230,7 +235,7 @@ Page: ${context.page}
             // Step 2: Optional details
             <div className="feedback-details">
               <p className="selected-sentiment">
-                You selected: {sentiment === 'happy' ? '😊 Great' : sentiment === 'neutral' ? '😐 Okay' : '😞 Issue'}
+                You selected: {sentiment === 'happy' ? 'Great' : sentiment === 'neutral' ? 'Okay' : 'Issue'}
               </p>
 
               <div className="quick-options">
@@ -255,16 +260,16 @@ Page: ${context.page}
                 >
                   {isRecording ? (
                     <>
-                      <span className="pulse">🔴</span> Recording... (click to stop)
+                      <span className="pulse-dot" aria-hidden="true" /> Recording... (click to stop)
                     </>
                   ) : (
                     <>
-                      🎤 Or record a voice note
+                      <Mic size={15} strokeWidth={2} aria-hidden="true" /> Or record a voice note
                     </>
                   )}
                 </button>
                 {audioBlob && (
-                  <p className="audio-recorded">✓ Voice note recorded</p>
+                  <p className="audio-recorded"><Check size={13} strokeWidth={2.5} aria-hidden="true" /> Voice note recorded</p>
                 )}
               </div>
 

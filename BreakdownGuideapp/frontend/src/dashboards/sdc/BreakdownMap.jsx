@@ -1,4 +1,5 @@
 import React, { useMemo, useCallback, useState, useEffect, useRef } from 'react';
+import { Building2, MapPin } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
@@ -567,7 +568,7 @@ const BreakdownMap = ({
           padding: '12px',
           borderRadius: '8px',
           fontSize: '11px',
-          fontFamily: 'monospace',
+          fontFamily: 'var(--font-mono)',
           maxWidth: '280px',
           maxHeight: '400px',
           overflow: 'auto'
@@ -658,7 +659,7 @@ const BreakdownMap = ({
           <div style={{ fontWeight: '600', marginBottom: '5px' }}>
             {stats.total} breakdown{stats.total !== 1 ? 's' : ''} found
           </div>
-          <div style={{ fontSize: '14px', color: '#64748b' }}>
+          <div style={{ fontSize: '14px', color: '#94a3b8' }}>
             No GPS coordinates available to display on map
           </div>
         </div>
@@ -724,16 +725,19 @@ const BreakdownMap = ({
                   <div style={{
                     fontWeight: '700',
                     fontSize: '16px',
-                    color: '#003B5C',
-                    marginBottom: '4px'
+                    color: '#22d3ee',
+                    marginBottom: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
                   }}>
-                    🏢 {depot.name} Depot
+                    <Building2 size={15} /> {depot.name} Depot
                   </div>
-                  <div style={{ fontSize: '13px', color: '#64748b' }}>
-                    Code: <strong>{depot.code}</strong>
+                  <div style={{ fontSize: '13px', color: '#94a3b8' }}>
+                    Code: <strong style={{ color: '#e2e8f0' }}>{depot.code}</strong>
                   </div>
-                  <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px' }}>
-                    📍 {depot.coords[0].toFixed(6)}, {depot.coords[1].toFixed(6)}
+                  <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <MapPin size={11} /> {depot.coords[0].toFixed(6)}, {depot.coords[1].toFixed(6)}
                   </div>
                 </div>
               </Popup>
@@ -793,14 +797,14 @@ const BreakdownMap = ({
                       <div style={{
                         fontWeight: '700',
                         fontSize: '16px',
-                        color: '#1e293b',
+                        color: '#f8fafc',
                         marginBottom: '8px',
-                        borderBottom: '1px solid #e5e7eb',
+                        borderBottom: '1px solid rgba(255,255,255,0.12)',
                         paddingBottom: '4px'
                       }}>
                         Fleet {breakdown.fleet_no}
                       </div>
-                      <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>
+                      <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '4px' }}>
                         <strong>Route:</strong> <span style={{
                           background: '#3b82f6',
                           color: 'white',
@@ -810,13 +814,13 @@ const BreakdownMap = ({
                           marginLeft: '4px'
                         }}>{breakdown.route_id || 'N/A'}</span>
                       </div>
-                      <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>
+                      <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '4px' }}>
                         <strong>Location:</strong> {breakdown.location || 'Unknown'}
                       </div>
-                      <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>
+                      <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '4px' }}>
                         <strong>Depot:</strong> {breakdown.depot_display || breakdown.depot || 'Unknown'}
                       </div>
-                      <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '8px' }}>
+                      <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '8px' }}>
                         <strong>Duration:</strong> <span style={{ color: '#dc2626', fontWeight: '600' }}>
                           {breakdown.elapsed || 0} mins
                         </span>
@@ -827,10 +831,10 @@ const BreakdownMap = ({
                         borderRadius: '6px',
                         textAlign: 'center',
                         fontWeight: '600',
-                        background: breakdown.criticality === 'critical' ? '#fee2e2' :
-                                   breakdown.criticality === 'warning' ? '#fef3c7' : '#dbeafe',
-                        color: breakdown.criticality === 'critical' ? '#dc2626' :
-                               breakdown.criticality === 'warning' ? '#d97706' : '#2563eb'
+                        background: breakdown.criticality === 'critical' ? 'rgba(239, 68, 68, 0.18)' :
+                                   breakdown.criticality === 'warning' ? 'rgba(245, 158, 11, 0.18)' : 'rgba(59, 130, 246, 0.18)',
+                        color: breakdown.criticality === 'critical' ? '#fca5a5' :
+                               breakdown.criticality === 'warning' ? '#fbbf24' : '#93c5fd'
                       }}>
                         {breakdown.currentStage || breakdown.status || 'ACTIVE'}
                       </div>
@@ -863,14 +867,14 @@ const BreakdownMap = ({
                     <div style={{
                       fontWeight: '700',
                       fontSize: '16px',
-                      color: '#1e293b',
+                      color: '#f8fafc',
                       marginBottom: '8px',
-                      borderBottom: '1px solid #e5e7eb',
+                      borderBottom: '1px solid rgba(255,255,255,0.12)',
                       paddingBottom: '4px'
                     }}>
                       Fleet {breakdown.fleet_no}
                     </div>
-                    <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>
+                    <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '4px' }}>
                       <strong>Route:</strong> <span style={{
                         background: '#3b82f6',
                         color: 'white',
@@ -880,13 +884,13 @@ const BreakdownMap = ({
                         marginLeft: '4px'
                       }}>{breakdown.route_id || 'N/A'}</span>
                     </div>
-                    <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>
+                    <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '4px' }}>
                       <strong>Location:</strong> {breakdown.location || 'Unknown'}
                     </div>
-                    <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '4px' }}>
+                    <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '4px' }}>
                       <strong>Depot:</strong> {breakdown.depot_display || breakdown.depot || 'Unknown'}
                     </div>
-                    <div style={{ fontSize: '13px', color: '#64748b', marginBottom: '8px' }}>
+                    <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '8px' }}>
                       <strong>Duration:</strong> <span style={{ color: '#dc2626', fontWeight: '600' }}>
                         {breakdown.elapsed || 0} mins
                       </span>
@@ -897,10 +901,10 @@ const BreakdownMap = ({
                       borderRadius: '6px',
                       textAlign: 'center',
                       fontWeight: '600',
-                      background: breakdown.criticality === 'critical' ? '#fee2e2' :
-                                 breakdown.criticality === 'warning' ? '#fef3c7' : '#dbeafe',
-                      color: breakdown.criticality === 'critical' ? '#dc2626' :
-                             breakdown.criticality === 'warning' ? '#d97706' : '#2563eb'
+                      background: breakdown.criticality === 'critical' ? 'rgba(239, 68, 68, 0.18)' :
+                                 breakdown.criticality === 'warning' ? 'rgba(245, 158, 11, 0.18)' : 'rgba(59, 130, 246, 0.18)',
+                      color: breakdown.criticality === 'critical' ? '#fca5a5' :
+                             breakdown.criticality === 'warning' ? '#fbbf24' : '#93c5fd'
                     }}>
                       {breakdown.currentStage || breakdown.status || 'ACTIVE'}
                     </div>

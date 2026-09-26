@@ -207,7 +207,7 @@ const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, o
                                     : onNext
                             }
                             disabled={!responses.temperature_reading}
-                            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                             {(responses.temperature_reading === '80_100_continue' || responses.temperature_reading === 'gauge_faulty')
                                 ? 'Complete Assessment' 
@@ -337,7 +337,7 @@ const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, o
                                     : onNext
                             }
                             disabled={!responses.cause_identification || (responses.cause_identification === 'low_water' && !responses.water_topup_feasible)}
-                            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                             {(responses.water_topup_feasible === 'can_reach_topup' || responses.water_topup_feasible === 'cannot_reach_safely')
                                 ? 'Complete Assessment'
@@ -441,7 +441,7 @@ const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, o
                         <button
                             onClick={responses.water_buzzer_status === 'no_buzzer' ? handleCompleteAssessment : onNext}
                             disabled={!responses.water_buzzer_status}
-                            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                             {responses.water_buzzer_status === 'no_buzzer' ? 'Complete Assessment' : 'Next Step'}
                         </button>
@@ -562,7 +562,7 @@ const CoolingSystemWizard = ({ currentStep, responses, updateResponse, onNext, o
                         <button
                             onClick={responses.leak_inspection === 'leaks_present' ? handleCompleteAssessment : onNext}
                             disabled={!responses.leak_inspection}
-                            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                             {responses.leak_inspection === 'leaks_present' ? 'Complete Assessment' : 'Next Step'}
                         </button>

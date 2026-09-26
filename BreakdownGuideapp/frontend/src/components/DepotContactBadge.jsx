@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Phone, Copy, ChevronUp, ChevronDown } from 'lucide-react';
 import { getDepotByFleetNumber, getDepotContacts, getDepotName } from '../constants/depotContacts';
 
 /**
@@ -55,7 +56,7 @@ const DepotContactBadge = ({
           onMouseLeave={() => setIsExpanded(false)}
           onClick={() => setIsExpanded(!isExpanded)}
         >
-          <span className="badge-icon">📞</span>
+          <span className="badge-icon"><Phone size={13} /></span>
           {showDepotName && <span className="badge-depot">{depotName}</span>}
           <span className="badge-count">{contacts.length}</span>
         </div>
@@ -76,14 +77,14 @@ const DepotContactBadge = ({
                       onClick={() => handleCall(contact.number)}
                       title="Call"
                     >
-                      📞
+                      <Phone size={14} />
                     </button>
                     <button
                       className="action-btn copy-btn"
                       onClick={() => handleCopy(contact.number)}
                       title="Copy number"
                     >
-                      📋
+                      <Copy size={14} />
                     </button>
                   </div>
                 </div>
@@ -104,19 +105,19 @@ const DepotContactBadge = ({
             align-items: center;
             gap: 6px;
             padding: 6px 12px;
-            background: rgba(100, 181, 246, 0.15);
-            border: 1px solid rgba(100, 181, 246, 0.3);
+            background: rgba(0, 151, 167, 0.15);
+            border: 1px solid rgba(0, 151, 167, 0.3);
             border-radius: 6px;
             cursor: pointer;
             transition: all 0.2s;
             font-size: 13px;
             font-weight: 600;
-            color: #64b5f6;
+            color: #22d3ee;
           }
 
           .badge-trigger:hover {
-            background: rgba(100, 181, 246, 0.25);
-            border-color: #64b5f6;
+            background: rgba(0, 151, 167, 0.25);
+            border-color: #22d3ee;
             transform: translateY(-1px);
           }
 
@@ -129,7 +130,7 @@ const DepotContactBadge = ({
           }
 
           .badge-count {
-            background: rgba(100, 181, 246, 0.3);
+            background: rgba(0, 151, 167, 0.3);
             padding: 2px 6px;
             border-radius: 10px;
             font-size: 11px;
@@ -141,7 +142,7 @@ const DepotContactBadge = ({
             top: calc(100% + 8px);
             left: 0;
             background: #1a1a2e;
-            border: 1px solid rgba(100, 181, 246, 0.3);
+            border: 1px solid rgba(0, 151, 167, 0.3);
             border-radius: 8px;
             padding: 0;
             min-width: 280px;
@@ -162,10 +163,10 @@ const DepotContactBadge = ({
           }
 
           .dropdown-header {
-            background: rgba(100, 181, 246, 0.2);
+            background: rgba(0, 151, 167, 0.2);
             padding: 10px 14px;
-            border-bottom: 1px solid rgba(100, 181, 246, 0.3);
-            color: #64b5f6;
+            border-bottom: 1px solid rgba(0, 151, 167, 0.3);
+            color: #22d3ee;
             font-weight: 700;
             font-size: 13px;
             border-radius: 8px 8px 0 0;
@@ -220,8 +221,8 @@ const DepotContactBadge = ({
           }
 
           .action-btn {
-            background: rgba(100, 181, 246, 0.2);
-            border: 1px solid rgba(100, 181, 246, 0.3);
+            background: rgba(0, 151, 167, 0.2);
+            border: 1px solid rgba(0, 151, 167, 0.3);
             border-radius: 6px;
             width: 32px;
             height: 32px;
@@ -234,7 +235,7 @@ const DepotContactBadge = ({
           }
 
           .action-btn:hover {
-            background: rgba(100, 181, 246, 0.4);
+            background: rgba(0, 151, 167, 0.4);
             transform: scale(1.1);
           }
 
@@ -283,9 +284,9 @@ const DepotContactBadge = ({
           className="dropdown-trigger"
           onClick={() => setIsExpanded(!isExpanded)}
         >
-          <span>📞</span>
+          <span><Phone size={14} /></span>
           <span>{showDepotName ? `${depotName} Contacts` : 'Depot Contacts'}</span>
-          <span className="arrow">{isExpanded ? '▲' : '▼'}</span>
+          <span className="arrow">{isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}</span>
         </button>
 
         {isExpanded && (
@@ -300,7 +301,7 @@ const DepotContactBadge = ({
                   className="item-call-btn"
                   onClick={() => handleCall(contact.number)}
                 >
-                  📞 Call
+                  <Phone size={14} /> Call
                 </button>
               </div>
             ))}
@@ -318,8 +319,8 @@ const DepotContactBadge = ({
             align-items: center;
             justify-content: space-between;
             padding: 12px 16px;
-            background: rgba(100, 181, 246, 0.15);
-            border: 1px solid rgba(100, 181, 246, 0.3);
+            background: rgba(0, 151, 167, 0.15);
+            border: 1px solid rgba(0, 151, 167, 0.3);
             border-radius: 8px;
             color: white;
             font-weight: 600;
@@ -328,12 +329,12 @@ const DepotContactBadge = ({
           }
 
           .dropdown-trigger:hover {
-            background: rgba(100, 181, 246, 0.25);
+            background: rgba(0, 151, 167, 0.25);
           }
 
           .arrow {
             font-size: 10px;
-            color: #64b5f6;
+            color: #22d3ee;
           }
 
           .dropdown-content {
@@ -378,7 +379,10 @@ const DepotContactBadge = ({
           }
 
           .item-call-btn {
-            background: #64b5f6;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: #22d3ee;
             border: none;
             border-radius: 6px;
             padding: 8px 16px;
@@ -389,7 +393,7 @@ const DepotContactBadge = ({
           }
 
           .item-call-btn:hover {
-            background: #5da9e8;
+            background: #0097A7;
             transform: translateY(-1px);
           }
         `}</style>

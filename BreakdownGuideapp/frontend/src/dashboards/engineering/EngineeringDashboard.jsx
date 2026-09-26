@@ -280,7 +280,7 @@ const EngineeringDashboard = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
+      <div className="eng-stats-grid">
         <StatsCard
           label="Total Active"
           value={stats.total}
@@ -350,7 +350,7 @@ const EngineeringDashboard = () => {
       )}
 
       {/* Breakdown Cards */}
-      <div className="mt-6 space-y-4">
+      <div className="eng-jobs-list">
         {loading && filteredBreakdowns.length === 0 ? (
           <div className="eng-loading-state">
             <div className="eng-spinner"></div>
@@ -409,16 +409,41 @@ const EngineeringDashboard = () => {
       </div>
 
       <style>{`
+        /* This app does not load Tailwind globally (only inside /breakdown-guide),
+           so utility classes such as grid, grid-cols-N and space-y-N are inert
+           here. These two rules replace ones that silently did nothing. */
+        .eng-stats-grid {
+          display: grid;
+          grid-template-columns: repeat(5, 1fr);
+          gap: 16px;
+          margin-bottom: 24px;
+        }
+
+        @media (max-width: 1200px) {
+          .eng-stats-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+
+        @media (max-width: 700px) {
+          .eng-stats-grid { grid-template-columns: 1fr; }
+        }
+
+        .eng-jobs-list {
+          margin-top: 24px;
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+
         .eng-dashboard-header {
-          background: linear-gradient(135deg, #0097A7 0%, #00838F 100%);
+          background: rgba(15, 23, 42, 0.6);
           padding: 20px 24px;
-          border-radius: 12px;
+          border-radius: 16px;
           margin-bottom: 24px;
           display: flex;
           justify-content: space-between;
           align-items: center;
-          box-shadow: 0 4px 20px rgba(0, 151, 167, 0.25);
-          border: 1px solid rgba(0, 188, 212, 0.3);
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+          border: 1px solid rgba(255, 255, 255, 0.08);
         }
 
         .eng-header-left {
@@ -430,29 +455,30 @@ const EngineeringDashboard = () => {
         .eng-header-icon {
           width: 44px;
           height: 44px;
-          background: rgba(255, 255, 255, 0.15);
+          background: rgba(0, 188, 212, 0.12);
+          border: 1px solid rgba(0, 188, 212, 0.25);
           border-radius: 10px;
           display: flex;
           align-items: center;
           justify-content: center;
-          color: white;
-          backdrop-filter: blur(8px);
+          color: #22d3ee;
+          flex-shrink: 0;
         }
 
         .eng-header-text h2 {
           margin: 0 0 2px 0;
-          color: white;
-          font-size: 20px;
+          color: #f1f5f9;
+          font-size: 24px;
           font-weight: 700;
-          font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
-          letter-spacing: -0.3px;
+          font-family: var(--font-display, 'Outfit'), -apple-system, BlinkMacSystemFont, sans-serif;
+          letter-spacing: -0.01em;
         }
 
         .eng-header-text p {
           margin: 0;
-          color: rgba(255, 255, 255, 0.7);
+          color: #94a3b8;
           font-size: 13px;
-          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+          font-family: var(--font-body, 'Inter'), -apple-system, BlinkMacSystemFont, sans-serif;
         }
 
         .eng-ws-badge {

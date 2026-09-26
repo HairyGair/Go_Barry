@@ -101,11 +101,14 @@ const TrendingIssuesList = ({ trends = [], loading }) => {
       return [];
     }
 
+    // /api/defects/trends returns camelCase fields (defectType, currentCount,
+    // changePercent) rather than the issue_type/count/change shape the demo
+    // fixtures used - map both so real data renders instead of "Unknown".
     return trends
       .map(trend => ({
-        name: trend.issue_type || trend.category || trend.name || 'Unknown',
-        count: trend.count || trend.defect_count || 0,
-        change: trend.change || trend.trend || trend.weekly_change || 0,
+        name: trend.defectType || trend.issue_type || trend.category || trend.name || 'Unknown',
+        count: trend.currentCount ?? trend.count ?? trend.defect_count ?? 0,
+        change: trend.changePercent ?? trend.change ?? trend.trend ?? trend.weekly_change ?? 0,
       }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 6);

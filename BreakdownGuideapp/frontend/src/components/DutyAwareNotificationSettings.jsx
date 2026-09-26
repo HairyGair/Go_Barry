@@ -10,6 +10,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { Bell, CheckCircle2, Ban, ClipboardList, Clock, Siren, Lightbulb } from 'lucide-react';
 import notificationService from '../services/notificationService.js';
 import './DutyAwareNotificationSettings.css';
 
@@ -109,7 +110,7 @@ const DutyAwareNotificationSettings = () => {
   return (
     <div className="duty-aware-settings">
       <div className="duty-aware-settings__header">
-        <span className="duty-aware-settings__icon">&#x1F514;</span>
+        <Bell className="duty-aware-settings__icon" size={22} />
         <div>
           <h3 className="duty-aware-settings__title">Duty-Aware Notifications</h3>
           <p className="duty-aware-settings__subtitle">
@@ -122,7 +123,7 @@ const DutyAwareNotificationSettings = () => {
       <div className="duty-aware-settings__status">
         <div className={`duty-status-indicator ${settings.isOnDuty ? 'on-duty' : 'off-duty'}`}>
           <span className="duty-status-indicator__icon">
-            {settings.isOnDuty ? '&#x2705;' : '&#x26D4;'}
+            {settings.isOnDuty ? <CheckCircle2 size={18} /> : <Ban size={18} />}
           </span>
           <div className="duty-status-indicator__text">
             <span className="duty-status-indicator__label">Current Status</span>
@@ -134,7 +135,7 @@ const DutyAwareNotificationSettings = () => {
 
         {dutyInfo && (
           <div className="duty-status-indicator duty-info">
-            <span className="duty-status-indicator__icon">&#x1F4CB;</span>
+            <ClipboardList className="duty-status-indicator__icon" size={18} />
             <div className="duty-status-indicator__text">
               <span className="duty-status-indicator__label">Current Duty</span>
               <span className="duty-status-indicator__value">
@@ -151,7 +152,7 @@ const DutyAwareNotificationSettings = () => {
         <div className="duty-aware-settings__option">
           <div className="option-info">
             <div className="option-header">
-              <span className="option-icon">&#x1F551;</span>
+              <Clock className="option-icon" size={16} />
               <span className="option-title">Duty-Aware Mode</span>
             </div>
             <p className="option-description">
@@ -172,7 +173,7 @@ const DutyAwareNotificationSettings = () => {
         <div className={`duty-aware-settings__option ${!settings.dutyAwareEnabled ? 'disabled' : ''}`}>
           <div className="option-info">
             <div className="option-header">
-              <span className="option-icon">&#x1F6A8;</span>
+              <Siren className="option-icon" size={16} />
               <span className="option-title">Emergency Override</span>
             </div>
             <p className="option-description">
@@ -193,7 +194,7 @@ const DutyAwareNotificationSettings = () => {
 
       {/* Info Box */}
       <div className="duty-aware-settings__info-box">
-        <span className="info-icon">&#x1F4A1;</span>
+        <Lightbulb className="info-icon" size={16} />
         <div className="info-content">
           <strong>How it works:</strong>
           <ul>
@@ -213,14 +214,14 @@ const DutyAwareNotificationSettings = () => {
             onClick={handleTestNotification}
             disabled={testSending}
           >
-            {testSending ? '...' : '&#x1F514;'} Send Test
+            {testSending ? '...' : <Bell size={15} />} Send Test
           </button>
           <button
             className="test-button test-button--emergency"
             onClick={handleTestEmergency}
             disabled={testSending}
           >
-            {testSending ? '...' : '&#x1F6A8;'} Test Emergency
+            {testSending ? '...' : <Siren size={15} />} Test Emergency
           </button>
         </div>
         <p className="test-description">

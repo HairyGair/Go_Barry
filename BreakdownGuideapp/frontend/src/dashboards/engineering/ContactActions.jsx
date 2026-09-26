@@ -7,6 +7,7 @@
  */
 
 import React, { useState } from 'react';
+import { User, Phone, MessageSquare, Copy, Check, Mail, Building2, ClipboardList } from 'lucide-react';
 
 const ContactActions = ({ breakdown }) => {
   const [copied, setCopied] = useState(false);
@@ -47,7 +48,7 @@ const ContactActions = ({ breakdown }) => {
   return (
     <div className="contact-actions">
       <div className="contact-section">
-        <h4 className="contact-title">👤 Supervisor Contact</h4>
+        <h4 className="contact-title"><User size={12} className="contact-title-icon" /> Supervisor Contact</h4>
         <div className="contact-info">
           <div className="contact-name">{supervisorName}</div>
           {supervisorBadge && (
@@ -62,21 +63,21 @@ const ContactActions = ({ breakdown }) => {
               className="contact-btn call"
               title="Call supervisor"
             >
-              📞 Call
+              <Phone size={14} /> Call
             </a>
             <a
               href={`sms:${formatPhoneLink(supervisorPhone)}`}
               className="contact-btn sms"
               title="Send SMS"
             >
-              💬 SMS
+              <MessageSquare size={14} /> SMS
             </a>
             <button
               onClick={() => handleCopy(supervisorPhone, 'phone')}
               className="contact-btn copy"
               title="Copy phone number"
             >
-              {copied === 'phone' ? '✓ Copied!' : '📋 Copy'}
+              {copied === 'phone' ? <><Check size={14} /> Copied!</> : <><Copy size={14} /> Copy</>}
             </button>
           </div>
         ) : (
@@ -88,28 +89,28 @@ const ContactActions = ({ breakdown }) => {
             href={`mailto:${supervisorEmail}?subject=Breakdown ${breakdown.breakdown_id} - Fleet ${breakdown.fleet_no}`}
             className="contact-btn email"
           >
-            📧 Email Supervisor
+            <Mail size={14} /> Email Supervisor
           </a>
         )}
       </div>
 
       {depotPhone && (
         <div className="contact-section">
-          <h4 className="contact-title">🏢 {depotName} Depot</h4>
+          <h4 className="contact-title"><Building2 size={12} className="contact-title-icon" /> {depotName} Depot</h4>
           <div className="contact-buttons">
             <a
               href={`tel:${formatPhoneLink(depotPhone)}`}
               className="contact-btn call"
               title="Call depot"
             >
-              📞 {depotPhone}
+              <Phone size={14} /> {depotPhone}
             </a>
             <button
               onClick={() => handleCopy(depotPhone, 'depot')}
               className="contact-btn copy"
               title="Copy depot number"
             >
-              {copied === 'depot' ? '✓ Copied!' : '📋 Copy'}
+              {copied === 'depot' ? <><Check size={14} /> Copied!</> : <><Copy size={14} /> Copy</>}
             </button>
           </div>
         </div>
@@ -117,7 +118,7 @@ const ContactActions = ({ breakdown }) => {
 
       {/* Breakdown Reference */}
       <div className="contact-section reference">
-        <h4 className="contact-title">📋 Breakdown Reference</h4>
+        <h4 className="contact-title"><ClipboardList size={12} className="contact-title-icon" /> Breakdown Reference</h4>
         <div className="reference-info">
           <div className="reference-id">{breakdown.breakdown_id}</div>
           <button
@@ -125,7 +126,7 @@ const ContactActions = ({ breakdown }) => {
             className="contact-btn copy small"
             title="Copy breakdown ID"
           >
-            {copied === 'id' ? '✓' : '📋'}
+            {copied === 'id' ? <Check size={14} /> : <Copy size={14} />}
           </button>
         </div>
       </div>
@@ -152,12 +153,19 @@ const ContactActions = ({ breakdown }) => {
         }
 
         .contact-title {
+          display: flex;
+          align-items: center;
+          gap: 5px;
           margin: 0;
-          color: #999;
+          color: #94a3b8;
           font-size: 11px;
           font-weight: 600;
           text-transform: uppercase;
           letter-spacing: 0.5px;
+        }
+
+        .contact-title-icon {
+          flex-shrink: 0;
         }
 
         .contact-info {
@@ -173,7 +181,7 @@ const ContactActions = ({ breakdown }) => {
         }
 
         .contact-badge {
-          color: #64b5f6;
+          color: #22d3ee;
           font-size: 12px;
           font-family: monospace;
         }

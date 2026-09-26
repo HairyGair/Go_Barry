@@ -4,6 +4,7 @@
  */
 
 import React from 'react';
+import { User, Info, ShieldCheck } from 'lucide-react';
 
 const ProfileSettings = ({ user }) => {
   // Format date for display
@@ -20,13 +21,13 @@ const ProfileSettings = ({ user }) => {
 
   return (
     <div className="settings-section">
-      <h2>👤 Profile & Account</h2>
+      <h2><User size={18} /> Profile & Account</h2>
       <p className="section-description">
         View and manage your profile information. Some fields are managed by your administrator.
       </p>
 
       <div className="info-box">
-        <p>💡 To update your email, name, or depot assignment, please contact your system administrator.</p>
+        <p><Info size={15} style={{ verticalAlign: '-2px', marginRight: '6px' }} />To update your email, name, or depot assignment, please contact your system administrator.</p>
       </div>
 
       {/* Display Name */}
@@ -103,14 +104,19 @@ const ProfileSettings = ({ user }) => {
         </div>
         <div className="setting-control">
           <span className="role-badge" style={{
-            padding: '6px 12px',
+            padding: '6px 14px',
             background: user?.role === 'admin'
-              ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
+              ? 'rgba(239, 68, 68, 0.14)'
               : user?.role === 'manager'
-              ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
-              : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-            color: 'white',
-            borderRadius: '6px',
+              ? 'rgba(245, 158, 11, 0.14)'
+              : 'rgba(0, 188, 212, 0.14)',
+            color: user?.role === 'admin'
+              ? '#f87171'
+              : user?.role === 'manager'
+              ? '#fbbf24'
+              : '#5eead4',
+            boxShadow: `inset 0 0 0 1px ${user?.role === 'admin' ? 'rgba(239, 68, 68, 0.35)' : user?.role === 'manager' ? 'rgba(245, 158, 11, 0.35)' : 'rgba(0, 188, 212, 0.35)'}`,
+            borderRadius: '20px',
             fontWeight: '600',
             fontSize: '13px',
             textTransform: 'capitalize'
@@ -156,7 +162,7 @@ const ProfileSettings = ({ user }) => {
 
       {/* Account Actions */}
       <div className="settings-section" style={{ marginTop: '40px' }}>
-        <h2>🔐 Account Actions</h2>
+        <h2><ShieldCheck size={18} /> Account Actions</h2>
         <p className="section-description">
           Manage your account security and preferences
         </p>

@@ -7,6 +7,7 @@
  */
 
 import React from 'react';
+import { MapPin, Navigation } from 'lucide-react';
 
 const NavigationButton = ({ breakdown, variant = 'button' }) => {
   // Extract location data
@@ -92,11 +93,11 @@ const NavigationButton = ({ breakdown, variant = 'button' }) => {
     return (
       <div className="navigation-inline">
         <div className="location-text">
-          <span className="location-icon">📍</span>
+          <MapPin className="location-icon" size={16} />
           <span className="location-value">{getLocationDisplay()}</span>
         </div>
         <button onClick={handleNavigate} className="nav-btn-inline">
-          🧭 Navigate
+          <Navigation size={14} /> Navigate
         </button>
 
         <style>{`
@@ -133,7 +134,7 @@ const NavigationButton = ({ breakdown, variant = 'button' }) => {
           }
 
           .nav-btn-inline {
-            background: #3b82f6;
+            background: #00bcd4;
             color: white;
             border: none;
             border-radius: 6px;
@@ -149,7 +150,7 @@ const NavigationButton = ({ breakdown, variant = 'button' }) => {
           }
 
           .nav-btn-inline:hover {
-            background: #2563eb;
+            background: #0097a7;
             transform: translateY(-1px);
             box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
           }
@@ -177,13 +178,13 @@ const NavigationButton = ({ breakdown, variant = 'button' }) => {
   // Button variant
   return (
     <button onClick={handleNavigate} className="navigation-button">
-      🧭 Navigate to Location
+      <Navigation size={16} /> Navigate to Location
 
       <style>{`
         .navigation-button {
           width: 100%;
           padding: 10px 16px;
-          background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+          background: linear-gradient(135deg, #00bcd4 0%, #0097a7 100%);
           color: white;
           border: none;
           border-radius: 6px;

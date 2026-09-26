@@ -24,6 +24,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { MapPin, Map as MapIcon, CheckCircle2, AlertTriangle, Smartphone, Bell, BellOff } from 'lucide-react';
 import { apiClient } from '../../services/api-client';
 import useConnectionManager from '../../hooks/useConnectionManager';
 import GairWareLogo from '../../components/GairWareLogo';
@@ -670,7 +671,7 @@ const ControlRoomDisplay = () => {
               {lastBusAlerts[currentBreakdown.breakdown_id || currentBreakdown.id] && (
                 <div className="last-bus-alert-cr">
                   <div className="last-bus-alert-cr-main">
-                    <span className="last-bus-alert-cr-icon">&#x1F6A8;</span>
+                    <AlertTriangle className="last-bus-alert-cr-icon" strokeWidth={2} />
                     <span className="last-bus-alert-cr-text">
                       LAST BUS AT RISK: {lastBusAlerts[currentBreakdown.breakdown_id || currentBreakdown.id]
                         .map(b => `${b.departureTime?.substring(0, 5)} towards ${b.headsign}`)
@@ -678,7 +679,8 @@ const ControlRoomDisplay = () => {
                     </span>
                   </div>
                   <div className="last-bus-alert-cr-social">
-                    &#x1F4F1; UPDATE SOCIAL MEDIA &mdash; Advise passengers of prospective delays on this route
+                    <Smartphone size={14} style={{ verticalAlign: '-2px', marginRight: '6px' }} />
+                    UPDATE SOCIAL MEDIA &mdash; Advise passengers of prospective delays on this route
                   </div>
                 </div>
               )}
@@ -964,7 +966,7 @@ const ControlRoomDisplay = () => {
                 if (!isValidLat || !isValidLng) {
                   return (
                     <div className="map-error">
-                      <div className="map-error-icon">📍</div>
+                      <MapPin className="map-error-icon" strokeWidth={1.5} />
                       <div className="map-error-text">Location Unavailable</div>
                     </div>
                   );
@@ -976,7 +978,7 @@ const ControlRoomDisplay = () => {
                 if (!apiKey) {
                   return (
                     <div className="map-error">
-                      <div className="map-error-icon">🗺️</div>
+                      <MapIcon className="map-error-icon" strokeWidth={1.5} />
                       <div className="map-error-text">Map API Key Missing</div>
                     </div>
                   );
@@ -1000,7 +1002,7 @@ const ControlRoomDisplay = () => {
                       e.target.style.display = 'none';
                       const errorDiv = document.createElement('div');
                       errorDiv.className = 'map-error';
-                      errorDiv.innerHTML = '<div class="map-error-icon">🗺️</div><div class="map-error-text">Map Load Failed<br/><small>Check API key & Static Maps API</small></div>';
+                      errorDiv.innerHTML = '<svg class="map-error-icon" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15"/><path d="M9 3.236v15"/></svg><div class="map-error-text">Map Load Failed<br/><small>Check API key &amp; Static Maps API</small></div>';
                       e.target.parentElement.appendChild(errorDiv);
                     }}
                     onLoad={() => {
@@ -1014,7 +1016,7 @@ const ControlRoomDisplay = () => {
           </>
         ) : (
           <div className="no-breakdowns">
-            <div className="no-breakdowns-icon">✅</div>
+            <CheckCircle2 className="no-breakdowns-icon" strokeWidth={1.5} />
             <h2>No Active Breakdowns</h2>
             <p>All systems operational</p>
           </div>
@@ -1062,11 +1064,11 @@ const ControlRoomDisplay = () => {
             onClick={() => setSoundEnabled(!soundEnabled)}
             title={soundEnabled ? 'Sound alerts ON - Click to mute' : 'Sound alerts OFF - Click to enable'}
           >
-            {soundEnabled ? '🔔' : '🔕'}
+            {soundEnabled ? <Bell size={16} /> : <BellOff size={16} />}
           </button>
         </div>
         <div className="footer-watermark">
-          <GairWareLogo height={16} variant="mono" style={{ opacity: 0.15 }} />
+          <GairWareLogo height={16} variant="mono" style={{ opacity: 0.6 }} />
           <span className="watermark-text">GairWare</span>
         </div>
         <div className="footer-hosting">

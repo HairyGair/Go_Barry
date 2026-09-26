@@ -3,7 +3,7 @@
  * Two-step flow: Selection > Confirmation
  * Features: Smart recommendations, live clock, supervisor greeting,
  *           duty locking, admin override, compliance settings
- * Updated: February 2026 - Redesigned with boiga/aileron typography
+ * Updated: February 2026 - Redesigned with Outfit/Inter typography
  */
 
 import React, { useState, useEffect } from 'react';
@@ -11,6 +11,8 @@ import './DutySelectionModal.css';
 import { DutyBadge } from './icons/DutyBadgeIcons';
 
 // Duty shift definitions - the operator Standard Shifts
+// Accent colours stay within the brand teal/cyan family (no off-brand
+// blue/amber/purple) — only depth varies between shifts.
 const DUTY_SHIFTS = [
     {
         code: '100',
@@ -18,8 +20,8 @@ const DUTY_SHIFTS = [
         startTime: '06:00',
         endTime: '15:30',
         duration: '9h 30m',
-        gradient: 'linear-gradient(135deg, #3B82F6, #60A5FA)',
-        color: '#3B82F6',
+        gradient: 'linear-gradient(135deg, #00ACC1, #26C6DA)',
+        color: '#00ACC1',
         description: 'Morning operations coverage',
         tasks: ['Morning vehicle checks', 'Peak hour support', 'School run coverage']
     },
@@ -29,8 +31,8 @@ const DUTY_SHIFTS = [
         startTime: '07:30',
         endTime: '17:00',
         duration: '9h 30m',
-        gradient: 'linear-gradient(135deg, #10B981, #34D399)',
-        color: '#10B981',
+        gradient: 'linear-gradient(135deg, #0097A7, #00BCD4)',
+        color: '#00BCD4',
         description: 'Core day operations',
         tasks: ['Standard operations', 'Midday changeovers', 'Service monitoring']
     },
@@ -40,8 +42,8 @@ const DUTY_SHIFTS = [
         startTime: '12:30',
         endTime: '22:00',
         duration: '9h 30m',
-        gradient: 'linear-gradient(135deg, #F59E0B, #FCD34D)',
-        color: '#F59E0B',
+        gradient: 'linear-gradient(135deg, #00838F, #00ACC1)',
+        color: '#00838F',
         description: 'Afternoon to evening coverage',
         tasks: ['Evening peak support', 'Late service monitoring', 'Night prep']
     },
@@ -51,8 +53,8 @@ const DUTY_SHIFTS = [
         startTime: '14:45',
         endTime: '00:15',
         duration: '9h 30m',
-        gradient: 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
-        color: '#8B5CF6',
+        gradient: 'linear-gradient(135deg, #006064, #00838F)',
+        color: '#006064',
         description: 'Evening to midnight operations',
         tasks: ['Night service coverage', 'Last bus monitoring', 'Start of Service report at 00:00']
     }
@@ -578,7 +580,7 @@ const DutySelectionModal = ({ onDutySelected, currentUser, onClose }) => {
                                     </div>
                                 ) : (
                                     <div className="dsm-mandatory-notice">
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#22d3ee" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                             <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                                             <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                                         </svg>

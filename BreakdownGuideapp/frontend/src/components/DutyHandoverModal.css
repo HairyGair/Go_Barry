@@ -68,11 +68,10 @@
 }
 
 .handover-modal__icon {
-  font-size: 1.5rem;
-  background: linear-gradient(135deg, #3B82F6, #8B5CF6);
-  -webkit-background-clip: text;
-  background-clip: text;
-  /* Keep emoji visible */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #22d3ee;
 }
 
 .handover-modal__title h2 {
@@ -141,7 +140,7 @@
 }
 
 .handover-progress-step.active .handover-progress-number {
-  background: linear-gradient(135deg, #3B82F6, #8B5CF6);
+  background: linear-gradient(135deg, #0097A7, #00BCD4);
   border-color: transparent;
   color: white;
 }
@@ -200,8 +199,10 @@
 }
 
 .handover-empty__icon {
-  font-size: 3rem;
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #10b981;
   margin-bottom: 16px;
 }
 
@@ -265,8 +266,8 @@
 }
 
 .handover-breakdown-item.selected {
-  border-color: #3B82F6;
-  background: rgba(59, 130, 246, 0.1);
+  border-color: #00BCD4;
+  background: rgba(0, 188, 212, 0.1);
 }
 
 .handover-breakdown-checkbox {
@@ -278,7 +279,7 @@
 .handover-breakdown-checkbox input {
   width: 20px;
   height: 20px;
-  accent-color: #3B82F6;
+  accent-color: #00BCD4;
   cursor: pointer;
 }
 
@@ -318,6 +319,9 @@
 
 .handover-breakdown-location,
 .handover-breakdown-time {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   margin: 0 0 4px;
   font-size: 0.8125rem;
   color: rgba(255, 255, 255, 0.6);
@@ -354,7 +358,7 @@
 .handover-general-notes textarea:focus,
 .handover-note-item textarea:focus {
   outline: none;
-  border-color: #3B82F6;
+  border-color: #00BCD4;
 }
 
 .handover-general-notes textarea::placeholder,
@@ -412,7 +416,7 @@
 
 .handover-supervisor-select select:focus {
   outline: none;
-  border-color: #3B82F6;
+  border-color: #00BCD4;
 }
 
 .handover-supervisor-select select option {
@@ -477,6 +481,9 @@
 }
 
 .handover-summary-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 0.75rem;
   color: rgba(255, 255, 255, 0.5);
   margin-left: auto;
@@ -525,13 +532,13 @@
 }
 
 .handover-btn--primary {
-  background: linear-gradient(135deg, #3B82F6, #8B5CF6);
+  background: linear-gradient(135deg, #0097A7, #00BCD4);
   color: white;
 }
 
 .handover-btn--primary:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 4px 12px rgba(0, 188, 212, 0.35);
 }
 
 .handover-btn--secondary {
@@ -578,7 +585,7 @@
   width: 40px;
   height: 40px;
   border: 3px solid rgba(255, 255, 255, 0.1);
-  border-top-color: #3B82F6;
+  border-top-color: #00BCD4;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }

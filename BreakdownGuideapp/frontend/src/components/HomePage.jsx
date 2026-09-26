@@ -7,6 +7,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AlertTriangle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import LiveActivityFeed from './LiveActivityFeed.jsx';
 import WeatherWidget from './WeatherWidget.jsx';
@@ -217,7 +218,7 @@ const HomePage = ({ onStatsChange, currentDuty: propDuty }) => {
             className={`hp-emergency-btn ${hasActiveBreakdowns ? 'hp-emergency-btn--active' : ''}`}
             onClick={() => navigate('/breakdown-guide')}
           >
-            <span className="hp-emergency-icon">⚠</span>
+            <span className="hp-emergency-icon"><AlertTriangle size={17} /></span>
             <span>Report Breakdown</span>
           </button>
         )}

@@ -35,9 +35,11 @@
   background-image: none !important;
 }
 
-/* Remove any legacy gradient styles */
-[class*="gradient"],
-[style*="gradient"] {
+/* Remove any legacy gradient styles — scoped to the engineering dashboard.
+   (This file is imported globally; unscoped, it stripped every inline gradient
+   across the whole app.) */
+.engineering-dashboard [class*="gradient"],
+.engineering-dashboard [style*="gradient"] {
   background-image: none !important;
 }
 

@@ -112,7 +112,7 @@ const RoadTrafficIncidentsWizardSimple = ({ currentStep, responses = {}, updateR
                     console.log('Step 1 Next clicked');
                     if (onNext) onNext();
                 }}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500"
+                className="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500"
             >
                 Go to Step 2
             </button>

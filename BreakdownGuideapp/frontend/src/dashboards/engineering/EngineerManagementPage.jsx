@@ -508,28 +508,41 @@ const RosterTab = ({ roster, onRefresh }) => {
 
 const empStyles = `
   .emp-header {
-    background: linear-gradient(135deg, #0097A7 0%, #00838F 100%);
+    background: rgba(15, 23, 42, 0.6);
     padding: 20px 24px;
-    border-radius: 12px;
+    border-radius: 16px;
     margin-bottom: 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: 0 4px 20px rgba(0,151,167,0.25);
-    border: 1px solid rgba(0,188,212,0.3);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.08);
   }
 
   .emp-header-left {
-    display: flex; align-items: center; gap: 14px; color: white;
+    display: flex; align-items: center; gap: 14px; color: #f1f5f9;
+  }
+
+  .emp-header-left svg {
+    width: 44px; height: 44px;
+    padding: 10px;
+    box-sizing: border-box;
+    background: rgba(0, 188, 212, 0.12);
+    border: 1px solid rgba(0, 188, 212, 0.25);
+    border-radius: 10px;
+    color: #22d3ee;
+    flex-shrink: 0;
   }
 
   .emp-header-left h2 {
-    margin: 0; font-size: 20px; font-weight: 700;
+    margin: 0; font-size: 24px; font-weight: 700;
     font-family: 'Outfit', sans-serif;
+    letter-spacing: -0.01em;
+    color: #f1f5f9;
   }
 
   .emp-header-left p {
-    margin: 2px 0 0; color: rgba(255,255,255,0.7);
+    margin: 2px 0 0; color: #94a3b8;
     font-size: 13px; font-family: 'Inter', sans-serif;
   }
 
@@ -641,7 +654,7 @@ const empStyles = `
   /* Engineer cards */
   .emp-card-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 12px;
   }
 

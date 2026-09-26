@@ -27,6 +27,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { MapPin, Map as MapIcon, CheckCircle2, AlertTriangle, HardHat } from 'lucide-react';
 import { apiClient } from '../../services/api-client';
 import websocketService from '../../services/websocket';
 import GairWareLogo from '../../components/GairWareLogo';
@@ -227,27 +228,36 @@ const EngineeringDisplay = () => {
       .join(' ');
   };
 
-  // Extract coordinates from location string
+  // Extract coordinates from whichever source the breakdown actually has.
+  // The plain `/api/public/breakdowns` endpoint (used here) doesn't project
+  // location_lat/location_lng the way `/breakdowns/live` does, but it does
+  // pass through the raw wizard_assessment_data blob — so check that first.
   const extractCoordinates = (breakdown) => {
-    const location = breakdown.location || breakdown.location_description;
-
-    if (!location) return null;
-
-    // Check if it's "Ticketer Location (lat, lng)" format
-    const coordMatch = location.match(/Ticketer Location \(([^,]+),\s*([^)]+)\)/);
-    if (coordMatch) {
-      return {
-        lat: parseFloat(coordMatch[1]),
-        lng: parseFloat(coordMatch[2])
-      };
+    const wCoords = breakdown.wizard_assessment_data?.location_coords;
+    const wLat = wCoords?.latitude ?? wCoords?.lat;
+    const wLng = wCoords?.longitude ?? wCoords?.lng;
+    if (wLat && wLng) {
+      return { lat: parseFloat(wLat), lng: parseFloat(wLng) };
     }
 
-    // Check if breakdown has separate lat/lng fields
+    // Direct lat/lng columns, when the API does provide them
     if (breakdown.location_lat && breakdown.location_lng) {
       return {
         lat: parseFloat(breakdown.location_lat),
         lng: parseFloat(breakdown.location_lng)
       };
+    }
+
+    // Fall back to parsing a "Ticketer Location (lat, lng)" style string
+    const location = breakdown.location || breakdown.location_description;
+    if (location) {
+      const coordMatch = location.match(/Ticketer Location \(([^,]+),\s*([^)]+)\)/);
+      if (coordMatch) {
+        return {
+          lat: parseFloat(coordMatch[1]),
+          lng: parseFloat(coordMatch[2])
+        };
+      }
     }
 
     return null;
@@ -553,7 +563,7 @@ const EngineeringDisplay = () => {
       <div className="breakdowns-grid">
         {breakdowns.length === 0 ? (
           <div className="no-breakdowns">
-            <div className="no-breakdowns-icon">✓</div>
+            <CheckCircle2 className="no-breakdowns-icon" strokeWidth={1.5} />
             <div className="no-breakdowns-title">No Active Breakdowns</div>
             <div className="no-breakdowns-subtitle">All systems operational</div>
           </div>
@@ -600,8 +610,8 @@ const EngineeringDisplay = () => {
 
                 <div className="card-row">
                   <div className="card-label">Time Elapsed:</div>
-                  <div className="card-value time-value" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    {isUrgent(breakdown.created_at) && <span style={{ fontSize: '32px' }}>🚨</span>}
+                  <div className="card-value time-value" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {isUrgent(breakdown.created_at) && <AlertTriangle size={20} color="#ef4444" strokeWidth={2} />}
                     {getTimeElapsed(breakdown.created_at)}
                   </div>
                 </div>
@@ -627,8 +637,9 @@ const EngineeringDisplay = () => {
                 {breakdown.engineer_name && (
                   <div className="card-row engineer-row">
                     <div className="card-label">Engineer:</div>
-                    <div className="card-value engineer-value">
-                      👷 {breakdown.engineer_name}
+                    <div className="card-value engineer-value" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <HardHat size={16} strokeWidth={2} />
+                      {breakdown.engineer_name}
                     </div>
                   </div>
                 )}
@@ -642,14 +653,14 @@ const EngineeringDisplay = () => {
               </div>
 
               {/* RIGHT COLUMN: Map */}
-              <div className="card-map-column">
+              <div className={`card-map-column ${!extractCoordinates(breakdown) ? 'card-map-column--empty' : ''}`}>
                 {(() => {
                   const coords = extractCoordinates(breakdown);
 
                   if (!coords || !coords.lat || !coords.lng) {
                     return (
                       <div className="card-map-error">
-                        <div className="map-error-icon">📍</div>
+                        <MapPin className="map-error-icon" strokeWidth={1.5} />
                         <div className="map-error-text">No Location Data</div>
                       </div>
                     );
@@ -660,7 +671,7 @@ const EngineeringDisplay = () => {
                   if (!GOOGLE_MAPS_API_KEY) {
                     return (
                       <div className="card-map-error">
-                        <div className="map-error-icon">🗺️</div>
+                        <MapIcon className="map-error-icon" strokeWidth={1.5} />
                         <div className="map-error-text">Map API Key Missing</div>
                       </div>
                     );
@@ -684,7 +695,7 @@ const EngineeringDisplay = () => {
                           e.target.style.display = 'none';
                           const errorDiv = document.createElement('div');
                           errorDiv.className = 'card-map-error';
-                          errorDiv.innerHTML = '<div class="map-error-icon">🗺️</div><div class="map-error-text">Map Unavailable</div>';
+                          errorDiv.innerHTML = '<svg class="map-error-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15"/><path d="M9 3.236v15"/></svg><div class="map-error-text">Map Unavailable</div>';
                           e.target.parentElement.appendChild(errorDiv);
                         }}
                         onLoad={() => {
@@ -707,7 +718,7 @@ const EngineeringDisplay = () => {
             Display ID: {displayId} | Auto-refresh: 30s
           </div>
           <div className="footer-watermark">
-            <GairWareLogo height={16} variant="mono" style={{ opacity: 0.15 }} />
+            <GairWareLogo height={16} variant="mono" style={{ opacity: 0.6 }} />
             <span className="watermark-text">GairWare</span>
           </div>
           <div className="footer-hosting">

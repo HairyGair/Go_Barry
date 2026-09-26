@@ -1,4 +1,5 @@
 import React from 'react';
+import { CircleAlert } from 'lucide-react';
 import './ErrorAlert.css';
 
 /**
@@ -18,7 +19,7 @@ export const ErrorAlert = ({ error, onRetry, onDismiss }) => {
   return (
     <div className="error-alert">
       <div className="error-alert-content">
-        <span className="error-icon">❌</span>
+        <span className="error-icon"><CircleAlert size={20} strokeWidth={2} aria-hidden="true" /></span>
         <div className="error-text">
           <strong>Error</strong>
           <p>{error.message || error}</p>

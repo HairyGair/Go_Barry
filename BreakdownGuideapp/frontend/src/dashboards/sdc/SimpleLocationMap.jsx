@@ -2,6 +2,7 @@
 // This shows a map even without exact coordinates
 
 import React from 'react';
+import { MapPin } from 'lucide-react';
 
 const SimpleLocationMap = ({ location, fleetNumber, depot }) => {
   // Default center points - VERIFIED from OpenStreetMap (December 2025)
@@ -46,7 +47,7 @@ const SimpleLocationMap = ({ location, fleetNumber, depot }) => {
   return (
     <div className="simple-map-container">
       <div className="map-header">
-        <span className="map-title">📍 Breakdown Location</span>
+        <span className="map-title"><MapPin size={13} style={{ verticalAlign: '-2px' }} /> Breakdown Location</span>
         <span className="map-fleet">Fleet {fleetNumber}</span>
       </div>
       
@@ -81,10 +82,10 @@ const SimpleLocationMap = ({ location, fleetNumber, depot }) => {
 
       <style jsx>{`
         .simple-map-container {
-          background: #f8fafc;
+          background: rgba(255, 255, 255, 0.03);
           border-radius: 8px;
           overflow: hidden;
-          border: 1px solid #e5e7eb;
+          border: 1px solid rgba(255, 255, 255, 0.08);
           margin-top: 8px;
         }
 
@@ -93,43 +94,43 @@ const SimpleLocationMap = ({ location, fleetNumber, depot }) => {
           justify-content: space-between;
           align-items: center;
           padding: 8px 12px;
-          background: white;
-          border-bottom: 1px solid #e5e7eb;
+          background: rgba(255, 255, 255, 0.02);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.07);
         }
 
         .map-title {
           font-size: 12px;
           font-weight: 600;
-          color: #374151;
+          color: #e2e8f0;
         }
 
         .map-fleet {
           font-size: 11px;
-          color: #6b7280;
+          color: #94a3b8;
           font-weight: 500;
         }
 
         .map-frame {
           position: relative;
           width: 100%;
-          background: #e5e7eb;
+          background: rgba(0, 0, 0, 0.3);
         }
 
         .map-details {
           padding: 8px 12px;
-          background: white;
-          border-top: 1px solid #e5e7eb;
+          background: rgba(255, 255, 255, 0.02);
+          border-top: 1px solid rgba(255, 255, 255, 0.07);
         }
 
         .location-text {
           font-size: 12px;
-          color: #374151;
+          color: #cbd5e1;
           margin-bottom: 6px;
         }
 
         .map-google-link {
           font-size: 11px;
-          color: #3b82f6;
+          color: #38bdf8;
           text-decoration: none;
           font-weight: 500;
         }

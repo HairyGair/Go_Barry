@@ -12,6 +12,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { Bell, Ban, AlertTriangle, CheckCircle2, XCircle, Check, Unlock, Send, Info } from 'lucide-react';
 import shiftReminderService, { SHIFTS } from '../services/shiftReminderService';
 import './ShiftReminderSettings.css';
 
@@ -118,13 +119,13 @@ const ShiftReminderSettings = () => {
   const getPermissionBadge = () => {
     switch (permissionStatus) {
       case 'granted':
-        return <span className="permission-badge granted">✅ Enabled</span>;
+        return <span className="permission-badge granted"><CheckCircle2 size={13} aria-hidden="true" /> Enabled</span>;
       case 'denied':
-        return <span className="permission-badge denied">🚫 Blocked</span>;
+        return <span className="permission-badge denied"><Ban size={13} aria-hidden="true" /> Blocked</span>;
       case 'default':
-        return <span className="permission-badge default">⚠️ Not Set</span>;
+        return <span className="permission-badge default"><AlertTriangle size={13} aria-hidden="true" /> Not Set</span>;
       case 'unsupported':
-        return <span className="permission-badge unsupported">❌ Not Supported</span>;
+        return <span className="permission-badge unsupported"><XCircle size={13} aria-hidden="true" /> Not Supported</span>;
       default:
         return null;
     }
@@ -134,10 +135,10 @@ const ShiftReminderSettings = () => {
     return (
       <div className="shift-reminder-settings">
         <div className="settings-header">
-          <h3>🔔 Shift Reminders</h3>
+          <h3><Bell size={18} aria-hidden="true" /> Shift Reminders</h3>
         </div>
         <div className="unsupported-message">
-          <span className="unsupported-icon">❌</span>
+          <span className="unsupported-icon"><XCircle size={28} aria-hidden="true" /></span>
           <p>Your browser does not support push notifications.</p>
           <p className="unsupported-hint">Try using Chrome, Firefox, or Edge for full functionality.</p>
         </div>
@@ -149,7 +150,7 @@ const ShiftReminderSettings = () => {
     <div className="shift-reminder-settings">
       <div className="settings-header">
         <div className="settings-title">
-          <h3>🔔 Shift Reminders</h3>
+          <h3><Bell size={18} aria-hidden="true" /> Shift Reminders</h3>
           {getPermissionBadge()}
         </div>
         <p className="settings-description">
@@ -160,7 +161,7 @@ const ShiftReminderSettings = () => {
       {/* Permission Warning */}
       {permissionStatus === 'denied' && (
         <div className="permission-warning">
-          <span className="warning-icon">⚠️</span>
+          <span className="warning-icon"><AlertTriangle size={20} aria-hidden="true" /></span>
           <div className="warning-content">
             <strong>Notifications Blocked</strong>
             <p>You'll need to enable notifications in your browser settings to use shift reminders.</p>
@@ -205,7 +206,7 @@ const ShiftReminderSettings = () => {
               <span className="shift-name">{shift.name}</span>
               <span className="shift-time">{shift.start} - {shift.end}</span>
               {preferences.shifts.includes(code) && (
-                <span className="selected-check">✓</span>
+                <span className="selected-check"><Check size={14} aria-hidden="true" /></span>
               )}
             </button>
           ))}
@@ -269,7 +270,7 @@ const ShiftReminderSettings = () => {
             className="action-btn permission-btn"
             onClick={handleRequestPermission}
           >
-            🔓 Enable Notifications
+            <Unlock size={15} aria-hidden="true" /> Enable Notifications
           </button>
         )}
 
@@ -278,14 +279,14 @@ const ShiftReminderSettings = () => {
           onClick={handleTestNotification}
           disabled={permissionStatus !== 'granted'}
         >
-          🧪 Send Test Notification
+          <Send size={15} aria-hidden="true" /> Send Test Notification
         </button>
       </div>
 
       {/* Result Message */}
       {testResult && (
         <div className={`result-message ${testResult.type}`}>
-          {testResult.type === 'success' ? '✅' : testResult.type === 'error' ? '❌' : 'ℹ️'}
+          {testResult.type === 'success' ? <CheckCircle2 size={16} aria-hidden="true" /> : testResult.type === 'error' ? <XCircle size={16} aria-hidden="true" /> : <Info size={16} aria-hidden="true" />}
           {testResult.message}
         </div>
       )}

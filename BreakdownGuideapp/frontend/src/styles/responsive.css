@@ -11,12 +11,7 @@
    ============================================================================ */
 
 @media (max-width: 1023px) {
-  /* -- Navigation: collapse to hamburger -- */
-  .minimal-header-logo {
-    position: static;
-    margin-right: auto;
-  }
-
+  /* -- Navigation: logo pill stays fixed (shell provides --app-top-offset) -- */
   .user-menu-trigger .user-name {
     display: none; /* Hide name, show avatar only */
   }

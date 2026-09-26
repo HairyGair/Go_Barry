@@ -12,6 +12,10 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
+import {
+  ClipboardList, AlertTriangle, Hourglass, RefreshCw, User, Star,
+  Smartphone, OctagonAlert, CheckCircle2, MapPin, X, Volume2, VolumeX
+} from 'lucide-react';
 import DashboardLayout from '../components/DashboardLayout';
 import FilterBar from '../components/FilterBar';
 import EnhancedFilterBar from './EnhancedFilterBar';
@@ -199,27 +203,27 @@ const SDCDashboard = () => {
       { 
         value: 'all', 
         label: 'All Breakdowns', 
-        icon: '📋', 
+        icon: <ClipboardList size={18} />, 
         count: totalBreakdowns 
       },
       { 
         value: 'critical', 
         label: 'Critical', 
-        icon: '🚨', 
+        icon: <AlertTriangle size={18} />, 
         count: criticalCount,
         subtitle: criticalCount > 0 ? 'Immediate attention required' : 'No critical issues'
       },
       { 
         value: 'pending', 
         label: 'Pending Decision', 
-        icon: '⏳', 
+        icon: <Hourglass size={18} />, 
         count: pendingCount,
         subtitle: pendingCount > 0 ? 'Awaiting supervisor decision' : 'All acknowledged'
       },
       { 
         value: 'in-assessment', 
         label: 'In Assessment', 
-        icon: '🔄', 
+        icon: <RefreshCw size={18} />, 
         count: inAssessmentCount,
         subtitle: inAssessmentCount > 0 
           ? `${supervisorNames.length} supervisor${supervisorNames.length !== 1 ? 's' : ''} active • ${avgProgress}% avg progress`
@@ -233,7 +237,7 @@ const SDCDashboard = () => {
       { 
         value: 'my-breakdowns', 
         label: 'My Breakdowns', 
-        icon: '👤', 
+        icon: <User size={18} />, 
         count: myBreakdownsCount,
         subtitle: currentSupervisor 
           ? `Assigned to ${currentSupervisor.name || currentSupervisor.badge}`
@@ -242,7 +246,7 @@ const SDCDashboard = () => {
       { 
         value: 'priority-routes', 
         label: 'Priority Routes', 
-        icon: '⭐', 
+        icon: <Star size={18} />, 
         count: priorityRoutesCount,
         subtitle: priorityRoutesCount > 0 
           ? `X10, X21, 21, 56, 1 routes affected`
@@ -1595,7 +1599,7 @@ const SDCDashboard = () => {
         <div className="localStorage-notification">
           <div className="notification-content offline-mode">
             <div className="notification-header">
-              <span className="notification-icon">📱</span>
+              <span className="notification-icon"><Smartphone size={18} /></span>
               <h3>Offline Mode - Local Data</h3>
             </div>
             <div className="notification-message">
@@ -1612,15 +1616,16 @@ const SDCDashboard = () => {
           <div className="notification-content">
             <div className="notification-header">
               <span className="notification-icon">
-                {redirectNotification.decision === 'STOP' ? '🛑' : 
-                 redirectNotification.decision === 'AMBER' ? '⚠️' : '✅'}
+                {redirectNotification.decision === 'STOP' ? <OctagonAlert size={18} /> :
+                 redirectNotification.decision === 'AMBER' ? <AlertTriangle size={18} /> : <CheckCircle2 size={18} />}
               </span>
               <h3>Assessment Completed</h3>
-              <button 
+              <button
                 className="close-notification"
                 onClick={() => setRedirectNotification(null)}
+                aria-label="Dismiss"
               >
-                ×
+                <X size={16} />
               </button>
             </div>
             <div className="notification-details">
@@ -1651,7 +1656,7 @@ const SDCDashboard = () => {
             </div>
             <div className="notification-actions">
               <span className="scroll-hint">
-                📍 Breakdown highlighted below - auto-scrolling to location
+                <MapPin size={13} style={{ verticalAlign: '-2px' }} /> Breakdown highlighted below - auto-scrolling to location
               </span>
             </div>
           </div>
@@ -1841,7 +1846,7 @@ const SDCDashboard = () => {
               onClick={() => setFullScreenMap(false)}
               title="Close full-screen map"
             >
-              ✕ Close
+              <X size={15} /> Close
             </button>
           </div>
           <div className="fullscreen-map-container">
@@ -1892,7 +1897,7 @@ const SDCDashboard = () => {
                       </span>
                     </div>
                     <div className="card-location">
-                      📍 {breakdown.location_description || breakdown.location || 'Location TBC'}
+                      <MapPin size={12} style={{ verticalAlign: '-2px' }} /> {breakdown.location_description || breakdown.location || 'Location TBC'}
                     </div>
                     {expandedCard === breakdown.breakdown_id && (
                       <div className="card-details-mini">
@@ -1943,7 +1948,7 @@ const SDCDashboard = () => {
             onClick={handleSoundToggle}
             title={soundEnabled ? 'Click to disable sound alerts' : 'Click to enable sound alerts'}
           >
-            {soundEnabled ? '🔊' : '🔇'}
+            {soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
             <span className="sound-toggle-label">
               {soundEnabled ? 'Sound ON' : 'Sound OFF'}
             </span>

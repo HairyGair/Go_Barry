@@ -32,14 +32,6 @@ export default defineConfig({
               expiration: { maxEntries: 30, maxAgeSeconds: 86400 },
             },
           },
-          {
-            urlPattern: /^https:\/\/use\.typekit\.net\//,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'fonts-cache',
-              expiration: { maxEntries: 10, maxAgeSeconds: 31536000 },
-            },
-          },
         ],
       },
     }),

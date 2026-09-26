@@ -12,6 +12,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { Siren, AlertTriangle, X, Check, RefreshCw } from 'lucide-react';
 import './HandoverReminderToast.css';
 
 const HandoverReminderToast = ({
@@ -118,7 +119,9 @@ const HandoverReminderToast = ({
       {/* Main Toast */}
       <div className="handover-toast__main" onClick={() => setExpanded(!expanded)}>
         <div className="handover-toast__icon">
-          {timeRemaining <= 5 ? '🚨' : '⚠️'}
+          {timeRemaining <= 5
+            ? <Siren size={18} strokeWidth={2} aria-hidden="true" />
+            : <AlertTriangle size={18} strokeWidth={2} aria-hidden="true" />}
         </div>
 
         <div className="handover-toast__content">
@@ -138,8 +141,9 @@ const HandoverReminderToast = ({
           className="handover-toast__close"
           onClick={(e) => { e.stopPropagation(); handleDismiss(); }}
           title="Dismiss (will reappear at next warning)"
+          aria-label="Dismiss"
         >
-          ×
+          <X size={15} strokeWidth={2.25} aria-hidden="true" />
         </button>
       </div>
 
@@ -165,8 +169,9 @@ const HandoverReminderToast = ({
                   className="handover-toast__quick-resolve"
                   onClick={(e) => { e.stopPropagation(); handleQuickResolve(breakdown.id || breakdown.breakdown_id); }}
                   title="Mark as resolved"
+                  aria-label="Mark as resolved"
                 >
-                  ✓
+                  <Check size={14} strokeWidth={2.5} aria-hidden="true" />
                 </button>
               </div>
             ))}
@@ -183,7 +188,7 @@ const HandoverReminderToast = ({
               className="handover-toast__btn handover-toast__btn--primary"
               onClick={handleStartHandover}
             >
-              🔄 Start Handover
+              <RefreshCw size={14} strokeWidth={2} aria-hidden="true" /> Start Handover
             </button>
             {onViewBreakdowns && (
               <button

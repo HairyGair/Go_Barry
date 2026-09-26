@@ -11,6 +11,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { Sun, CloudSun, CloudRain, Snowflake, CloudFog, CloudLightning, CloudOff, Wind, Droplet } from 'lucide-react';
 import './WeatherWidget.css';
 
 // Northeast England towns and villages
@@ -59,16 +60,16 @@ const WeatherWidget = () => {
 
   const currentLocation = LOCATIONS[currentIndex];
 
-  // Get weather emoji based on condition
-  const getWeatherEmoji = (condition) => {
+  // Get weather icon based on condition
+  const getWeatherIcon = (condition) => {
     const conditionLower = condition.toLowerCase();
-    if (conditionLower.includes('clear') || conditionLower.includes('sunny')) return '☀️';
-    if (conditionLower.includes('cloud')) return '⛅';
-    if (conditionLower.includes('rain') || conditionLower.includes('drizzle')) return '🌧️';
-    if (conditionLower.includes('snow')) return '❄️';
-    if (conditionLower.includes('fog') || conditionLower.includes('mist')) return '🌫️';
-    if (conditionLower.includes('thunder') || conditionLower.includes('storm')) return '⚡';
-    return '🌤️';
+    if (conditionLower.includes('clear') || conditionLower.includes('sunny')) return Sun;
+    if (conditionLower.includes('cloud')) return CloudSun;
+    if (conditionLower.includes('rain') || conditionLower.includes('drizzle')) return CloudRain;
+    if (conditionLower.includes('snow')) return Snowflake;
+    if (conditionLower.includes('fog') || conditionLower.includes('mist')) return CloudFog;
+    if (conditionLower.includes('thunder') || conditionLower.includes('storm')) return CloudLightning;
+    return CloudSun;
   };
 
   // Get color based on weather condition
@@ -198,7 +199,7 @@ const WeatherWidget = () => {
   if (error || Object.keys(weatherData).length === 0) {
     return (
       <div className="weather-widget error">
-        <div className="weather-icon">🌤️</div>
+        <div className="weather-icon"><CloudOff size={28} /></div>
         <p className="weather-error-message">Weather data unavailable</p>
       </div>
     );
@@ -208,13 +209,14 @@ const WeatherWidget = () => {
   if (!weather) {
     return (
       <div className="weather-widget error">
-        <div className="weather-icon">🌤️</div>
+        <div className="weather-icon"><CloudOff size={28} /></div>
         <p className="weather-error-message">Weather data unavailable</p>
       </div>
     );
   }
 
   const weatherColor = getWeatherColor(weather.condition);
+  const WeatherIcon = getWeatherIcon(weather.condition);
 
   return (
     <div
@@ -231,7 +233,7 @@ const WeatherWidget = () => {
       <div className="weather-main">
         <div className="weather-temp-section">
           <div className="weather-icon-large">
-            {getWeatherEmoji(weather.condition)}
+            <WeatherIcon size={36} strokeWidth={1.75} />
           </div>
           <div className="weather-temp">{weather.temp}°C</div>
         </div>
@@ -241,12 +243,12 @@ const WeatherWidget = () => {
 
       <div className="weather-details">
         <div className="weather-detail-item">
-          <span className="weather-detail-icon">💨</span>
+          <span className="weather-detail-icon"><Wind size={13} /></span>
           <span className="weather-detail-label">Wind:</span>
           <span className="weather-detail-value">{weather.windSpeed} mph</span>
         </div>
         <div className="weather-detail-item">
-          <span className="weather-detail-icon">💧</span>
+          <span className="weather-detail-icon"><Droplet size={13} /></span>
           <span className="weather-detail-label">Humidity:</span>
           <span className="weather-detail-value">{weather.humidity}%</span>
         </div>

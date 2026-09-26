@@ -1,21 +1,25 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Siren, Info, CheckCircle2, Wrench, ClipboardList, AlertTriangle, Pin, X } from 'lucide-react';
 import websocketService from '../services/websocket.js';
 
 const STORAGE_KEY = 'gobarry_notifications';
 const MAX_NOTIFICATIONS = 50;
 
-// Map WebSocket event types to notification display config
+// Map WebSocket event types to notification display config.
+// Icons are resolved at render time from `type` via getIconForType() rather
+// than stored on the notification object, since notifications persist to
+// localStorage as JSON and a component reference wouldn't survive that.
 const EVENT_CONFIG = {
-  new_breakdown: { type: 'breakdown', icon: '🚨', priority: 'high' },
-  breakdown_new: { type: 'breakdown', icon: '🚨', priority: 'high' },
-  breakdown_created: { type: 'breakdown', icon: '🚨', priority: 'high' },
-  breakdown_updated: { type: 'update', icon: 'ℹ️', priority: 'medium' },
-  breakdown_resolved: { type: 'update', icon: '✅', priority: 'low' },
-  engineer_assigned: { type: 'assignment', icon: '🔧', priority: 'medium' },
-  engineering_dispatched: { type: 'assignment', icon: '🔧', priority: 'medium' },
-  assessment_started: { type: 'update', icon: '📋', priority: 'low' },
-  assessment_completed: { type: 'update', icon: '📋', priority: 'medium' },
-  status_updated: { type: 'update', icon: 'ℹ️', priority: 'low' },
+  new_breakdown: { type: 'breakdown', priority: 'high' },
+  breakdown_new: { type: 'breakdown', priority: 'high' },
+  breakdown_created: { type: 'breakdown', priority: 'high' },
+  breakdown_updated: { type: 'update', priority: 'medium' },
+  breakdown_resolved: { type: 'resolved', priority: 'low' },
+  engineer_assigned: { type: 'assignment', priority: 'medium' },
+  engineering_dispatched: { type: 'assignment', priority: 'medium' },
+  assessment_started: { type: 'assessment', priority: 'low' },
+  assessment_completed: { type: 'assessment', priority: 'medium' },
+  status_updated: { type: 'update', priority: 'low' },
 };
 
 function formatTimeAgo(timestamp) {
@@ -72,7 +76,6 @@ const NotificationPanel = ({ isOpen, onClose, onUnreadCount }) => {
         const notification = {
           id: `${eventType}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
           type: config.type,
-          icon: config.icon,
           priority: config.priority,
           title: buildTitle(eventType, data),
           message: buildMessage(eventType, data),
@@ -115,7 +118,9 @@ const NotificationPanel = ({ isOpen, onClose, onUnreadCount }) => {
             Notifications
             {unreadCount > 0 && <span className="notif-badge">{unreadCount}</span>}
           </h3>
-          <button className="notification-close" onClick={onClose} aria-label="Close notifications">✕</button>
+          <button className="notification-close" onClick={onClose} aria-label="Close notifications">
+            <X size={15} strokeWidth={2.25} aria-hidden="true" />
+          </button>
         </div>
         <div className="notification-list" aria-live="polite" role="list">
           {notifications.length === 0 ? (
@@ -127,7 +132,7 @@ const NotificationPanel = ({ isOpen, onClose, onUnreadCount }) => {
             notifications.map(notif => (
               <div key={notif.id} className={`notification-item ${notif.unread ? 'unread' : ''}`} role="listitem">
                 <div className="notification-icon" aria-hidden="true">
-                  {notif.icon || getIconForType(notif.type)}
+                  {getIconForType(notif.type)}
                 </div>
                 <div className="notification-content">
                   <h4>
@@ -155,12 +160,15 @@ const NotificationPanel = ({ isOpen, onClose, onUnreadCount }) => {
 };
 
 function getIconForType(type) {
+  const props = { size: 15, strokeWidth: 2, 'aria-hidden': true };
   switch (type) {
-    case 'breakdown': return '🚨';
-    case 'alert': return '⚠️';
-    case 'assignment': return '🔧';
-    case 'update': return 'ℹ️';
-    default: return '📌';
+    case 'breakdown': return <Siren {...props} />;
+    case 'resolved': return <CheckCircle2 {...props} />;
+    case 'assignment': return <Wrench {...props} />;
+    case 'assessment': return <ClipboardList {...props} />;
+    case 'alert': return <AlertTriangle {...props} />;
+    case 'update': return <Info {...props} />;
+    default: return <Pin {...props} />;
   }
 }
 

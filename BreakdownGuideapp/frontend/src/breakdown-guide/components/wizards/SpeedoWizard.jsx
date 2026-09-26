@@ -43,7 +43,7 @@ const SpeedoWizard = ({ currentStep, responses, updateResponse, onNext, onPrevio
                         
                         <button
                             onClick={onNext}
-                            className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            className="flex items-center px-6 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors"
                         >
                             Check Tachograph
                             {ArrowRight && <ArrowRight className="w-4 h-4 ml-2" />}
@@ -144,7 +144,7 @@ const SpeedoWizard = ({ currentStep, responses, updateResponse, onNext, onPrevio
                         <button
                             onClick={onNext}
                             disabled={!responses.has_tachograph || (responses.has_tachograph === 'yes' && !responses.tacho_working)}
-                            className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="flex items-center px-6 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                             Next
                             {ArrowRight && <ArrowRight className="w-4 h-4 ml-2" />}
@@ -209,7 +209,7 @@ const SpeedoWizard = ({ currentStep, responses, updateResponse, onNext, onPrevio
                         
                         <button
                             onClick={onNext}
-                            className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            className="flex items-center px-6 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors"
                         >
                             Complete Assessment
                             {ArrowRight && <ArrowRight className="w-4 h-4 ml-2" />}

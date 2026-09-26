@@ -6,18 +6,44 @@ import storageService from '../services/storageService.js';
 import locationService from '../utils/locationService.js';
 import googleLocationService from '../utils/googleLocationService.js';
 import websocketService from '../services/websocket.js';
+import {
+  ClipboardList, Sunrise, Sun, Sunset, Moon, ChevronUp, ChevronDown, Check, X,
+  Rows3, AlignJustify, Inbox, AlertTriangle, CheckCircle2, LogIn, LogOut, Wrench,
+  Coffee, FileEdit, Package, RefreshCw, StickyNote, Eye, FileText, Search, MapPin,
+  Clock, ArrowRight
+} from 'lucide-react';
 
 const STORAGE_KEY = 'gobarry_activity_feed_cache';
 const WS_ENDPOINT = '/ws?channel=breakdowns';
 
 // Duty shift definitions for filtering
 const DUTY_OPTIONS = [
-  { code: null, name: 'All Shifts', icon: '📋' },
-  { code: '100', name: 'Early (06:00-15:30)', icon: '🌅' },
-  { code: '200', name: 'Day (07:30-17:00)', icon: '☀️' },
-  { code: '400', name: 'Late (12:30-22:00)', icon: '🌆' },
-  { code: '500', name: 'Night (14:45-00:15)', icon: '🌙' }
+  { code: null, name: 'All Shifts', icon: ClipboardList },
+  { code: '100', name: 'Early (06:00-15:30)', icon: Sunrise },
+  { code: '200', name: 'Day (07:30-17:00)', icon: Sun },
+  { code: '400', name: 'Late (12:30-22:00)', icon: Sunset },
+  { code: '500', name: 'Night (14:45-00:15)', icon: Moon }
 ];
+
+// Icon component per activity category — replaces emoji UI icons
+const CATEGORY_ICONS = {
+  breakdown: AlertTriangle,
+  resolved: CheckCircle2,
+  login: LogIn,
+  user: LogOut,
+  duty: Clock,
+  engineering: Wrench,
+  break: Coffee,
+  extension: FileEdit,
+  admin: Package,
+  status: RefreshCw,
+  note: StickyNote,
+  sdc: Eye,
+  pattern: Search,
+  general: FileText
+};
+
+const getCategoryIcon = (category) => CATEGORY_ICONS[category] || FileText;
 
 const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities: propActivities = [] }) => {
   // SAFETY: Ensure activities is always an array even if undefined/null is explicitly passed
@@ -572,7 +598,7 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
     return 'priority-low';
   }, []);
 
-  // Format status text with emojis
+  // Format status text
   const getStatusText = useCallback((status) => {
     // Handle objects (convert to string)
     if (typeof status === 'object' && status !== null) {
@@ -585,12 +611,12 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
     const statusStr = String(status).toUpperCase();
 
     switch(statusStr) {
-      case 'STOP': return '🛑 Vehicle Disabled';
-      case 'AMBER': return '⚠️ Assessment Required';
-      case 'CONTINUE': return '✅ Can Continue';
-      case 'REPORTED': return '📝 Reported';
-      case 'ACTIVE': return '🔧 In Progress';
-      case 'RESOLVED': return '✅ Resolved';
+      case 'STOP': return 'Vehicle Disabled';
+      case 'AMBER': return 'Assessment Required';
+      case 'CONTINUE': return 'Can Continue';
+      case 'REPORTED': return 'Reported';
+      case 'ACTIVE': return 'In Progress';
+      case 'RESOLVED': return 'Resolved';
       default: return status; // Return original if no match
     }
   }, []);
@@ -1036,7 +1062,7 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
   // Empty state component
   const EmptyState = () => (
     <div className="empty-state">
-      <div className="empty-state-icon">📋</div>
+      <div className="empty-state-icon"><Inbox size={40} strokeWidth={1.5} /></div>
       <h4 className="empty-state-title">No Activity Yet</h4>
       <p className="empty-state-description">Activities will appear here when:</p>
       <ul className="empty-state-list">
@@ -1068,9 +1094,9 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
                 onClick={() => setShowDutyDropdown(!showDutyDropdown)}
                 title="Filter by duty shift"
               >
-                <span className="duty-filter-icon">{selectedDutyOption.icon}</span>
+                <span className="duty-filter-icon"><selectedDutyOption.icon size={14} /></span>
                 <span className="duty-filter-label">{selectedDutyFilter ? `Duty ${selectedDutyFilter}` : 'All'}</span>
-                <span className="duty-filter-arrow">{showDutyDropdown ? '▲' : '▼'}</span>
+                <span className="duty-filter-arrow">{showDutyDropdown ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</span>
               </button>
               {showDutyDropdown && (
                 <div className="duty-filter-dropdown">
@@ -1080,9 +1106,9 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
                       className={`duty-filter-option ${selectedDutyFilter === option.code ? 'selected' : ''}`}
                       onClick={() => handleDutyFilterChange(option.code)}
                     >
-                      <span className="option-icon">{option.icon}</span>
+                      <span className="option-icon"><option.icon size={14} /></span>
                       <span className="option-name">{option.name}</span>
-                      {selectedDutyFilter === option.code && <span className="option-check">✓</span>}
+                      {selectedDutyFilter === option.code && <span className="option-check"><Check size={14} /></span>}
                     </button>
                   ))}
                 </div>
@@ -1093,14 +1119,14 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
               onClick={toggleCompactView}
               title={isCompactView ? 'Switch to detailed view' : 'Switch to compact view'}
             >
-              {isCompactView ? '📋' : '📄'}
+              {isCompactView ? <Rows3 size={16} /> : <AlignJustify size={16} />}
             </button>
           </div>
         </div>
         <div className="activity-status">
           {embedded && (
             <span className={`connection-status ${isRealTimeConnected ? 'connected' : 'disconnected'}`}>
-              {isRealTimeConnected ? '🟢' : '🔴'}
+              <span className="connection-dot" />
             </span>
           )}
           {lastUpdateTime && (
@@ -1117,7 +1143,7 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
             </span>
           )}
         </div>
-        {!embedded && <button className="close-btn" onClick={onClose}>×</button>}
+        {!embedded && <button className="close-btn" onClick={onClose}><X size={18} /></button>}
       </div>
 
       {/* Mini Stats Bar removed - breakdown count shown at top of page */}
@@ -1133,11 +1159,11 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
               <div key={timeGroup.label} className={`activity-time-group ${timeGroup.isRecent ? 'recent' : ''}`}>
                 {/* Time Group Header */}
                 <div className={`time-group-header ${timeGroup.label === 'Just now' ? 'just-now' : ''}`}>
-                  <span className="time-group-icon">
-                    {timeGroup.label === 'Just now' ? '🔴' :
-                     timeGroup.label === 'Last 15 minutes' ? '🟡' :
-                     timeGroup.label === 'Last hour' ? '🟢' : '⏱️'}
-                  </span>
+                  <span className={`time-group-dot time-group-dot--${
+                    timeGroup.label === 'Just now' ? 'now' :
+                    timeGroup.label === 'Last 15 minutes' ? 'recent15' :
+                    timeGroup.label === 'Last hour' ? 'recenthour' : 'older'
+                  }`} />
                   <span className="time-group-label">{timeGroup.label}</span>
                   <span className="time-group-count">{timeGroup.count}</span>
                 </div>
@@ -1159,8 +1185,8 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
                     }}
                     title={getExactTimestamp(primaryActivity.timestamp || primaryActivity.created_at)}
                   >
-                    <span className="compact-icon" style={{ backgroundColor: primaryActivity.typeInfo?.bgColor }}>
-                      {primaryActivity.typeInfo?.icon || '📄'}
+                    <span className="compact-icon" style={{ backgroundColor: primaryActivity.typeInfo?.bgColor, color: '#fff' }}>
+                      {(() => { const Icon = getCategoryIcon(primaryActivity.typeInfo?.category); return <Icon size={14} />; })()}
                     </span>
                     <div className="compact-details">
                       <span className="compact-message">
@@ -1195,13 +1221,13 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
                 >
                   {/* Primary Activity Display */}
                   <div className="activity-item primary">
-                    <span className="activity-icon" style={{ background: primaryActivity.typeInfo?.gradient || primaryActivity.typeInfo?.bgColor }}>
-                      {primaryActivity.typeInfo?.icon || (primaryActivity.type === 'pattern' ? '🔍' : '📄')}
+                    <span className="activity-icon" style={{ backgroundColor: primaryActivity.typeInfo?.bgColor, color: '#fff' }}>
+                      {(() => { const Icon = getCategoryIcon(primaryActivity.typeInfo?.category); return <Icon size={16} />; })()}
                     </span>
                     <div className="activity-details">
                       {/* Activity Type Badge with Gradient */}
                       <span className="activity-type-badge" style={{
-                        background: primaryActivity.typeInfo?.gradient || primaryActivity.typeInfo?.bgColor,
+                        backgroundColor: primaryActivity.typeInfo?.bgColor,
                         color: primaryActivity.typeInfo?.color
                       }}>
                         {primaryActivity.typeInfo?.label}
@@ -1225,7 +1251,7 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
                                     className="location-button"
                                     title="Click to view location details"
                                   >
-                                    📍 View Location
+                                    <MapPin size={13} /> View Location
                                   </button>
                                   {parts[1]}
                                 </p>
@@ -1257,7 +1283,7 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
                                 className="vehicle-location-button"
                                 title="View vehicle location on map"
                               >
-                                📍 Vehicle Location
+                                <MapPin size={14} /> Vehicle Location
                               </button>
                             </div>
                           )}
@@ -1362,7 +1388,7 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
                         <div className="metadata-bar">
                           {/* Time Badge */}
                           <span className="time-badge" title={getExactTimestamp(primaryActivity.timestamp || primaryActivity.created_at)}>
-                            🕐 {formatTimeAgo(primaryActivity.timestamp || primaryActivity.created_at)}
+                            <Clock size={11} /> {formatTimeAgo(primaryActivity.timestamp || primaryActivity.created_at)}
                           </span>
 
                           {/* Passenger Indicator */}
@@ -1408,7 +1434,7 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
                               }}
                               title="View location on map"
                             >
-                              📍 View Map
+                              <MapPin size={13} /> View Map
                             </button>
                           )}
                           <button
@@ -1425,7 +1451,7 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
                             }}
                             title="View full breakdown details in SDC Dashboard"
                           >
-                            📋 Details
+                            <ClipboardList size={13} /> Details
                           </button>
                         </div>
                       )}
@@ -1446,7 +1472,7 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
           className="view-all-btn"
           onClick={() => window.location.href = '/dashboards/breakdown'}
         >
-          View All Activity →
+          View All Activity <ArrowRight size={14} />
         </button>
       </div>
     </>

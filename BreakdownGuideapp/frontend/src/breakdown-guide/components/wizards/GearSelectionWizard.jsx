@@ -98,7 +98,7 @@ function GearSelectionWizard({ currentStep, responses, updateResponse, onNext, o
               <button
                 onClick={onNext}
                 disabled={!responses.systemReset}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Next Step
               </button>
@@ -225,7 +225,7 @@ function GearSelectionWizard({ currentStep, responses, updateResponse, onNext, o
               <button
                 onClick={onNext}
                 disabled={!responses.rampCheck}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Next Step
               </button>
@@ -362,7 +362,7 @@ function GearSelectionWizard({ currentStep, responses, updateResponse, onNext, o
               <button
                 onClick={onNext}
                 disabled={!responses.suspensionLight}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Next Step
               </button>
@@ -489,7 +489,7 @@ function GearSelectionWizard({ currentStep, responses, updateResponse, onNext, o
               <button
                 onClick={onNext}
                 disabled={!responses.brakeOperation}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Final Assessment
               </button>

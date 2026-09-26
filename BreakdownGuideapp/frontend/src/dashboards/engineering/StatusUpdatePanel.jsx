@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { MapPin, Wrench, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { apiClient } from '../../services/api-client';
 
 const StatusUpdatePanel = ({ breakdown, onStatusUpdated, onClose }) => {
@@ -12,7 +13,7 @@ const StatusUpdatePanel = ({ breakdown, onStatusUpdated, onClose }) => {
     {
       id: 'arrived',
       label: 'Arrived On Site',
-      icon: '📍',
+      Icon: MapPin,
       description: 'Engineer has arrived at breakdown location',
       color: '#f59e0b',
       requiresEta: false
@@ -20,7 +21,7 @@ const StatusUpdatePanel = ({ breakdown, onStatusUpdated, onClose }) => {
     {
       id: 'working',
       label: 'Working on Repair',
-      icon: '🔧',
+      Icon: Wrench,
       description: 'Engineer is actively working on the vehicle',
       color: '#8b5cf6',
       requiresEta: false
@@ -28,7 +29,7 @@ const StatusUpdatePanel = ({ breakdown, onStatusUpdated, onClose }) => {
     {
       id: 'completed',
       label: 'Repair Completed',
-      icon: '✅',
+      Icon: CheckCircle2,
       description: 'Repair work has been completed',
       color: '#10b981',
       requiresEta: false
@@ -123,7 +124,7 @@ const StatusUpdatePanel = ({ breakdown, onStatusUpdated, onClose }) => {
                   }}
                 >
                   <div className="status-icon" style={{ color: status.color }}>
-                    {status.icon}
+                    <status.Icon size={28} strokeWidth={1.75} />
                   </div>
                   <div className="status-label">{status.label}</div>
                   <div className="status-description">{status.description}</div>
@@ -160,7 +161,7 @@ const StatusUpdatePanel = ({ breakdown, onStatusUpdated, onClose }) => {
 
           {error && (
             <div className="error-message">
-              ⚠️ {error}
+              <AlertTriangle size={14} style={{ verticalAlign: '-2px', marginRight: '4px' }} /> {error}
             </div>
           )}
 
@@ -198,7 +199,7 @@ const StatusUpdatePanel = ({ breakdown, onStatusUpdated, onClose }) => {
 
         .breakdown-info {
           margin: 0;
-          color: #999;
+          color: #94a3b8;
           font-size: 14px;
         }
 
@@ -210,18 +211,18 @@ const StatusUpdatePanel = ({ breakdown, onStatusUpdated, onClose }) => {
         }
 
         .no-options p {
-          color: #999;
+          color: #94a3b8;
           margin: 0 0 8px 0;
         }
 
         .no-options .hint {
-          color: #64b5f6;
+          color: #22d3ee;
           font-size: 14px;
         }
 
         .section-label {
           display: block;
-          color: #64b5f6;
+          color: #22d3ee;
           font-size: 14px;
           font-weight: 600;
           margin-bottom: 12px;
@@ -254,7 +255,7 @@ const StatusUpdatePanel = ({ breakdown, onStatusUpdated, onClose }) => {
         }
 
         .status-option.selected {
-          background: rgba(100, 181, 246, 0.1);
+          background: rgba(0, 151, 167, 0.1);
         }
 
         .status-icon {
@@ -269,7 +270,7 @@ const StatusUpdatePanel = ({ breakdown, onStatusUpdated, onClose }) => {
         }
 
         .status-description {
-          color: #999;
+          color: #94a3b8;
           font-size: 12px;
         }
 
@@ -290,7 +291,7 @@ const StatusUpdatePanel = ({ breakdown, onStatusUpdated, onClose }) => {
 
         .eta-input:focus {
           outline: none;
-          border-color: #64b5f6;
+          border-color: #22d3ee;
           background: rgba(255, 255, 255, 0.08);
         }
 
@@ -312,12 +313,12 @@ const StatusUpdatePanel = ({ breakdown, onStatusUpdated, onClose }) => {
 
         .notes-input:focus {
           outline: none;
-          border-color: #64b5f6;
+          border-color: #22d3ee;
           background: rgba(255, 255, 255, 0.08);
         }
 
         .notes-input::placeholder {
-          color: #666;
+          color: #64748b;
         }
 
         .error-message {
@@ -360,8 +361,8 @@ const StatusUpdatePanel = ({ breakdown, onStatusUpdated, onClose }) => {
         }
 
         .btn-primary {
-          background: #64b5f6;
-          color: #1a1a2e;
+          background: #22d3ee;
+          color: #0d1420;
         }
 
         .btn-primary:hover:not(:disabled) {

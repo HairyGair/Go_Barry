@@ -4,11 +4,12 @@
  */
 
 import React from 'react';
+import { LayoutDashboard, Map, Filter, Bell } from 'lucide-react';
 
 const DashboardSettings = ({ settings, updateSetting }) => {
   return (
     <div className="settings-section">
-      <h2>📊 Dashboard Preferences</h2>
+      <h2><LayoutDashboard size={18} /> Dashboard Preferences</h2>
       <p className="section-description">
         Customize your dashboard experience and default views
       </p>
@@ -25,10 +26,10 @@ const DashboardSettings = ({ settings, updateSetting }) => {
             value={settings.default_dashboard}
             onChange={(e) => updateSetting('default_dashboard', e.target.value)}
           >
-            <option value="breakdown-guide">🔧 Breakdown Guide</option>
-            <option value="sdc">📡 Operations</option>
-            <option value="engineering">⚙️ Engineering</option>
-            <option value="management">📊 Management</option>
+            <option value="breakdown-guide">Breakdown Guide</option>
+            <option value="sdc">Operations</option>
+            <option value="engineering">Engineering</option>
+            <option value="management">Management</option>
           </select>
         </div>
       </div>
@@ -71,7 +72,7 @@ const DashboardSettings = ({ settings, updateSetting }) => {
 
       {/* Map Settings */}
       <div className="settings-section" style={{ marginTop: '40px' }}>
-        <h2>🗺️ Map Preferences</h2>
+        <h2><Map size={18} /> Map Preferences</h2>
         <p className="section-description">
           Configure how maps display breakdown locations
         </p>
@@ -87,10 +88,10 @@ const DashboardSettings = ({ settings, updateSetting }) => {
               value={settings.map_view}
               onChange={(e) => updateSetting('map_view', e.target.value)}
             >
-              <option value="roadmap">🗺️ Roadmap (Default)</option>
-              <option value="satellite">🛰️ Satellite</option>
-              <option value="hybrid">🔀 Hybrid</option>
-              <option value="terrain">⛰️ Terrain</option>
+              <option value="roadmap">Roadmap (Default)</option>
+              <option value="satellite">Satellite</option>
+              <option value="hybrid">Hybrid</option>
+              <option value="terrain">Terrain</option>
             </select>
           </div>
         </div>
@@ -111,7 +112,7 @@ const DashboardSettings = ({ settings, updateSetting }) => {
 
       {/* Filter Preferences */}
       <div className="settings-section" style={{ marginTop: '40px' }}>
-        <h2>🔍 Filter Preferences</h2>
+        <h2><Filter size={18} /> Filter Preferences</h2>
         <p className="section-description">
           Set default filters for breakdown dashboards
         </p>
@@ -158,7 +159,7 @@ const DashboardSettings = ({ settings, updateSetting }) => {
 
       {/* Notification Preferences */}
       <div className="settings-section" style={{ marginTop: '40px' }}>
-        <h2>🔔 Dashboard Notifications</h2>
+        <h2><Bell size={18} /> Dashboard Notifications</h2>
         <p className="section-description">
           Control how you're notified of new breakdowns
         </p>

@@ -82,10 +82,10 @@
   z-index: 1000;
   min-width: 220px;
   padding: var(--spacing-md);
-  background: var(--color-surface-elevated);
-  border: 1px solid var(--color-border-light);
+  background: #141d2b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(20px);
   animation: slideInUp 0.2s ease-out;
 }
@@ -111,7 +111,7 @@
   height: 0;
   border-left: 8px solid transparent;
   border-right: 8px solid transparent;
-  border-bottom: 8px solid var(--color-border-light);
+  border-bottom: 8px solid #141d2b;
 }
 
 .tooltip-header {
@@ -130,7 +130,7 @@
 .tooltip-title {
   font-size: 0.875rem;
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: #f1f5f9;
 }
 
 .tooltip-time {
@@ -138,13 +138,13 @@
   justify-content: space-between;
   margin-bottom: var(--spacing-xs);
   font-size: 0.75rem;
-  color: var(--color-text-secondary);
+  color: #94a3b8;
 }
 
 .tooltip-duration {
   margin-bottom: var(--spacing-sm);
   font-size: 0.75rem;
-  color: var(--color-text-secondary);
+  color: #94a3b8;
 }
 
 .tooltip-status {

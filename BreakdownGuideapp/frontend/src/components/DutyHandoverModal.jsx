@@ -12,6 +12,10 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import {
+  Siren, AlertTriangle, CheckCircle2, MapPin, Clock, StickyNote,
+  RefreshCw, X, ArrowLeft, ArrowRight, Check
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import './DutyHandoverModal.css';
 
@@ -143,12 +147,12 @@ const DutyHandoverModal = ({
     switch (severity?.toUpperCase()) {
       case 'STOP':
       case 'CRITICAL':
-        return '🚨';
+        return <Siren size={13} strokeWidth={2.25} aria-hidden="true" />;
       case 'AMBER':
       case 'WARNING':
-        return '⚠️';
+        return <AlertTriangle size={13} strokeWidth={2.25} aria-hidden="true" />;
       default:
-        return '✅';
+        return <CheckCircle2 size={13} strokeWidth={2.25} aria-hidden="true" />;
     }
   };
 
@@ -238,7 +242,7 @@ const DutyHandoverModal = ({
 
       {activeBreakdowns.length === 0 ? (
         <div className="handover-empty">
-          <span className="handover-empty__icon">✨</span>
+          <span className="handover-empty__icon"><CheckCircle2 size={32} strokeWidth={1.75} aria-hidden="true" /></span>
           <p>No active breakdowns to hand over!</p>
           <p className="handover-empty__sub">You can close this and end your shift.</p>
         </div>
@@ -288,10 +292,10 @@ const DutyHandoverModal = ({
                       {breakdown.issue_category || breakdown.wizard_type || 'General Issue'}
                     </p>
                     <p className="handover-breakdown-location">
-                      📍 {breakdown.location || breakdown.location_description || 'Location not specified'}
+                      <MapPin size={12} strokeWidth={2} aria-hidden="true" /> {breakdown.location || breakdown.location_description || 'Location not specified'}
                     </p>
                     <p className="handover-breakdown-time">
-                      ⏱️ {formatTimeAgo(breakdown.created_at)}
+                      <Clock size={12} strokeWidth={2} aria-hidden="true" /> {formatTimeAgo(breakdown.created_at)}
                     </p>
                   </div>
                 </div>
@@ -408,7 +412,7 @@ const DutyHandoverModal = ({
                     {breakdown?.fleet_no} - {breakdown?.issue_category || 'General'}
                     {handoverNotes[id] && (
                       <span className="handover-summary-note">
-                        📝 "{handoverNotes[id].substring(0, 50)}..."
+                        <StickyNote size={12} strokeWidth={2} aria-hidden="true" /> "{handoverNotes[id].substring(0, 50)}..."
                       </span>
                     )}
                   </li>
@@ -435,11 +439,11 @@ const DutyHandoverModal = ({
       <div className="handover-modal" onClick={(e) => e.stopPropagation()}>
         <div className="handover-modal__header">
           <div className="handover-modal__title">
-            <span className="handover-modal__icon">🔄</span>
+            <span className="handover-modal__icon"><RefreshCw size={20} strokeWidth={2} aria-hidden="true" /></span>
             <h2>Shift Handover</h2>
           </div>
-          <button className="handover-modal__close" onClick={onClose}>
-            ✕
+          <button className="handover-modal__close" onClick={onClose} aria-label="Close">
+            <X size={16} strokeWidth={2.25} aria-hidden="true" />
           </button>
         </div>
 
@@ -463,7 +467,7 @@ const DutyHandoverModal = ({
         <div className="handover-modal__body">
           {error && (
             <div className="handover-error">
-              <span>⚠️</span> {error}
+              <AlertTriangle size={15} strokeWidth={2} aria-hidden="true" /> {error}
             </div>
           )}
 
@@ -488,7 +492,7 @@ const DutyHandoverModal = ({
               onClick={() => setStep(step - 1)}
               disabled={isSubmitting}
             >
-              ← Back
+              <ArrowLeft size={15} strokeWidth={2} aria-hidden="true" /> Back
             </button>
           )}
 
@@ -500,7 +504,7 @@ const DutyHandoverModal = ({
               onClick={() => setStep(step + 1)}
               disabled={step === 1 && selectedBreakdowns.length === 0 && activeBreakdowns.length > 0}
             >
-              Next →
+              Next <ArrowRight size={15} strokeWidth={2} aria-hidden="true" />
             </button>
           ) : (
             <button
@@ -514,7 +518,7 @@ const DutyHandoverModal = ({
                   Submitting...
                 </>
               ) : (
-                <>✓ Complete Handover</>
+                <><Check size={15} strokeWidth={2.25} aria-hidden="true" /> Complete Handover</>
               )}
             </button>
           )}

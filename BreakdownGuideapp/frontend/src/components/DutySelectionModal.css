@@ -1,6 +1,6 @@
 /**
  * Duty Selection Modal - Transport Control Panel
- * Clean, professional design with boiga/aileron typography
+ * Clean, professional design with Outfit/Inter typography
  * Prefix: dsm- (duty selection modal)
  */
 
@@ -33,8 +33,8 @@
 
 .dsm-container {
     position: relative;
-    background: #FFFFFF;
-    color: #0F172A;
+    background: #111a2b;
+    color: #f1f5f9;
     border-radius: 16px;
     box-shadow:
         0 24px 64px rgba(0, 0, 0, 0.35),
@@ -45,7 +45,7 @@
     overflow-y: auto;
     overflow-x: hidden;
     animation: dsm-slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-    font-family: var(--font-body, 'aileron', 'Inter', -apple-system, sans-serif);
+    font-family: var(--font-body, 'Inter', -apple-system, sans-serif);
 }
 
 @keyframes dsm-slideUp {
@@ -162,7 +162,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-family: var(--font-body, 'aileron', sans-serif);
+    font-family: var(--font-body, sans-serif);
     font-size: 13px;
     font-weight: 700;
     transition: all 0.3s ease;
@@ -190,7 +190,7 @@
     text-transform: uppercase;
     letter-spacing: 1.2px;
     color: rgba(255, 255, 255, 0.4);
-    font-family: var(--font-body, 'aileron', sans-serif);
+    font-family: var(--font-body, sans-serif);
 }
 
 .dsm-step.active .dsm-step-label {
@@ -223,7 +223,7 @@
     position: relative;
     z-index: 1;
     margin: 0 0 6px;
-    font-family: var(--font-body, 'aileron', sans-serif);
+    font-family: var(--font-body, sans-serif);
     font-size: 15px;
     font-weight: 500;
     color: rgba(0, 188, 212, 0.85);
@@ -234,7 +234,7 @@
     position: relative;
     z-index: 1;
     margin: 0 0 20px;
-    font-family: var(--font-display, 'boiga', 'Outfit', sans-serif);
+    font-family: var(--font-display, 'Outfit', sans-serif);
     font-size: 30px;
     font-weight: 700;
     color: #FFFFFF;
@@ -259,7 +259,7 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    font-family: var(--font-mono, 'new-astro-soft', 'JetBrains Mono', monospace);
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
     font-size: 15px;
     font-weight: 600;
     color: rgba(255, 255, 255, 0.9);
@@ -306,7 +306,7 @@
     grid-template-columns: repeat(2, 1fr);
     gap: 16px;
     padding: 28px 32px;
-    background: linear-gradient(180deg, #F8FAFC 0%, #F1F5F9 100%);
+    background: #0d1524;
 }
 
 /* ============================================================
@@ -315,9 +315,9 @@
 
 .dsm-card {
     position: relative;
-    background: #FFFFFF;
-    border: 1px solid #E2E8F0;
-    border-left: 5px solid var(--card-color, #94A3B8);
+    background: #131c2e;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-left: 5px solid var(--card-color, #64748B);
     border-radius: 12px;
     padding: 24px 24px 20px;
     cursor: pointer;
@@ -327,10 +327,9 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
     animation: dsm-cardIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
-    /* Force dark text on white cards regardless of dark mode */
-    color: #0F172A;
+    color: #f1f5f9;
 }
 
 @keyframes dsm-cardIn {
@@ -347,9 +346,9 @@
 .dsm-card:hover {
     transform: translateY(-4px);
     box-shadow:
-        0 12px 28px rgba(0, 0, 0, 0.1),
-        0 4px 12px rgba(0, 0, 0, 0.06);
-    border-color: var(--card-color, #94A3B8);
+        0 12px 28px rgba(0, 0, 0, 0.35),
+        0 4px 12px rgba(0, 0, 0, 0.2);
+    border-color: var(--card-color, #64748B);
 }
 
 .dsm-card:active {
@@ -361,8 +360,8 @@
     border-left-width: 5px;
     box-shadow:
         0 0 0 2px var(--color-primary, #0097A7),
-        0 4px 16px rgba(0, 151, 167, 0.15);
-    background: linear-gradient(135deg, rgba(0, 151, 167, 0.03) 0%, #FFFFFF 100%);
+        0 4px 16px rgba(0, 151, 167, 0.25);
+    background: linear-gradient(135deg, rgba(0, 151, 167, 0.1) 0%, #131c2e 100%);
 }
 
 .dsm-card.recommended:hover {
@@ -383,7 +382,7 @@
     font-size: 10px;
     font-weight: 800;
     letter-spacing: 0.8px;
-    font-family: var(--font-body, 'aileron', sans-serif);
+    font-family: var(--font-body, sans-serif);
 }
 
 /* ============================================================
@@ -409,10 +408,10 @@
 }
 
 .dsm-card-code {
-    font-family: var(--font-display, 'boiga', 'Outfit', sans-serif);
+    font-family: var(--font-display, 'Outfit', sans-serif);
     font-size: 22px;
     font-weight: 700;
-    color: #0F172A;
+    color: #f1f5f9;
     letter-spacing: -0.2px;
     line-height: 1.1;
 }
@@ -420,7 +419,7 @@
 .dsm-card-name {
     font-size: 14px;
     font-weight: 500;
-    color: #64748B;
+    color: #94a3b8;
 }
 
 /* Time display */
@@ -429,16 +428,16 @@
     align-items: center;
     gap: 8px;
     padding: 10px 14px;
-    background: #F8FAFC;
+    background: rgba(255, 255, 255, 0.04);
     border-radius: 8px;
-    border: 1px solid #F1F5F9;
+    border: 1px solid rgba(255, 255, 255, 0.07);
 }
 
 .dsm-time-value {
-    font-family: var(--font-mono, 'new-astro-soft', 'JetBrains Mono', monospace);
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
     font-size: 17px;
     font-weight: 700;
-    color: #0F172A;
+    color: #f1f5f9;
     letter-spacing: 0.5px;
 }
 
@@ -446,14 +445,14 @@
     color: var(--card-color, #94A3B8);
     display: flex;
     align-items: center;
-    opacity: 0.6;
+    opacity: 0.8;
 }
 
 .dsm-time-duration {
     margin-left: auto;
     font-size: 12px;
     font-weight: 600;
-    color: #94A3B8;
+    color: #64748b;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -470,7 +469,7 @@
     align-items: center;
     gap: 10px;
     font-size: 13px;
-    color: #64748B;
+    color: #94a3b8;
     line-height: 1.4;
 }
 
@@ -502,13 +501,13 @@
     font-size: 11px;
     font-weight: 700;
     letter-spacing: 0.5px;
-    font-family: var(--font-body, 'aileron', sans-serif);
+    font-family: var(--font-body, sans-serif);
 }
 
 .dsm-status-active {
-    background: rgba(16, 185, 129, 0.1);
-    color: #059669;
-    border: 1px solid rgba(16, 185, 129, 0.25);
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
 .dsm-status-active::before {
@@ -521,9 +520,9 @@
 }
 
 .dsm-status-upcoming {
-    background: rgba(245, 158, 11, 0.1);
-    color: #D97706;
-    border: 1px solid rgba(245, 158, 11, 0.25);
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.3);
 }
 
 .dsm-status-upcoming::before {
@@ -548,7 +547,7 @@
 
 .dsm-alt-section {
     padding: 0 32px 28px;
-    background: linear-gradient(180deg, #F1F5F9 0%, #F8FAFC 100%);
+    background: #0d1524;
 }
 
 .dsm-alt-section:first-of-type {
@@ -568,7 +567,7 @@
     top: 50%;
     width: calc(50% - 24px);
     height: 1px;
-    background: #E2E8F0;
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .dsm-divider::before { left: 0; }
@@ -579,17 +578,17 @@
     padding: 0 12px;
     font-size: 12px;
     font-weight: 600;
-    color: #94A3B8;
+    color: #64748b;
     text-transform: uppercase;
     letter-spacing: 1px;
-    background: #F1F5F9;
+    background: #0d1524;
 }
 
 .dsm-alt-btn {
     width: 100%;
     padding: 18px 20px;
-    background: #FFFFFF;
-    border: 1px solid #E2E8F0;
+    background: #131c2e;
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 12px;
     cursor: pointer;
     display: flex;
@@ -600,8 +599,8 @@
 }
 
 .dsm-alt-btn:hover {
-    border-color: #CBD5E1;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+    border-color: rgba(255, 255, 255, 0.18);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
     transform: translateY(-1px);
 }
 
@@ -616,7 +615,7 @@
 
 .dsm-alt-icon {
     flex-shrink: 0;
-    color: #64748B;
+    color: #94a3b8;
 }
 
 .dsm-alt-engineering .dsm-alt-icon {
@@ -632,14 +631,14 @@
     display: block;
     font-size: 15px;
     font-weight: 600;
-    color: #0F172A;
+    color: #f1f5f9;
     margin-bottom: 3px;
 }
 
 .dsm-alt-text p {
     margin: 0;
     font-size: 13px;
-    color: #64748B;
+    color: #94a3b8;
     line-height: 1.4;
 }
 
@@ -651,15 +650,15 @@
     gap: 10px;
     margin: 0 32px 28px;
     padding: 16px 20px;
-    background: rgba(139, 92, 246, 0.06);
-    border: 1px solid rgba(139, 92, 246, 0.2);
+    background: rgba(0, 188, 212, 0.08);
+    border: 1px solid rgba(0, 188, 212, 0.25);
     border-radius: 10px;
 }
 
 .dsm-mandatory-notice p {
     margin: 0;
     font-size: 14px;
-    color: #7C3AED;
+    color: #22d3ee;
     font-weight: 500;
 }
 
@@ -713,7 +712,7 @@
 }
 
 .dsm-confirm-code {
-    font-family: var(--font-display, 'boiga', 'Outfit', sans-serif);
+    font-family: var(--font-display, 'Outfit', sans-serif);
     font-size: 32px;
     font-weight: 700;
     color: white;
@@ -733,7 +732,7 @@
     align-items: center;
     gap: 10px;
     margin-top: 8px;
-    font-family: var(--font-mono, 'new-astro-soft', 'JetBrains Mono', monospace);
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
     font-size: 20px;
     font-weight: 600;
     color: white;
@@ -751,9 +750,9 @@
 
 .dsm-detail {
     padding: 20px;
-    background: #F8FAFC;
+    background: rgba(255, 255, 255, 0.04);
     border-radius: 12px;
-    border: 1px solid #F1F5F9;
+    border: 1px solid rgba(255, 255, 255, 0.07);
     text-align: center;
 }
 
@@ -767,21 +766,21 @@
     display: block;
     font-size: 14px;
     font-weight: 700;
-    color: #0F172A;
+    color: #f1f5f9;
     margin-bottom: 4px;
 }
 
 .dsm-detail p {
     margin: 0;
     font-size: 13px;
-    color: #64748B;
+    color: #94a3b8;
     line-height: 1.4;
 }
 
 .dsm-detail-note {
     margin-top: 4px !important;
     font-size: 12px !important;
-    color: #7C3AED !important;
+    color: #22d3ee !important;
     font-weight: 600 !important;
 }
 
@@ -791,8 +790,8 @@
     align-items: center;
     gap: 14px;
     padding: 14px 18px;
-    background: #FEF2F2;
-    border: 1px solid #FECACA;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.25);
     border-radius: 10px;
     margin-bottom: 24px;
 }
@@ -801,14 +800,14 @@
     display: block;
     font-size: 14px;
     font-weight: 700;
-    color: #DC2626;
+    color: #f87171;
     margin-bottom: 2px;
 }
 
 .dsm-notif-warning p {
     margin: 0;
     font-size: 13px;
-    color: #991B1B;
+    color: #fca5a5;
 }
 
 /* ============================================================
@@ -832,7 +831,7 @@
     padding: 14px 28px;
     border: none;
     border-radius: 10px;
-    font-family: var(--font-body, 'aileron', sans-serif);
+    font-family: var(--font-body, sans-serif);
     font-size: 15px;
     font-weight: 600;
     cursor: pointer;
@@ -841,14 +840,14 @@
 
 .dsm-btn-ghost {
     flex: 0 0 auto;
-    background: #F1F5F9;
-    color: #475569;
-    border: 1px solid #E2E8F0;
+    background: rgba(255, 255, 255, 0.05);
+    color: #cbd5e1;
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .dsm-btn-ghost:hover {
-    background: #E2E8F0;
-    border-color: #CBD5E1;
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.18);
 }
 
 .dsm-btn-primary {
@@ -891,8 +890,8 @@
     gap: 16px;
     margin: 24px;
     padding: 20px;
-    background: #FEF2F2;
-    border: 1px solid #FECACA;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.25);
     border-radius: 12px;
 }
 
@@ -905,13 +904,13 @@
     margin: 0 0 6px;
     font-size: 16px;
     font-weight: 700;
-    color: #DC2626;
+    color: #f87171;
 }
 
 .dsm-locked-content p {
     margin: 0 0 14px;
     font-size: 14px;
-    color: #7F1D1D;
+    color: #fca5a5;
 }
 
 .dsm-override-trigger {
@@ -942,22 +941,24 @@
 
 .dsm-admin-override h3 {
     margin: 0 0 8px;
-    font-family: var(--font-display, 'boiga', 'Outfit', sans-serif);
+    font-family: var(--font-display, 'Outfit', sans-serif);
     font-size: 22px;
     font-weight: 700;
-    color: #0F172A;
+    color: #f1f5f9;
 }
 
 .dsm-admin-override p {
     margin: 0 0 16px;
     font-size: 14px;
-    color: #64748B;
+    color: #94a3b8;
 }
 
 .dsm-override-input {
     width: 100%;
     padding: 12px 16px;
-    border: 2px solid #E2E8F0;
+    background: rgba(255, 255, 255, 0.04);
+    color: #f1f5f9;
+    border: 2px solid rgba(255, 255, 255, 0.1);
     border-radius: 10px;
     font-size: 14px;
     font-family: inherit;
@@ -965,6 +966,10 @@
     margin-bottom: 16px;
     transition: border-color 0.2s ease;
     box-sizing: border-box;
+}
+
+.dsm-override-input::placeholder {
+    color: #64748b;
 }
 
 .dsm-override-input:focus {

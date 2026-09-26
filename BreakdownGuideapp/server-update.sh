@@ -80,6 +80,16 @@ echo "--- Deploying frontend to $FRONTEND_DIR ---"
 mkdir -p "$FRONTEND_DIR"
 rm -rf "$FRONTEND_DIR"/*
 cp -r "$STAGING"/frontend-dist/* "$FRONTEND_DIR/"
+# The dist also ships a .htaccess (SPA rewrite + caching); the glob above skips dotfiles
+if [ -f "$STAGING/frontend-dist/.htaccess" ]; then
+  cp -f "$STAGING/frontend-dist/.htaccess" "$FRONTEND_DIR/.htaccess"
+fi
+
+# Normalise permissions — LiteSpeed serves as another user, so owner-only (700)
+# files return 403 (favicons, icons, manifest) and an unreadable .htaccess
+# disables the SPA rewrite (deep links then come back as HTTP 404).
+find "$FRONTEND_DIR" -type d -exec chmod 755 {} +
+find "$FRONTEND_DIR" -type f -exec chmod 644 {} +
 
 # ── Restart Services ────────────────────────────────────────────────────────
 

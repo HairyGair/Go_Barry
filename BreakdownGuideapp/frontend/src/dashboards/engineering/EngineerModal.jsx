@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { AlertTriangle } from 'lucide-react';
 import { apiConfig } from '../../breakdown-guide/components/common/constants';
 import { theme } from '@styles/theme';
 
@@ -68,7 +69,7 @@ const EngineerModal = ({ breakdownId, depotId, onAssign, onClose }) => {
             </div>
           ) : error ? (
             <div className="error-state">
-              <p>⚠️ {error}</p>
+              <p><AlertTriangle size={14} style={{ verticalAlign: '-2px', marginRight: '4px' }} /> {error}</p>
               <button className="retry-btn" onClick={() => window.location.reload()}>
                 Retry
               </button>

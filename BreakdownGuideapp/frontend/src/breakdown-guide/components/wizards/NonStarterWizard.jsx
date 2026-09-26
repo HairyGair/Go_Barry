@@ -81,7 +81,7 @@ function NonStarterWizard({ currentStep, responses, updateResponse, onNext, onPr
               <button
                 onClick={onNext}
                 disabled={!responses.initialStart}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Next Step
               </button>
@@ -223,7 +223,7 @@ function NonStarterWizard({ currentStep, responses, updateResponse, onNext, onPr
               <button
                 onClick={onNext}
                 disabled={!responses.rearStart}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Next Step
               </button>
@@ -410,7 +410,7 @@ function NonStarterWizard({ currentStep, responses, updateResponse, onNext, onPr
               <button
                 onClick={onNext}
                 disabled={!responses.oilLight || !responses.exhaustSmoke || !responses.engineResponse}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Final Assessment
               </button>

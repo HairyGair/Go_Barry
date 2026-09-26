@@ -22,24 +22,21 @@ body::before {
   transition: background 0.5s ease;
 }
 
-/* Early Shift (100) - Cool Blue Theme */
+/* All shifts stay within the brand teal/cyan family — only the depth varies */
 body.duty-theme-100 {
-  --accent-color: var(--duty-theme-primary, #3B82F6);
+  --accent-color: var(--duty-theme-primary, #00ACC1);
 }
 
-/* Day Shift (200) - Warm Green Theme */
 body.duty-theme-200 {
-  --accent-color: var(--duty-theme-primary, #10B981);
+  --accent-color: var(--duty-theme-primary, #0097A7);
 }
 
-/* Late Shift (400) - Amber Theme */
 body.duty-theme-400 {
-  --accent-color: var(--duty-theme-primary, #F59E0B);
+  --accent-color: var(--duty-theme-primary, #00838F);
 }
 
-/* Night Shift (500) - Purple Theme */
 body.duty-theme-500 {
-  --accent-color: var(--duty-theme-primary, #8B5CF6);
+  --accent-color: var(--duty-theme-primary, #006064);
 }
 
 /* Apply theme accent to interactive elements */

@@ -7,6 +7,11 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import {
+  Home, Target, Monitor, Wrench, BarChart3, BatteryCharging, Bus, Clock, Search,
+  Factory, Building2, Siren, MapPin, ExternalLink, Lock, Settings, LogOut,
+  ChevronDown, ChevronUp, ChevronLeft, Sunrise, Sun, Sunset, Moon, ClipboardList
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { GoBarryBanner } from './GoBarryLogo.jsx';
 import ChangePasswordModal from './ChangePasswordModal.jsx';
@@ -30,66 +35,66 @@ const MinimalUserMenu = ({ currentDuty, onDutyClick }) => {
     {
       path: '/',
       label: 'Home',
-      icon: '🏠',
+      Icon: Home,
       description: 'Dashboard home'
     },
     {
       path: '/dashboards/sdc',
       label: 'Operations',
-      icon: '🎯',
+      Icon: Target,
       description: 'Operations dashboard'
     },
     {
       path: '/dashboards/control-room',
       label: 'Display',
-      icon: '📺',
+      Icon: Monitor,
       description: 'Large screen display'
     },
     {
       path: '/dashboards/engineering',
       label: 'Engineering',
-      icon: '🛠️',
+      Icon: Wrench,
       description: 'Engineering dispatch',
       hasSubmenu: true,
       submenu: [
-        { path: '/dashboards/engineering/display', label: 'All Depots', icon: '🏭', external: true },
-        { path: '/dashboards/engineering/display?depot=Washington', label: 'Washington', icon: '🔧', external: true },
-        { path: '/dashboards/engineering/display?depot=Riverside', label: 'Riverside', icon: '🔧', external: true },
-        { path: '/dashboards/engineering/display?depot=Consett', label: 'Consett', icon: '🔧', external: true },
-        { path: '/dashboards/engineering/display?depot=Deptford', label: 'Deptford', icon: '🔧', external: true },
-        { path: '/dashboards/engineering/display?depot=Percy%20Main', label: 'Percy Main', icon: '🔧', external: true },
-        { path: '/dashboards/engineering/display?depot=Hexham', label: 'Hexham', icon: '🔧', external: true },
-        { path: '/dashboards/engineering/manage', label: 'Manage Engineers', icon: '👷' }
+        { path: '/dashboards/engineering/display', label: 'All Depots', Icon: Factory, external: true },
+        { path: '/dashboards/engineering/display?depot=Washington', label: 'Washington', Icon: Building2, external: true },
+        { path: '/dashboards/engineering/display?depot=Riverside', label: 'Riverside', Icon: Building2, external: true },
+        { path: '/dashboards/engineering/display?depot=Consett', label: 'Consett', Icon: Building2, external: true },
+        { path: '/dashboards/engineering/display?depot=Deptford', label: 'Deptford', Icon: Building2, external: true },
+        { path: '/dashboards/engineering/display?depot=Percy%20Main', label: 'Percy Main', Icon: Building2, external: true },
+        { path: '/dashboards/engineering/display?depot=Hexham', label: 'Hexham', Icon: Building2, external: true },
+        { path: '/dashboards/engineering/manage', label: 'Manage Engineers', Icon: Wrench }
       ]
     },
     {
       path: '/fleet-intelligence',
       label: 'Fleet Intelligence',
-      icon: '📊',
+      Icon: BarChart3,
       description: 'Fleet analytics'
     },
     {
       path: '/dashboards/ev-charges',
       label: 'EV Charges',
-      icon: '🔋',
+      Icon: BatteryCharging,
       description: 'EV fleet charge levels'
     },
     {
       path: '/dashboards/gtfs/routes',
       label: 'Route Status',
-      icon: '🚌',
+      Icon: Bus,
       description: 'Live route status'
     },
     {
       path: '/dashboards/gtfs/timetable',
       label: 'Timetable',
-      icon: '🕐',
+      Icon: Clock,
       description: 'Route timetable viewer'
     },
     {
       path: '/dashboards/gtfs/stops',
       label: 'Stop Finder',
-      icon: '🔍',
+      Icon: Search,
       description: 'Search stops & departures'
     }
   ];
@@ -189,11 +194,11 @@ const MinimalUserMenu = ({ currentDuty, onDutyClick }) => {
 
   const getDutyIcon = (code) => {
     switch(code) {
-      case '100': return '🌅';
-      case '200': return '☀️';
-      case '400': return '🌆';
-      case '500': return '🌙';
-      default: return '📋';
+      case '100': return Sunrise;
+      case '200': return Sun;
+      case '400': return Sunset;
+      case '500': return Moon;
+      default: return ClipboardList;
     }
   };
 
@@ -217,7 +222,9 @@ const MinimalUserMenu = ({ currentDuty, onDutyClick }) => {
             {currentUser?.name?.charAt(0) || 'U'}
           </div>
           <span className="user-name">{currentUser?.name || 'User'}</span>
-          <span className="menu-arrow" aria-hidden="true">{isMenuOpen ? '▲' : '▼'}</span>
+          <span className="menu-arrow" aria-hidden="true">
+            {isMenuOpen ? <ChevronUp size={14} strokeWidth={2.25} /> : <ChevronDown size={14} strokeWidth={2.25} />}
+          </span>
         </button>
 
         {/* Dropdown Menu */}
@@ -233,7 +240,9 @@ const MinimalUserMenu = ({ currentDuty, onDutyClick }) => {
                   <h3>{currentUser?.name || 'User'}</h3>
                   <p>{currentUser?.email || ''}</p>
                   {currentUser?.depot && (
-                    <span className="user-depot">📍 {currentUser.depot}</span>
+                    <span className="user-depot">
+                      <MapPin size={11} strokeWidth={2.25} aria-hidden="true" /> {currentUser.depot}
+                    </span>
                   )}
                 </div>
               </div>
@@ -243,15 +252,18 @@ const MinimalUserMenu = ({ currentDuty, onDutyClick }) => {
             </div>
 
             {/* Current Duty (if active) */}
-            {currentDuty && !currentDuty.viewOnly && (
-              <button className="duty-indicator" onClick={onDutyClick}>
-                <span className="duty-icon">{getDutyIcon(currentDuty.code)}</span>
-                <div className="duty-info">
-                  <span className="duty-label">Duty {currentDuty.code}</span>
-                  <span className="duty-time">{currentDuty.startTime} - {currentDuty.endTime}</span>
-                </div>
-              </button>
-            )}
+            {currentDuty && !currentDuty.viewOnly && (() => {
+              const DutyIcon = getDutyIcon(currentDuty.code);
+              return (
+                <button className="duty-indicator" onClick={onDutyClick}>
+                  <span className="duty-icon"><DutyIcon size={18} strokeWidth={2} aria-hidden="true" /></span>
+                  <div className="duty-info">
+                    <span className="duty-label">Duty {currentDuty.code}</span>
+                    <span className="duty-time">{currentDuty.startTime} - {currentDuty.endTime}</span>
+                  </div>
+                </button>
+              );
+            })()}
 
             {/* Quick Action - hidden for engineering managers */}
             {!isEngineeringManager && (
@@ -262,7 +274,7 @@ const MinimalUserMenu = ({ currentDuty, onDutyClick }) => {
                   setIsMenuOpen(false);
                 }}
               >
-                <span>🚨</span>
+                <Siren size={16} strokeWidth={2} aria-hidden="true" />
                 <span>Report Breakdown</span>
               </button>
             )}
@@ -275,12 +287,12 @@ const MinimalUserMenu = ({ currentDuty, onDutyClick }) => {
                   item.hasSubmenu ? (
                     <div key={item.path} className="nav-item-with-submenu">
                       <div className={`menu-nav-item has-submenu ${isActive(item.path) ? 'active' : ''}`}>
-                        <span className="nav-icon">{item.icon}</span>
+                        <span className="nav-icon"><item.Icon size={17} strokeWidth={2} aria-hidden="true" /></span>
                         <div className="nav-text">
                           <span className="nav-label">{item.label}</span>
                           <span className="nav-desc">{item.description}</span>
                         </div>
-                        <span className="submenu-arrow">‹</span>
+                        <span className="submenu-arrow"><ChevronLeft size={15} strokeWidth={2.25} aria-hidden="true" /></span>
                       </div>
                       <div className="nav-submenu">
                         {item.submenu.map(subItem => (
@@ -293,9 +305,9 @@ const MinimalUserMenu = ({ currentDuty, onDutyClick }) => {
                               className="submenu-item"
                               onClick={() => setIsMenuOpen(false)}
                             >
-                              <span className="submenu-icon">{subItem.icon}</span>
+                              <span className="submenu-icon"><subItem.Icon size={14} strokeWidth={2} aria-hidden="true" /></span>
                               <span className="submenu-label">{subItem.label}</span>
-                              <span className="external-icon">↗</span>
+                              <span className="external-icon"><ExternalLink size={11} strokeWidth={2.25} aria-hidden="true" /></span>
                             </a>
                           ) : (
                             <Link
@@ -304,7 +316,7 @@ const MinimalUserMenu = ({ currentDuty, onDutyClick }) => {
                               className="submenu-item"
                               onClick={() => setIsMenuOpen(false)}
                             >
-                              <span className="submenu-icon">{subItem.icon}</span>
+                              <span className="submenu-icon"><subItem.Icon size={14} strokeWidth={2} aria-hidden="true" /></span>
                               <span className="submenu-label">{subItem.label}</span>
                             </Link>
                           )
@@ -318,7 +330,7 @@ const MinimalUserMenu = ({ currentDuty, onDutyClick }) => {
                       className={`menu-nav-item ${isActive(item.path) ? 'active' : ''}`}
                       onClick={() => setIsMenuOpen(false)}
                     >
-                      <span className="nav-icon">{item.icon}</span>
+                      <span className="nav-icon"><item.Icon size={17} strokeWidth={2} aria-hidden="true" /></span>
                       <div className="nav-text">
                         <span className="nav-label">{item.label}</span>
                         <span className="nav-desc">{item.description}</span>
@@ -337,14 +349,14 @@ const MinimalUserMenu = ({ currentDuty, onDutyClick }) => {
                   setShowChangePassword(true);
                   setIsMenuOpen(false);
                 }}>
-                  <span>🔐</span>
+                  <Lock size={15} strokeWidth={2} aria-hidden="true" />
                   <span>Change Password</span>
                 </button>
                 <button onClick={() => {
                   navigate('/settings');
                   setIsMenuOpen(false);
                 }}>
-                  <span>⚙️</span>
+                  <Settings size={15} strokeWidth={2} aria-hidden="true" />
                   <span>Settings</span>
                 </button>
               </div>
@@ -357,7 +369,8 @@ const MinimalUserMenu = ({ currentDuty, onDutyClick }) => {
                 onClick={handleLogout}
                 disabled={isLoggingOut}
               >
-                {isLoggingOut ? '⏳ Signing Out...' : '🚪 Sign Out'}
+                <LogOut size={15} strokeWidth={2} aria-hidden="true" />
+                <span>{isLoggingOut ? 'Signing Out...' : 'Sign Out'}</span>
               </button>
             </div>
           </nav>

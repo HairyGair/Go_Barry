@@ -11,6 +11,7 @@
  */
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Search, Loader2, ClipboardList, X, AlertTriangle } from 'lucide-react';
 import apiClient from '../services/api-client';
 import { useAuth } from '../contexts/AuthContext';
 import './QuickFleetSearch.css';
@@ -279,7 +280,7 @@ const QuickFleetSearch = () => {
     <>
       <div className="quick-fleet-search">
         <div className="search-input-container">
-          <span className="search-icon">🔍</span>
+          <span className="search-icon"><Search size={18} /></span>
           <input
             ref={searchInputRef}
             type="text"
@@ -290,7 +291,7 @@ const QuickFleetSearch = () => {
             onFocus={handleInputFocus}
             onKeyDown={handleKeyNavigation}
           />
-          {isLoading && <span className="loading-indicator">⏳</span>}
+          {isLoading && <span className="loading-indicator"><Loader2 size={16} /></span>}
         </div>
 
         {isDropdownOpen && (
@@ -299,7 +300,7 @@ const QuickFleetSearch = () => {
             {searchTerm.trim().length < 2 && shiftHistory.length > 0 && (
               <div className="shift-history-section">
                 <div className="shift-history-header">
-                  <span className="shift-history-icon">📋</span>
+                  <span className="shift-history-icon"><ClipboardList size={14} /></span>
                   <span>Your Shift Vehicles</span>
                   {currentDuty?.code && (
                     <span className="shift-duty-badge">Duty {currentDuty.code}</span>
@@ -370,7 +371,7 @@ const QuickFleetSearch = () => {
       {isModalOpen && selectedVehicle && (
         <div className="fleet-modal-overlay" onClick={closeModal}>
           <div className="fleet-modal-content" onClick={(e) => e.stopPropagation()}>
-            <button className="modal-close-btn" onClick={closeModal}>×</button>
+            <button className="modal-close-btn" onClick={closeModal}><X size={18} /></button>
 
             <div className="modal-header">
               <h2>Fleet #{selectedVehicle.fleet_no}</h2>
@@ -431,7 +432,7 @@ const QuickFleetSearch = () => {
 
               {selectedVehicle.current_breakdown && (
                 <div className="modal-alert">
-                  <div className="alert-icon">⚠️</div>
+                  <div className="alert-icon"><AlertTriangle size={20} /></div>
                   <div className="alert-content">
                     <strong>Active Breakdown</strong>
                     <p>{selectedVehicle.current_breakdown.issue || 'In service'}</p>

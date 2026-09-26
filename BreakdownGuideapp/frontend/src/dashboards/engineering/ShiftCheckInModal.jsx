@@ -325,33 +325,44 @@ const shiftCheckInStyles = `
     align-items: center;
     gap: 14px;
     padding: 20px 24px;
-    background: linear-gradient(135deg, #0097A7 0%, #00838F 100%);
-    border-bottom: 1px solid rgba(0,188,212,0.3);
+    background: rgba(255,255,255,0.03);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    position: relative;
+  }
+
+  .sci-header::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, #0097A7, #22d3ee, transparent);
   }
 
   .sci-header-icon {
     width: 44px; height: 44px;
-    background: rgba(255,255,255,0.15);
+    background: rgba(0,188,212,0.12);
+    border: 1px solid rgba(0,188,212,0.25);
     border-radius: 10px;
     display: flex; align-items: center; justify-content: center;
-    color: white;
+    color: #22d3ee;
     flex-shrink: 0;
   }
 
   .sci-title {
-    color: white; font-size: 18px; font-weight: 700;
+    color: #f1f5f9; font-size: 18px; font-weight: 700;
     font-family: 'Outfit', sans-serif; margin: 0;
   }
 
   .sci-subtitle {
-    color: rgba(255,255,255,0.7); font-size: 13px; margin: 2px 0 0;
+    color: #94a3b8; font-size: 13px; margin: 2px 0 0;
     font-family: 'Inter', sans-serif;
   }
 
   .sci-step-indicator {
     margin-left: auto;
-    background: rgba(255,255,255,0.15);
-    color: white;
+    background: rgba(0,151,167,0.15);
+    color: #22d3ee;
+    border: 1px solid rgba(0,151,167,0.25);
     padding: 4px 12px;
     border-radius: 12px;
     font-size: 11px;

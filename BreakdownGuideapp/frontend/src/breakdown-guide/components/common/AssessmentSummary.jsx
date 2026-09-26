@@ -8,6 +8,7 @@
 
 import React from 'react';
 import { FileText, Printer, Mail, CheckCircle, Download, Copy, AlertTriangle } from './icons.jsx';
+import { Ban, Loader2 } from 'lucide-react';
 
 const AssessmentSummary = ({
     assessmentData,
@@ -37,28 +38,32 @@ const AssessmentSummary = ({
                     bgColor: 'bg-red-500/20',
                     borderColor: 'border-red-400/50',
                     textColor: 'text-red-200',
-                    icon: '🛑'
+                    iconColor: 'text-red-400',
+                    Icon: Ban
                 };
             case 'AMBER':
                 return {
                     bgColor: 'bg-amber-500/20',
                     borderColor: 'border-amber-400/30',
                     textColor: 'text-amber-200',
-                    icon: '⚠️'
+                    iconColor: 'text-amber-400',
+                    Icon: AlertTriangle
                 };
             case 'CONTINUE':
                 return {
                     bgColor: 'bg-green-500/20',
                     borderColor: 'border-green-400/30',
                     textColor: 'text-green-200',
-                    icon: '✅'
+                    iconColor: 'text-green-400',
+                    Icon: CheckCircle
                 };
             default:
                 return {
                     bgColor: 'bg-gray-500/20',
                     borderColor: 'border-gray-400/30',
                     textColor: 'text-gray-200',
-                    icon: '📋'
+                    iconColor: 'text-gray-400',
+                    Icon: FileText
                 };
         }
     };
@@ -204,8 +209,8 @@ ${new Date().toISOString()}
         <div className="space-y-6">
             {/* Header */}
             <div className="text-center">
-                <div className="mx-auto w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mb-4">
-                    <FileText className="w-8 h-8 text-blue-400" />
+                <div className="mx-auto w-16 h-16 bg-cyan-500/20 rounded-full flex items-center justify-center mb-4">
+                    <FileText className="w-8 h-8 text-cyan-400" />
                 </div>
                 <h2 className="text-2xl font-bold text-white mb-2">Assessment Summary</h2>
                 <p className="text-gray-300">Complete summary for incident reporting</p>
@@ -214,7 +219,7 @@ ${new Date().toISOString()}
             {/* Decision Banner */}
             <div className={`${decisionStyle.bgColor} backdrop-blur-sm rounded-lg p-6 border ${decisionStyle.borderColor}`}>
                 <div className="text-center">
-                    <div className="text-6xl mb-4">{decisionStyle.icon}</div>
+                    <decisionStyle.Icon className={`w-14 h-14 mx-auto mb-4 ${decisionStyle.iconColor}`} />
                     <h3 className={`text-2xl font-bold mb-2 ${decisionStyle.textColor}`}>
                         {String(decision || '').toUpperCase() || 'N/A'} DECISION
                     </h3>
@@ -227,26 +232,26 @@ ${new Date().toISOString()}
             </div>
             
             {/* Quick Actions */}
-            <div className="bg-blue-500/10 backdrop-blur-sm rounded-lg p-4 border border-blue-400/30">
-                <h4 className="font-semibold text-blue-200 mb-3">Quick Actions</h4>
+            <div className="bg-cyan-500/10 backdrop-blur-sm rounded-lg p-4 border border-cyan-400/30">
+                <h4 className="font-semibold text-cyan-200 mb-3">Quick Actions</h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                     <button
                         onClick={copySummaryToClipboard}
-                        className="flex items-center justify-center px-4 py-2 bg-blue-600/20 text-blue-200 rounded hover:bg-blue-600/30 transition-colors"
+                        className="flex items-center justify-center px-4 py-2 bg-cyan-600/20 text-cyan-200 rounded hover:bg-cyan-600/30 transition-colors"
                     >
                         <Copy className="w-4 h-4 mr-2" />
                         Copy Summary
                     </button>
                     <button
                         onClick={onPrint}
-                        className="flex items-center justify-center px-4 py-2 bg-blue-600/20 text-blue-200 rounded hover:bg-blue-600/30 transition-colors"
+                        className="flex items-center justify-center px-4 py-2 bg-cyan-600/20 text-cyan-200 rounded hover:bg-cyan-600/30 transition-colors"
                     >
                         <Printer className="w-4 h-4 mr-2" />
                         Print Summary
                     </button>
                     <button
                         onClick={onEmail}
-                        className="flex items-center justify-center px-4 py-2 bg-blue-600/20 text-blue-200 rounded hover:bg-blue-600/30 transition-colors"
+                        className="flex items-center justify-center px-4 py-2 bg-cyan-600/20 text-cyan-200 rounded hover:bg-cyan-600/30 transition-colors"
                     >
                         <Mail className="w-4 h-4 mr-2" />
                         Email Summary
@@ -314,12 +319,12 @@ ${new Date().toISOString()}
             
             {/* Incident Reporting Reminder - Only shown for Road Traffic Incidents per standard operational procedures */}
             {(wizardType?.toLowerCase().includes('road-traffic') || wizardType?.toLowerCase().includes('incident')) && (
-                <div className="bg-purple-500/20 backdrop-blur-sm rounded-lg p-6 border border-purple-400/30">
+                <div className="bg-amber-500/20 backdrop-blur-sm rounded-lg p-6 border border-amber-400/30">
                     <div className="flex items-start space-x-4">
-                        <AlertTriangle className="w-6 h-6 text-purple-400 mt-1 flex-shrink-0" />
+                        <AlertTriangle className="w-6 h-6 text-amber-400 mt-1 flex-shrink-0" />
                         <div>
-                            <h4 className="font-semibold text-purple-200 mb-2">Incident Reporting Requirements</h4>
-                            <ul className="list-disc list-inside space-y-1 text-purple-300/90 text-sm">
+                            <h4 className="font-semibold text-amber-200 mb-2">Incident Reporting Requirements</h4>
+                            <ul className="list-disc list-inside space-y-1 text-amber-300/90 text-sm">
                                 <li>Complete incident report within 24 hours</li>
                                 <li>Include this breakdown ID: <span className="font-mono bg-black/30 px-1 rounded">{assessmentData?.breakdownId || 'Pending'}</span></li>
                                 <li>Attach any photos taken during assessment</li>
@@ -362,7 +367,7 @@ ${new Date().toISOString()}
                 >
                     {isSubmitting ? (
                         <>
-                            <span className="animate-spin mr-2">⏳</span>
+                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                             Submitting...
                         </>
                     ) : (

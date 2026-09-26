@@ -78,7 +78,6 @@
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: #fff;
-  font-size: 28px;
   line-height: 1;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -106,8 +105,8 @@
   align-items: center;
   gap: 16px;
   padding: 16px 20px;
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.05) 100%);
-  border: 2px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  border: 2px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -122,15 +121,15 @@
   top: 0;
   bottom: 0;
   width: 4px;
-  background: var(--depot-color, #3b82f6);
+  background: var(--depot-color, #00BCD4);
   opacity: 0;
   transition: opacity 0.3s ease;
 }
 
 .depot-card:hover {
   transform: translateX(8px);
-  border-color: var(--depot-color, #3b82f6);
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(37, 99, 235, 0.1) 100%);
+  border-color: var(--depot-color, #00BCD4);
+  background: rgba(255, 255, 255, 0.06);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
@@ -143,14 +142,16 @@
 }
 
 .depot-icon {
-  font-size: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
-  filter: grayscale(0.3);
-  transition: filter 0.3s ease;
+  color: rgba(255, 255, 255, 0.5);
+  transition: color 0.3s ease;
 }
 
 .depot-card:hover .depot-icon {
-  filter: grayscale(0);
+  color: var(--depot-color, #00BCD4);
 }
 
 .depot-info {
@@ -171,8 +172,9 @@
 }
 
 .depot-arrow {
-  font-size: 20px;
-  color: var(--depot-color, #3b82f6);
+  display: flex;
+  align-items: center;
+  color: var(--depot-color, #00BCD4);
   opacity: 0;
   transform: translateX(-10px);
   transition: all 0.3s ease;

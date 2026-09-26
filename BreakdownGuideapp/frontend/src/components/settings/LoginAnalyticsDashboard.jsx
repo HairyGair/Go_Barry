@@ -12,6 +12,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { BarChart3, Lock, CheckCircle2, XCircle, Timer, RefreshCw } from 'lucide-react';
 import { apiClient } from '../../services/api-client.js';
 import './LoginAnalyticsDashboard.css';
 
@@ -135,7 +136,7 @@ const LoginAnalyticsDashboard = () => {
       <div className="settings-section">
         <h2>Login Analytics</h2>
         <div className="analytics-empty">
-          <div className="empty-icon">📊</div>
+          <div className="empty-icon"><BarChart3 size={40} /></div>
           <h3>No Data Yet</h3>
           <p>Login analytics will appear here once users start logging in.</p>
         </div>
@@ -166,7 +167,7 @@ const LoginAnalyticsDashboard = () => {
             onClick={() => loadAnalytics()}
             title="Refresh analytics"
           >
-            🔄
+            <RefreshCw size={16} />
           </button>
         </div>
       </div>
@@ -175,7 +176,7 @@ const LoginAnalyticsDashboard = () => {
       <div className="analytics-grid">
         {/* Total Logins */}
         <div className="stat-card stat-card-blue">
-          <div className="stat-icon">🔐</div>
+          <div className="stat-icon"><Lock size={32} /></div>
           <div className="stat-content">
             <div className="stat-label">Total Logins</div>
             <div className="stat-value">{totals.total_logins || 0}</div>
@@ -187,7 +188,7 @@ const LoginAnalyticsDashboard = () => {
 
         {/* Success Rate */}
         <div className="stat-card stat-card-green">
-          <div className="stat-icon">✅</div>
+          <div className="stat-icon"><CheckCircle2 size={32} /></div>
           <div className="stat-content">
             <div className="stat-label">Success Rate</div>
             <div className="stat-value">{(Number(totals.success_rate) || 0).toFixed(1)}%</div>
@@ -199,7 +200,7 @@ const LoginAnalyticsDashboard = () => {
 
         {/* Failed Logins */}
         <div className="stat-card stat-card-red">
-          <div className="stat-icon">❌</div>
+          <div className="stat-icon"><XCircle size={32} /></div>
           <div className="stat-content">
             <div className="stat-label">Failed Attempts</div>
             <div className="stat-value">{totals.failed_logins || 0}</div>
@@ -211,7 +212,7 @@ const LoginAnalyticsDashboard = () => {
 
         {/* Average Session */}
         <div className="stat-card stat-card-purple">
-          <div className="stat-icon">⏱️</div>
+          <div className="stat-icon"><Timer size={32} /></div>
           <div className="stat-content">
             <div className="stat-label">Avg Session</div>
             <div className="stat-value">

@@ -14,83 +14,83 @@
 }
 
 /* Header */
-.settings-header {
+.shift-reminder-settings .settings-header {
   margin-bottom: 24px;
 }
 
-.settings-title {
+.shift-reminder-settings .settings-title {
   display: flex;
   align-items: center;
   gap: 12px;
   margin-bottom: 8px;
 }
 
-.settings-title h3 {
+.shift-reminder-settings .settings-title h3 {
   margin: 0;
   color: #fff;
   font-size: 20px;
   font-weight: 600;
 }
 
-.settings-description {
+.shift-reminder-settings .settings-description {
   color: rgba(255, 255, 255, 0.6);
   font-size: 14px;
   margin: 0;
 }
 
 /* Permission Badges */
-.permission-badge {
+.shift-reminder-settings .permission-badge {
   padding: 4px 10px;
   border-radius: 12px;
   font-size: 12px;
   font-weight: 600;
 }
 
-.permission-badge.granted {
+.shift-reminder-settings .permission-badge.granted {
   background: rgba(16, 185, 129, 0.2);
   color: #10b981;
 }
 
-.permission-badge.denied {
+.shift-reminder-settings .permission-badge.denied {
   background: rgba(239, 68, 68, 0.2);
   color: #ef4444;
 }
 
-.permission-badge.default {
+.shift-reminder-settings .permission-badge.default {
   background: rgba(245, 158, 11, 0.2);
   color: #f59e0b;
 }
 
-.permission-badge.unsupported {
+.shift-reminder-settings .permission-badge.unsupported {
   background: rgba(107, 114, 128, 0.2);
   color: #9ca3af;
 }
 
 /* Unsupported Message */
-.unsupported-message {
+.shift-reminder-settings .unsupported-message {
   text-align: center;
   padding: 40px 20px;
 }
 
-.unsupported-icon {
+.shift-reminder-settings .unsupported-icon {
   font-size: 48px;
   margin-bottom: 16px;
   display: block;
 }
 
-.unsupported-message p {
+.shift-reminder-settings .unsupported-message p {
   color: rgba(255, 255, 255, 0.8);
   margin: 0 0 8px;
   font-size: 15px;
 }
 
-.unsupported-hint {
+.shift-reminder-settings .unsupported-hint {
   color: rgba(255, 255, 255, 0.5) !important;
   font-size: 13px !important;
 }
 
 /* Permission Warning */
-.permission-warning {
+.shift-reminder-settings .permission-warning {
   display: flex;
   gap: 12px;
   padding: 16px;
@@ -100,91 +100,91 @@
   margin-bottom: 20px;
 }
 
-.warning-icon {
+.shift-reminder-settings .warning-icon {
   font-size: 24px;
   flex-shrink: 0;
 }
 
-.warning-content strong {
+.shift-reminder-settings .warning-content strong {
   color: #ef4444;
   display: block;
   margin-bottom: 4px;
 }
 
-.warning-content p {
+.shift-reminder-settings .warning-content p {
   color: rgba(255, 255, 255, 0.7);
   font-size: 13px;
   margin: 0;
 }
 
 /* Settings Section */
-.settings-section {
+.shift-reminder-settings .settings-section {
   margin-bottom: 24px;
   padding-bottom: 24px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.settings-section:last-of-type {
+.shift-reminder-settings .settings-section:last-of-type {
   border-bottom: none;
 }
 
-.settings-section.disabled {
+.shift-reminder-settings .settings-section.disabled {
   opacity: 0.5;
   pointer-events: none;
 }
 
-.settings-section h4 {
+.shift-reminder-settings .settings-section h4 {
   color: #fff;
   font-size: 14px;
   font-weight: 600;
   margin: 0 0 8px;
 }
 
-.section-hint {
+.shift-reminder-settings .section-hint {
   color: rgba(255, 255, 255, 0.5);
   font-size: 12px;
   margin: 8px 0 0;
 }
 
 /* Setting Row */
-.setting-row {
+.shift-reminder-settings .setting-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.setting-info {
+.shift-reminder-settings .setting-info {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.setting-label {
+.shift-reminder-settings .setting-label {
   color: #fff;
   font-size: 14px;
   font-weight: 500;
 }
 
-.setting-hint {
+.shift-reminder-settings .setting-hint {
   color: rgba(255, 255, 255, 0.5);
   font-size: 12px;
 }
 
 /* Toggle Switch */
-.toggle-switch {
+.shift-reminder-settings .toggle-switch {
   position: relative;
   display: inline-block;
   width: 52px;
   height: 28px;
 }
 
-.toggle-switch input {
+.shift-reminder-settings .toggle-switch input {
   opacity: 0;
   width: 0;
   height: 0;
 }
 
-.toggle-slider {
+.shift-reminder-settings .toggle-slider {
   position: absolute;
   cursor: pointer;
   top: 0;
@@ -197,7 +197,7 @@
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.toggle-slider:before {
+.shift-reminder-settings .toggle-slider:before {
   position: absolute;
   content: "";
   height: 20px;
@@ -209,29 +209,29 @@
   border-radius: 50%;
 }
 
-input:checked + .toggle-slider {
+.shift-reminder-settings input:checked + .toggle-slider {
   background: linear-gradient(135deg, #10b981, #059669);
   border-color: #10b981;
 }
 
-input:checked + .toggle-slider:before {
+.shift-reminder-settings input:checked + .toggle-slider:before {
   transform: translateX(24px);
 }
 
-input:disabled + .toggle-slider {
+.shift-reminder-settings input:disabled + .toggle-slider {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
 /* Shift Grid */
-.shift-grid {
+.shift-reminder-settings .shift-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 12px;
   margin-top: 12px;
 }
 
-.shift-card {
+.shift-reminder-settings .shift-card {
   position: relative;
   display: flex;
   flex-direction: column;
@@ -245,51 +245,51 @@ input:disabled + .toggle-slider {
   text-align: center;
 }
 
-.shift-card:hover:not(:disabled) {
+.shift-reminder-settings .shift-card:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.2);
   transform: translateY(-2px);
 }
 
-.shift-card.selected {
-  background: rgba(59, 130, 246, 0.2);
-  border-color: #3b82f6;
+.shift-reminder-settings .shift-card.selected {
+  background: rgba(0, 188, 212, 0.2);
+  border-color: #00bcd4;
 }
 
-.shift-card:disabled {
+.shift-reminder-settings .shift-card:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.shift-icon {
+.shift-reminder-settings .shift-icon {
   font-size: 28px;
   margin-bottom: 8px;
 }
 
-.shift-code {
+.shift-reminder-settings .shift-code {
   color: #fff;
   font-size: 14px;
   font-weight: 600;
 }
 
-.shift-name {
+.shift-reminder-settings .shift-name {
   color: rgba(255, 255, 255, 0.7);
   font-size: 12px;
   margin: 2px 0;
 }
 
-.shift-time {
+.shift-reminder-settings .shift-time {
   color: rgba(255, 255, 255, 0.5);
   font-size: 11px;
 }
 
-.selected-check {
+.shift-reminder-settings .selected-check {
   position: absolute;
   top: 8px;
   right: 8px;
   width: 20px;
   height: 20px;
-  background: #3b82f6;
+  background: #00bcd4;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -300,14 +300,14 @@ input:disabled + .toggle-slider {
 }
 
 /* Timing Options */
-.timing-options {
+.shift-reminder-settings .timing-options {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
   margin-top: 12px;
 }
 
-.timing-btn {
+.shift-reminder-settings .timing-btn {
   padding: 10px 16px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -319,61 +319,61 @@ input:disabled + .toggle-slider {
   transition: all 0.2s;
 }
 
-.timing-btn:hover:not(:disabled) {
+.shift-reminder-settings .timing-btn:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.1);
 }
 
-.timing-btn.active {
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
-  border-color: #3b82f6;
+.shift-reminder-settings .timing-btn.active {
+  background: linear-gradient(135deg, #00bcd4, #0097a7);
+  border-color: #00bcd4;
   color: #fff;
 }
 
-.timing-btn:disabled {
+.shift-reminder-settings .timing-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
 /* Next Shift Info */
-.next-shift-info {
+.shift-reminder-settings .next-shift-info {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 16px;
-  background: rgba(59, 130, 246, 0.1);
-  border: 1px solid rgba(59, 130, 246, 0.3);
+  background: rgba(0, 188, 212, 0.1);
+  border: 1px solid rgba(0, 188, 212, 0.3);
   border-radius: 12px;
   margin-bottom: 20px;
 }
 
-.next-shift-icon {
+.shift-reminder-settings .next-shift-icon {
   font-size: 32px;
 }
 
-.next-shift-details {
+.shift-reminder-settings .next-shift-details {
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.next-shift-details strong {
+.shift-reminder-settings .next-shift-details strong {
   color: #fff;
   font-size: 14px;
 }
 
-.next-shift-details span {
+.shift-reminder-settings .next-shift-details span {
   color: rgba(255, 255, 255, 0.6);
   font-size: 13px;
 }
 
 /* Action Buttons */
-.settings-actions {
+.shift-reminder-settings .settings-actions {
   display: flex;
   gap: 12px;
   margin-top: 20px;
 }
 
-.action-btn {
+.shift-reminder-settings .action-btn {
   flex: 1;
   padding: 12px 20px;
   border-radius: 10px;
@@ -388,34 +388,34 @@ input:disabled + .toggle-slider {
   gap: 8px;
 }
 
-.permission-btn {
+.shift-reminder-settings .permission-btn {
   background: linear-gradient(135deg, #f59e0b, #d97706);
   color: #fff;
 }
 
-.permission-btn:hover {
+.shift-reminder-settings .permission-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
 }
 
-.test-btn {
+.shift-reminder-settings .test-btn {
   background: rgba(255, 255, 255, 0.1);
   color: #fff;
   border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.test-btn:hover:not(:disabled) {
+.shift-reminder-settings .test-btn:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.15);
   transform: translateY(-1px);
 }
 
-.test-btn:disabled {
+.shift-reminder-settings .test-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
 /* Result Message */
-.result-message {
+.shift-reminder-settings .result-message {
   margin-top: 16px;
   padding: 12px 16px;
   border-radius: 8px;
@@ -435,35 +435,35 @@ input:disabled + .toggle-slider {
   }
 }
 
-.result-message.success {
+.shift-reminder-settings .result-message.success {
   background: rgba(16, 185, 129, 0.2);
   color: #10b981;
   border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
-.result-message.error {
+.shift-reminder-settings .result-message.error {
   background: rgba(239, 68, 68, 0.2);
   color: #ef4444;
   border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
-.result-message.info {
-  background: rgba(59, 130, 246, 0.2);
-  color: #60a5fa;
-  border: 1px solid rgba(59, 130, 246, 0.3);
+.shift-reminder-settings .result-message.info {
+  background: rgba(0, 188, 212, 0.2);
+  color: #5eead4;
+  border: 1px solid rgba(0, 188, 212, 0.3);
 }
 
 /* Responsive */
 @media (max-width: 480px) {
-  .shift-grid {
+  .shift-reminder-settings .shift-grid {
     grid-template-columns: 1fr;
   }
 
-  .settings-actions {
+  .shift-reminder-settings .settings-actions {
     flex-direction: column;
   }
 
-  .timing-options {
+  .shift-reminder-settings .timing-options {
     justify-content: center;
   }
 }

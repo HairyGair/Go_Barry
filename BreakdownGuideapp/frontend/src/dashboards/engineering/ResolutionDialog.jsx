@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { CheckCircle2, RefreshCw, Factory, Check, AlertTriangle, X } from 'lucide-react';
 import { apiClient } from '../../services/api-client';
 
 const ResolutionDialog = ({ breakdown, onResolved, onClose }) => {
@@ -16,35 +17,35 @@ const ResolutionDialog = ({ breakdown, onResolved, onClose }) => {
     {
       id: 'fixed',
       label: 'Fixed on Site',
-      icon: '✅',
+      Icon: CheckCircle2,
       description: 'Vehicle repaired and returned to service',
       color: '#10b981'
     },
     {
       id: 'changeover',
       label: 'Changeover Required',
-      icon: '🔄',
+      Icon: RefreshCw,
       description: 'Replacement vehicle needed',
       color: '#f59e0b'
     },
     {
       id: 'workshop_required',
       label: 'Workshop Required',
-      icon: '🏭',
+      Icon: Factory,
       description: 'Vehicle requires workshop repair',
       color: '#ef4444'
     },
     {
       id: 'deem_safe',
       label: 'Deemed Safe to Continue',
-      icon: '✓',
+      Icon: Check,
       description: 'Issue not critical, vehicle can continue',
-      color: '#64b5f6'
+      color: '#22d3ee'
     },
     {
       id: 'escalated',
       label: 'Escalated',
-      icon: '⚠️',
+      Icon: AlertTriangle,
       description: 'Requires manager/specialist attention',
       color: '#8b5cf6'
     }
@@ -153,7 +154,7 @@ const ResolutionDialog = ({ breakdown, onResolved, onClose }) => {
                 }}
               >
                 <div className="resolution-icon" style={{ color: type.color }}>
-                  {type.icon}
+                  <type.Icon size={28} strokeWidth={1.75} />
                 </div>
                 <div className="resolution-label">{type.label}</div>
                 <div className="resolution-description">{type.description}</div>
@@ -256,7 +257,7 @@ const ResolutionDialog = ({ breakdown, onResolved, onClose }) => {
                     className="remove-part-btn"
                     onClick={() => handleRemovePart(index)}
                   >
-                    ✕
+                    <X size={16} />
                   </button>
                 )}
               </div>
@@ -278,7 +279,7 @@ const ResolutionDialog = ({ breakdown, onResolved, onClose }) => {
 
         {error && (
           <div className="error-message">
-            ⚠️ {error}
+            <AlertTriangle size={14} style={{ verticalAlign: '-2px', marginRight: '4px' }} /> {error}
           </div>
         )}
       </div>
@@ -320,7 +321,7 @@ const ResolutionDialog = ({ breakdown, onResolved, onClose }) => {
 
         .breakdown-info {
           margin: 0;
-          color: #999;
+          color: #94a3b8;
           font-size: 14px;
         }
 
@@ -340,7 +341,7 @@ const ResolutionDialog = ({ breakdown, onResolved, onClose }) => {
 
         .section-label {
           display: block;
-          color: #64b5f6;
+          color: #22d3ee;
           font-size: 14px;
           font-weight: 600;
           margin-bottom: 12px;
@@ -375,7 +376,7 @@ const ResolutionDialog = ({ breakdown, onResolved, onClose }) => {
         }
 
         .resolution-option.selected {
-          background: rgba(100, 181, 246, 0.1);
+          background: rgba(0, 151, 167, 0.1);
         }
 
         .resolution-icon {
@@ -391,7 +392,7 @@ const ResolutionDialog = ({ breakdown, onResolved, onClose }) => {
         }
 
         .resolution-description {
-          color: #999;
+          color: #94a3b8;
           font-size: 11px;
         }
 
@@ -409,12 +410,12 @@ const ResolutionDialog = ({ breakdown, onResolved, onClose }) => {
 
         .text-input:focus {
           outline: none;
-          border-color: #64b5f6;
+          border-color: #22d3ee;
           background: rgba(255, 255, 255, 0.08);
         }
 
         .text-input::placeholder {
-          color: #666;
+          color: #64748b;
         }
 
         .select-input {
@@ -430,7 +431,7 @@ const ResolutionDialog = ({ breakdown, onResolved, onClose }) => {
 
         .select-input:focus {
           outline: none;
-          border-color: #64b5f6;
+          border-color: #22d3ee;
           background: rgba(255, 255, 255, 0.08);
         }
 
@@ -442,11 +443,11 @@ const ResolutionDialog = ({ breakdown, onResolved, onClose }) => {
         }
 
         .add-part-btn {
-          background: rgba(100, 181, 246, 0.2);
-          border: 1px solid #64b5f6;
+          background: rgba(0, 151, 167, 0.2);
+          border: 1px solid #22d3ee;
           border-radius: 6px;
           padding: 6px 12px;
-          color: #64b5f6;
+          color: #22d3ee;
           font-size: 13px;
           font-weight: 600;
           cursor: pointer;
@@ -454,7 +455,7 @@ const ResolutionDialog = ({ breakdown, onResolved, onClose }) => {
         }
 
         .add-part-btn:hover {
-          background: rgba(100, 181, 246, 0.3);
+          background: rgba(0, 151, 167, 0.3);
         }
 
         .parts-list {
@@ -481,12 +482,12 @@ const ResolutionDialog = ({ breakdown, onResolved, onClose }) => {
 
         .part-input:focus {
           outline: none;
-          border-color: #64b5f6;
+          border-color: #22d3ee;
           background: rgba(255, 255, 255, 0.08);
         }
 
         .part-input::placeholder {
-          color: #666;
+          color: #64748b;
         }
 
         .part-number {
@@ -498,6 +499,9 @@ const ResolutionDialog = ({ breakdown, onResolved, onClose }) => {
         }
 
         .remove-part-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
           background: rgba(239, 68, 68, 0.1);
           border: 1px solid rgba(239, 68, 68, 0.3);
           border-radius: 6px;

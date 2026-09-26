@@ -160,7 +160,7 @@ const ExteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, 
                         <button
                             onClick={onNext}
                             disabled={!responses.lighting_conditions || ((responses.lighting_conditions === 'darkness' || responses.lighting_conditions === 'poor_visibility') && !responses.road_type)}
-                            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                             Continue Assessment
                         </button>
@@ -378,7 +378,7 @@ const ExteriorLightsWizard = ({ currentStep, responses, updateResponse, onNext, 
                         <button
                             onClick={onNext}
                             disabled={!responses.headlights || !responses.indicators || !responses.brake_lights}
-                            className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            className="flex items-center px-6 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
                             Safety Decision <ArrowRight className="w-4 h-4 ml-2" />
                         </button>

@@ -8,6 +8,43 @@
 
 import React, { useState, useMemo } from 'react';
 
+// The live /api/defects/repeat endpoint returns camelCase fields (fleetNumber,
+// defectCount, defects: [{type, date}]) rather than the snake_case shape the
+// original demo fixtures used (fleet_number, defect_count, top_issue,
+// last_defect_date). These helpers normalise both shapes so real data renders
+// correctly instead of falling back to "Unknown" / a default count of 1.
+const getFleetNumber = (vehicle) =>
+  vehicle.fleetNumber || vehicle.fleet_number || vehicle.fleet_no || 'Unknown';
+
+const getDefectCount = (vehicle) =>
+  vehicle.defectCount ?? vehicle.defect_count ?? vehicle.breakdown_count ?? 1;
+
+const getTopIssue = (vehicle) => {
+  if (vehicle.top_issue || vehicle.issue_type || vehicle.most_common_issue) {
+    return vehicle.top_issue || vehicle.issue_type || vehicle.most_common_issue;
+  }
+  if (Array.isArray(vehicle.defects) && vehicle.defects.length > 0) {
+    const counts = {};
+    vehicle.defects.forEach((d) => {
+      const type = d.type || 'Unknown';
+      counts[type] = (counts[type] || 0) + 1;
+    });
+    return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+  }
+  return 'Various';
+};
+
+const getLastDefectDate = (vehicle) => {
+  if (vehicle.last_defect_date) return vehicle.last_defect_date;
+  if (Array.isArray(vehicle.defects) && vehicle.defects.length > 0) {
+    return vehicle.defects.reduce((latest, d) => {
+      if (!d.date) return latest;
+      return !latest || new Date(d.date) > new Date(latest) ? d.date : latest;
+    }, null);
+  }
+  return null;
+};
+
 // SVG Icons
 const AlertTriangleIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -67,7 +104,7 @@ const CriticalVehicleCard = ({
   onEscalate,
   onViewHistory,
 }) => {
-  const defectCount = vehicle.defect_count || vehicle.breakdown_count || 1;
+  const defectCount = getDefectCount(vehicle);
   const severityClass =
     defectCount >= 5 ? 'critical' : defectCount >= 3 ? 'warning' : 'info';
 
@@ -76,7 +113,7 @@ const CriticalVehicleCard = ({
       <div className="fi__vehicle-header" onClick={onToggle}>
         <div className="fi__vehicle-info">
           <span className="fi__fleet-no">
-            {vehicle.fleet_number || vehicle.fleet_no || 'Unknown'}
+            {getFleetNumber(vehicle)}
           </span>
           {vehicle.isRealtime && <span className="fi__live-badge">LIVE</span>}
         </div>
@@ -95,7 +132,7 @@ const CriticalVehicleCard = ({
         <div className="fi__vehicle-row">
           <span className="fi__vehicle-row-label">Top Issue</span>
           <span className="fi__vehicle-row-value">
-            {vehicle.top_issue || vehicle.issue_type || vehicle.most_common_issue || 'Various'}
+            {getTopIssue(vehicle)}
           </span>
         </div>
       </div>
@@ -111,8 +148,8 @@ const CriticalVehicleCard = ({
           <div className="fi__vehicle-row">
             <span className="fi__vehicle-row-label">Last Defect</span>
             <span className="fi__vehicle-row-value">
-              {vehicle.last_defect_date
-                ? new Date(vehicle.last_defect_date).toLocaleDateString('en-GB')
+              {getLastDefectDate(vehicle)
+                ? new Date(getLastDefectDate(vehicle)).toLocaleDateString('en-GB')
                 : 'Unknown'}
             </span>
           </div>
@@ -191,14 +228,15 @@ const VehicleTable = ({ vehicles, sortField, sortDirection, onSort, onEscalate, 
         </thead>
         <tbody>
           {vehicles.map((vehicle) => {
-            const defectCount = vehicle.defect_count || vehicle.breakdown_count || 1;
+            const defectCount = getDefectCount(vehicle);
             const severityClass = getSeverityClass(defectCount);
-            const vehicleKey = vehicle.id || vehicle.fleet_number || vehicle.fleet_no;
+            const vehicleKey = vehicle.id || getFleetNumber(vehicle);
+            const lastDefectDate = getLastDefectDate(vehicle);
 
             return (
               <tr key={vehicleKey}>
                 <td className="fi__fleet-cell">
-                  {vehicle.fleet_number || vehicle.fleet_no || 'Unknown'}
+                  {getFleetNumber(vehicle)}
                   {vehicle.isRealtime && (
                     <span className="fi__live-badge" style={{ marginLeft: '6px' }}>
                       LIVE
@@ -212,11 +250,11 @@ const VehicleTable = ({ vehicles, sortField, sortDirection, onSort, onEscalate, 
                   </span>
                 </td>
                 <td>
-                  {vehicle.top_issue || vehicle.issue_type || vehicle.most_common_issue || 'Various'}
+                  {getTopIssue(vehicle)}
                 </td>
                 <td>
-                  {vehicle.last_defect_date
-                    ? new Date(vehicle.last_defect_date).toLocaleDateString('en-GB')
+                  {lastDefectDate
+                    ? new Date(lastDefectDate).toLocaleDateString('en-GB')
                     : 'Unknown'}
                 </td>
                 <td>
@@ -260,7 +298,7 @@ const CriticalVehiclesPanel = ({
   // Default handlers if not provided
   const handleEscalate = onEscalate || ((vehicle) => {
     console.log('Escalating vehicle:', vehicle);
-    alert(`Escalation notification would be sent for Fleet ${vehicle.fleet_number || vehicle.fleet_no}`);
+    alert(`Escalation notification would be sent for Fleet ${getFleetNumber(vehicle)}`);
   });
 
   const handleViewHistory = onViewHistory || ((vehicle) => {
@@ -274,28 +312,31 @@ const CriticalVehiclesPanel = ({
 
       switch (sortField) {
         case 'fleet_number':
-          aVal = a.fleet_number || a.fleet_no || '';
-          bVal = b.fleet_number || b.fleet_no || '';
+          aVal = getFleetNumber(a);
+          bVal = getFleetNumber(b);
           break;
         case 'depot':
           aVal = a.depot || a.depot_id || '';
           bVal = b.depot || b.depot_id || '';
           break;
         case 'defect_count':
-          aVal = a.defect_count || a.breakdown_count || 0;
-          bVal = b.defect_count || b.breakdown_count || 0;
+          aVal = getDefectCount(a);
+          bVal = getDefectCount(b);
           break;
         case 'top_issue':
-          aVal = a.top_issue || a.issue_type || a.most_common_issue || '';
-          bVal = b.top_issue || b.issue_type || b.most_common_issue || '';
+          aVal = getTopIssue(a);
+          bVal = getTopIssue(b);
           break;
-        case 'last_defect_date':
-          aVal = a.last_defect_date ? new Date(a.last_defect_date).getTime() : 0;
-          bVal = b.last_defect_date ? new Date(b.last_defect_date).getTime() : 0;
+        case 'last_defect_date': {
+          const aDate = getLastDefectDate(a);
+          const bDate = getLastDefectDate(b);
+          aVal = aDate ? new Date(aDate).getTime() : 0;
+          bVal = bDate ? new Date(bDate).getTime() : 0;
           break;
+        }
         default:
-          aVal = a.defect_count || a.breakdown_count || 0;
-          bVal = b.defect_count || b.breakdown_count || 0;
+          aVal = getDefectCount(a);
+          bVal = getDefectCount(b);
       }
 
       if (typeof aVal === 'string') {
@@ -376,7 +417,7 @@ const CriticalVehiclesPanel = ({
       ) : viewMode === 'cards' ? (
         <div className="fi__vehicles-list">
           {sortedVehicles.map((vehicle) => {
-            const vehicleKey = vehicle.id || vehicle.fleet_number || vehicle.fleet_no;
+            const vehicleKey = vehicle.id || getFleetNumber(vehicle);
             return (
               <CriticalVehicleCard
                 key={vehicleKey}

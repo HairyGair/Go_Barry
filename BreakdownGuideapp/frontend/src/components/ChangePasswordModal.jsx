@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Lock, X, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import { apiClient } from '../services/api-client';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import './ChangePasswordModal.css';
@@ -53,7 +54,7 @@ const ChangePasswordModal = ({ isOpen, onClose, userEmail }) => {
         newPassword
       });
 
-      setSuccess('✅ Password changed successfully!');
+      setSuccess('Password changed successfully!');
       setTimeout(() => {
         setCurrentPassword('');
         setNewPassword('');
@@ -85,8 +86,8 @@ const ChangePasswordModal = ({ isOpen, onClose, userEmail }) => {
     <div className="modal-overlay" onClick={handleClose} role="presentation">
       <div className="change-password-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="cpm-title">
         <div className="modal-header">
-          <h2 id="cpm-title">🔐 Change Password</h2>
-          <button className="close-btn" onClick={handleClose} aria-label="Close change password dialog">×</button>
+          <h2 id="cpm-title"><Lock size={18} /> Change Password</h2>
+          <button className="close-btn" onClick={handleClose} aria-label="Close change password dialog"><X size={20} /></button>
         </div>
 
         <div className="modal-body">
@@ -160,13 +161,13 @@ const ChangePasswordModal = ({ isOpen, onClose, userEmail }) => {
 
             {error && (
               <div className="error-message" role="alert" aria-live="polite">
-                ❌ {error}
+                <AlertCircle size={15} style={{ verticalAlign: '-2px', marginRight: '6px' }} />{error}
               </div>
             )}
 
             {success && (
               <div className="success-message" role="status" aria-live="polite">
-                {success}
+                <CheckCircle2 size={15} style={{ verticalAlign: '-2px', marginRight: '6px' }} />{success}
               </div>
             )}
 
@@ -184,7 +185,11 @@ const ChangePasswordModal = ({ isOpen, onClose, userEmail }) => {
                 className="btn-submit"
                 disabled={isLoading}
               >
-                {isLoading ? '⏳ Changing...' : '🔒 Change Password'}
+                {isLoading ? (
+                  <><Loader2 size={16} className="spin-icon" style={{ verticalAlign: '-3px', marginRight: '6px' }} />Changing...</>
+                ) : (
+                  <><Lock size={16} style={{ verticalAlign: '-3px', marginRight: '6px' }} />Change Password</>
+                )}
               </button>
             </div>
           </form>

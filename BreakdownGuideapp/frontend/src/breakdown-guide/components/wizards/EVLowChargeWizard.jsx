@@ -1,6 +1,7 @@
 // EV Low Charge Wizard Component - Electric vehicle battery charge assessment
 // Helps supervisors assess EVs with low charge and coordinate changeover with engineering
 import React from 'react';
+import { BatteryCharging, Ban } from 'lucide-react';
 import * as Icons from '../common/icons.jsx';
 
 function EVLowChargeWizard({ currentStep, responses, updateResponse, onNext, onPrevious, onComplete }) {
@@ -141,7 +142,7 @@ function EVLowChargeWizard({ currentStep, responses, updateResponse, onNext, onP
           <div className="space-y-6">
             <div className="text-center">
               <div className="mx-auto w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mb-4">
-                <span className="text-4xl">⚡</span>
+                <BatteryCharging className="w-8 h-8 text-green-400" />
               </div>
               <h2 className="text-2xl font-bold text-white mb-2">EV Low Charge Assessment</h2>
               <p className="text-gray-300">Electric vehicle battery charge level assessment and changeover planning</p>
@@ -181,7 +182,7 @@ function EVLowChargeWizard({ currentStep, responses, updateResponse, onNext, onP
             <div className="flex justify-end">
               <button
                 onClick={onNext}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 transition-colors"
+                className="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 transition-colors"
               >
                 Begin Assessment
               </button>
@@ -304,7 +305,7 @@ function EVLowChargeWizard({ currentStep, responses, updateResponse, onNext, onP
               <button
                 onClick={onNext}
                 disabled={!responses.charge_level}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Continue
               </button>
@@ -389,7 +390,7 @@ function EVLowChargeWizard({ currentStep, responses, updateResponse, onNext, onP
               <button
                 onClick={onNext}
                 disabled={!responses.can_reach_changeover}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-6 py-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Continue
               </button>
@@ -444,7 +445,6 @@ function EVLowChargeWizard({ currentStep, responses, updateResponse, onNext, onP
     };
 
     const colors = colorMap[decision.color];
-    const severityEmoji = decision.severity === 'STOP' ? '🛑' : decision.severity === 'AMBER' ? '⚠️' : '✅';
 
     return (
       <div className="space-y-6">
@@ -452,7 +452,7 @@ function EVLowChargeWizard({ currentStep, responses, updateResponse, onNext, onP
           <div className={`mx-auto w-16 h-16 ${colors.bg} rounded-full flex items-center justify-center mb-4`}>
             {decision.icon}
           </div>
-          <h2 className="text-2xl font-bold text-white mb-2">{severityEmoji} {decision.title}</h2>
+          <h2 className="text-2xl font-bold text-white mb-2">{decision.title}</h2>
           <p className="text-gray-300">{decision.subtitle}</p>
         </div>
 
@@ -460,7 +460,7 @@ function EVLowChargeWizard({ currentStep, responses, updateResponse, onNext, onP
           <div className="flex items-start">
             {decision.icon}
             <div className="flex-1 ml-4">
-              <h3 className={`text-xl font-bold ${colors.text} mb-3`}>{severityEmoji} {decision.title}</h3>
+              <h3 className={`text-xl font-bold ${colors.text} mb-3`}>{decision.title}</h3>
               <div className={`${colors.textBody} space-y-2`}>
                 <p className="font-semibold">{decision.subtitle}</p>
                 <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4 mt-4">

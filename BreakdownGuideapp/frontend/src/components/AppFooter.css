@@ -10,7 +10,7 @@
     margin-top: auto;
     border-top: 1px solid rgba(255, 255, 255, 0.08);
     flex-shrink: 0;
-    font-family: var(--font-body, 'aileron', -apple-system, BlinkMacSystemFont, sans-serif);
+    font-family: var(--font-body, -apple-system, BlinkMacSystemFont, sans-serif);
     font-size: 12px;
     transition: background 0.3s ease;
 }
@@ -53,15 +53,15 @@
 }
 
 .af-brand {
-    font-family: var(--font-mono, 'new-astro-soft', 'JetBrains Mono', ui-monospace, monospace);
-    font-size: 11px;
-    letter-spacing: -0.02em;
-    color: rgba(255, 255, 255, 0.55);
+    font-family: var(--font-mono, 'JetBrains Mono', ui-monospace, monospace);
+    font-size: 12px;
+    letter-spacing: -0.01em;
+    color: rgba(241, 245, 249, 0.75);
 }
 
 .af-brand strong {
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.7);
+    font-weight: 700;
+    color: #f1f5f9;
 }
 
 /* ── Centre: copyright ── */

@@ -196,9 +196,10 @@ const IncidentInfoStep = ({ responses, updateResponse, onNext, onPrevious }) => 
                     </label>
                 </div>
                 
-                <div className="mt-3 p-3 bg-blue-500/20 rounded-lg border border-blue-400/30">
-                    <p className="text-blue-200 text-sm">
-                        ℹ️ Date and time have been automatically set to the current moment when this assessment began. 
+                <div className="mt-3 p-3 bg-cyan-500/20 rounded-lg border border-cyan-400/30 flex items-start gap-2">
+                    <Icons.Info className="w-4 h-4 text-cyan-300 flex-shrink-0 mt-0.5" />
+                    <p className="text-cyan-200 text-sm">
+                        Date and time have been automatically set to the current moment when this assessment began.
                         Adjust if the incident occurred at a different time.
                     </p>
                 </div>
@@ -243,17 +244,19 @@ const IncidentInfoStep = ({ responses, updateResponse, onNext, onPrevious }) => 
             </div>
             
             {/* Incident Reporting Reminder */}
-            <div className="bg-purple-500/20 backdrop-blur-sm rounded-lg p-6 border border-purple-400/30">
-                <h3 className="text-lg font-semibold text-purple-200 mb-3">📋 Incident Reporting</h3>
-                <p className="text-purple-300/80 text-sm mb-4">
+            <div className="bg-amber-500/20 backdrop-blur-sm rounded-lg p-6 border border-amber-400/30">
+                <h3 className="text-lg font-semibold text-amber-200 mb-3 flex items-center gap-2">
+                    <FileText className="w-5 h-5" /> Incident Reporting
+                </h3>
+                <p className="text-amber-300/80 text-sm mb-4">
                     For detailed incident reporting and tracking, complete the incident report using your reporting system.
                 </p>
-                <div className="bg-purple-500/10 rounded-lg p-4 border border-purple-400/20">
-                    <div className="flex items-center gap-2 text-purple-200">
+                <div className="bg-amber-500/10 rounded-lg p-4 border border-amber-400/20">
+                    <div className="flex items-center gap-2 text-amber-200">
                         <FileText className="w-5 h-5" />
                         <span className="font-medium">Complete incident report within 24 hours</span>
                     </div>
-                    <p className="text-purple-300/60 text-xs mt-2">
+                    <p className="text-amber-300/60 text-xs mt-2">
                         Use your organisation's incident reporting system to log this incident.
                     </p>
                 </div>
