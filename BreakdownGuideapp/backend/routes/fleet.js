@@ -9,13 +9,46 @@
 
 import express from 'express';
 import { from, query, buildSearchCondition, paginate } from '../utils/queryHelpers.js';
+import { isDemoUser, denyDemoWrite } from '../utils/demoFilter.js';
+import { DEMO_FLEET, DEMO_DEPOT_LIST, DEMO_TYPE_LIST, findDemoVehicle, searchDemoFleet } from '../data/demoFleet.js';
 
 const router = express.Router();
+
+/**
+ * Demo isolation: the demo account (DEMO01) must never see the real operator's
+ * fleet (real registrations/depots). Every read below serves a fixed synthetic
+ * fleet instead when the request is a demo session. Real users are unaffected.
+ */
+function demoFleetList({ search, depot, type } = {}) {
+  let list = DEMO_FLEET;
+  if (search) list = searchDemoFleet(search);
+  if (depot) list = list.filter(v => v.depot === depot);
+  if (type) list = list.filter(v => v.type === type);
+  return list;
+}
 
 // GET /api/fleet - Get all vehicles with search and filtering
 router.get('/', async (req, res) => {
   try {
     const { search, depot, type, page = 1, limit = 100 } = req.query;
+
+    if (isDemoUser(req.user)) {
+      const filtered = demoFleetList({ search, depot, type });
+      const pageNum = parseInt(page) || 1;
+      const pageSize = parseInt(limit) || 100;
+      const start = (pageNum - 1) * pageSize;
+      const data = filtered.slice(start, start + pageSize);
+      return res.json({
+        data,
+        pagination: {
+          page: pageNum,
+          limit: pageSize,
+          total: filtered.length,
+          pages: Math.ceil(filtered.length / pageSize)
+        }
+      });
+    }
+
     const { limit: pageLimit, offset } = paginate(page, limit);
 
     // Build base query
@@ -145,6 +178,24 @@ router.get('/', async (req, res) => {
 router.get('/vehicles', async (req, res) => {
   try {
     const { search, depot, type, page = 1, limit = 100 } = req.query;
+
+    if (isDemoUser(req.user)) {
+      const filtered = demoFleetList({ search, depot, type });
+      const pageNum = parseInt(page) || 1;
+      const pageSize = parseInt(limit) || 100;
+      const start = (pageNum - 1) * pageSize;
+      const data = filtered.slice(start, start + pageSize);
+      return res.json({
+        data,
+        pagination: {
+          page: pageNum,
+          limit: pageSize,
+          total: filtered.length,
+          pages: Math.ceil(filtered.length / pageSize)
+        }
+      });
+    }
+
     const { limit: pageLimit, offset } = paginate(page, limit);
 
     // Build base query
@@ -275,6 +326,10 @@ router.get('/search/:term', async (req, res) => {
   try {
     const searchTerm = req.params.term;
 
+    if (isDemoUser(req.user)) {
+      return res.json(searchDemoFleet(searchTerm).slice(0, 20));
+    }
+
     // Search in fleet_no and registration with LIKE (FIXED: was fleet_number)
     const sql = `
       SELECT *
@@ -297,6 +352,12 @@ router.get('/search/:term', async (req, res) => {
 // GET /api/fleet/vehicle/:fleetNumber - Get specific vehicle by fleet number
 router.get('/vehicle/:fleetNumber', async (req, res) => {
   try {
+    if (isDemoUser(req.user)) {
+      const vehicle = findDemoVehicle(req.params.fleetNumber);
+      if (!vehicle) return res.status(404).json({ error: 'Vehicle not found' });
+      return res.json(vehicle);
+    }
+
     const { data, error } = await from('fleet_vehicles')
       .select('*')
       .eq('fleet_no', req.params.fleetNumber)  // FIXED: Use fleet_no not fleet_number
@@ -318,6 +379,12 @@ router.get('/vehicle/:fleetNumber', async (req, res) => {
 // GET /api/fleet/:fleetNumber - Get specific vehicle by fleet number
 router.get('/:fleetNumber', async (req, res) => {
   try {
+    if (isDemoUser(req.user)) {
+      const vehicle = findDemoVehicle(req.params.fleetNumber);
+      if (!vehicle) return res.status(404).json({ error: 'Vehicle not found' });
+      return res.json(vehicle);
+    }
+
     const { data, error } = await from('fleet_vehicles')
       .select('*')
       .eq('fleet_no', req.params.fleetNumber)  // FIXED: Use fleet_no not fleet_number
@@ -339,6 +406,10 @@ router.get('/:fleetNumber', async (req, res) => {
 // GET /api/fleet/depots/list - Get list of all depots
 router.get('/depots/list', async (req, res) => {
   try {
+    if (isDemoUser(req.user)) {
+      return res.json(DEMO_DEPOT_LIST);
+    }
+
     const sql = `
       SELECT DISTINCT depot
       FROM fleet_vehicles
@@ -361,6 +432,10 @@ router.get('/depots/list', async (req, res) => {
 // GET /api/fleet/types/list - Get list of vehicle types
 router.get('/types/list', async (req, res) => {
   try {
+    if (isDemoUser(req.user)) {
+      return res.json(DEMO_TYPE_LIST);
+    }
+
     const sql = `
       SELECT DISTINCT type
       FROM fleet_vehicles
@@ -383,8 +458,9 @@ router.get('/types/list', async (req, res) => {
 // GET /api/fleet/stats/summary - Get fleet statistics
 router.get('/stats/summary', async (req, res) => {
   try {
-    const sql = 'SELECT depot, type, status FROM fleet_vehicles';
-    const data = await query(sql);
+    const data = isDemoUser(req.user)
+      ? DEMO_FLEET.map(({ depot, type, status }) => ({ depot, type, status }))
+      : await query('SELECT depot, type, status FROM fleet_vehicles');
 
     const stats = {
       total_vehicles: data.length,
@@ -422,7 +498,10 @@ router.get('/stats/summary', async (req, res) => {
 });
 
 // PUT /api/fleet/:fleetNumber - Update vehicle information
+// (also used by the "Reallocate depot" flow in FleetSelectionModal - this
+// permanently writes the real fleet master record, so it is blocked for demo.)
 router.put('/:fleetNumber', async (req, res) => {
+  if (denyDemoWrite(req, res)) return;
   try {
     const fleetNumber = req.params.fleetNumber;
     const updateData = {
@@ -466,6 +545,7 @@ router.put('/:fleetNumber', async (req, res) => {
 
 // PATCH /api/fleet/:fleetNumber/status - Update vehicle status
 router.patch('/:fleetNumber/status', async (req, res) => {
+  if (denyDemoWrite(req, res)) return;
   try {
     const fleetNumber = req.params.fleetNumber;
     const { status } = req.body;

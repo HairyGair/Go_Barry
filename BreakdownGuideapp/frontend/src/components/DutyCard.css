@@ -501,6 +501,13 @@
   color: #F59E0B;
 }
 
+/* Intentional empty state — a dash rather than a bare "--" or a fabricated
+   100%/0 value, dimmer than a real reading so it reads as "nothing yet". */
+.duty-card__stat-value--empty {
+  color: #64748b;
+  font-weight: 600;
+}
+
 /* Trend indicators */
 .duty-card__trend {
   font-size: 0.875rem;

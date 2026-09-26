@@ -1,234 +1,137 @@
 /* ============================================================================
-   WIZARD CONTEXT HEADER STYLES
-   Persistent vehicle/assessment context display during wizard flow
+   WIZARD CONTEXT BAR
+   Single-row, always-visible assessment context (fleet/reg/depot/route/issue/
+   location/assessment id). Sits directly under the step progress bar as one
+   sticky header stack - see .wizard-sticky-header in wizard-enhancements.css.
    ============================================================================ */
 
-.wizard-context-header {
+.wizard-context-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 12px 16px;
-  background: linear-gradient(135deg, rgba(0, 188, 212, 0.14) 0%, rgba(15, 23, 42, 0.4) 100%);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(0, 188, 212, 0.25);
-  border-radius: 12px;
-  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  padding: 10px 20px;
+  background: rgba(15, 23, 42, 0.92);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-/* Vehicle Badge - Primary Focus */
-.context-vehicle-badge {
+.wcb-item {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  min-width: 80px;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
 }
 
-.fleet-number {
-  font-family: var(--font-mono, 'JetBrains Mono', monospace);
-  font-variant-numeric: tabular-nums;
-  font-size: 28px;
-  font-weight: 800;
-  color: #22d3ee;
-  line-height: 1;
-  text-shadow: 0 2px 8px rgba(0, 188, 212, 0.3);
+.wcb-item + .wcb-item {
+  padding-left: 20px;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.vehicle-type-badge {
-  font-size: 9px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: rgba(255, 255, 255, 0.7);
-  background: rgba(255, 255, 255, 0.1);
-  padding: 2px 8px;
-  border-radius: 4px;
-  white-space: nowrap;
-}
-
-/* Context Details */
-.context-details {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0; /* Allow text truncation */
-}
-
-.context-row {
-  display: flex;
+.wcb-fleet {
   align-items: center;
   gap: 8px;
 }
 
-.context-icon {
-  display: flex;
-  align-items: center;
+.wcb-fleet-number {
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-variant-numeric: tabular-nums;
+  font-size: 17px;
+  font-weight: 800;
+  color: #22d3ee;
+  line-height: 1;
+}
+
+.wcb-reg {
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+  letter-spacing: 0.03em;
+}
+
+.wcb-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.45);
+  white-space: nowrap;
+}
+
+.wcb-value {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.9);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 320px;
+}
+
+.wcb-location {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.wcb-icon {
   color: #22d3ee;
   flex-shrink: 0;
 }
 
-.context-label {
-  font-size: 14px;
+.wcb-muted-italic {
+  color: rgba(255, 255, 255, 0.45);
+  font-style: italic;
+  font-weight: 400;
+}
+
+.wcb-id {
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 11px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.context-value {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.7);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.location-value {
-  max-width: 200px;
-}
-
-/* Quick Info Pills */
-.context-pills {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  align-items: flex-end;
-}
-
-.context-pill {
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 3px 8px;
-  border-radius: 4px;
-  white-space: nowrap;
-}
-
-.depot-pill {
-  background: rgba(0, 59, 92, 0.4);
-  color: #60a5fa;
-  border: 1px solid rgba(96, 165, 250, 0.3);
-}
-
-.reg-pill {
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.id-pill {
-  background: rgba(16, 185, 129, 0.2);
   color: #34d399;
-  border: 1px solid rgba(52, 211, 153, 0.3);
   cursor: help;
+  white-space: nowrap;
 }
 
 /* ============================================================================
    RESPONSIVE DESIGN
    ============================================================================ */
 
+@media (max-width: 900px) {
+  .wcb-value {
+    max-width: 160px;
+  }
+}
+
 @media (max-width: 768px) {
-  .wizard-context-header {
-    flex-wrap: wrap;
-    padding: 12px;
-    gap: 12px;
+  .wizard-context-bar {
+    padding: 10px 14px;
+    gap: 6px 14px;
   }
 
-  .context-vehicle-badge {
-    flex-direction: row;
-    gap: 8px;
-    min-width: auto;
+  .wcb-item + .wcb-item {
+    padding-left: 14px;
   }
 
-  .fleet-number {
-    font-size: 24px;
-  }
-
-  .context-details {
-    order: 3;
-    width: 100%;
+  .wcb-location {
+    order: 10;
     flex-basis: 100%;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    padding-top: 8px;
-    margin-top: 4px;
+    padding-left: 0 !important;
+    border-left: none !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    padding-top: 6px;
+    margin-top: 2px;
   }
 
-  .context-pills {
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 4px;
-  }
-
-  .location-value {
-    max-width: 100%;
-  }
-}
-
-@media (max-width: 480px) {
-  .wizard-context-header {
-    padding: 10px;
-  }
-
-  .fleet-number {
-    font-size: 20px;
-  }
-
-  .vehicle-type-badge {
-    font-size: 8px;
-  }
-
-  .context-label {
-    font-size: 12px;
-  }
-
-  .context-value {
-    font-size: 11px;
-  }
-
-  .context-pill {
-    font-size: 9px;
-    padding: 2px 6px;
-  }
-}
-
-/* ============================================================================
-   ANIMATIONS
-   ============================================================================ */
-
-.wizard-context-header {
-  animation: context-slide-in 0.4s ease-out;
-}
-
-@keyframes context-slide-in {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* ============================================================================
-   ACCESSIBILITY
-   ============================================================================ */
-
-@media (prefers-reduced-motion: reduce) {
-  .wizard-context-header {
-    animation: none;
+  .wcb-value {
+    max-width: none;
   }
 }
 
 /* High contrast mode */
 @media (prefers-contrast: high) {
-  .wizard-context-header {
-    border-width: 2px;
-    border-color: #00BCD4;
-  }
-
-  .context-pill {
-    border-width: 2px;
+  .wizard-context-bar {
+    border-bottom-width: 2px;
+    border-bottom-color: #00BCD4;
   }
 }

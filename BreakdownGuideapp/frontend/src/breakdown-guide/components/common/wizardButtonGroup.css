@@ -6,19 +6,18 @@
   padding-bottom: env(safe-area-inset-bottom, 1rem);
 }
 
-/* Smooth fade-in animation for button group */
+/* Quick fade-in for the button group - kept under 150ms so it reads as
+   "instant" for a supervisor live on a call, not an arriving animation. */
 .wizard-button-group {
-  animation: wizard-button-fade-in 0.3s ease-out;
+  animation: wizard-button-fade-in 0.12s ease-out;
 }
 
 @keyframes wizard-button-fade-in {
   from {
     opacity: 0;
-    transform: translateY(20px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 

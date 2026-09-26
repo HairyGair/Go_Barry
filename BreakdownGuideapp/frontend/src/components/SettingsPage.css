@@ -12,7 +12,8 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 24px;
+  max-width: 1400px;
+  margin: 0 auto 24px;
   padding: 18px 20px;
   background: var(--bg-secondary, #111a2b);
   border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));

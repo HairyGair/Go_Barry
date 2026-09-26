@@ -65,7 +65,31 @@ export function applyEngineerDemoFilter(builder, user) {
     : builder.notLike('badge_number', DEMO_ENGINEER_PREFIX);
 }
 
+/**
+ * Express middleware / inline guard for endpoints that write to SHARED, real
+ * (non-demo-scoped) data - e.g. the real fleet master table, GTFS import,
+ * global system settings, or another supervisor's account. The demo account
+ * shares production tables for these, so a demo session must never be able to
+ * mutate them (only its own demo-tagged rows).
+ *
+ * Use as router-level middleware (`router.use(denyDemoWrite)` on an
+ * admin-only sub-router) or call directly at the top of a handler:
+ *   if (denyDemoWrite(req, res)) return;
+ */
+export function denyDemoWrite(req, res, next) {
+  if (isDemoUser(req.user)) {
+    const body = { success: false, error: 'Not available in demo' };
+    if (typeof next === 'function') {
+      return res.status(403).json(body);
+    }
+    res.status(403).json(body);
+    return true;
+  }
+  if (typeof next === 'function') return next();
+  return false;
+}
+
 export default {
   DEMO_BADGE, DEMO_SUPERVISOR_ID, DEMO_ENGINEER_PREFIX,
-  isDemoUser, demoSqlFilter, applyDemoFilter, applyEngineerDemoFilter,
+  isDemoUser, demoSqlFilter, applyDemoFilter, applyEngineerDemoFilter, denyDemoWrite,
 };

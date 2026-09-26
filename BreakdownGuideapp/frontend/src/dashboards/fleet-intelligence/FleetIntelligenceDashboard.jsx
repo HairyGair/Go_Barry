@@ -82,7 +82,7 @@ const FleetIntelligenceDashboard = () => {
 
   const {
     kpis, breakdowns, mileageData, criticalVehicles,
-    depotStats, trendingIssues, predictiveAlerts,
+    depotStats, trendingIssues, predictiveAlerts, defectTimeline,
     loading, error, usingDemoData, refresh,
   } = useFleetIntelligence({ timeframe, autoRefresh: true, refreshInterval: 30000 });
 
@@ -136,9 +136,30 @@ const FleetIntelligenceDashboard = () => {
     return counts;
   }, [breakdowns]);
 
-  // Build timeline data (last 30 days)
+  // Build timeline data (last 30 days).
+  // Preferred source: GET /api/analytics/defect-timeline, which counts ALL
+  // breakdowns created in the window (including resolved ones) grouped by
+  // day/severity — this is what makes the chart show real shape. `breakdowns`
+  // here is /api/breakdowns/live (active-only), which is always just a
+  // handful of recent rows, so building the timeline from it alone produced
+  // a chart that was flat almost every day. Fall back to that client-side
+  // calculation only if the API endpoint isn't available yet (e.g. not
+  // deployed, or an older backend) so the chart still renders something.
   const timelineData = useMemo(() => {
     const days = 30;
+
+    if (Array.isArray(defectTimeline) && defectTimeline.length > 0) {
+      return defectTimeline.map(day => ({
+        date: day.date,
+        label: new Date(`${day.date}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }),
+        total: day.total || 0,
+        stop: day.stop || 0,
+        amber: day.amber || 0,
+        cont: day.cont || 0,
+      }));
+    }
+
+    // Fallback: derive from active breakdowns only (flatter, but always available)
     const data = [];
     const now = new Date();
     for (let i = days - 1; i >= 0; i--) {
@@ -160,7 +181,7 @@ const FleetIntelligenceDashboard = () => {
       });
     }
     return data;
-  }, [breakdowns]);
+  }, [breakdowns, defectTimeline]);
 
   const maxTimeline = Math.max(1, ...timelineData.map(d => d.total));
 

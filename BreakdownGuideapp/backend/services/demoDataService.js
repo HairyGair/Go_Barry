@@ -26,6 +26,23 @@ function timeAgo(hoursAgo, minutesAgo = 0) {
 }
 
 /**
+ * Add minutes to a MySQL-formatted datetime string (as produced by timeAgo()).
+ * Used to derive a realistic follow-on event time (e.g. "assessment completed
+ * 3 minutes after the breakdown was reported") without drifting from `now`.
+ */
+function minutesAfter(mysqlDatetimeStr, minutes) {
+  const d = new Date(mysqlDatetimeStr.replace(' ', 'T') + 'Z');
+  d.setMinutes(d.getMinutes() + minutes);
+  return d.toISOString().slice(0, 19).replace('T', ' ');
+}
+
+// Resolved timestamps for the two live demo breakdowns that are already
+// wrapped up (DEMO-010, DEMO-011). Shared between the breakdown-enrichment
+// step and the activity feed so the "resolved" activity lines up exactly
+// with the breakdown's own resolved_at.
+const RESOLVED_AT = { 'DEMO-010': timeAgo(4, 30), 'DEMO-011': timeAgo(6, 0) };
+
+/**
  * The 14 demo breakdowns covering all wizard types, severities, statuses, and depots
  */
 function getDemoBreakdowns() {
@@ -454,6 +471,19 @@ function getDemoActivities(breakdowns, replacements) {
   const activities = [];
 
   for (const b of breakdowns) {
+    // Shared entity_details so the frontend's activity message formatter can
+    // pick out a fleet number / location / issue per event — without this the
+    // formatter falls back to a generic sentence and every row in the feed
+    // reads identically ("Demo User requested an engineer" x3, etc).
+    const entityDetails = JSON.stringify({
+      fleetNo: b.fleet_no,
+      location: b.location_description,
+      issueCategory: b.issue_category,
+      wizardType: b.wizard_type
+    });
+    const severity = b.severity === 'STOP' ? 'critical' : b.severity === 'AMBER' ? 'warning' : 'info';
+
+    // 1. Breakdown reported
     activities.push({
       activity_type: 'breakdown_reported',
       action: `reported ${b.issue_category} breakdown on fleet ${b.fleet_no}`,
@@ -462,13 +492,34 @@ function getDemoActivities(breakdowns, replacements) {
       actor_name: DEMO_SUPERVISOR_NAME,
       entity_type: 'breakdown',
       entity_id: b.breakdown_id,
-      severity: b.severity === 'STOP' ? 'critical' : b.severity === 'AMBER' ? 'warning' : 'info',
+      entity_details: entityDetails,
+      severity,
       source: 'wizard',
       depot: b.depot,
       icon: b.severity === 'STOP' ? '🚨' : b.severity === 'AMBER' ? '⚡' : '⚠️',
       created_at: b.created_at
     });
 
+    // 2. Assessment/decision completed a few minutes later (varies per fleet
+    //    so timestamps don't all line up identically)
+    activities.push({
+      activity_type: 'wizard_completed',
+      action: `completed a ${b.wizard_type} assessment on fleet ${b.fleet_no}: ${b.wizard_decision}`,
+      actor_type: 'supervisor',
+      actor_id: DEMO_BADGE,
+      actor_name: DEMO_SUPERVISOR_NAME,
+      entity_type: 'breakdown',
+      entity_id: b.breakdown_id,
+      entity_details: entityDetails,
+      metadata: JSON.stringify({ decision: b.wizard_decision, wizardType: b.wizard_type }),
+      severity,
+      source: 'wizard',
+      depot: b.depot,
+      icon: '📋',
+      created_at: minutesAfter(b.created_at, 2 + (parseInt(b.fleet_no, 10) % 5))
+    });
+
+    // 3. Engineer dispatched
     if (b.engineer_name && b.engineer_dispatched_at) {
       activities.push({
         activity_type: 'engineer_assigned',
@@ -478,6 +529,7 @@ function getDemoActivities(breakdowns, replacements) {
         actor_name: DEMO_SUPERVISOR_NAME,
         entity_type: 'breakdown',
         entity_id: b.breakdown_id,
+        entity_details: entityDetails,
         severity: 'info',
         source: 'engineering',
         depot: b.depot,
@@ -486,6 +538,7 @@ function getDemoActivities(breakdowns, replacements) {
       });
     }
 
+    // 4. Engineer on site
     if (b.engineer_on_site_at) {
       activities.push({
         activity_type: 'engineer_on_site',
@@ -495,6 +548,7 @@ function getDemoActivities(breakdowns, replacements) {
         actor_name: b.engineer_name,
         entity_type: 'breakdown',
         entity_id: b.breakdown_id,
+        entity_details: entityDetails,
         severity: 'info',
         source: 'engineering',
         depot: b.depot,
@@ -502,22 +556,95 @@ function getDemoActivities(breakdowns, replacements) {
         created_at: b.engineer_on_site_at
       });
     }
+
+    // 5. Resolved — matches the resolved_at already written onto the breakdown
+    //    (RESOLVED_AT) so the activity feed and the breakdown record agree.
+    if ((b.status === 'resolved' || b.status === 'completed') && RESOLVED_AT[b.breakdown_id]) {
+      activities.push({
+        activity_type: 'breakdown_resolved',
+        action: `resolved breakdown on fleet ${b.fleet_no}`,
+        actor_type: 'supervisor',
+        actor_id: DEMO_BADGE,
+        actor_name: DEMO_SUPERVISOR_NAME,
+        entity_type: 'breakdown',
+        entity_id: b.breakdown_id,
+        entity_details: entityDetails,
+        severity: 'info',
+        source: 'operations',
+        depot: b.depot,
+        icon: '✅',
+        created_at: RESOLVED_AT[b.breakdown_id]
+      });
+    }
   }
 
   for (const r of replacements) {
+    const entityDetails = JSON.stringify({
+      fleetNo: r.replacement_fleet_no,
+      location: r.sending_depot_name
+    });
+
+    // Dispatched — note: activity_type deliberately avoids the substring
+    // "breakdown" so the frontend doesn't badge a routine replacement
+    // dispatch as a red "BREAKDOWN" event.
     activities.push({
-      activity_type: 'breakdown_updated',
+      activity_type: 'replacement_dispatched',
       action: `dispatched replacement vehicle ${r.replacement_fleet_no} from ${r.sending_depot_name}`,
       actor_type: 'supervisor',
       actor_id: DEMO_BADGE,
       actor_name: DEMO_SUPERVISOR_NAME,
       entity_type: 'breakdown',
       entity_id: r.breakdown_id,
+      entity_details: entityDetails,
       severity: 'info',
       source: 'operations',
       depot: r.depot,
       icon: '🚌',
       created_at: r.created_at
+    });
+
+    // Returned to service — only for replacements that have completed the run
+    if (r.return_to_service_at) {
+      activities.push({
+        activity_type: 'replacement_returned',
+        action: `marked replacement vehicle ${r.replacement_fleet_no} back in service near ${r.return_to_service_location || r.sending_depot_name}`,
+        actor_type: 'supervisor',
+        actor_id: DEMO_BADGE,
+        actor_name: DEMO_SUPERVISOR_NAME,
+        entity_type: 'breakdown',
+        entity_id: r.breakdown_id,
+        entity_details: entityDetails,
+        severity: 'info',
+        source: 'operations',
+        depot: r.depot,
+        icon: '🏁',
+        created_at: r.return_to_service_at
+      });
+    }
+  }
+
+  // A single handover note for narrative flavour — supervisors routinely
+  // leave a note for the incoming shift on an ongoing incident.
+  const handoverTarget = breakdowns.find(b => b.status === 'in_progress') || breakdowns[0];
+  if (handoverTarget) {
+    activities.push({
+      activity_type: 'handover_note',
+      action: `left a handover note on fleet ${handoverTarget.fleet_no}: engineer en route, monitor and update the incoming shift`,
+      actor_type: 'supervisor',
+      actor_id: DEMO_BADGE,
+      actor_name: DEMO_SUPERVISOR_NAME,
+      entity_type: 'breakdown',
+      entity_id: handoverTarget.breakdown_id,
+      entity_details: JSON.stringify({
+        fleetNo: handoverTarget.fleet_no,
+        location: handoverTarget.location_description,
+        issueCategory: handoverTarget.issue_category
+      }),
+      severity: 'info',
+      source: 'duty',
+      depot: handoverTarget.depot,
+      icon: '📝',
+      created_at: minutesAfter(handoverTarget.created_at, 5)
     });
   }
 
@@ -580,7 +707,6 @@ export async function seedDemoData() {
       'DEMO-006': 9.7, 'DEMO-007': 6.8, 'DEMO-008': 4.2, 'DEMO-009': 15.0, 'DEMO-010': 7.5,
       'DEMO-011': 3.3, 'DEMO-012': 11.0, 'DEMO-013': 6.0, 'DEMO-014': 1.8
     };
-    const RESOLVED_AT = { 'DEMO-010': timeAgo(4, 30), 'DEMO-011': timeAgo(6, 0) };
     try {
       for (let i = 0; i < breakdowns.length; i++) {
         const b = breakdowns[i];
@@ -677,19 +803,52 @@ export async function seedDemoData() {
       seedErrors.push('replacement: ' + rvErr.message);
     }
 
-    // 6. Insert matching activities
+    // 6. Insert matching activities. entity_details/metadata are existing JSON
+    //    columns on this table (migration 008) — populating them is what lets
+    //    the frontend's message formatter show a distinct fleet/decision per
+    //    row instead of one generic sentence repeated for every event. Kept
+    //    best-effort: if either JSON column is ever missing in a given prod
+    //    schema, fall back to the original narrower insert rather than losing
+    //    the whole activity feed.
     const activities = getDemoActivities(breakdowns, replacements);
-    for (const a of activities) {
-      await query(
-        `INSERT INTO activities (
-          activity_type, action, actor_type, actor_id, actor_name,
-          entity_type, entity_id, severity, source, depot, icon, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          a.activity_type, a.action, a.actor_type, a.actor_id, a.actor_name,
-          a.entity_type, a.entity_id, a.severity, a.source, a.depot, a.icon, a.created_at
-        ]
-      );
+    let activityCount = 0;
+    try {
+      for (const a of activities) {
+        await query(
+          `INSERT INTO activities (
+            activity_type, action, actor_type, actor_id, actor_name,
+            entity_type, entity_id, entity_details, severity, source, depot,
+            icon, metadata, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            a.activity_type, a.action, a.actor_type, a.actor_id, a.actor_name,
+            a.entity_type, a.entity_id, a.entity_details || null, a.severity,
+            a.source, a.depot, a.icon, a.metadata || null, a.created_at
+          ]
+        );
+        activityCount++;
+      }
+    } catch (activityErr) {
+      console.error('🎭 Demo activity seeding (with entity_details) failed, retrying without JSON columns:', activityErr.message);
+      seedErrors.push('activities: ' + activityErr.message);
+      activityCount = 0;
+      for (const a of activities) {
+        try {
+          await query(
+            `INSERT INTO activities (
+              activity_type, action, actor_type, actor_id, actor_name,
+              entity_type, entity_id, severity, source, depot, icon, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              a.activity_type, a.action, a.actor_type, a.actor_id, a.actor_name,
+              a.entity_type, a.entity_id, a.severity, a.source, a.depot, a.icon, a.created_at
+            ]
+          );
+          activityCount++;
+        } catch (rowErr) {
+          console.error('🎭 Demo activity row skipped:', rowErr.message);
+        }
+      }
     }
 
     // 7. Seed demo engineers + today's shifts (isolated so a failure here can't
@@ -735,8 +894,8 @@ export async function seedDemoData() {
       seedErrors.push('engineers: ' + engErr.message);
     }
 
-    console.log(`🎭 Demo data seeded: ${breakdowns.length} breakdowns (+${historyCount} history), ${replacementCount} replacements, ${activities.length} activities, ${engineerCount} engineers`);
-    return { breakdowns: breakdowns.length, history: historyCount, replacements: replacementCount, activities: activities.length, engineers: engineerCount, errors: seedErrors };
+    console.log(`🎭 Demo data seeded: ${breakdowns.length} breakdowns (+${historyCount} history), ${replacementCount} replacements, ${activityCount} activities, ${engineerCount} engineers`);
+    return { breakdowns: breakdowns.length, history: historyCount, replacements: replacementCount, activities: activityCount, engineers: engineerCount, errors: seedErrors };
   } catch (error) {
     console.error('🎭 Error seeding demo data:', error);
     throw error;

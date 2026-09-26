@@ -311,6 +311,18 @@ const SDCBreakdownCardEnhanced = memo(({
     ).join(' ');
   };
 
+  // Defensive text extraction - some rows store malformed values
+  // (e.g. severity/issue fields stringified as the literal "[object Object]")
+  const cleanText = (value, fallback = null) => {
+    if (value === null || value === undefined) return fallback;
+    const str = typeof value === 'string' ? value : String(value);
+    const trimmed = str.trim();
+    if (!trimmed) return fallback;
+    const lower = trimmed.toLowerCase();
+    if (lower === '[object object]' || lower === 'null' || lower === 'undefined') return fallback;
+    return trimmed;
+  };
+
   // Reverse geocode coordinates to street name (same as Control Room)
   const reverseGeocode = useCallback(async (lat, lng) => {
     try {
@@ -349,7 +361,10 @@ const SDCBreakdownCardEnhanced = memo(({
   }, []);
 
   // Get standard procedure info based on issue type
-  const rawIssueType = breakdown.issue_type || breakdown.wizard_type?.replace('Wizard', '') || 'General';
+  const rawIssueType = cleanText(breakdown.issue_category)
+    || cleanText(breakdown.issue_type)
+    || cleanText(breakdown.wizard_type?.replace(/Wizard$/i, ''))
+    || 'General';
   const issueType = capitalizeWords(rawIssueType);
   const sdcGuideInfo = SDC_GUIDE_CATEGORIES[issueType] || { icon: '❔', section: 'N/A', critical: false };
   
@@ -419,6 +434,12 @@ const SDCBreakdownCardEnhanced = memo(({
   };
 
   const locationDetails = getLocationDetails();
+
+  // Short single-line location summary for the collapsed triage row
+  const locationSummary = cleanText(breakdown.location_description)
+    || cleanText(locationDetails.primary)
+    || cleanText(breakdown.wizard_assessment_data?.location)
+    || 'Location TBC';
 
   // Trigger geocoding when coordinates are detected
   useEffect(() => {
@@ -496,6 +517,26 @@ const SDCBreakdownCardEnhanced = memo(({
   };
 
   const decisionInfo = getDecisionInfo();
+  const decisionKey = decisionInfo.text.toLowerCase(); // stop | amber | continue | pending
+
+  // Human-readable status for the collapsed triage row - prefers the
+  // engineer's on-the-ground state, then falls back to the workflow stage
+  const getStatusLabel = () => {
+    if (breakdown.engineer_on_site_at) return 'Engineer On Site';
+    if (breakdown.engineer_dispatched_at) return 'Engineer Dispatched';
+    const stageLabels = {
+      received: 'Received',
+      acknowledged: 'Acknowledged',
+      decision: 'Decision Made',
+      engineering: 'Engineering',
+      resolved: 'Resolved',
+      active: 'Active'
+    };
+    const stage = (cleanText(breakdown.currentStage) || cleanText(breakdown.status) || 'received').toLowerCase();
+    return stageLabels[stage] || capitalizeWords(stage.replace(/[_-]+/g, ' '));
+  };
+  const statusLabel = getStatusLabel();
+  const supervisorName = cleanText(breakdown.supervisor_name);
 
   // Get current stage progress
   const stages = ['received', 'acknowledged', 'decision', 'engineering'];
@@ -535,55 +576,83 @@ const SDCBreakdownCardEnhanced = memo(({
     >
       {/* Compact Header - Always Visible */}
       <div className="card-header-compact" onClick={toggleExpanded}>
-        <div className="header-left">
-          <div className="fleet-number-compact">
-            {fleetNumber}
-            {simplifiedVehicleType && (
-              <span className="vehicle-type-compact"> • {simplifiedVehicleType}</span>
+        <div className="header-top-row">
+          <div className="header-left">
+            <div className="fleet-number-compact">
+              {fleetNumber}
+              {simplifiedVehicleType && (
+                <span className="vehicle-type-compact"> • {simplifiedVehicleType}</span>
+              )}
+            </div>
+            {breakdown.route_id && (
+              <div className="route-badge-compact">
+                Route {breakdown.route_id}
+              </div>
             )}
           </div>
-          {breakdown.route_id && (
-            <div className="route-badge-compact">
-              Route {breakdown.route_id}
+
+          <div className="header-right">
+            {/* Phase 7.4: Shift Ending Badge */}
+            <ShiftEndingBadge compact />
+            {/* Next Trip Countdown Badge */}
+            <NextTripCountdownBadge
+              nextTrip={breakdown.next_trip}
+              nextTripAction={breakdown.next_trip_action}
+              compact
+              onAction={handleNextTripAction}
+            />
+            {breakdown.engineer_dispatched_at && breakdown.engineer_eta_minutes && !breakdown.engineer_on_site_at && (
+              <EngineerEtaCountdown
+                dispatchedAt={breakdown.engineer_dispatched_at}
+                etaMinutes={breakdown.engineer_eta_minutes}
+                onSite={!!breakdown.engineer_on_site_at}
+                compact
+              />
+            )}
+            {breakdown.isResolving && (
+              <div className="resolving-badge">
+                <span className="spinner"><Loader2 size={13} /></span>
+                Resolving...
+              </div>
+            )}
+            <div className={`timer-compact ${slaStatus}`}>
+              {formatTime(timeElapsed)} ELAPSED
             </div>
-          )}
+            <button
+              className="expand-toggle"
+              onClick={(e) => { e.stopPropagation(); toggleExpanded(); }}
+              aria-label={isExpanded ? 'Collapse card' : 'Expand card'}
+              aria-expanded={isExpanded}
+            >
+              {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+            </button>
+          </div>
         </div>
 
-        <div className="header-right">
-          {/* Phase 7.4: Shift Ending Badge */}
-          <ShiftEndingBadge compact />
-          {/* Next Trip Countdown Badge */}
-          <NextTripCountdownBadge
-            nextTrip={breakdown.next_trip}
-            nextTripAction={breakdown.next_trip_action}
-            compact
-            onAction={handleNextTripAction}
-          />
-          {breakdown.engineer_dispatched_at && breakdown.engineer_eta_minutes && !breakdown.engineer_on_site_at && (
-            <EngineerEtaCountdown
-              dispatchedAt={breakdown.engineer_dispatched_at}
-              etaMinutes={breakdown.engineer_eta_minutes}
-              onSite={!!breakdown.engineer_on_site_at}
-              compact
-            />
-          )}
-          {breakdown.isResolving && (
-            <div className="resolving-badge">
-              <span className="spinner"><Loader2 size={13} /></span>
-              Resolving...
-            </div>
-          )}
-          <div className={`timer-compact ${slaStatus}`}>
-            {formatTime(timeElapsed)} ELAPSED
-          </div>
-          <button
-            className="expand-toggle"
-            onClick={(e) => { e.stopPropagation(); toggleExpanded(); }}
-            aria-label={isExpanded ? 'Collapse card' : 'Expand card'}
-            aria-expanded={isExpanded}
-          >
-            {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-          </button>
+        {/* Triage row - lets a supervisor assess a breakdown without expanding it */}
+        <div className="triage-row">
+          <span className={`triage-chip triage-decision-${decisionKey}`}>
+            {decisionInfo.text}
+          </span>
+          <span className="triage-issue" title={issueType}>{issueType}</span>
+          <span className="triage-sep" aria-hidden="true">•</span>
+          <span className="triage-location" title={locationSummary}>
+            <MapPin size={12} className="triage-location-icon" aria-hidden="true" />
+            <span className="triage-location-text">{locationSummary}</span>
+          </span>
+          <span className="triage-meta">
+            <span className={`triage-status triage-status-${statusLabel.toLowerCase().replace(/\s+/g, '-')}`}>
+              {statusLabel}
+            </span>
+            <span className="triage-sep" aria-hidden="true">•</span>
+            <span className="triage-depot" title={`Depot: ${depot}`}>{depot}</span>
+            {supervisorName && (
+              <>
+                <span className="triage-sep triage-sep-supervisor" aria-hidden="true">•</span>
+                <span className="triage-supervisor" title={`Supervisor: ${supervisorName}`}>{supervisorName}</span>
+              </>
+            )}
+          </span>
         </div>
       </div>
 

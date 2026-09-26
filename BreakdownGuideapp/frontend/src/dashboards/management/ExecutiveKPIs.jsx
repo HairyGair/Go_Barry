@@ -53,9 +53,15 @@ const ExecutiveKPIs = ({ kpiData, period }) => {
     {
       key: 'mtbf',
       title: 'MTBF',
-      subtitle: 'Mean Time Between Failures',
+      // MTBF is computed over a fixed rolling window (see kpi.windowLabel from
+      // the API) rather than the period tabs above, since "today"/"this week"
+      // makes a mean-time-between-failures reading meaningless after a single
+      // incident. Say so in the subtitle rather than implying it tracks period.
+      subtitle: kpiData?.mtbf?.windowLabel
+        ? `Mean Time Between Failures · ${kpiData.mtbf.windowLabel}`
+        : 'Mean Time Between Failures',
       icon: <GearIcon />,
-      format: 'number'
+      format: 'mtbf'
     },
     {
       key: 'slaCompliance',
@@ -105,14 +111,42 @@ const ExecutiveKPIs = ({ kpiData, period }) => {
     }
   }
 
+  // MTBF is stored/measured in hours, but "1 hours" (wrong plural, wrong
+  // scale) is what a raw hours count looks like once a period has only had
+  // one or two incidents. Pick the unit that reads naturally and pluralise
+  // correctly instead.
+  function formatMtbf(hours) {
+    if (hours === null || hours === undefined) return '—';
+    if (hours < 1) {
+      const mins = Math.round(hours * 60);
+      return `${mins} min${mins === 1 ? '' : 's'}`;
+    }
+    if (hours < 48) {
+      const rounded = Math.round(hours * 10) / 10;
+      return `${rounded} hour${rounded === 1 ? '' : 's'}`;
+    }
+    const days = Math.round((hours / 24) * 10) / 10;
+    return `${days} day${days === 1 ? '' : 's'}`;
+  }
+
   function formatValue(value, format) {
     if (value === null || value === undefined) return '—';
     if (format === 'percentage') {
       return `${value}%`;
     } else if (format === 'time') {
       return `${value} min`;
+    } else if (format === 'mtbf') {
+      return formatMtbf(value);
     }
     return value.toLocaleString();
+  }
+
+  function getEmptySubtitle(key) {
+    // MTBF's empty state isn't period-bound (it's a fixed 30-day window), so
+    // it needs its own honest "nothing to show" line rather than the generic
+    // period-based one.
+    if (key === 'mtbf') return 'Not enough breakdowns in the last 30 days';
+    return 'Not enough data for this period';
   }
 
   function getStatusClass(kpi) {
@@ -179,7 +213,7 @@ const ExecutiveKPIs = ({ kpiData, period }) => {
 
               <div className="ekpi-title">{card.title}</div>
               <div className="ekpi-subtitle">
-                {kpi.value == null ? 'Not enough data for this period' : card.subtitle}
+                {kpi.value == null ? getEmptySubtitle(card.key) : card.subtitle}
               </div>
 
               {kpi.target && (

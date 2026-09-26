@@ -40,6 +40,7 @@ import {
   logSecurityEvent
 } from './middleware/authMiddleware.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
+import { denyDemoWrite } from './utils/demoFilter.js';
 
 // Load environment variables
 dotenv.config();
@@ -667,10 +668,13 @@ app.use('/api/duty', authenticateSupervisor, dutyHandoverRoutes); // Duty handov
 app.use('/api/duty', authenticateSupervisor, dutyNotesRoutes); // Duty notes/log routes
 
 // Admin-only routes (require admin role)
-app.use('/api/admin/fleet', authenticateAdmin, adminFleetRoutes); // Fleet CSV import and management
-app.use('/api/admin/gtfs', authenticateAdmin, adminGTFSRoutes); // GTFS transit data import
+// denyDemoWrite: these write to SHARED/real tables (fleet master, GTFS import,
+// cross-supervisor duty schedules) - a demo session must never reach them, even
+// if the demo account is ever granted an admin-equivalent role.
+app.use('/api/admin/fleet', authenticateAdmin, denyDemoWrite, adminFleetRoutes); // Fleet CSV import and management
+app.use('/api/admin/gtfs', authenticateAdmin, denyDemoWrite, adminGTFSRoutes); // GTFS transit data import
 app.use('/api/admin/enquiries', authenticateAdmin, enquiriesRoutes); // "I'm Interested" enquiries
-app.use('/api/admin/duty', authenticateAdmin, dutySchedulesRoutes); // Duty schedule management (Phase 5)
+app.use('/api/admin/duty', authenticateAdmin, denyDemoWrite, dutySchedulesRoutes); // Duty schedule management (Phase 5)
 app.use('/api/audit', authenticateAdmin, dutyAuditRoutes); // Duty audit trail (Phase 9.2)
 app.use('/api/breaks', authenticateSupervisor, dutyBreaksRoutes); // Break tracking (Phase 2.3)
 app.use('/api/extensions', authenticateSupervisor, dutyExtensionsRoutes); // Duty extensions (Phase 2.5)

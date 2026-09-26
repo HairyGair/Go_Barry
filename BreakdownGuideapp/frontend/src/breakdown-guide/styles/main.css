@@ -78,7 +78,10 @@ body {
 .main-content {
   max-width: 1600px;
   margin: 0 auto;
-  padding: 80px 24px 100px 24px; /* Top padding for floating header */
+  /* No top padding here - the shell's .main-container already reserves space
+     for the floating logo/user menu (+ demo banner) via --app-top-offset.
+     Adding more here just pushes the first question further down the page. */
+  padding: 24px 24px 60px 24px;
   display: flex;
   flex-direction: column;
   gap: 30px;

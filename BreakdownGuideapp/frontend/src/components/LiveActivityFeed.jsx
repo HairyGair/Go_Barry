@@ -38,6 +38,8 @@ const CATEGORY_ICONS = {
   admin: Package,
   status: RefreshCw,
   note: StickyNote,
+  assessment: ClipboardList,
+  replacement: Package,
   sdc: Eye,
   pattern: Search,
   general: FileText
@@ -109,7 +111,10 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
     const type = activity.type || activity.activity_type || activity.activityType || '';
 
     // Breakdown reports - CRITICAL RED
-    if (type.includes('breakdown') || type.includes('BREAKDOWN')) {
+    // (excludes "breakdown_resolved" etc — a resolved breakdown should get the
+    // green RESOLVED treatment below, not a red BREAKDOWN badge)
+    if ((type.includes('breakdown') || type.includes('BREAKDOWN')) &&
+        !type.includes('resolved') && !type.includes('RESOLVED')) {
       return {
         icon: '🚨',
         color: '#111827',
@@ -246,6 +251,31 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
         gradient: 'linear-gradient(135deg, #64748b 0%, #475569 100%)',
         label: 'NOTE',
         category: 'note'
+      };
+    }
+
+    // Assessment/wizard decision completed - INDIGO
+    if (type.includes('wizard') || type.includes('WIZARD') || type.includes('assessment') || type.includes('ASSESSMENT')) {
+      return {
+        icon: '📋',
+        color: '#ffffff',
+        bgColor: '#6366f1',
+        gradient: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+        label: 'ASSESSMENT',
+        category: 'assessment'
+      };
+    }
+
+    // Replacement vehicle dispatched/returned - CYAN
+    if (type.includes('replacement')) {
+      const isReturned = type.includes('returned') || type.includes('RETURNED');
+      return {
+        icon: isReturned ? '🏁' : '🚌',
+        color: '#111827',
+        bgColor: '#06b6d4',
+        gradient: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)',
+        label: isReturned ? 'RETURNED' : 'REPLACEMENT',
+        category: 'replacement'
       };
     }
 
@@ -1008,7 +1038,27 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
       };
     });
 
-    return enrichedActivities;
+    // Group/dedupe consecutive identical events (e.g. a duplicate WebSocket
+    // delivery, or the same repeated system event back-to-back) so the feed
+    // never shows the exact same row over and over — the most recent
+    // occurrence is kept with a "×N" count instead of a wall of repeats.
+    const deduped = [];
+    for (const activity of enrichedActivities) {
+      // Note: the processed activity from the API exposes the underlying
+      // entity as `breakdown_id` (not `entity_id`) — use that so two
+      // different incidents that happen to render the same generic text
+      // (e.g. no fleet number available) aren't merged into one row.
+      const entityKey = activity.breakdown_id || activity.entity_id || activity.entity_type || '';
+      const dedupeKey = `${activity.typeInfo?.category || ''}|${entityKey}|${activity.displayLines?.[0] || activity.message || ''}`;
+      const previous = deduped[deduped.length - 1];
+      if (previous && previous.dedupeKey === dedupeKey) {
+        previous.dupeCount = (previous.dupeCount || 1) + 1;
+        continue;
+      }
+      deduped.push({ ...activity, dedupeKey, dupeCount: 1 });
+    }
+
+    return deduped;
   }, [combinedActivities, realTimeActivities, enrichActivityWithRouteData, getPriorityClass, formatActivityDisplay, getTimeBasedOpacity, getActivityTypeInfo, locationCache]);
 
   // Calculate stats from activities
@@ -1200,6 +1250,11 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
                       <span className="compact-time" title={getExactTimestamp(primaryActivity.timestamp || primaryActivity.created_at)}>
                         {formatTimeAgo(primaryActivity.timestamp || primaryActivity.created_at)}
                       </span>
+                      {primaryActivity.dupeCount > 1 && (
+                        <span className="activity-dupe-count" title={`Repeated ${primaryActivity.dupeCount} times`}>
+                          &times;{primaryActivity.dupeCount}
+                        </span>
+                      )}
                     </div>
                     <span className="activity-type-badge" style={{
                       backgroundColor: primaryActivity.typeInfo?.bgColor,
@@ -1329,6 +1384,12 @@ const LiveActivityFeed = ({ isOpen = true, onClose, embedded = false, activities
                         >
                           {formatTimeAgo(primaryActivity.timestamp || primaryActivity.created_at)}
                         </span>
+
+                        {primaryActivity.dupeCount > 1 && (
+                          <span className="activity-dupe-count" title={`Repeated ${primaryActivity.dupeCount} times`}>
+                            &times;{primaryActivity.dupeCount}
+                          </span>
+                        )}
 
                         {/* Fleet Number Badge */}
                         {primaryActivity.fleetNumber && (

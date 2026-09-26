@@ -1,6 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Users, CheckCircle2, Wrench, Building2, MapPin } from 'lucide-react';
 import DashboardLayout from '../components/DashboardLayout';
 import { apiClient } from '../../services/api-client';
+
+const ACTIVE_JOB_STATUSES = new Set(['dispatched', 'on_site', 'in_progress']);
 
 const DEPOTS = [
   { code: 'WAS', name: 'Washington' },
@@ -10,6 +13,13 @@ const DEPOTS = [
   { code: 'HEX', name: 'Hexham' },
   { code: 'DAR', name: 'Percy Main' }
 ];
+
+// Display-only names for codes returned by the API that aren't dropdown
+// options (the depots table uses PM for Percy Main). NOTE: GTS/DAR labels above
+// disagree with the depots table (GTS=Gateshead, DAR=Deptford) — pending
+// confirmation of the real depot codes, so left unchanged.
+const EXTRA_DEPOT_NAMES = { PM: 'Percy Main' };
+const depotName = (code) => DEPOTS.find(d => d.code === code)?.name || EXTRA_DEPOT_NAMES[code];
 
 const SKILL_OPTIONS = [
   'Electrical', 'Mechanical', 'HVAC', 'Body', 'EV/Hybrid',
@@ -21,6 +31,7 @@ const EngineerManagementPage = () => {
   const [engineers, setEngineers] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [roster, setRoster] = useState([]);
+  const [liveJobs, setLiveJobs] = useState({});
   const [loading, setLoading] = useState(true);
 
   // Form state
@@ -56,14 +67,32 @@ const EngineerManagementPage = () => {
     }
   }, []);
 
+  // Current job (if any) per engineer, keyed by badge number - used to show
+  // "on this breakdown" detail on the roster instead of just an "on a job" pill.
+  const fetchLiveJobs = useCallback(async () => {
+    try {
+      const res = await apiClient.get('/api/breakdowns/live');
+      const list = res?.breakdowns || [];
+      const map = {};
+      list.forEach(b => {
+        if (b.engineer_badge && ACTIVE_JOB_STATUSES.has(b.status)) {
+          map[b.engineer_badge] = b;
+        }
+      });
+      setLiveJobs(map);
+    } catch (err) {
+      console.error('Error fetching live jobs:', err);
+    }
+  }, []);
+
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      await Promise.all([fetchEngineers(), fetchTemplates(), fetchRoster()]);
+      await Promise.all([fetchEngineers(), fetchTemplates(), fetchRoster(), fetchLiveJobs()]);
       setLoading(false);
     };
     load();
-  }, [fetchEngineers, fetchTemplates, fetchRoster]);
+  }, [fetchEngineers, fetchTemplates, fetchRoster, fetchLiveJobs]);
 
   const tabs = [
     { id: 'engineers', label: 'My Engineers', count: engineers.length },
@@ -115,7 +144,9 @@ const EngineerManagementPage = () => {
           {activeTab === 'engineers' && (
             <EngineersTab
               engineers={engineers}
-              onRefresh={fetchEngineers}
+              roster={roster}
+              liveJobs={liveJobs}
+              onRefresh={() => { fetchEngineers(); fetchRoster(); fetchLiveJobs(); }}
               showForm={showEngineerForm}
               setShowForm={setShowEngineerForm}
               editing={editingEngineer}
@@ -145,7 +176,7 @@ const EngineerManagementPage = () => {
 
 // ─── Engineers Tab ────────────────────────────────────────────────────────────
 
-const EngineersTab = ({ engineers, onRefresh, showForm, setShowForm, editing, setEditing }) => {
+const EngineersTab = ({ engineers, roster, liveJobs, onRefresh, showForm, setShowForm, editing, setEditing }) => {
   const handleEdit = (eng) => {
     setEditing(eng);
     setShowForm(true);
@@ -161,8 +192,66 @@ const EngineersTab = ({ engineers, onRefresh, showForm, setShowForm, editing, se
     }
   };
 
+  // Roster is keyed by engineer id and only contains today's on-shift engineers
+  const rosterById = useMemo(() => {
+    const map = {};
+    (roster || []).forEach(r => { map[r.id] = r; });
+    return map;
+  }, [roster]);
+
+  // Summary strip: on shift / available / on a job today, plus a per-depot breakdown
+  const summary = useMemo(() => {
+    const list = roster || [];
+    const onShift = list.length;
+    const available = list.filter(r => r.is_available).length;
+    const onJob = list.filter(r => r.active_jobs > 0).length;
+    const byDepot = list.reduce((acc, r) => {
+      const code = r.shift_depot || r.home_depot_code || 'Unassigned';
+      const name = depotName(code) || code;
+      acc[name] = (acc[name] || 0) + 1;
+      return acc;
+    }, {});
+    return { onShift, available, onJob, byDepot };
+  }, [roster]);
+
   return (
     <div>
+      <div className="emp-summary-strip">
+        <div className="emp-summary-tile">
+          <Users size={18} className="emp-summary-icon" />
+          <div>
+            <div className="emp-summary-value">{summary.onShift}</div>
+            <div className="emp-summary-label">On Shift Today</div>
+          </div>
+        </div>
+        <div className="emp-summary-tile">
+          <CheckCircle2 size={18} className="emp-summary-icon emp-summary-icon--good" />
+          <div>
+            <div className="emp-summary-value">{summary.available}</div>
+            <div className="emp-summary-label">Available</div>
+          </div>
+        </div>
+        <div className="emp-summary-tile">
+          <Wrench size={18} className="emp-summary-icon emp-summary-icon--warn" />
+          <div>
+            <div className="emp-summary-value">{summary.onJob}</div>
+            <div className="emp-summary-label">On A Job</div>
+          </div>
+        </div>
+        <div className="emp-summary-tile emp-summary-tile--depots">
+          <Building2 size={18} className="emp-summary-icon" />
+          <div className="emp-summary-depots">
+            {Object.keys(summary.byDepot).length === 0 ? (
+              <span className="emp-summary-label">No one checked in yet</span>
+            ) : (
+              Object.entries(summary.byDepot).map(([name, count]) => (
+                <span key={name} className="emp-summary-depot-pill">{name} <strong>{count}</strong></span>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+
       <div className="emp-section-header">
         <h3>{engineers.length} Engineer{engineers.length !== 1 ? 's' : ''}</h3>
         <button className="emp-add-btn" onClick={() => { setEditing(null); setShowForm(true); }}>
@@ -181,7 +270,9 @@ const EngineersTab = ({ engineers, onRefresh, showForm, setShowForm, editing, se
       <div className="emp-card-grid">
         {engineers.map(eng => {
           const skills = Array.isArray(eng.skills) ? eng.skills : [];
-          const depotName = DEPOTS.find(d => d.code === eng.home_depot_code)?.name || eng.home_depot_code || 'No depot';
+          const engDepotName = depotName(eng.home_depot_code) || eng.home_depot_code || 'No depot';
+          const shift = rosterById[eng.id];
+          const job = liveJobs[eng.badge_number];
           return (
             <div key={eng.id} className="emp-eng-card">
               <div className="emp-eng-card-top">
@@ -194,9 +285,28 @@ const EngineersTab = ({ engineers, onRefresh, showForm, setShowForm, editing, se
                 </div>
               </div>
               <div className="emp-eng-detail">
-                <span className="emp-eng-depot">{depotName}</span>
+                <span className="emp-eng-depot">{engDepotName}</span>
                 {eng.phone && <span className="emp-eng-phone">{eng.phone}</span>}
               </div>
+
+              <div className={`emp-eng-shift ${shift ? 'emp-eng-shift--on' : 'emp-eng-shift--off'}`}>
+                {shift ? (
+                  <>On shift {shift.shift_start?.slice(0, 5)}–{shift.shift_end?.slice(0, 5)}{shift.shift_depot ? ` · ${depotName(shift.shift_depot) || shift.shift_depot}` : ''}</>
+                ) : (
+                  'Not checked in today'
+                )}
+              </div>
+
+              {job && (
+                <div className="emp-eng-job">
+                  <Wrench size={12} />
+                  <span>{job.breakdown_id || 'Breakdown'}{job.fleet_no ? ` · Fleet ${job.fleet_no}` : ''}</span>
+                  {job.location_description && (
+                    <span className="emp-eng-job-loc"><MapPin size={11} />{job.location_description}</span>
+                  )}
+                </div>
+              )}
+
               {skills.length > 0 && (
                 <div className="emp-eng-skills">
                   {skills.map((s, i) => (
@@ -351,7 +461,7 @@ const TemplatesTab = ({ templates, onRefresh, showForm, setShowForm, editing, se
               </span>
               {tmpl.depot_code && (
                 <span className="emp-tmpl-depot">
-                  {DEPOTS.find(d => d.code === tmpl.depot_code)?.name || tmpl.depot_code}
+                  {depotName(tmpl.depot_code) || tmpl.depot_code}
                 </span>
               )}
             </div>
@@ -447,7 +557,7 @@ const RosterTab = ({ roster, onRefresh }) => {
   // Group by depot
   const byDepot = roster.reduce((acc, eng) => {
     const depot = eng.shift_depot || eng.home_depot_code || 'Unknown';
-    const name = DEPOTS.find(d => d.code === depot)?.name || depot;
+    const name = depotName(depot) || depot;
     if (!acc[name]) acc[name] = [];
     acc[name].push(eng);
     return acc;
@@ -547,20 +657,22 @@ const empStyles = `
   }
 
   .emp-tabs {
-    display: flex; gap: 4px;
-    background: #141d2b;
-    border-radius: 10px;
-    padding: 4px;
+    display: flex; gap: 22px;
+    background: transparent;
+    border-radius: 0;
+    padding: 0;
     margin-bottom: 20px;
-    border: 1px solid rgba(255,255,255,0.06);
+    border: none;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
   }
 
   .emp-tab {
-    flex: 1;
-    padding: 10px 16px;
+    flex: none;
+    padding: 10px 2px 12px;
     background: transparent;
     border: none;
-    border-radius: 8px;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
     color: #94a3b8;
     font-family: 'Outfit', sans-serif;
     font-size: 13px;
@@ -573,11 +685,12 @@ const empStyles = `
     gap: 8px;
   }
 
-  .emp-tab:hover { color: #e2e8f0; background: rgba(255,255,255,0.04); }
+  .emp-tab:hover { color: #e2e8f0; }
 
   .emp-tab-active {
-    background: rgba(0,151,167,0.15) !important;
+    background: transparent !important;
     color: #22d3ee !important;
+    border-bottom-color: #22d3ee;
   }
 
   .emp-tab-count {
@@ -590,6 +703,60 @@ const empStyles = `
 
   .emp-tab-active .emp-tab-count {
     background: rgba(0,151,167,0.25);
+  }
+
+  /* Engineers summary strip */
+  .emp-summary-strip {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(120px, 160px)) 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
+  .emp-summary-tile {
+    display: flex; align-items: center; gap: 12px;
+    background: #141d2b;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+
+  .emp-summary-icon { color: #64748b; flex-shrink: 0; }
+  .emp-summary-icon--good { color: #34d399; }
+  .emp-summary-icon--warn { color: #fbbf24; }
+
+  .emp-summary-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px; font-weight: 700; color: #f1f5f9;
+    line-height: 1;
+  }
+
+  .emp-summary-label {
+    font-size: 11px; color: #94a3b8;
+    font-family: 'Inter', sans-serif;
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .emp-summary-tile--depots { align-items: center; }
+
+  .emp-summary-depots {
+    display: flex; flex-wrap: wrap; gap: 6px;
+  }
+
+  .emp-summary-depot-pill {
+    font-size: 11px; color: #94a3b8;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.07);
+    padding: 3px 8px; border-radius: 6px;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .emp-summary-depot-pill strong {
+    color: #e2e8f0;
+    font-family: 'JetBrains Mono', monospace;
+    margin-left: 3px;
   }
 
   .emp-loading {
@@ -698,6 +865,43 @@ const empStyles = `
   }
 
   .emp-eng-depot { color: #a5b4fc; }
+
+  .emp-eng-shift {
+    font-size: 11px;
+    font-family: 'Inter', sans-serif;
+    padding: 5px 8px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    display: inline-block;
+  }
+
+  .emp-eng-shift--on {
+    color: #34d399;
+    background: rgba(16,185,129,0.08);
+    border: 1px solid rgba(16,185,129,0.18);
+  }
+
+  .emp-eng-shift--off {
+    color: #64748b;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .emp-eng-job {
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    font-size: 11px; color: #fbbf24;
+    background: rgba(245,158,11,0.08);
+    border: 1px solid rgba(245,158,11,0.2);
+    border-radius: 6px;
+    padding: 6px 8px;
+    margin-bottom: 10px;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .emp-eng-job-loc {
+    display: flex; align-items: center; gap: 3px;
+    color: #94a3b8;
+  }
 
   .emp-eng-skills {
     display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 10px;

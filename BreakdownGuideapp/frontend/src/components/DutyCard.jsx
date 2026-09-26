@@ -252,6 +252,14 @@ const DutyCard = ({ currentDuty, onChangeDuty, onStartHandover, onExtendShift, s
 
   const dutyConfig = DUTY_CONFIG[currentDuty.code] || DUTY_CONFIG['200'];
 
+  // Only treat this shift as having real activity once something has actually
+  // happened — otherwise stats/trends/performance messaging read as fake.
+  const hasActivity = (shiftStats.breakdownsHandled || 0) > 0;
+  const EXCELLENT_THRESHOLD = 3; // minimum handled breakdowns before "excellent" means anything
+  const showExcellentBanner = shiftStats.performance === 'excellent' &&
+    (shiftStats.breakdownsHandled || 0) >= EXCELLENT_THRESHOLD;
+  const showNeedsAttentionBanner = shiftStats.performance === 'needs-attention' && hasActivity;
+
   return (
     <div
       className={`duty-card duty-card--${status} ${showCelebration ? 'duty-card--completed' : ''}`}
@@ -322,7 +330,9 @@ const DutyCard = ({ currentDuty, onChangeDuty, onStartHandover, onExtendShift, s
         <div className="duty-card__stat">
           <span className="duty-card__stat-value">
             {shiftStats.breakdownsHandled || 0}
-            {shiftStats.comparison?.trend && (
+            {/* A trend arrow next to zero handled breakdowns has nothing to compare —
+                only show it once this shift has actually seen activity. */}
+            {hasActivity && shiftStats.comparison?.trend && (
               <span className={`duty-card__trend duty-card__trend--${shiftStats.comparison.trend}`}>
                 {shiftStats.comparison.trend === 'above' ? '↑' :
                  shiftStats.comparison.trend === 'below' ? '↓' : '→'}
@@ -336,17 +346,25 @@ const DutyCard = ({ currentDuty, onChangeDuty, onStartHandover, onExtendShift, s
           <span className="duty-card__stat-label">Assessments</span>
         </div>
         <div className="duty-card__stat">
-          <span className="duty-card__stat-value">
-            {shiftStats.avgResponse !== null && shiftStats.avgResponse !== undefined
-              ? `${shiftStats.avgResponse}m`
-              : '--'}
-          </span>
+          {shiftStats.avgResponse !== null && shiftStats.avgResponse !== undefined ? (
+            <span className="duty-card__stat-value">{shiftStats.avgResponse}m</span>
+          ) : (
+            <span className="duty-card__stat-value duty-card__stat-value--empty" title="No breakdowns acknowledged yet this shift">
+              &mdash;
+            </span>
+          )}
           <span className="duty-card__stat-label">Avg Response</span>
         </div>
         <div className="duty-card__stat">
-          <span className={`duty-card__stat-value duty-card__stat-value--${shiftStats.performance || 'good'}`}>
-            {shiftStats.resolutionRate || 100}%
-          </span>
+          {hasActivity ? (
+            <span className={`duty-card__stat-value duty-card__stat-value--${shiftStats.performance || 'good'}`}>
+              {shiftStats.resolutionRate ?? 100}%
+            </span>
+          ) : (
+            <span className="duty-card__stat-value duty-card__stat-value--empty" title="Nothing to resolve yet this shift">
+              &mdash;
+            </span>
+          )}
           <span className="duty-card__stat-label">Resolved</span>
         </div>
       </div>
@@ -424,15 +442,18 @@ const DutyCard = ({ currentDuty, onChangeDuty, onStartHandover, onExtendShift, s
         )}
       </div>
 
-      {/* Performance Indicator */}
-      {shiftStats.performance && shiftStats.performance !== 'good' && (
-        <div className={`duty-card__performance duty-card__performance--${shiftStats.performance}`}>
-          {shiftStats.performance === 'excellent' && (
-            <><Sparkles size={14} /> Excellent shift performance!</>
-          )}
-          {shiftStats.performance === 'needs-attention' && (
-            <><AlertTriangle size={14} /> High severity incidents this shift</>
-          )}
+      {/* Performance Indicator — only shown when it reflects something real:
+          "excellent" needs enough handled breakdowns to mean anything, and
+          "needs-attention" needs actual activity to attend to. A quiet shift
+          with nothing handled yet gets no banner at all rather than a fake one. */}
+      {showExcellentBanner && (
+        <div className="duty-card__performance duty-card__performance--excellent">
+          <Sparkles size={14} /> {shiftStats.breakdownsHandled} breakdowns handled, no vehicles disabled
+        </div>
+      )}
+      {showNeedsAttentionBanner && (
+        <div className="duty-card__performance duty-card__performance--needs-attention">
+          <AlertTriangle size={14} /> High severity incidents this shift
         </div>
       )}
 

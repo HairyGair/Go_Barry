@@ -11,6 +11,7 @@ import express from 'express';
 import { from, insert, update, query } from '../utils/queryHelpers.js';
 import { verifyToken, authenticateAdmin, authenticateSupervisor } from '../middleware/authMiddleware.js';
 import webSocketHandler from './webSocketHandler.js';
+import { denyDemoWrite } from '../utils/demoFilter.js';
 
 const router = express.Router();
 
@@ -430,6 +431,7 @@ router.get('/stats', authenticateAdmin, async (req, res) => {
  * Used for cleaning up stuck sessions or force logout
  */
 router.delete('/:sessionId', authenticateAdmin, async (req, res) => {
+  if (denyDemoWrite(req, res)) return;
   try {
     const { sessionId } = req.params;
 

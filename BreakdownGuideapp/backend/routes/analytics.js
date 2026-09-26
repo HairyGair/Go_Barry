@@ -106,7 +106,6 @@ router.get('/kpis', validate(analyticsSchemas.kpis), async (req, res) => {
       }
       return {
         count: breakdowns.length,
-        mtbf: breakdowns.length > 0 ? Math.round(hours / breakdowns.length) : null,
         avgResponse: count > 0 ? Math.round(total / count) : null,
         sla: count > 0 ? (met / count) * 100 : null
       };
@@ -119,6 +118,39 @@ router.get('/kpis', validate(analyticsSchemas.kpis), async (req, res) => {
     const prev = periodMetrics(previousBreakdowns, previousStartDate, startDate);
     const currentCount = cur.count;
     const previousCount = prev.count;
+
+    // MTBF (mean time between failures) over "today" or even "week" is
+    // meaningless — one incident an hour after midnight gives an MTBF of
+    // "1 hour", which reads as broken rather than informative. Always compute
+    // it over a fixed rolling 30-day window instead, independent of the
+    // selected `period`, and say so via `windowDays` so the UI can label it
+    // clearly rather than implying it matches the period tabs.
+    const MTBF_WINDOW_DAYS = 30;
+    let mtbfHours = null;
+    let mtbfTrend = null;
+    try {
+      const mtbfWindowStart = new Date();
+      mtbfWindowStart.setDate(mtbfWindowStart.getDate() - MTBF_WINDOW_DAYS);
+      const mtbfPrevWindowStart = new Date();
+      mtbfPrevWindowStart.setDate(mtbfPrevWindowStart.getDate() - MTBF_WINDOW_DAYS * 2);
+
+      const [curCountRow] = await query(
+        'SELECT COUNT(*) AS cnt FROM breakdowns WHERE created_at >= ?' + demoSqlFilter(req.user),
+        [mtbfWindowStart]
+      );
+      const [prevCountRow] = await query(
+        'SELECT COUNT(*) AS cnt FROM breakdowns WHERE created_at >= ? AND created_at < ?' + demoSqlFilter(req.user),
+        [mtbfPrevWindowStart, mtbfWindowStart]
+      );
+      const mtbfCurCount = Number(curCountRow?.cnt) || 0;
+      const mtbfPrevCount = Number(prevCountRow?.cnt) || 0;
+      const windowHours = MTBF_WINDOW_DAYS * 24;
+      mtbfHours = mtbfCurCount > 0 ? windowHours / mtbfCurCount : null;
+      const prevMtbfHours = mtbfPrevCount > 0 ? windowHours / mtbfPrevCount : null;
+      mtbfTrend = pctChange(mtbfHours, prevMtbfHours);
+    } catch (err) {
+      console.warn('MTBF not computable:', err.message);
+    }
 
     // Engineer utilisation — share of active engineers currently on a job
     let engineerUtilization = null;
@@ -137,11 +169,15 @@ router.get('/kpis', validate(analyticsSchemas.kpis), async (req, res) => {
 
     const kpiData = {
       mtbf: {
-        value: cur.mtbf,
+        value: mtbfHours == null ? null : Math.round(mtbfHours * 10) / 10,
         unit: 'hours',
-        trend: pctChange(cur.mtbf, prev.mtbf),
+        // Always a fixed rolling window, regardless of the `period` selected
+        // above — see the comment where this is computed.
+        windowDays: MTBF_WINDOW_DAYS,
+        windowLabel: `Last ${MTBF_WINDOW_DAYS} days`,
+        trend: mtbfTrend,
         target: 1200,
-        status: cur.mtbf == null ? 'normal' : cur.mtbf >= 1200 ? 'good' : cur.mtbf >= 1000 ? 'normal' : 'warning'
+        status: mtbfHours == null ? 'normal' : mtbfHours >= 1200 ? 'good' : mtbfHours >= 1000 ? 'normal' : 'warning'
       },
       slaCompliance: {
         value: round1(cur.sla),
@@ -191,6 +227,68 @@ router.get('/kpis', validate(analyticsSchemas.kpis), async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch KPI data'
+    });
+  }
+});
+
+// GET /api/analytics/defect-timeline - Daily breakdown counts by severity
+// Used by the Fleet Intelligence "N-Day Defect Timeline" chart. Unlike
+// /api/breakdowns/live (active breakdowns only — always a handful of recent
+// rows, so the chart was always flat), this counts ALL breakdowns created in
+// the window by day, including resolved ones, from `breakdowns.created_at`.
+router.get('/defect-timeline', async (req, res) => {
+  try {
+    const days = Math.min(Math.max(parseInt(req.query.days, 10) || 30, 1), 90);
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - (days - 1));
+    startDate.setHours(0, 0, 0, 0);
+
+    const rows = await query(
+      `SELECT DATE(created_at) AS day,
+              COUNT(*) AS total,
+              SUM(CASE WHEN severity = 'STOP' OR wizard_decision = 'STOP' THEN 1 ELSE 0 END) AS stop_count,
+              SUM(CASE WHEN severity = 'AMBER' OR wizard_decision = 'AMBER' THEN 1 ELSE 0 END) AS amber_count,
+              SUM(CASE WHEN severity = 'CONTINUE' OR wizard_decision = 'CONTINUE' THEN 1 ELSE 0 END) AS continue_count
+       FROM breakdowns
+       WHERE created_at >= ?${demoSqlFilter(req.user)}
+       GROUP BY DATE(created_at)
+       ORDER BY day ASC`,
+      [startDate]
+    );
+
+    // Dense day-by-day series (zero-filled gaps) so the frontend can render
+    // directly without having to backfill missing days itself.
+    const byDay = new Map(rows.map(r => {
+      const key = r.day instanceof Date ? r.day.toISOString().slice(0, 10) : String(r.day).slice(0, 10);
+      return [key, r];
+    }));
+
+    const series = [];
+    const cursor = new Date(startDate);
+    for (let i = 0; i < days; i++) {
+      const dateKey = cursor.toISOString().slice(0, 10);
+      const row = byDay.get(dateKey);
+      series.push({
+        date: dateKey,
+        total: Number(row?.total) || 0,
+        stop: Number(row?.stop_count) || 0,
+        amber: Number(row?.amber_count) || 0,
+        cont: Number(row?.continue_count) || 0
+      });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    res.json({
+      success: true,
+      days,
+      series,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error fetching defect timeline:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch defect timeline'
     });
   }
 });
@@ -943,11 +1041,15 @@ router.get('/shift-stats', async (req, res) => {
       }
     }
 
-    // Determine performance status
+    // Determine performance status.
+    // "excellent" needs enough real activity to mean something — otherwise an
+    // empty shift (0 breakdowns, resolutionRate defaulting to 100) always
+    // came back "excellent", which reads as fake in the demo and in real use.
+    const MIN_BREAKDOWNS_FOR_EXCELLENT = 3;
     let performance = 'good';
     if (stopDecisions > 2 || (avgResponse && avgResponse > 30)) {
       performance = 'needs-attention';
-    } else if (stopDecisions === 0 && resolutionRate >= 80) {
+    } else if (totalBreakdowns >= MIN_BREAKDOWNS_FOR_EXCELLENT && stopDecisions === 0 && resolutionRate >= 80) {
       performance = 'excellent';
     }
 

@@ -169,7 +169,11 @@ const lookupFleetData = async (fleetNumber) => {
       }
     } catch (error) {
       console.error('❌ Fleet database load error:', error);
-      // Fallback to static JSON if API fails
+      // Fallback to static JSON if API fails — never for demo sessions (the
+      // static file is the real operator's fleet; demo uses a synthetic fleet)
+      let isDemo = false;
+      try { isDemo = JSON.parse(sessionStorage.getItem('currentDuty') || 'null')?.isDemo === true; } catch { /* ignore */ }
+      if (isDemo) return;
       try {
         const response = await fetch('/gne-fleet-database.json');
         if (response.ok) {

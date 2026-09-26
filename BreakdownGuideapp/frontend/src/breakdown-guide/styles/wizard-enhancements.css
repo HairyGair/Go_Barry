@@ -47,11 +47,19 @@ button[class*="p-4 rounded-lg"]:active,
   transition: all 0.1s ease;
 }
 
-/* Selected state - highlighted with glow */
+/* Selected state - highlighted with glow.
+   IMPORTANT: these attribute selectors use [class~=...] (exact space-separated
+   token match), NOT [class*=...] (substring match). Wizard buttons carry
+   Tailwind hover-variant classes like "hover:border-green-500/50" on their
+   UNselected state, and [class*="border-green-500"] matches that string as a
+   literal substring - which made every answer button glow green/selected
+   before the supervisor had picked anything. [class~=...] only matches when
+   "border-green-500" etc. is its own whole class token (i.e. actually
+   selected), not embedded inside a longer hover: class name. */
 .wizard-button.selected,
-button[class*="border-green-500"],
-button[class*="border-orange-500"],
-button[class*="border-red-500"],
+button[class~="border-green-500"],
+button[class~="border-orange-500"],
+button[class~="border-red-500"],
 .choice-btn.selected,
 .action-button.selected {
   border-width: 2px;
@@ -95,7 +103,7 @@ button:disabled {
 /* Critical/STOP buttons - Red */
 .wizard-button.critical,
 .choice-btn.critical,
-button[class*="border-red-500"].selected {
+button[class~="border-red-500"].selected {
   border-color: #ef4444;
   background-color: rgba(239, 68, 68, 0.2);
   box-shadow:
@@ -113,7 +121,7 @@ button[class*="border-red-500"].selected {
 /* Warning/AMBER buttons - Orange */
 .wizard-button.warning,
 .choice-btn.warning,
-button[class*="border-orange-500"].selected {
+button[class~="border-orange-500"].selected {
   border-color: #f59e0b;
   background-color: rgba(245, 158, 11, 0.2);
   box-shadow:
@@ -131,7 +139,7 @@ button[class*="border-orange-500"].selected {
 /* Safe/CONTINUE buttons - Green */
 .wizard-button.safe,
 .choice-btn.safe,
-button[class*="border-green-500"].selected {
+button[class~="border-green-500"].selected {
   border-color: #10b981;
   background-color: rgba(16, 185, 129, 0.2);
   box-shadow:
@@ -314,22 +322,38 @@ button[class*="p-4 rounded-lg"]:active::before {
 }
 
 /* ============================================================================
+   5b. STICKY HEADER STACK (progress bar + context bar)
+   ============================================================================ */
+
+/* Wraps <WizardProgressBar> + <WizardContextHeader> as a single sticky unit
+   (see App.jsx). Sticks just below the shell's fixed floating logo/user menu
+   (and the demo banner, when shown) via --app-top-offset - it must never sit
+   at a bare `top: 0`, or it collides with/hides behind those fixed elements
+   when the page scrolls. */
+.wizard-sticky-header {
+  position: sticky;
+  top: var(--app-top-offset, 84px);
+  z-index: 30;
+  background: #0b1220;
+}
+
+/* ============================================================================
    6. SMOOTH TRANSITIONS
    ============================================================================ */
 
-/* Fade in animation for wizard steps */
+/* Fade in for wizard steps - kept deliberately brief. A supervisor is live on
+   a phone call with a driver here, so the step content must read as
+   "instant", not "arriving". No translateY drift, no long settle time. */
 .wizard-step-container {
-  animation: fadeInUp 0.4s ease-out;
+  animation: fadeInUp 0.12s ease-out;
 }
 
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(20px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
@@ -360,63 +384,38 @@ button[class*="p-4 rounded-lg"]:active::before {
    6b. WIZARD STEP ANIMATIONS - Enhanced Nov 2025
    ============================================================================ */
 
-/* Default animation for wizard content - applies to space-y-6 containers */
+/* Default animation for wizard content - applies to space-y-6 containers.
+   This used to run a 0.35s container fade PLUS a staggered per-child fade
+   (up to 6 children, each delayed further, ~0.7s to fully settle) every time
+   a wizard step mounted. On a live call that read as the whole page slowly
+   fading/drifting in instead of the question just being there. Now a single
+   quick opacity fade, no stagger, no translateY. */
 .space-y-6 {
-  animation: wizardStepFadeIn 0.35s ease-out;
+  animation: wizardStepFadeIn 0.12s ease-out;
 }
 
 @keyframes wizardStepFadeIn {
   0% {
     opacity: 0;
-    transform: translateY(16px);
   }
   100% {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
-/* Staggered animation for child elements */
-.space-y-6 > * {
-  animation: wizardItemFadeIn 0.4s ease-out backwards;
-}
-
-.space-y-6 > *:nth-child(1) { animation-delay: 0.05s; }
-.space-y-6 > *:nth-child(2) { animation-delay: 0.1s; }
-.space-y-6 > *:nth-child(3) { animation-delay: 0.15s; }
-.space-y-6 > *:nth-child(4) { animation-delay: 0.2s; }
-.space-y-6 > *:nth-child(5) { animation-delay: 0.25s; }
-.space-y-6 > *:nth-child(6) { animation-delay: 0.3s; }
-
-@keyframes wizardItemFadeIn {
-  0% {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Decision result animations - enhance existing decision displays */
+/* Decision result - quick, no scale/settle delay */
 .decision-stop,
 .decision-amber,
 .decision-continue {
-  animation: decisionAppear 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  animation: decisionAppear 0.15s ease-out;
 }
 
 @keyframes decisionAppear {
   0% {
     opacity: 0;
-    transform: scale(0.9);
-  }
-  50% {
-    transform: scale(1.02);
   }
   100% {
     opacity: 1;
-    transform: scale(1);
   }
 }
 

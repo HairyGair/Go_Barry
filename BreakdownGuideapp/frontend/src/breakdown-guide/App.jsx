@@ -43,7 +43,6 @@ import assessmentBroadcaster from '../services/assessmentBroadcaster.js';
 import FleetSelectionModal from './components/FleetSelectionModal.jsx';
 import LocationModal from './components/LocationModal.jsx';
 import BreakdownInfoStep from './components/common/BreakdownInfoStep.jsx';
-import LocationDisplay from './components/common/LocationDisplay.jsx';
 import AssessmentSummary from './components/common/AssessmentSummary.jsx';
 
 // Import new UI enhancement components (Nov 2025)
@@ -147,7 +146,24 @@ const App = () => {
     const [assessmentStartTime, setAssessmentStartTime] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false); // Prevent double submission
     const submissionRef = useRef(false); // Synchronous guard for double-submission
-    
+    const wizardQuestionRef = useRef(null); // Marks the top of the current step's question
+
+    // Live-call requirement: jump straight to the new step's question on every
+    // step change instead of leaving the page scrolled where the previous
+    // step left off. This deliberately scrolls the WINDOW to absolute 0,0
+    // rather than using scrollIntoView() on the question - the sticky
+    // progress/context header stack sits at the very top of the page's
+    // natural (unscrolled) layout, so 0,0 is exactly where the step title +
+    // question sit correctly below it. scrollIntoView({block:'start'}) would
+    // instead align the question's top edge to the literal viewport top,
+    // sliding it UNDER the sticky header. No smooth animation - supervisors
+    // need this instant.
+    useEffect(() => {
+        if (currentWizard) {
+            window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+        }
+    }, [currentStep, currentWizard]);
+
     // Fleet selection state
     const [showFleetModal, setShowFleetModal] = useState(false);
     const [pendingWizardType, setPendingWizardType] = useState(null);
@@ -558,15 +574,16 @@ const App = () => {
         return (
             <>
                 <div className="min-h-screen bg-gray-900">
-                    {/* Progress Bar - Sticky at top */}
-                    <WizardProgressBar
-                        currentStep={currentStep}
-                        totalSteps={totalSteps}
-                        wizardTitle={wizardTitle}
-                    />
+                    {/* Sticky header stack: step progress + single compact context bar.
+                        Sticks just below the shell's floating logo/user menu (and demo
+                        banner, when shown) via --app-top-offset - never on top of them. */}
+                    <div className="wizard-sticky-header">
+                        <WizardProgressBar
+                            currentStep={currentStep}
+                            totalSteps={totalSteps}
+                            wizardTitle={wizardTitle}
+                        />
 
-                    <div className="main-content">
-                        {/* Context Header - Shows vehicle being assessed */}
                         <WizardContextHeader
                             vehicle={selectedVehicle}
                             wizardType={wizardTitle}
@@ -577,22 +594,10 @@ const App = () => {
                                 routeName: routeName
                             }}
                         />
+                    </div>
 
-                        {/* Location Display - More detailed location info */}
-                        {breakdownLocation && (
-                            <LocationDisplay
-                                vehicle={{
-                                    ...selectedVehicle,
-                                    assessmentId: assessmentId
-                                }}
-                                location={breakdownLocation}
-                                routeInfo={{
-                                    route: selectedRoute,
-                                    routeName: routeName
-                                }}
-                            />
-                        )}
-
+                    <div className="main-content">
+                    <div ref={wizardQuestionRef}>
                     <WizardComponent
                         key={`wizard-${currentWizard}-step-${currentStep}`}
                         vehicle={selectedVehicle}
@@ -671,11 +676,12 @@ const App = () => {
                         }}
                     />
                     </div>
+                    </div>
                 </div>
             </>
         );
     };
-    
+
     // Category definitions for two-column layout
     const categories = [
         {

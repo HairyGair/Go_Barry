@@ -152,6 +152,12 @@ const useFleetIntelligence = (options = {}) => {
     depotStats: [],
     trendingIssues: [],
     predictiveAlerts: [],
+    // Daily breakdown counts by severity from /api/analytics/defect-timeline
+    // (all breakdowns in the window, not just currently-active ones). Null
+    // until loaded, or if the endpoint isn't deployed yet — the dashboard
+    // falls back to building a timeline from `breakdowns` (active-only) when
+    // this is null, so older backends keep working, just with a flatter chart.
+    defectTimeline: null,
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -178,6 +184,7 @@ const useFleetIntelligence = (options = {}) => {
       depotStats: DEMO_DATA.depotStats,
       trendingIssues: DEMO_DATA.trendingIssues,
       predictiveAlerts: DEMO_DATA.predictiveAlerts,
+      defectTimeline: null,
     });
   }, []);
 
@@ -208,6 +215,7 @@ const useFleetIntelligence = (options = {}) => {
         depotRes,
         trendsRes,
         predictiveRes,
+        timelineRes,
       ] = await Promise.all([
         // Live breakdowns
         fetchEndpoint('/api/breakdowns/live'),
@@ -232,6 +240,11 @@ const useFleetIntelligence = (options = {}) => {
 
         // Predictive alerts
         fetchEndpoint('/api/defects/predictive'),
+
+        // 30-day defect timeline (all breakdowns in the window, by day/severity).
+        // fetchEndpoint() already returns null on a non-2xx response (including a
+        // 404 if this endpoint isn't deployed yet), so this degrades gracefully.
+        fetchEndpoint('/api/analytics/defect-timeline?days=30'),
       ]);
 
       if (!mountedRef.current) return;
@@ -256,6 +269,10 @@ const useFleetIntelligence = (options = {}) => {
       const depots = depotRes?.depots || depotRes?.data || DEMO_DATA.depotStats;
       const trends = trendsRes?.trends || trendsRes?.data || DEMO_DATA.trendingIssues;
       const predictive = predictiveRes?.alerts || predictiveRes?.data || DEMO_DATA.predictiveAlerts;
+      // No demo fallback here on purpose — null means "endpoint unavailable",
+      // and the dashboard already knows how to build a (flatter) timeline
+      // itself from `breakdowns` when this is null.
+      const defectTimeline = Array.isArray(timelineRes?.series) ? timelineRes.series : null;
 
       // Calculate KPIs from raw data
       const kpis = calculateKPIs(breakdowns, mileage, repeatVehicles);
@@ -275,6 +292,7 @@ const useFleetIntelligence = (options = {}) => {
         depotStats: depots,
         trendingIssues: trends,
         predictiveAlerts: predictive,
+        defectTimeline,
       });
 
     } catch (err) {
@@ -338,6 +356,7 @@ const useFleetIntelligence = (options = {}) => {
     depotStats: data.depotStats,
     trendingIssues: data.trendingIssues,
     predictiveAlerts: data.predictiveAlerts,
+    defectTimeline: data.defectTimeline,
 
     // State
     loading,

@@ -9,9 +9,28 @@
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { AlertTriangle, ChevronDown, ChevronUp, Search, Clock } from 'lucide-react';
 import DashboardLayout from '../components/DashboardLayout';
 import { gtfsApiService } from '../../services/gtfsApiService';
 import './RouteTimetableViewer.css';
+
+// UI-only convenience: remember whether the full route list is expanded.
+// Never used for anything data-related - safe to lose/reset at any time.
+const ROUTES_EXPANDED_KEY = 'rtv_routes_expanded';
+function getStoredExpanded() {
+  try {
+    return localStorage.getItem(ROUTES_EXPANDED_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
+function setStoredExpanded(val) {
+  try {
+    localStorage.setItem(ROUTES_EXPANDED_KEY, val ? 'true' : 'false');
+  } catch {
+    /* ignore - UI convenience only */
+  }
+}
 
 /** Turn a day code or raw service ID into a readable label */
 function cleanServiceLabel(sid, index) {
@@ -64,12 +83,16 @@ const RouteTimetableViewer = () => {
   const [hidePast, setHidePast] = useState(false);
   const [interchanges, setInterchanges] = useState([]);
   const [activeInterchange, setActiveInterchange] = useState(null);
+  const [liveStatus, setLiveStatus] = useState(null);
+  const [routesExpanded, setRoutesExpanded] = useState(getStoredExpanded);
   const tableWrapperRef = useRef(null);
   const nowColRef = useRef(null);
   const firstMatchRef = useRef(null);
   const routeParamHandled = useRef(false);
+  const autoSelectHandled = useRef(false);
 
-  // Load routes list and interchange groupings on mount
+  // Load routes list, interchange groupings, and live route status on mount.
+  // Live status drives the "routes with active issues" panel below.
   useEffect(() => {
     gtfsApiService.getRoutesList()
       .then(res => setRoutes(res?.routes || []))
@@ -77,6 +100,28 @@ const RouteTimetableViewer = () => {
     gtfsApiService.getRouteInterchanges()
       .then(res => setInterchanges(res?.interchanges || []))
       .catch(err => console.error('Failed to load interchanges:', err));
+    gtfsApiService.getLiveRouteStatus()
+      .then(res => setLiveStatus(res))
+      .catch(err => console.error('Failed to load live route status:', err));
+  }, []);
+
+  // Routes currently affected by active breakdowns (AMBER/RED), red-first
+  const affectedRoutes = useMemo(() => {
+    if (!liveStatus?.routes) return [];
+    return liveStatus.routes
+      .filter(r => r.status && r.status !== 'GREEN')
+      .sort((a, b) => {
+        if (a.status !== b.status) return a.status === 'RED' ? -1 : 1;
+        return (b.breakdownCount || 0) - (a.breakdownCount || 0);
+      });
+  }, [liveStatus]);
+
+  const toggleRoutesExpanded = useCallback(() => {
+    setRoutesExpanded(prev => {
+      const next = !prev;
+      setStoredExpanded(next);
+      return next;
+    });
   }, []);
 
   // Feature 2: Auto-select route from ?route= URL param (from StopFinder badges)
@@ -97,6 +142,19 @@ const RouteTimetableViewer = () => {
       setRouteSearch(routeParam);
     }
   }, [routes, searchParams]);
+
+  // Default to something useful on arrival: if nothing is selected (and no
+  // ?route= URL param is driving selection), auto-select the route most in
+  // need of attention right now (RED before AMBER, most breakdowns first).
+  useEffect(() => {
+    if (autoSelectHandled.current || selectedRouteId) return;
+    if (routeParamHandled.current && searchParams.get('route')) return;
+    if (!liveStatus) return; // wait for status so we don't flash then re-select
+    if (affectedRoutes.length > 0) {
+      autoSelectHandled.current = true;
+      setSelectedRouteId(affectedRoutes[0].routeId);
+    }
+  }, [liveStatus, affectedRoutes, selectedRouteId, searchParams]);
 
   // Load timetable when route or service changes
   const fetchTimetable = useCallback(async () => {
@@ -314,15 +372,43 @@ const RouteTimetableViewer = () => {
             <div className="rtv-subtitle">View full daily schedules for any route</div>
           </div>
           <div className="rtv-selector">
-            <input
-              className="rtv-search"
-              type="text"
-              placeholder="Search route number or name..."
-              value={routeSearch}
-              onChange={(e) => setRouteSearch(e.target.value)}
-            />
+            <div className="rtv-search-wrap">
+              <Search size={14} className="rtv-search-icon" />
+              <input
+                className="rtv-search"
+                type="text"
+                placeholder="Search route number or name..."
+                value={routeSearch}
+                onChange={(e) => setRouteSearch(e.target.value)}
+              />
+            </div>
           </div>
         </div>
+
+        {/* Routes with active issues - the useful default when arriving on this page */}
+        {affectedRoutes.length > 0 && (
+          <div className="rtv-issues-panel">
+            <div className="rtv-issues-title">
+              <AlertTriangle size={14} />
+              Routes with active issues
+              <span className="rtv-issues-count">{affectedRoutes.length}</span>
+            </div>
+            <div className="rtv-issues-list">
+              {affectedRoutes.slice(0, 12).map(r => (
+                <button
+                  key={r.routeId}
+                  className={`rtv-issue-chip rtv-issue-chip--${r.status?.toLowerCase()} ${selectedRouteId === r.routeId ? 'active' : ''}`}
+                  onClick={() => { setSelectedRouteId(r.routeId); setServiceId(null); setSelectedStopIdx(null); }}
+                  title={`${r.routeLongName} - ${r.breakdownCount} active breakdown${r.breakdownCount !== 1 ? 's' : ''}`}
+                >
+                  <span className="rtv-issue-dot" aria-hidden="true" />
+                  <span className="rtv-issue-name">{r.routeShortName}</span>
+                  <span className="rtv-issue-count">{r.breakdownCount}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Interchange filter buttons */}
         {interchanges.length > 0 && (
@@ -345,22 +431,36 @@ const RouteTimetableViewer = () => {
           </div>
         )}
 
-        {/* Route chips */}
-        <div className="rtv-route-list">
-          {filteredRoutes.slice(0, 60).map(r => (
-            <button
-              key={r.routeId}
-              className={`rtv-route-chip ${selectedRouteId === r.routeId ? 'active' : ''}`}
-              onClick={() => { setSelectedRouteId(r.routeId); setServiceId(null); setSelectedStopIdx(null); }}
-              title={r.routeLongName}
-            >
-              {r.routeShortName}
-            </button>
-          ))}
-          {filteredRoutes.length > 60 && (
-            <span style={{ fontSize: 12, color: 'rgba(224,247,250,0.4)', padding: '6px 8px' }}>
-              +{filteredRoutes.length - 60} more...
-            </span>
+        {/* Full route chip wall - collapsed behind search / an expander so it doesn't
+            dominate the page on arrival; auto-opens while the user is searching */}
+        <div className="rtv-all-routes">
+          <button className="rtv-all-routes-toggle" onClick={toggleRoutesExpanded}>
+            {routesExpanded || routeSearch ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            {activeInterchange ? activeInterchange : 'All routes'}
+            <span className="rtv-issues-count">{filteredRoutes.length}</span>
+          </button>
+
+          {(routesExpanded || routeSearch) && (
+            <div className="rtv-route-list">
+              {filteredRoutes.slice(0, 120).map(r => (
+                <button
+                  key={r.routeId}
+                  className={`rtv-route-chip ${selectedRouteId === r.routeId ? 'active' : ''}`}
+                  onClick={() => { setSelectedRouteId(r.routeId); setServiceId(null); setSelectedStopIdx(null); }}
+                  title={r.routeLongName}
+                >
+                  {r.routeShortName}
+                </button>
+              ))}
+              {filteredRoutes.length === 0 && (
+                <span className="rtv-no-matches">No routes match "{routeSearch}"</span>
+              )}
+              {filteredRoutes.length > 120 && (
+                <span className="rtv-more-hint">
+                  +{filteredRoutes.length - 120} more - refine your search
+                </span>
+              )}
+            </div>
           )}
         </div>
 
@@ -371,7 +471,11 @@ const RouteTimetableViewer = () => {
               <circle cx="12" cy="12" r="10" />
               <polyline points="12 6 12 12 16 14" />
             </svg>
-            <p>Select a route above to view its timetable</p>
+            <p>
+              {liveStatus && affectedRoutes.length === 0
+                ? 'All routes running normally. Search or browse above to view a timetable.'
+                : 'Select a route above to view its timetable'}
+            </p>
           </div>
         )}
 
@@ -424,7 +528,7 @@ const RouteTimetableViewer = () => {
               <>
                 {/* Time banner */}
                 <div className="rtv-time-banner">
-                  <span className="rtv-time-now">{currentTime?.substring(0, 5)}</span>
+                  <span className="rtv-time-now"><Clock size={16} />{currentTime?.substring(0, 5)}</span>
                   <span className="rtv-trip-badge">{currentDir.trips.length} trips today</span>
                   <span className="rtv-trip-badge rtv-trip-badge--showing">{filteredTrips.length} showing</span>
                   {journeyTime && (
@@ -434,8 +538,8 @@ const RouteTimetableViewer = () => {
                     <span className="rtv-trip-badge rtv-trip-badge--freq">Every ~{avgFrequency} min</span>
                   )}
                   {nowFilteredIdx >= 0 && (
-                    <span className="rtv-next-label">
-                      Next: {filteredTrips[nowFilteredIdx].trip.departureTimes.find(t => t != null)?.substring(0, 5)}
+                    <span className="rtv-next-label rtv-next-label--emph">
+                      Next departure <strong>{filteredTrips[nowFilteredIdx].trip.departureTimes.find(t => t != null)?.substring(0, 5)}</strong>
                     </span>
                   )}
                   <button className="rtv-jump-now-btn" onClick={scrollToNow} title="Scroll to current time">

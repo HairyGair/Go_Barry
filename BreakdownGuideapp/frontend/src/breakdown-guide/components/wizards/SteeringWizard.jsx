@@ -6,71 +6,17 @@
 import React, { useState, useEffect } from 'react';
 import * as Icons from '../common/icons.jsx';
 import constants from '../common/constants.js';
-import locationService from '../../../utils/locationService.js';
 
 const SteeringWizard = ({ currentStep, responses, updateResponse, onNext, onPrevious, onComplete }) => {
     const { AlertTriangle, ArrowLeft, ArrowRight, Home, CheckCircle, XCircle, FileText, Shield, AlertCircle, Users } = Icons;
 
-    // Location state management
-    const [locationStatus, setLocationStatus] = useState('idle'); // 'idle', 'detecting', 'success', 'error'
-    const [locationName, setLocationName] = useState('');
-    const [coordinates, setCoordinates] = useState(null);
-
-    // Auto-detect location when wizard loads
-    useEffect(() => {
-        if (currentStep === 1 && !coordinates) {
-            detectLocation();
-        }
-    }, [currentStep]);
-
-    const detectLocation = async () => {
-        if (!navigator.geolocation) {
-            setLocationStatus('error');
-            setLocationName('GPS not available');
-            return;
-        }
-
-        setLocationStatus('detecting');
-
-        navigator.geolocation.getCurrentPosition(
-            async (position) => {
-                try {
-                    const lat = position.coords.latitude;
-                    const lng = position.coords.longitude;
-
-                    setCoordinates({ lat, lng });
-
-                    // Use our location service to get a readable name
-                    const readableName = await locationService.getLocationName(lat, lng);
-                    setLocationName(readableName);
-                    setLocationStatus('success');
-
-                    // Store in responses for later use
-                    updateResponse('currentLocation', {
-                        name: readableName,
-                        coordinates: { lat, lng },
-                        accuracy: position.coords.accuracy,
-                        timestamp: new Date().toISOString()
-                    });
-
-                } catch (error) {
-                    console.error('Error getting location name:', error);
-                    setLocationName(`${lat.toFixed(4)}, ${lng.toFixed(4)}`);
-                    setLocationStatus('success');
-                }
-            },
-            (error) => {
-                console.error('Geolocation error:', error);
-                setLocationStatus('error');
-                setLocationName('Location access denied');
-            },
-            {
-                enableHighAccuracy: true,
-                timeout: 10000,
-                maximumAge: 300000 // 5 minutes
-            }
-        );
-    };
+    // NOTE: this step used to auto-detect GPS location via navigator.geolocation
+    // and show a "Detecting current location..." panel. That was the
+    // SUPERVISOR's desk computer location, not the bus - meaningless (and
+    // occasionally alarming) on a live call, so it has been removed. The
+    // breakdown's actual location comes from the Location step before the
+    // wizard starts (see FleetSelectionModal.jsx / breakdownLocation in
+    // App.jsx), which this step never touched anyway.
 
     switch (currentStep) {
         case 1:
@@ -195,43 +141,6 @@ const SteeringWizard = ({ currentStep, responses, updateResponse, onNext, onPrev
                                 </div>
                             </div>
                         )}
-                    </div>
-
-                    {/* Current Location Detection */}
-                    <div className="bg-blue-500/20 backdrop-blur-sm rounded-lg p-4 border border-blue-400/30">
-                        <div className="flex items-start gap-3">
-                            <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
-                                locationStatus === 'success' ? 'bg-green-500' :
-                                locationStatus === 'detecting' ? 'bg-yellow-500 animate-pulse' :
-                                locationStatus === 'error' ? 'bg-red-500' : 'bg-gray-500'
-                            }`}>
-                                {locationStatus === 'success' && <CheckCircle className="w-3 h-3 text-white" />}
-                                {locationStatus === 'detecting' && <div className="w-2 h-2 bg-white rounded-full" />}
-                                {locationStatus === 'error' && <XCircle className="w-3 h-3 text-white" />}
-                            </div>
-                            <div className="flex-1">
-                                <h4 className="font-semibold text-blue-200 mb-1">📍 Current Location</h4>
-                                <p className="text-blue-200/80 text-sm">
-                                    {locationStatus === 'detecting' && 'Detecting current location...'}
-                                    {locationStatus === 'success' && `Location: ${locationName}`}
-                                    {locationStatus === 'error' && 'Unable to detect location - GPS may be disabled'}
-                                    {locationStatus === 'idle' && 'Location detection starting...'}
-                                </p>
-                                {coordinates && locationStatus === 'success' && (
-                                    <p className="text-blue-300/60 text-xs mt-1">
-                                        Coordinates: {coordinates.lat.toFixed(6)}, {coordinates.lng.toFixed(6)}
-                                    </p>
-                                )}
-                            </div>
-                            {locationStatus === 'error' && (
-                                <button
-                                    onClick={detectLocation}
-                                    className="px-3 py-1 bg-cyan-600 text-white text-xs rounded hover:bg-cyan-500 transition-colors"
-                                >
-                                    Retry
-                                </button>
-                            )}
-                        </div>
                     </div>
 
                     <div className="flex justify-between">

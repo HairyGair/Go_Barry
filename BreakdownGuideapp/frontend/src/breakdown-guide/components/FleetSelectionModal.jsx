@@ -1,7 +1,9 @@
 // Fleet Selection Modal - Enhanced Version with Route Selection and Storage Integration
 import React, { useState, useEffect } from 'react';
-import { Building2, Factory, Anchor, Construction, Castle, Waves, PenLine, RotateCw, Sparkles, Clock3, Zap, AlertTriangle } from 'lucide-react';
+import { Building2, Factory, Anchor, Construction, Castle, Waves, PenLine, RotateCw, Sparkles, Clock3, Zap, AlertTriangle, Map as MapIcon } from 'lucide-react';
 import * as Icons from './common/icons.jsx';
+import LocationSearchModal from './location/LocationSearchModal.jsx';
+import LocationMapPickerModal from './location/LocationMapPickerModal.jsx';
 
 // Lucide icon per depot (matches depotLocations below) - used everywhere the icon
 // is rendered as a React node. The <select> options below still use the emoji
@@ -20,6 +22,17 @@ import { useFrequentRoutes, useRecentFleetNumbers, useBreakdownDraft } from '../
 import routeHelpers from '../../data/routes.js';
 import { storeSelectedVehicle } from '../../dashboards/sdc/fleetDataFix.js';
 
+// Demo sessions must not be able to permanently reallocate a real vehicle's
+// depot in the fleet database. Same signal used across the app (App.jsx etc).
+const isDemoBreakdownSession = () => {
+    try {
+        const duty = JSON.parse(sessionStorage.getItem('currentDuty') || 'null');
+        return !!(duty && duty.isDemo);
+    } catch {
+        return false;
+    }
+};
+
 const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) => {
     const { Search, MapPin, Building, CheckCircle, XCircle, AlertCircle } = Icons;
     
@@ -32,6 +45,9 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
     const [ticketerCoords, setTicketerCoords] = useState('');
     const [error, setError] = useState('');
     const [showTicketerModal, setShowTicketerModal] = useState(false);
+    const [showSearchLocationModal, setShowSearchLocationModal] = useState(false);
+    const [showMapPickModal, setShowMapPickModal] = useState(false);
+    const isDemo = isDemoBreakdownSession();
 
     // Route selection state
     const [selectedRoute, setSelectedRoute] = useState('');
@@ -65,6 +81,17 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
     const { topRoutes, updateRoute } = useFrequentRoutes();
     const { recentFleetNumbers, saveFleetNumber } = useRecentFleetNumbers();
     const { saveDraft, clearDraft, hasDraft, draft } = useBreakdownDraft();
+
+    // Frequently-used route chip order, frozen for the duration of a visit to
+    // the route step so picking a route doesn't reshuffle the chips under the
+    // supervisor's cursor. Only re-reads usage stats when (re-)entering the step.
+    const [frozenTopRoutes, setFrozenTopRoutes] = useState([]);
+    useEffect(() => {
+        if (currentStep === 'route') {
+            setFrozenTopRoutes(topRoutes);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentStep]);
     
     // Fleet database
     const [fleetData, setFleetData] = useState(null);
@@ -144,7 +171,27 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                 }
             } catch (err) {
                 console.warn('⚠️ Failed to load fleet from API, trying fallback JSON:', err);
-                // Fallback to static JSON file
+
+                // Demo sessions must never fall back to the real operator's fleet
+                // database (frontend/public/gne-fleet-database.json is real GNE
+                // fleet data, served publicly). If the demo API call itself fails,
+                // use a small generic placeholder instead of the real file.
+                let isDemo = false;
+                try { isDemo = JSON.parse(sessionStorage.getItem('currentDuty') || 'null')?.isDemo === true; } catch { /* noop */ }
+
+                if (isDemo) {
+                    console.warn('🎭 Demo session - skipping real fleet JSON fallback, using placeholder fleet');
+                    setFleetData({
+                        fleet: [
+                            { fleetNumber: '6301', regNo: 'DEMO6301', depot: 'Riverside', vehicleType: 'Wrightbus Streetlite' },
+                            { fleetNumber: '6078', regNo: 'DEMO6078', depot: 'Riverside', vehicleType: 'ADL Enviro400' }
+                        ]
+                    });
+                    setFleetLoading(false);
+                    return;
+                }
+
+                // Fallback to static JSON file (real supervisors only)
                 try {
                     const response = await fetch('/gne-fleet-database.json');
                     if (!response.ok) {
@@ -451,11 +498,48 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
         }
     };
 
+    // Shared completion path for every location-capture method. Whatever the
+    // method (paste, search, map-pick, depot, skip), the resulting `location`
+    // object is stored and passed on in exactly the same shape, so downstream
+    // maps / route matching / nearest-stop logic (which key off lat/lng/
+    // description) work identically regardless of how the location was captured.
+    const finalizeLocation = async (locationData) => {
+        setSelectedLocation(locationData);
+
+        if (locationData.lat != null && locationData.lng != null) {
+            // Fetch smart route suggestions based on the resolved location
+            await fetchSmartSuggestions(locationData.lat, locationData.lng);
+        }
+
+        const completeVehicleData = {
+            ...selectedVehicle,
+            route: selectedRoute,
+            routeName: routeName,
+            securedMileage: securedMileage,
+            notInService: notInService,
+            tripId: selectedTrip?.tripId || null,
+            blockId: selectedTrip?.blockId || null,
+            tripHeadsign: selectedTrip?.headsign || null,
+            tripDepartureTime: selectedTrip?.departureTime || null,
+            location: locationData
+        };
+
+        // Store the complete vehicle data with location and route
+        storeSelectedVehicle(completeVehicleData);
+
+        onSelectVehicle(completeVehicleData);
+
+        // Clear draft on successful completion
+        clearDraft();
+
+        onClose();
+    };
+
     // Handle location methods
     const handleTicketerClick = () => {
         setShowTicketerModal(true);
     };
-    
+
     const handleTicketerSubmit = async () => {
         let lat, lng;
 
@@ -478,120 +562,62 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
         }
 
         if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
-            setSelectedLocation({
+            setShowTicketerModal(false);
+            await finalizeLocation({
                 type: 'ticketer',
                 lat,
                 lng,
-                description: `Ticketer Location (${lat.toFixed(6)}, ${lng.toFixed(6)})`
+                coordinates: ticketerCoords,
+                description: `Coordinates from the driver's ticket machine (${lat.toFixed(6)}, ${lng.toFixed(6)})`
             });
-
-            // Fetch smart route suggestions based on location
-            await fetchSmartSuggestions(lat, lng);
-
-            // Complete the selection with route data and secured mileage
-            const completeVehicleData = {
-                ...selectedVehicle,
-                route: selectedRoute,
-                routeName: routeName,
-                securedMileage: securedMileage,
-                notInService: notInService,
-                tripId: selectedTrip?.tripId || null,
-                blockId: selectedTrip?.blockId || null,
-                tripHeadsign: selectedTrip?.headsign || null,
-                tripDepartureTime: selectedTrip?.departureTime || null,
-                location: {
-                    type: 'ticketer',
-                    lat,
-                    lng,
-                    coordinates: ticketerCoords,
-                    description: `Ticketer Location (${lat.toFixed(6)}, ${lng.toFixed(6)})`
-                }
-            };
-
-            // Store the complete vehicle data with location and route
-            storeSelectedVehicle(completeVehicleData);
-
-            onSelectVehicle(completeVehicleData);
-
-            // Clear draft on successful completion
-            clearDraft();
-
-            setShowTicketerModal(false);
-            onClose();
         } else {
             alert('Invalid coordinates format.\n\nAccepted formats:\n• 54.969564, -1.609568\n• LAT:54.939770 LONG:-1.533906');
         }
     };
-    
+
+    // "Search for a place" - GTFS bus stop or Google Places result
+    const handleSearchLocationSelect = async (result) => {
+        setShowSearchLocationModal(false);
+        await finalizeLocation({
+            type: 'ticketer',
+            lat: result.lat,
+            lng: result.lng,
+            description: result.description,
+            source: result.source,
+            stopId: result.stopId || null
+        });
+    };
+
+    // "Pick on map" - dark Leaflet map, click to drop a pin
+    const handleMapPickConfirm = async (result) => {
+        setShowMapPickModal(false);
+        await finalizeLocation({
+            type: 'ticketer',
+            lat: result.lat,
+            lng: result.lng,
+            description: result.description,
+            source: result.source
+        });
+    };
+
     const handleDepotSelect = async (depotName) => {
         const depot = depotLocations[depotName];
 
-        setSelectedLocation({
+        await finalizeLocation({
             type: 'depot',
             name: depotName,
+            description: `${depotName} Depot`,
             ...depot
         });
-
-        // Fetch smart route suggestions based on depot location
-        await fetchSmartSuggestions(depot.lat, depot.lng);
-
-        const completeVehicleData = {
-            ...selectedVehicle,
-            route: selectedRoute,
-            routeName: routeName,
-            securedMileage: securedMileage,
-            notInService: notInService,
-            tripId: selectedTrip?.tripId || null,
-            blockId: selectedTrip?.blockId || null,
-            tripHeadsign: selectedTrip?.headsign || null,
-            tripDepartureTime: selectedTrip?.departureTime || null,
-            location: {
-                type: 'depot',
-                name: depotName,
-                description: `${depotName} Depot`,
-                ...depot
-            }
-        };
-
-        // Store the complete vehicle data with location and route
-        storeSelectedVehicle(completeVehicleData);
-
-        onSelectVehicle(completeVehicleData);
-
-        // Clear draft on successful completion
-        clearDraft();
-
-        onClose();
     };
-    
+
     const handleSkipLocation = () => {
-        const completeVehicleData = {
-            ...selectedVehicle,
-            route: selectedRoute,
-            routeName: routeName,
-            securedMileage: securedMileage,
-            notInService: notInService,
-            tripId: selectedTrip?.tripId || null,
-            blockId: selectedTrip?.blockId || null,
-            tripHeadsign: selectedTrip?.headsign || null,
-            tripDepartureTime: selectedTrip?.departureTime || null,
-            location: {
-                type: 'skip',
-                description: 'Location to be added later'
-            }
-        };
-
-        // Store the complete vehicle data with location and route
-        storeSelectedVehicle(completeVehicleData);
-
-        onSelectVehicle(completeVehicleData);
-
-        // Clear draft on successful completion
-        clearDraft();
-
-        onClose();
+        finalizeLocation({
+            type: 'skip',
+            description: 'Location to be added later'
+        });
     };
-    
+
     if (!isOpen) return null;
     
     return (
@@ -720,27 +746,30 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                                         {selectedVehicle.depot} • {getSimplifiedVehicleType(selectedVehicle.vehicleType)}
                                     </div>
 
-                                    {/* Depot Override Option */}
-                                    <div className="mt-3 pt-3 border-t border-gray-700">
-                                        <label className="flex items-center gap-1.5 text-sm font-medium text-gray-300 mb-2">
-                                            <AlertTriangle className="w-3.5 h-3.5 text-amber-400" /> Incorrect depot? Reallocate here:
-                                        </label>
-                                        <select
-                                            value={selectedVehicle.depot}
-                                            onChange={(e) => handleDepotChangeRequest(e.target.value)}
-                                            className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
-                                        >
-                                            <option value="">Select Depot</option>
-                                            {Object.keys(depotLocations).map(depot => (
-                                                <option key={depot} value={depot}>
-                                                    {depotLocations[depot].icon} {depot}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <p className="text-xs text-gray-500 mt-1">
-                                            This will permanently update the vehicle's depot allocation in the fleet database.
-                                        </p>
-                                    </div>
+                                    {/* Depot Override Option - hidden in demo sessions, which must not be
+                                        able to permanently change a real vehicle's depot allocation */}
+                                    {!isDemo && (
+                                        <div className="mt-3 pt-3 border-t border-gray-700">
+                                            <label className="flex items-center gap-1.5 text-sm font-medium text-gray-300 mb-2">
+                                                <AlertTriangle className="w-3.5 h-3.5 text-amber-400" /> Incorrect depot? Reallocate here:
+                                            </label>
+                                            <select
+                                                value={selectedVehicle.depot}
+                                                onChange={(e) => handleDepotChangeRequest(e.target.value)}
+                                                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500"
+                                            >
+                                                <option value="">Select Depot</option>
+                                                {Object.keys(depotLocations).map(depot => (
+                                                    <option key={depot} value={depot}>
+                                                        {depotLocations[depot].icon} {depot}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <p className="text-xs text-gray-500 mt-1">
+                                                This will permanently update the vehicle's depot allocation in the fleet database.
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <h3 className="text-lg font-semibold text-white">Which route was the vehicle operating?</h3>
@@ -855,12 +884,13 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                                     </div>
                                 )}
 
-                                {/* Quick Route Buttons (Top 6) */}
-                                {topRoutes && topRoutes.length > 0 && (
+                                {/* Quick Route Buttons (Top 6) - order frozen for this step visit
+                                    so choosing one doesn't reshuffle the chips (see frozenTopRoutes) */}
+                                {frozenTopRoutes && frozenTopRoutes.length > 0 && (
                                     <div className="space-y-3">
                                         <p className="text-sm text-gray-400">Frequently Used Routes</p>
                                         <div className="grid grid-cols-3 gap-3">
-                                            {topRoutes.map(routeShortName => {
+                                            {frozenTopRoutes.map(routeShortName => {
                                                 const routeInfo = routeHelpers.findByShortName(routeShortName);
                                                 const route = routeInfo && routeInfo.length > 0 ? routeInfo[0] : null;
                                                 return (
@@ -966,9 +996,13 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                                                 <div className="font-semibold text-green-400">
                                                     Route Selected: {selectedRoute}
                                                 </div>
-                                                <div className="text-sm text-green-300">
-                                                    {routeName}
-                                                </div>
+                                                {/* Only show a second line when we actually have a distinct long
+                                                    name - routeName otherwise just repeats the short name */}
+                                                {routeName && routeName !== selectedRoute && (
+                                                    <div className="text-sm text-green-300">
+                                                        {routeName}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -1130,7 +1164,9 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                                     {selectedRoute && (
                                         <div className="mt-3 pt-3 border-t border-gray-600">
                                             <div className="font-semibold text-green-400">Route: {selectedRoute}</div>
-                                            <div className="text-sm text-green-300">{routeName}</div>
+                                            {routeName && routeName !== selectedRoute && (
+                                                <div className="text-sm text-green-300">{routeName}</div>
+                                            )}
                                         </div>
                                     )}
                                 </div>
@@ -1139,7 +1175,43 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                                 
                                 {/* Location Options */}
                                 <div className="space-y-3">
-                                    {/* Ticketer Coordinates */}
+                                    {/* Search for a Place */}
+                                    <button
+                                        onClick={() => setShowSearchLocationModal(true)}
+                                        className="w-full p-4 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg transition-all duration-200 text-left flex items-center gap-4 group"
+                                    >
+                                        <div className="w-12 h-12 bg-cyan-500/20 rounded-xl flex items-center justify-center">
+                                            <Icons.Search className="w-6 h-6 text-cyan-400" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="font-semibold text-white group-hover:text-cyan-400 transition-colors">
+                                                Search for a Place
+                                            </div>
+                                            <div className="text-sm text-gray-400">
+                                                Find a bus stop, road, or landmark by name
+                                            </div>
+                                        </div>
+                                    </button>
+
+                                    {/* Pick on Map */}
+                                    <button
+                                        onClick={() => setShowMapPickModal(true)}
+                                        className="w-full p-4 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg transition-all duration-200 text-left flex items-center gap-4 group"
+                                    >
+                                        <div className="w-12 h-12 bg-teal-500/20 rounded-xl flex items-center justify-center">
+                                            <MapIcon className="w-6 h-6 text-teal-400" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="font-semibold text-white group-hover:text-teal-400 transition-colors">
+                                                Pick on Map
+                                            </div>
+                                            <div className="text-sm text-gray-400">
+                                                Drop a pin at the vehicle's location
+                                            </div>
+                                        </div>
+                                    </button>
+
+                                    {/* Paste Coordinates */}
                                     <button
                                         onClick={handleTicketerClick}
                                         className="w-full p-4 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg transition-all duration-200 text-left flex items-center gap-4 group"
@@ -1149,14 +1221,14 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                                         </div>
                                         <div className="flex-1">
                                             <div className="font-semibold text-white group-hover:text-green-400 transition-colors">
-                                                Ticketer Coordinates
+                                                Paste Coordinates
                                             </div>
                                             <div className="text-sm text-gray-400">
-                                                Paste LAT/LONG from ticketer machine
+                                                From the driver's ticket machine (LAT/LONG)
                                             </div>
                                         </div>
                                     </button>
-                                    
+
                                     {/* Depot Location */}
                                     <button
                                         onClick={() => setCurrentStep('depot')}
@@ -1247,7 +1319,7 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
             {showTicketerModal && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
                     <div className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-6 border border-gray-700">
-                        <h3 className="text-xl font-bold text-white mb-4">Paste Ticketer Coordinates</h3>
+                        <h3 className="text-xl font-bold text-white mb-4">Paste Coordinates</h3>
                         
                         <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 mb-4">
                             <div className="text-green-400 text-sm space-y-1">
@@ -1350,6 +1422,23 @@ const FleetSelectionModal = ({ isOpen, onClose, onSelectVehicle, wizardType }) =
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Search for a Place */}
+            {showSearchLocationModal && (
+                <LocationSearchModal
+                    onClose={() => setShowSearchLocationModal(false)}
+                    onSelect={handleSearchLocationSelect}
+                />
+            )}
+
+            {/* Pick on Map */}
+            {showMapPickModal && (
+                <LocationMapPickerModal
+                    onClose={() => setShowMapPickModal(false)}
+                    onConfirm={handleMapPickConfirm}
+                    center={selectedVehicle ? depotLocations[selectedVehicle.depot] : null}
+                />
             )}
         </>
     );

@@ -12,6 +12,7 @@
 import express from 'express';
 import pool from '../config/mysql.js';
 import { activityLogger, ACTIVITY_TYPES, ACTOR_TYPES, ENTITY_TYPES, SEVERITY_LEVELS } from '../services/activityLogger.js';
+import { denyDemoWrite } from '../utils/demoFilter.js';
 
 const router = express.Router();
 
@@ -157,6 +158,7 @@ router.get('/:key', async (req, res) => {
 // UPDATE SETTING (Admin Only)
 // =====================================================
 router.put('/:key', async (req, res) => {
+    if (denyDemoWrite(req, res)) return;
     try {
         // Check admin access
         const userRole = req.user?.role || req.headers['x-user-role'];
@@ -280,6 +282,7 @@ router.put('/:key', async (req, res) => {
 // BULK UPDATE SETTINGS (Admin Only)
 // =====================================================
 router.put('/', async (req, res) => {
+    if (denyDemoWrite(req, res)) return;
     try {
         // Check admin access
         const userRole = req.user?.role || req.headers['x-user-role'];

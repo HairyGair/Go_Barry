@@ -60,18 +60,25 @@
    ==================================== */
 .card-header-compact {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 20px;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 14px 20px;
   cursor: pointer;
   background: rgba(255, 255, 255, 0.02);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   transition: background 0.2s ease;
-  gap: 16px;
+  gap: 8px;
 }
 
 .card-header-compact:hover {
   background: rgba(255, 255, 255, 0.05);
+}
+
+.header-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
 }
 
 .header-left, .header-right {
@@ -79,6 +86,131 @@
   align-items: center;
   gap: var(--spacing-sm);
   flex-wrap: wrap;
+}
+
+/* ====================================
+   TRIAGE ROW (ALWAYS VISIBLE) - lets a
+   supervisor assess at a glance without
+   expanding the card
+   ==================================== */
+.triage-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-family: var(--font-body, 'Inter'), sans-serif;
+}
+
+.triage-chip {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: var(--radius-sm);
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.triage-decision-stop {
+  background: rgba(239, 68, 68, 0.2);
+  color: #F87171;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.triage-decision-amber {
+  background: rgba(245, 158, 11, 0.18);
+  color: #FBBF24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.triage-decision-continue {
+  background: rgba(16, 185, 129, 0.18);
+  color: #34D399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.triage-decision-pending {
+  background: rgba(100, 116, 139, 0.18);
+  color: #94A3B8;
+  border: 1px solid rgba(100, 116, 139, 0.3);
+}
+
+.triage-issue {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #CBD5E1;
+  white-space: nowrap;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.triage-sep {
+  flex-shrink: 0;
+  color: #475569;
+  font-size: 11px;
+}
+
+.triage-location {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 60px;
+  flex: 1 1 auto;
+  overflow: hidden;
+  color: #94A3B8;
+  font-size: 12px;
+}
+
+.triage-location-icon {
+  flex-shrink: 0;
+  color: #64748B;
+}
+
+.triage-location-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.triage-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  font-size: 11px;
+  color: #64748B;
+  white-space: nowrap;
+}
+
+.triage-status {
+  font-weight: 600;
+  color: #94A3B8;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  font-size: 10px;
+}
+
+.triage-status-engineer-dispatched,
+.triage-status-engineer-on-site {
+  color: #60A5FA;
+}
+
+.triage-status-resolved {
+  color: #34D399;
+}
+
+.triage-depot,
+.triage-supervisor {
+  color: #64748B;
+  font-size: 11px;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .fleet-number-compact {
@@ -1036,7 +1168,7 @@
    RESPONSIVE DESIGN
    ==================================== */
 @media (max-width: 768px) {
-  .card-header-compact {
+  .header-top-row {
     flex-direction: column;
     align-items: flex-start;
     gap: var(--spacing-sm);
@@ -1049,6 +1181,24 @@
 
   .fleet-number-compact {
     font-size: 20px;
+  }
+
+  .triage-row {
+    flex-wrap: wrap;
+    row-gap: 4px;
+  }
+
+  .triage-location {
+    flex-basis: 100%;
+    order: 3;
+  }
+
+  .triage-meta {
+    flex-wrap: wrap;
+  }
+
+  .triage-supervisor {
+    display: none;
   }
 
   .carousel-navigation {
@@ -1098,6 +1248,15 @@
 @media (min-width: 769px) and (max-width: 1024px) {
   .overview-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Hide the least-critical triage field first on narrower desktop widths
+   so the decision chip, issue, location and status always stay on one line */
+@media (min-width: 769px) and (max-width: 1365px) {
+  .triage-supervisor,
+  .triage-sep-supervisor {
+    display: none;
   }
 }
 

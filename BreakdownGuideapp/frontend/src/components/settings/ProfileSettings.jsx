@@ -79,7 +79,7 @@ const ProfileSettings = ({ user }) => {
       </div>
 
       {/* Badge Number */}
-      {user?.supervisorId && (
+      {(user?.badge_number || user?.supervisorId || user?.badge) && (
         <div className="setting-item">
           <div className="setting-label">
             <h3>Badge Number</h3>
@@ -89,7 +89,7 @@ const ProfileSettings = ({ user }) => {
             <input
               type="text"
               className="settings-input"
-              value={user?.supervisorId || user?.badge || 'Not assigned'}
+              value={user?.badge_number || user?.supervisorId || user?.badge || 'Not assigned'}
               readOnly
             />
           </div>
@@ -126,34 +126,37 @@ const ProfileSettings = ({ user }) => {
         </div>
       </div>
 
-      {/* Account Created */}
-      <div className="setting-item">
-        <div className="setting-label">
-          <h3>Account Created</h3>
-          <p>When your account was first created</p>
-        </div>
-        <div className="setting-control">
-          <input
-            type="text"
-            className="settings-input"
-            value={formatDate(user?.created_at || user?.createdAt)}
-            readOnly
-          />
-        </div>
-      </div>
-
-      {/* Last Login */}
-      {user?.last_sign_in_at && (
+      {/* Account Created - only shown when the API actually provides it */}
+      {(user?.created_at || user?.createdAt) && (
         <div className="setting-item">
           <div className="setting-label">
-            <h3>Last Login</h3>
-            <p>Your most recent login time</p>
+            <h3>Account Created</h3>
+            <p>When your account was first created</p>
           </div>
           <div className="setting-control">
             <input
               type="text"
               className="settings-input"
-              value={formatDate(user?.last_sign_in_at)}
+              value={formatDate(user?.created_at || user?.createdAt)}
+              readOnly
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Session Started - most recent login is not persisted server-side, so this
+          reflects when the current browser session began */}
+      {(user?.last_sign_in_at || user?.loginTime) && (
+        <div className="setting-item">
+          <div className="setting-label">
+            <h3>Session Started</h3>
+            <p>When your current session began</p>
+          </div>
+          <div className="setting-control">
+            <input
+              type="text"
+              className="settings-input"
+              value={formatDate(user?.last_sign_in_at || user?.loginTime)}
               readOnly
             />
           </div>

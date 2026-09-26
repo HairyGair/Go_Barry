@@ -6,14 +6,13 @@
 /* Container */
 .wizard-progress-container {
   width: 100%;
-  padding: 16px 20px;
-  background: linear-gradient(180deg, rgba(26, 26, 26, 0.95) 0%, rgba(26, 26, 26, 0.8) 100%);
+  padding: 12px 20px;
+  background: rgba(17, 26, 43, 0.97);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  margin-bottom: 24px;
+  /* Stickiness lives on the parent .wizard-sticky-header wrapper (App.jsx),
+     which sticks this bar + the context bar below it together as one block,
+     positioned under the shell's floating logo/user menu (--app-top-offset). */
 }
 
 /* Wizard Title */

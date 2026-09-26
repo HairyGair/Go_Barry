@@ -24,6 +24,7 @@ import { authSchemas } from '../validation/schemas.js';
 import webSocketHandler from './webSocketHandler.js';
 import { logAuditEvent, ACTION_TYPES as AUDIT_ACTIONS } from './dutyAudit.js';
 import { seedDemoData } from '../services/demoDataService.js';
+import { denyDemoWrite } from '../utils/demoFilter.js';
 
 // Load environment variables
 dotenv.config();
@@ -1061,6 +1062,7 @@ router.get('/pending-signups', authenticateAdmin, async (req, res) => {
 
 // POST /api/auth/approve-signup - Approve a pending supervisor signup (Admin only)
 router.post('/approve-signup', authenticateAdmin, async (req, res) => {
+  if (denyDemoWrite(req, res)) return;
   try {
     const { supervisorId, approved = true } = req.body;
 
@@ -1151,6 +1153,7 @@ router.post('/approve-signup', authenticateAdmin, async (req, res) => {
 
 // PUT /api/auth/supervisor/:id - Update supervisor details (Admin only)
 router.put('/supervisor/:id', authenticateAdmin, async (req, res) => {
+  if (denyDemoWrite(req, res)) return;
   try {
     const supervisorId = req.params.id;
     const { name, email, depot, role, is_active } = req.body;
@@ -1359,6 +1362,7 @@ router.get('/supervisors/:id/stats', async (req, res) => {
 
 // POST /api/auth/admin/reset-password - Admin-only password reset
 router.post('/admin/reset-password', authenticateAdmin, async (req, res) => {
+  if (denyDemoWrite(req, res)) return;
   try {
     const { email, newPassword } = req.body;
 
@@ -1871,6 +1875,7 @@ router.post('/set-duty', verifyToken, validate(authSchemas.setDuty), async (req,
 
 // POST /api/auth/admin/reset-password - Admin reset password for supervisor
 router.post('/admin/reset-password', verifyToken, async (req, res) => {
+  if (denyDemoWrite(req, res)) return;
   try {
     const { email, newPassword } = req.body;
 
