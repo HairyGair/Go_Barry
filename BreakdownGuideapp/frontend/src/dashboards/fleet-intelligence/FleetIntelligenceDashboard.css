@@ -1746,6 +1746,23 @@
   margin: 0 auto 10px;
 }
 
+.fi__map-loading {
+  height: 360px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border-radius: var(--fi-radius);
+  background: var(--fi-bg-raised);
+}
+
+.fi__map-loading p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--fi-text-secondary);
+}
+
 /* ---- Responsive ---- */
 @media (max-width: 1400px) {
   .fi__kpi-bar {

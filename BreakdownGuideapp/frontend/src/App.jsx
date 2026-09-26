@@ -87,6 +87,60 @@ const BreakdownGuide = () => {
   return <BreakdownGuideApp />
 }
 
+// Standard duties (see CLAUDE.md "Duty Selection")
+const DEMO_DUTY_OPTIONS = [
+  { code: '100', name: 'Early Shift', startTime: '06:00', endTime: '15:30' },
+  { code: '200', name: 'Day Shift', startTime: '07:30', endTime: '17:00' },
+  { code: '400', name: 'Late Shift', startTime: '12:30', endTime: '22:00' },
+  { code: '500', name: 'Night Shift', startTime: '14:45', endTime: '00:15' },
+]
+
+const toMinutes = (hhmm) => { const [h, m] = hhmm.split(':').map(Number); return h * 60 + m }
+const pad2 = (n) => String(n).padStart(2, '0')
+
+// Minutes left on a duty right now (handles duties that cross midnight), or
+// null if the duty isn't running at the moment.
+const minutesRemaining = (duty, now = new Date()) => {
+  const nowMin = now.getHours() * 60 + now.getMinutes()
+  const start = toMinutes(duty.startTime)
+  let end = toMinutes(duty.endTime)
+  let current = nowMin
+  if (end <= start) { end += 24 * 60; if (current < start) current += 24 * 60 }
+  return current >= start && current < end ? end - current : null
+}
+
+// The standard duty with the most time left; overnight (when none is running)
+// a rolling 9.5h window that started two hours ago.
+const buildDemoDuty = (now = new Date()) => {
+  const running = DEMO_DUTY_OPTIONS
+    .map(d => ({ ...d, left: minutesRemaining(d, now) }))
+    .filter(d => d.left !== null && d.left >= 60)
+    .sort((a, b) => b.left - a.left)[0]
+  let duty = running
+  if (!duty) {
+    const start = new Date(now.getTime() - 2 * 60 * 60 * 1000)
+    const end = new Date(start.getTime() + 9.5 * 60 * 60 * 1000)
+    duty = {
+      code: '500', name: 'Night Shift',
+      startTime: `${pad2(start.getHours())}:${pad2(start.getMinutes())}`,
+      endTime: `${pad2(end.getHours())}:${pad2(end.getMinutes())}`,
+    }
+  }
+  const left = minutesRemaining(duty, now) ?? 0
+  return {
+    code: duty.code,
+    name: duty.name,
+    startTime: duty.startTime,
+    endTime: duty.endTime,
+    shiftStart: now.toISOString(),
+    shiftEnd: new Date(now.getTime() + left * 60 * 1000).toISOString(),
+    isDemo: true
+  }
+}
+
+// A restored demo duty that has since ended (e.g. tab left open) is replaced
+const demoDutyHasEnded = (duty) => !duty.startTime || !duty.endTime || minutesRemaining(duty) === null
+
 // Placeholder Components
 const ComingSoon = ({ title }) => (
   <div className="shell-state">
@@ -358,24 +412,17 @@ const AppContent = () => {
 
   const isEngineeringManager = currentUser?.role === 'engineering_manager'
 
-  // Auto-set Day Shift for demo users (skip duty selection entirely)
+  // Auto-set a duty for demo users (skip duty selection entirely). The duty
+  // must cover the current time — a fixed day shift left evening/overnight
+  // visitors looking at a red "overtime" duty card.
   useEffect(() => {
-    if (isAuthenticated && !isSessionChecking && isDemoUser && !currentDuty) {
-      console.log('🎭 Demo user detected - auto-setting Day Shift (Duty 200)')
-      const demoDuty = {
-        code: '200',
-        name: 'Day Shift',
-        startTime: '07:30',
-        endTime: '17:00',
-        shiftStart: new Date().toISOString(),
-        shiftEnd: new Date(Date.now() + 9.5 * 60 * 60 * 1000).toISOString(),
-        isDemo: true
-      }
-      setCurrentDuty(demoDuty)
-      sessionStorage.setItem('currentDuty', JSON.stringify(demoDuty))
-      sessionStorage.removeItem('showDutyModal')
-      setShowDemoBanner(true)
-    }
+    if (!isAuthenticated || isSessionChecking || !isDemoUser) return
+    if (currentDuty && !(currentDuty.isDemo && demoDutyHasEnded(currentDuty))) return
+    const demoDuty = buildDemoDuty()
+    setCurrentDuty(demoDuty)
+    sessionStorage.setItem('currentDuty', JSON.stringify(demoDuty))
+    sessionStorage.removeItem('showDutyModal')
+    setShowDemoBanner(true)
   }, [isAuthenticated, isSessionChecking, isDemoUser, currentDuty])
 
   // Show duty modal after login if no valid duty exists

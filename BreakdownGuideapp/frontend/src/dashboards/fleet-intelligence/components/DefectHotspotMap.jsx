@@ -115,9 +115,9 @@ const DefectHotspotMap = ({ breakdowns = [], onMarkerClick, loading }) => {
             Live Defect Hotspots
           </h3>
         </div>
-        <div className="fi__loading-spinner">
-          <div className="spinner"></div>
-          <p>Loading map data...</p>
+        <div className="fi__map-loading" role="status" aria-live="polite">
+          <div className="fi__loading-spinner" aria-hidden="true"></div>
+          <p>Loading map data…</p>
         </div>
       </div>
     );
