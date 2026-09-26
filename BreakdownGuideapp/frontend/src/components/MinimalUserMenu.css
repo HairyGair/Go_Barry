@@ -106,6 +106,7 @@
   width: 340px;
   /* below the floating trigger (and the demo banner when shown) */
   max-height: calc(100vh - 96px - var(--app-banner-h, 0px));
+  overscroll-behavior: contain; /* scrolling the menu shouldn't scroll the page behind */
   overflow-y: auto;
   overflow-x: visible;
   background: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(10, 15, 30, 0.98));
