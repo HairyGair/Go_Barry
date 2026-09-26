@@ -21,31 +21,32 @@ import { apiClient } from '../services/api-client.js';
 import { DutyBadge as DutyBadgeIcon } from './icons/DutyBadgeIcons';
 import './DutyCard.css';
 
-// Duty shift definitions
+// Duty shift definitions — brand teal family (green/amber are status colours
+// and purple/blue are off-brand), so a duty card never reads as a warning
 const DUTY_CONFIG = {
   '100': {
     name: 'Early Shift',
-    color: '#3B82F6',
-    gradient: 'linear-gradient(135deg, #3B82F6, #60A5FA)',
-    bgGradient: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(96, 165, 250, 0.08))'
+    color: '#26C6DA',
+    gradient: 'linear-gradient(135deg, #00ACC1, #26C6DA)',
+    bgGradient: 'linear-gradient(135deg, rgba(38, 198, 218, 0.15), rgba(38, 198, 218, 0.06))'
   },
   '200': {
     name: 'Day Shift',
-    color: '#10B981',
-    gradient: 'linear-gradient(135deg, #10B981, #34D399)',
-    bgGradient: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(52, 211, 153, 0.08))'
+    color: '#00BCD4',
+    gradient: 'linear-gradient(135deg, #0097A7, #00BCD4)',
+    bgGradient: 'linear-gradient(135deg, rgba(0, 188, 212, 0.15), rgba(0, 188, 212, 0.06))'
   },
   '400': {
     name: 'Late Shift',
-    color: '#F59E0B',
-    gradient: 'linear-gradient(135deg, #F59E0B, #FCD34D)',
-    bgGradient: 'linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(252, 211, 77, 0.08))'
+    color: '#00ACC1',
+    gradient: 'linear-gradient(135deg, #00838F, #00ACC1)',
+    bgGradient: 'linear-gradient(135deg, rgba(0, 172, 193, 0.15), rgba(0, 172, 193, 0.06))'
   },
   '500': {
     name: 'Night Shift',
-    color: '#8B5CF6',
-    gradient: 'linear-gradient(135deg, #8B5CF6, #A78BFA)',
-    bgGradient: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(167, 139, 250, 0.08))'
+    color: '#4DD0E1',
+    gradient: 'linear-gradient(135deg, #0097A7, #4DD0E1)',
+    bgGradient: 'linear-gradient(135deg, rgba(77, 208, 225, 0.15), rgba(77, 208, 225, 0.06))'
   },
   'ENG': {
     name: 'Engineering Manager',
