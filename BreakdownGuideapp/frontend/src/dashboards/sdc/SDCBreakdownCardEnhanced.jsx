@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { getWizardInfo } from './utils/wizardTypeMapping';
 import SimpleLocationMap from './SimpleLocationMap';
+import DarkPinMap from './DarkPinMap';
 import DepotContactBadge from '../../components/DepotContactBadge';
 import ShiftEndingBadge from '../../components/ShiftEndingBadge';
 import NextTripCountdownBadge from '../../components/NextTripCountdownBadge';
@@ -684,17 +685,7 @@ const SDCBreakdownCardEnhanced = memo(({
                 </div>
                 {mapData && mapData.type === 'iframe' ? (
                   <div className="map-container-large">
-                    <iframe
-                      width="100%"
-                      height="300"
-                      frameBorder="0"
-                      scrolling="no"
-                      marginHeight="0"
-                      marginWidth="0"
-                      src={`https://www.openstreetmap.org/export/embed.html?bbox=${mapData.lng-0.01},${mapData.lat-0.01},${mapData.lng+0.01},${mapData.lat+0.01}&layer=mapnik&marker=${mapData.lat},${mapData.lng}`}
-                      style={{ borderRadius: '8px' }}
-                      title="Breakdown Location Map"
-                    />
+                    <DarkPinMap lat={mapData.lat} lng={mapData.lng} zoom={16} height={300} title="Breakdown location map" />
                     <div className="map-coordinates">
                       <MapPin size={12} style={{ verticalAlign: '-2px' }} /> {mapData.lat.toFixed(6)}, {mapData.lng.toFixed(6)}
                     </div>

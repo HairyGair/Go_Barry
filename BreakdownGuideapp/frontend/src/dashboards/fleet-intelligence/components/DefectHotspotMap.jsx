@@ -8,6 +8,7 @@
 import React, { useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
+import { DARK_BASE_TILES, DARK_LABEL_TILES } from '../../../config/mapTiles';
 
 // Fix for default marker icons in Leaflet with webpack/vite
 delete L.Icon.Default.prototype._getIconUrl;
@@ -167,10 +168,8 @@ const DefectHotspotMap = ({ breakdowns = [], onMarkerClick, loading }) => {
             style={{ height: '100%', width: '100%', borderRadius: '12px' }}
             scrollWheelZoom={true}
           >
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="https://carto.com/attributions">CARTO</a>'
-              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-            />
+            <TileLayer url={DARK_BASE_TILES.url} {...DARK_BASE_TILES.options} />
+            <TileLayer url={DARK_LABEL_TILES.url} {...DARK_LABEL_TILES.options} />
 
             {/* Depot markers */}
             {Object.entries(DEPOT_COORDS).map(([name, coords]) => (

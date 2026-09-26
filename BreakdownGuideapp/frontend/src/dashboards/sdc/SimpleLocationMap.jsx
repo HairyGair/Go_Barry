@@ -2,7 +2,8 @@
 // This shows a map even without exact coordinates
 
 import React from 'react';
-import { MapPin } from 'lucide-react';
+import { MapPin, ExternalLink } from 'lucide-react';
+import DarkPinMap from './DarkPinMap';
 
 const SimpleLocationMap = ({ location, fleetNumber, depot }) => {
   // Default center points - VERIFIED from OpenStreetMap (December 2025)
@@ -38,50 +39,33 @@ const SimpleLocationMap = ({ location, fleetNumber, depot }) => {
                  depotCoordinates[depot] || 
                  depotCoordinates['Newcastle']; // Default to Newcastle
 
-  // Generate OpenStreetMap URL
-  const mapUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${coords.lng-0.02},${coords.lat-0.02},${coords.lng+0.02},${coords.lat+0.02}&layer=mapnik&marker=${coords.lat},${coords.lng}`;
-
-  // Generate static image alternative (using StaticMapLite or similar)
-  const staticImageUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${coords.lng-0.02},${coords.lat-0.02},${coords.lng+0.02},${coords.lat+0.02}&layer=mapnik`;
-
   return (
-    <div className="simple-map-container">
-      <div className="map-header">
-        <span className="map-title"><MapPin size={13} style={{ verticalAlign: '-2px' }} /> Breakdown Location</span>
-        <span className="map-fleet">Fleet {fleetNumber}</span>
+    <div className="slm">
+      <div className="slm-header">
+        <span className="slm-title"><MapPin size={13} style={{ verticalAlign: '-2px' }} /> Breakdown Location</span>
+        <span className="slm-fleet">Fleet {fleetNumber}</span>
       </div>
       
-      <div className="map-frame">
-        <iframe
-          width="100%"
-          height="150"
-          frameBorder="0"
-          scrolling="no"
-          marginHeight="0"
-          marginWidth="0"
-          src={mapUrl}
-          style={{ borderRadius: '6px' }}
-          title={`Location map for ${location}`}
-          loading="lazy"
-        />
+      <div className="slm-frame">
+        <DarkPinMap lat={coords.lat} lng={coords.lng} zoom={coords.zoom} height={200} title={`Location map for ${location}`} />
       </div>
       
-      <div className="map-details">
-        <div className="location-text">
+      <div className="slm-details">
+        <div className="slm-location">
           {location && !location.match(/^\d/) ? location : `${depot} Area`}
         </div>
         <a 
           href={`https://www.google.com/maps/search/?api=1&query=${coords.lat},${coords.lng}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="map-google-link"
+          className="slm-link"
         >
-          Open in Google Maps
+          Open in Google Maps <ExternalLink size={11} style={{ verticalAlign: '-1px' }} />
         </a>
       </div>
 
       <style jsx>{`
-        .simple-map-container {
+        .slm {
           background: rgba(255, 255, 255, 0.03);
           border-radius: 8px;
           overflow: hidden;
@@ -89,7 +73,7 @@ const SimpleLocationMap = ({ location, fleetNumber, depot }) => {
           margin-top: 8px;
         }
 
-        .map-header {
+        .slm-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
@@ -98,44 +82,44 @@ const SimpleLocationMap = ({ location, fleetNumber, depot }) => {
           border-bottom: 1px solid rgba(255, 255, 255, 0.07);
         }
 
-        .map-title {
+        .slm-title {
           font-size: 12px;
           font-weight: 600;
           color: #e2e8f0;
         }
 
-        .map-fleet {
+        .slm-fleet {
           font-size: 11px;
           color: #94a3b8;
           font-weight: 500;
         }
 
-        .map-frame {
+        .slm-frame {
           position: relative;
           width: 100%;
-          background: rgba(0, 0, 0, 0.3);
+          padding: 8px;
         }
 
-        .map-details {
+        .slm-details {
           padding: 8px 12px;
           background: rgba(255, 255, 255, 0.02);
           border-top: 1px solid rgba(255, 255, 255, 0.07);
         }
 
-        .location-text {
+        .slm-location {
           font-size: 12px;
           color: #cbd5e1;
           margin-bottom: 6px;
         }
 
-        .map-google-link {
+        .slm-link {
           font-size: 11px;
-          color: #38bdf8;
+          color: #22d3ee;
           text-decoration: none;
           font-weight: 500;
         }
 
-        .map-google-link:hover {
+        .slm-link:hover {
           text-decoration: underline;
         }
       `}</style>

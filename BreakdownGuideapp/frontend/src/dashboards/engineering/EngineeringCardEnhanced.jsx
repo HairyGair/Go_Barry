@@ -12,6 +12,7 @@ import EngineerEtaCountdown from '../../components/EngineerEtaCountdown';
 import { apiClient } from '../../services/api-client';
 import { createAssessmentSummary, getServiceImpact } from './utils/assessmentParser';
 import L from 'leaflet';
+import { STREET_TILES, SATELLITE_TILES } from '../../config/mapTiles';
 
 // ── Reverse geocode cache (shared across all cards, survives re-renders) ──
 const geocodeCache = new Map();
@@ -1061,10 +1062,8 @@ const LocationMapModal = ({ breakdown, locationText, sevKey, sevLabel, onNavigat
   useEffect(() => {
     if (!mapInstance.current || !tileLayerRef.current) return;
     mapInstance.current.removeLayer(tileLayerRef.current);
-    const url = satellite
-      ? 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-      : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
-    tileLayerRef.current = L.tileLayer(url, { maxZoom: 19 }).addTo(mapInstance.current);
+    const tiles = satellite ? SATELLITE_TILES : STREET_TILES;
+    tileLayerRef.current = L.tileLayer(tiles.url, tiles.options).addTo(mapInstance.current);
   }, [satellite]);
 
   // Stable coord key to prevent re-creating map on parent re-renders
@@ -1088,10 +1087,8 @@ const LocationMapModal = ({ breakdown, locationText, sevKey, sevLabel, onNavigat
     // Add zoom control to top-right
     L.control.zoom({ position: 'topright' }).addTo(map);
 
-    // Light tile layer (CartoDB Positron)
-    tileLayerRef.current = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      maxZoom: 19
-    }).addTo(map);
+    // Street tile layer (Esri — CARTO basemaps now require an API key)
+    tileLayerRef.current = L.tileLayer(STREET_TILES.url, STREET_TILES.options).addTo(map);
 
     // Bus marker — rectangular badge style with full fleet number
     const busIconHtml = `

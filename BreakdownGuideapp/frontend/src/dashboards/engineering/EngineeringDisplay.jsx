@@ -60,7 +60,9 @@ const EngineeringDisplay = () => {
   const [highlightedBreakdownId, setHighlightedBreakdownId] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all'); // all, pending, in-progress, resolved
   const [lastUpdated, setLastUpdated] = useState(new Date());
-  const [connectionStatus, setConnectionStatus] = useState('disconnected');
+  // Demo sessions skip the WebSocket and refresh via REST polling, so they are
+  // live from the start (otherwise the header shows "Reconnecting..." forever).
+  const [connectionStatus, setConnectionStatus] = useState(() => (isDemoSession() ? 'connected' : 'disconnected'));
   const [currentTime, setCurrentTime] = useState(new Date());
   const cursorTimerRef = useRef(null);
   const [locationCache, setLocationCache] = useState({}); // Cache geocoded addresses

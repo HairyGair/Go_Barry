@@ -810,7 +810,11 @@
 }
 
 .fi__map {
-  flex: 1;
+  /* Definite, non-flexed height: the Leaflet container is height:100%, and a
+     flex:1 item inside a min-height-only column has an indefinite height, so
+     the map resolved to 0px (rendered blank). */
+  flex: none;
+  height: 360px;
   min-height: 300px;
   border-radius: var(--fi-radius);
   overflow: hidden;
