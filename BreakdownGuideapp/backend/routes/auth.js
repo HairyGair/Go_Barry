@@ -1221,6 +1221,8 @@ router.put('/supervisor/:id', authenticateAdmin, async (req, res) => {
 
 // POST /api/auth/change-password - Change password for logged-in supervisor
 router.post('/change-password', verifyToken, validate(authSchemas.changePassword), async (req, res) => {
+  // The demo account is shared by every visitor — its password isn't theirs to change
+  if (denyDemoWrite(req, res)) return;
   try {
     const { currentPassword, newPassword, email } = req.body;
 

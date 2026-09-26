@@ -15,7 +15,7 @@ import {
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { GoBarryBanner } from './GoBarryLogo.jsx';
 import ChangePasswordModal from './ChangePasswordModal.jsx';
-import { getDepotOptions } from '../config/demoDepots';
+import { isDemoSession, getDepotOptions } from '../config/demoDepots';
 import './MinimalUserMenu.css';
 
 const REAL_ENGINEERING_DEPOTS = ['Washington', 'Riverside', 'Consett', 'Deptford', 'Percy Main', 'Hexham'];
@@ -27,6 +27,7 @@ const MinimalUserMenu = ({ currentDuty, onDutyClick }) => {
   const menuRef = useRef(null);
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [openSubmenu, setOpenSubmenu] = useState(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -60,6 +61,7 @@ const MinimalUserMenu = ({ currentDuty, onDutyClick }) => {
       description: 'Engineering dispatch',
       hasSubmenu: true,
       submenu: [
+        { path: '/dashboards/engineering', label: 'Engineering Dispatch', Icon: Wrench },
         { path: '/dashboards/engineering/display', label: 'All Depots', Icon: Factory, external: true },
         ...getDepotOptions(REAL_ENGINEERING_DEPOTS).map((depot) => {
           const name = typeof depot === 'string' ? depot : depot.name;
@@ -291,16 +293,23 @@ const MinimalUserMenu = ({ currentDuty, onDutyClick }) => {
               <nav className="menu-nav">
                 {navigationItems.map(item => (
                   item.hasSubmenu ? (
-                    <div key={item.path} className="nav-item-with-submenu">
-                      <div className={`menu-nav-item has-submenu ${isActive(item.path) ? 'active' : ''}`}>
+                    <div key={item.path} className={`nav-item-with-submenu ${openSubmenu === item.path ? 'open' : ''}`}>
+                      <button
+                        type="button"
+                        className={`menu-nav-item has-submenu ${isActive(item.path) ? 'active' : ''}`}
+                        aria-expanded={openSubmenu === item.path}
+                        aria-controls={`submenu-${item.label}`}
+                        onClick={() => setOpenSubmenu(openSubmenu === item.path ? null : item.path)}
+                      >
                         <span className="nav-icon"><item.Icon size={17} strokeWidth={2} aria-hidden="true" /></span>
                         <div className="nav-text">
                           <span className="nav-label">{item.label}</span>
                           <span className="nav-desc">{item.description}</span>
                         </div>
-                        <span className="submenu-arrow"><ChevronLeft size={15} strokeWidth={2.25} aria-hidden="true" /></span>
-                      </div>
-                      <div className="nav-submenu">
+                        <span className="submenu-arrow"><ChevronDown size={15} strokeWidth={2.25} aria-hidden="true" /></span>
+                      </button>
+                      {openSubmenu === item.path && (
+                      <div className="nav-submenu nav-submenu--inline" id={`submenu-${item.label}`}>
                         {item.submenu.map(subItem => (
                           subItem.external ? (
                             <a
@@ -328,6 +337,7 @@ const MinimalUserMenu = ({ currentDuty, onDutyClick }) => {
                           )
                         ))}
                       </div>
+                      )}
                     </div>
                   ) : (
                     <Link
@@ -351,13 +361,15 @@ const MinimalUserMenu = ({ currentDuty, onDutyClick }) => {
             <div className="menu-section">
               <h4>Settings</h4>
               <div className="menu-actions">
-                <button onClick={() => {
-                  setShowChangePassword(true);
-                  setIsMenuOpen(false);
-                }}>
-                  <Lock size={15} strokeWidth={2} aria-hidden="true" />
-                  <span>Change Password</span>
-                </button>
+                {!isDemoSession() && (
+                  <button onClick={() => {
+                    setShowChangePassword(true);
+                    setIsMenuOpen(false);
+                  }}>
+                    <Lock size={15} strokeWidth={2} aria-hidden="true" />
+                    <span>Change Password</span>
+                  </button>
+                )}
                 <button onClick={() => {
                   navigate('/settings');
                   setIsMenuOpen(false);
