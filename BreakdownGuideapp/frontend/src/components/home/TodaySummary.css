@@ -260,11 +260,9 @@
   padding: 14px 16px;
 }
 
-/* The wide Engineering & recovery card can end up much taller than its stat
-   grid (rows sized by their tallest sibling - usually Latest activity) -
-   centre the grid vertically instead of leaving it stranded at the top. */
+/* Engineering & recovery: figures read top-down like every other card */
 .ts-card--wide .ts-card-body {
-  justify-content: center;
+  justify-content: flex-start;
 }
 
 .ts-divider {
@@ -539,7 +537,19 @@
   display: grid;
   grid-template-columns: 1.4fr 1fr 1fr;
   gap: 12px;
-  align-items: stretch;
+  align-items: start;
+}
+
+/* Latest activity is a secondary column: capped height, scrolls inside */
+.hp-today-row-bottom .hp-activity-card {
+  max-height: 440px;
+  display: flex;
+  flex-direction: column;
+}
+.hp-today-row-bottom .hp-activity-card .hp-activity-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 /* When today's handover/notes card is omitted (no real notes yet), Latest
