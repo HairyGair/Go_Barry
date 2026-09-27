@@ -6,71 +6,158 @@
 
 import express from 'express';
 import { query } from '../utils/queryHelpers.js';
-import { demoSqlFilter } from '../utils/demoFilter.js';
+import { demoSqlFilter, isDemoUser } from '../utils/demoFilter.js';
 
 const router = express.Router();
+
+/**
+ * Route status rules, shared by the list and per-route endpoints.
+ *  RED   (disrupted): any STOP breakdown (vehicle off the road) or 2+ breakdowns
+ *  AMBER (affected):  one AMBER/CONTINUE breakdown
+ *  GREEN:             nothing open
+ * "Open" means not resolved/cleared, however old - a 24-hour window used to drop
+ * long-running breakdowns off route status entirely. Age is returned instead so
+ * stale ones are visible.
+ */
+const KNOWN_SEVERITIES = new Set(['STOP', 'AMBER', 'CONTINUE']);
+const normSeverity = (sev) => {
+  const up = String(sev || '').trim().toUpperCase();
+  return KNOWN_SEVERITIES.has(up) ? up : null;
+};
+const SEVERITY_RANK = { STOP: 3, AMBER: 2, CONTINUE: 1 };
+
+function routeStatusFor(breakdowns) {
+  if (breakdowns.length === 0) return 'GREEN';
+  if (breakdowns.length >= 2 || breakdowns.some(b => b.severity === 'STOP')) return 'RED';
+  return 'AMBER';
+}
+
+function formatBreakdown(b) {
+  return {
+    id: b.id,
+    breakdownId: b.breakdown_id,
+    fleetNo: b.fleet_no,
+    severity: normSeverity(b.severity),
+    status: b.status,
+    issueCategory: b.issue_category,
+    location: b.location_description,
+    depot: b.depot,
+    createdAt: b.created_at,
+    engineerName: b.engineer_name || null,
+    engineerDispatchedAt: b.engineer_dispatched_at || null,
+    engineerEtaMinutes: b.engineer_eta_minutes || null,
+    engineerOnSiteAt: b.engineer_on_site_at || null,
+  };
+}
+
+const OPEN_BREAKDOWN_COLUMNS = `
+  id, breakdown_id, fleet_no, severity, status, issue_category, location_description,
+  depot, route_id, created_at, engineer_name, engineer_dispatched_at,
+  engineer_eta_minutes, engineer_on_site_at`;
+
+// Where each route runs, from its two most common trip destinations. GTFS is
+// static between imports, so this is cached rather than re-aggregating 14k+
+// trips on every 10-second refresh.
+let destinationsCache = { at: 0, byRoute: null };
+const DESTINATIONS_TTL_MS = 60 * 60 * 1000;
+
+async function getRouteDestinations() {
+  if (destinationsCache.byRoute && Date.now() - destinationsCache.at < DESTINATIONS_TTL_MS) {
+    return destinationsCache.byRoute;
+  }
+  const rows = await query(`
+    SELECT route_id, trip_headsign, COUNT(*) AS trips
+    FROM gtfs_trips
+    WHERE trip_headsign IS NOT NULL AND trip_headsign <> ''
+    GROUP BY route_id, trip_headsign
+  `);
+  const byRoute = {};
+  (rows || []).forEach(r => {
+    (byRoute[r.route_id] = byRoute[r.route_id] || []).push({ name: r.trip_headsign, trips: Number(r.trips) });
+  });
+  Object.keys(byRoute).forEach(id => {
+    byRoute[id] = byRoute[id].sort((a, b) => b.trips - a.trips).slice(0, 2).map(x => x.name);
+  });
+  destinationsCache = { at: Date.now(), byRoute };
+  return byRoute;
+}
 
 /**
  * Feature 1: Live Route Status Dashboard
  * GET /api/gtfs/routes/status/live
  *
- * Returns real-time status for all routes (Green/Amber/Red)
- * Green: 0 active breakdowns
- * Amber: 1 active breakdown
- * Red: 2+ active breakdowns
+ * Every route with its status (rules above), its open breakdowns, and - for
+ * real sessions - where it runs. Also returns open breakdowns that aren't
+ * linked to any route, so they don't silently disappear from this view.
  */
 router.get('/routes/status/live', async (req, res) => {
   try {
-    // Mirrors the v_route_status_summary view, but applies demo isolation so demo
-    // sessions only count demo breakdowns and real sessions exclude them.
-    const demoB = demoSqlFilter(req.user, { alias: 'b' });
-    const results = await query(`
-      SELECT
-        r.route_id,
-        r.route_short_name,
-        r.route_long_name,
-        COUNT(DISTINCT b.id) as active_breakdown_count,
-        MAX(b.created_at) as last_breakdown_time,
-        CASE
-          WHEN COUNT(DISTINCT b.id) = 0 THEN 'GREEN'
-          WHEN COUNT(DISTINCT b.id) = 1 THEN 'AMBER'
-          ELSE 'RED'
-        END as status,
-        GROUP_CONCAT(DISTINCT b.severity SEPARATOR ',') as breakdown_severities
-      FROM gtfs_routes r
-      LEFT JOIN breakdowns b ON (r.route_id = b.route_id OR r.route_short_name = b.route_id)
-        AND b.status NOT IN ('resolved', 'cleared')
-        AND b.created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)${demoB}
-      GROUP BY r.route_id, r.route_short_name, r.route_long_name
-      ORDER BY
-        FIELD(CASE
-          WHEN COUNT(DISTINCT b.id) = 0 THEN 'GREEN'
-          WHEN COUNT(DISTINCT b.id) = 1 THEN 'AMBER'
-          ELSE 'RED'
-        END, 'RED', 'AMBER', 'GREEN'),
-        r.route_short_name ASC
-      LIMIT 250;
-    `);
+    const demo = isDemoUser(req.user);
+    const [routeRows, openRows, destinations] = await Promise.all([
+      query(`
+        SELECT route_id, route_short_name, route_long_name
+        FROM gtfs_routes
+        ORDER BY route_short_name ASC
+        LIMIT 500
+      `),
+      query(`
+        SELECT ${OPEN_BREAKDOWN_COLUMNS}
+        FROM breakdowns
+        WHERE status NOT IN ('resolved', 'cleared')${demoSqlFilter(req.user)}
+        ORDER BY created_at DESC
+      `),
+      // Real place names - the public demo uses fictional geography, so skip
+      demo ? Promise.resolve({}) : getRouteDestinations().catch(() => ({})),
+    ]);
 
-    // Format for frontend
-    const formattedResults = (results || []).map(row => ({
-      routeId: row.route_id,
-      routeShortName: row.route_short_name,
-      routeLongName: row.route_long_name,
-      status: row.status,
-      breakdownCount: row.active_breakdown_count,
-      lastBreakdownTime: row.last_breakdown_time,
-      breakdownSeverities: row.breakdown_severities ? row.breakdown_severities.split(',') : [],
-      timestamp: new Date().toISOString(),
-    }));
+    // Match on the full GTFS id or the short name (breakdowns store '21')
+    const routeKey = (v) => String(v || '').trim().toUpperCase();
+    const byKey = new Map();
+    (routeRows || []).forEach(r => {
+      byKey.set(routeKey(r.route_id), r.route_id);
+      if (r.route_short_name) byKey.set(routeKey(r.route_short_name), r.route_id);
+    });
 
-    // Summary stats
+    const breakdownsByRoute = {};
+    const unlinked = [];
+    (openRows || []).forEach(b => {
+      const id = b.route_id ? byKey.get(routeKey(b.route_id)) : null;
+      const formatted = formatBreakdown(b);
+      if (id) (breakdownsByRoute[id] = breakdownsByRoute[id] || []).push(formatted);
+      else unlinked.push({ ...formatted, routeRef: b.route_id || null });
+    });
+
+    const statusOrder = { RED: 0, AMBER: 1, GREEN: 2 };
+    const formattedResults = (routeRows || []).map(row => {
+      const list = (breakdownsByRoute[row.route_id] || [])
+        .sort((a, b) => (SEVERITY_RANK[b.severity] || 0) - (SEVERITY_RANK[a.severity] || 0)
+          || new Date(a.createdAt) - new Date(b.createdAt));
+      const status = routeStatusFor(list);
+      const dest = destinations[row.route_id] || [];
+      return {
+        routeId: row.route_id,
+        routeShortName: row.route_short_name,
+        routeLongName: row.route_long_name,
+        destinations: dest,
+        status,
+        breakdownCount: list.length,
+        lastBreakdownTime: list.length ? list.reduce((m, b) => (new Date(b.createdAt) > new Date(m) ? b.createdAt : m), list[0].createdAt) : null,
+        breakdownSeverities: [...new Set(list.map(b => b.severity).filter(Boolean))],
+        breakdowns: list,
+        timestamp: new Date().toISOString(),
+      };
+    }).sort((a, b) => statusOrder[a.status] - statusOrder[b.status]
+      || String(a.routeShortName).localeCompare(String(b.routeShortName), undefined, { numeric: true }));
+
+    const linkedCount = formattedResults.reduce((sum, r) => sum + r.breakdownCount, 0);
     const summary = {
       total_routes: formattedResults.length,
       green_routes: formattedResults.filter(r => r.status === 'GREEN').length,
       amber_routes: formattedResults.filter(r => r.status === 'AMBER').length,
       red_routes: formattedResults.filter(r => r.status === 'RED').length,
-      total_active_breakdowns: formattedResults.reduce((sum, r) => sum + r.breakdownCount, 0),
+      total_active_breakdowns: linkedCount,
+      unlinked_breakdowns: unlinked.length,
+      open_breakdowns: linkedCount + unlinked.length,
     };
 
     return res.json({
@@ -78,6 +165,7 @@ router.get('/routes/status/live', async (req, res) => {
       timestamp: new Date().toISOString(),
       summary,
       routes: formattedResults,
+      unlinked,
     });
 
   } catch (error) {
@@ -85,7 +173,6 @@ router.get('/routes/status/live', async (req, res) => {
     return res.status(500).json({
       success: false,
       error: 'Failed to fetch live route status',
-      details: error.message,
     });
   }
 });
@@ -115,27 +202,15 @@ router.get('/routes/:routeId/status', async (req, res) => {
 
     const route = routeRows[0];
 
-    // Get active breakdowns for this route (last 24 hours)
+    // Open breakdowns for this route, however old
     const breakdowns = await query(`
-      SELECT
-        id,
-        breakdown_id,
-        fleet_no,
-        severity,
-        status,
-        issue_category,
-        location_description,
-        location_lat,
-        location_lng,
-        supervisor_name,
-        created_at,
-        resolved_at
+      SELECT ${OPEN_BREAKDOWN_COLUMNS}
       FROM breakdowns
       WHERE (route_id = ? OR route_id = ?)
-      AND status NOT IN ('resolved', 'cleared')
-      AND created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)${demoSqlFilter(req.user)}
-      ORDER BY severity DESC, created_at DESC;
+      AND status NOT IN ('resolved', 'cleared')${demoSqlFilter(req.user)}
+      ORDER BY created_at DESC;
     `, [routeId, route.route_short_name]);
+    const formatted = (breakdowns || []).map(formatBreakdown);
 
     return res.json({
       success: true,
@@ -143,21 +218,10 @@ router.get('/routes/:routeId/status', async (req, res) => {
         routeId: route.route_id,
         routeShortName: route.route_short_name,
         routeLongName: route.route_long_name,
-        status: !breakdowns || breakdowns.length === 0 ? 'GREEN' : (breakdowns.length === 1 ? 'AMBER' : 'RED'),
-        activeBreakdownCount: breakdowns ? breakdowns.length : 0,
+        status: routeStatusFor(formatted),
+        activeBreakdownCount: formatted.length,
       },
-      breakdowns: (breakdowns || []).map(b => ({
-        id: b.id,
-        breakdownId: b.breakdown_id,
-        fleetNo: b.fleet_no,
-        severity: b.severity,
-        issueCategory: b.issue_category,
-        location: b.location_description,
-        lat: b.location_lat,
-        lng: b.location_lng,
-        supervisor: b.supervisor_name,
-        createdAt: b.created_at,
-      })),
+      breakdowns: formatted,
       timestamp: new Date().toISOString(),
     });
 
