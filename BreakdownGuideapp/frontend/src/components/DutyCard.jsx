@@ -339,7 +339,13 @@ const DutyCard = ({ currentDuty, onChangeDuty, onStartHandover, onExtendShift, s
               </span>
             )}
           </span>
-          <span className="duty-card__stat-label">Breakdowns</span>
+          {/* This counts breakdowns CREATED during this shift's time window
+              for this supervisor (see fetchShiftStats in HomePage.jsx) - a
+              different, narrower thing than Operations' "My Breakdowns"
+              (currently active breakdowns assigned to me, regardless of
+              when they started), so it needs a distinct, precise label
+              rather than reusing "Breakdowns". */}
+          <span className="duty-card__stat-label">Handled this shift</span>
         </div>
         <div className="duty-card__stat">
           <span className="duty-card__stat-value">{shiftStats.assessments || 0}</span>

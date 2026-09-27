@@ -1,13 +1,21 @@
 /**
  * Go BARRY Breakdown Management System
- * Homepage - Command Dashboard
+ * Homepage - Mini Command Centre
+ *
+ * A condensed version of the Operations command centre (map + urgent
+ * breakdowns + activity feed) plus the supervisor's shift status, fleet
+ * lookup and quick access to reporting a breakdown.
  *
  * Copyright © 2025 Anthony Gair. All Rights Reserved.
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
+import { isDemoSession } from '../config/demoDepots';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle } from 'lucide-react';
+import {
+  AlertTriangle, OctagonAlert, Gauge, Timer, ShieldCheck, ShieldAlert, ShieldQuestion,
+  MapPin, ArrowRight, ChevronDown, X, Radio
+} from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import LiveActivityFeed from './LiveActivityFeed.jsx';
 import WeatherWidget from './WeatherWidget.jsx';
@@ -15,10 +23,22 @@ import QuickFleetSearch from './QuickFleetSearch.jsx';
 import DutyCard from './DutyCard.jsx';
 import DutyHandoverModal from './DutyHandoverModal.jsx';
 import DutyExtensionModal from './DutyExtensionModal.jsx';
-import { fetchDashboardData } from '../utils/fetchDashboardData.js';
+import { DutyBadge as DutyBadgeIcon } from './icons/DutyBadgeIcons';
+import BreakdownMap from '../dashboards/sdc/BreakdownMap.jsx';
+import BreakdownRow from '../dashboards/sdc/components/BreakdownRow.jsx';
+import { getSeverityRank, getDecisionInfo, getFleetNumber } from '../dashboards/sdc/utils/breakdownRowHelpers.js';
+import { fetchDashboardData, fetchFleetAvailability, fetchCoverageSummary } from '../utils/fetchDashboardData.js';
 import './HomePage.css';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
+// Same "currently open" statuses fetchDashboardData() uses to compute the
+// Active stat, so the KPI tile and the map/urgent list always agree.
+const ACTIVE_STATUSES = ['active', 'pending', 'in_progress', 'received', 'acknowledged', 'dispatched', 'on_site'];
+
+const COVERAGE_LABELS = {
+  normal: { label: 'Covered', className: 'hp-kpi--good' },
+  warning: { label: 'Partial cover', className: 'hp-kpi--warn' },
+  critical: { label: 'Coverage gap', className: 'hp-kpi--bad' }
+};
 
 const HomePage = ({ onStatsChange, currentDuty: propDuty }) => {
   const navigate = useNavigate();
@@ -28,15 +48,13 @@ const HomePage = ({ onStatsChange, currentDuty: propDuty }) => {
   const currentDuty = propDuty || localDuty;
   const [showHandoverModal, setShowHandoverModal] = useState(false);
   const [showExtensionModal, setShowExtensionModal] = useState(false);
+  const [showDutyPanel, setShowDutyPanel] = useState(false);
+  const dutyPanelRef = useRef(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [dashboardData, setDashboardData] = useState({
-    stats: {
-      activeBreakdowns: 0,
-      todayTotal: 0,
-      avgResponseTime: 0,
-      fleetHealth: 100
-    },
+    stats: { activeBreakdowns: 0, todayTotal: 0, avgResponseTime: 0, fleetHealth: 100 },
     activityFeed: [],
+    breakdowns: [],
     metadata: null
   });
   const [shiftStats, setShiftStats] = useState({
@@ -46,6 +64,8 @@ const HomePage = ({ onStatsChange, currentDuty: propDuty }) => {
     resolutionRate: 100,
     performance: 'good'
   });
+  const [fleetAvailability, setFleetAvailability] = useState(null);
+  const [coverage, setCoverage] = useState(null);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -92,25 +112,32 @@ const HomePage = ({ onStatsChange, currentDuty: propDuty }) => {
     };
   }, []);
 
+  // Close the duty popover on outside click / Escape
   useEffect(() => {
-    if (isAuthenticated) {
-      loadDashboardData();
-      const interval = setInterval(loadDashboardData, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [isAuthenticated]);
+    if (!showDutyPanel) return;
+    const handleClick = (e) => {
+      if (dutyPanelRef.current && !dutyPanelRef.current.contains(e.target)) {
+        setShowDutyPanel(false);
+      }
+    };
+    const handleKey = (e) => {
+      if (e.key === 'Escape') setShowDutyPanel(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [showDutyPanel]);
 
-  const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async () => {
     try {
       const data = await fetchDashboardData();
       const safeData = {
-        stats: data.stats || {
-          activeBreakdowns: 0,
-          todayTotal: 0,
-          avgResponseTime: 0,
-          fleetHealth: 100
-        },
+        stats: data.stats || { activeBreakdowns: 0, todayTotal: 0, avgResponseTime: 0, fleetHealth: 100 },
         activityFeed: data.activityFeed || [],
+        breakdowns: data.breakdowns || [],
         metadata: data.metadata || null
       };
       setDashboardData(safeData);
@@ -122,31 +149,84 @@ const HomePage = ({ onStatsChange, currentDuty: propDuty }) => {
       setDashboardData({
         stats: { activeBreakdowns: 0, todayTotal: 0, avgResponseTime: 0, fleetHealth: 100 },
         activityFeed: [],
+        breakdowns: [],
         metadata: { error: error.message }
       });
     }
-  };
+  }, [onStatsChange]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadDashboardData();
+      const interval = setInterval(loadDashboardData, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated, loadDashboardData]);
+
+  // Real fleet availability + coverage status (replaces the old fake
+  // "100 - activeBreakdowns * 2" fleet heuristic).
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    let cancelled = false;
+    const loadKpis = async () => {
+      const [avail, cov] = await Promise.all([fetchFleetAvailability(), fetchCoverageSummary()]);
+      if (!cancelled) {
+        setFleetAvailability(avail);
+        setCoverage(cov);
+      }
+    };
+    loadKpis();
+    const interval = setInterval(loadKpis, 60000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [isAuthenticated]);
 
   const handleStartHandover = () => setShowHandoverModal(true);
   const handleExtendShift = () => setShowExtensionModal(true);
   const handleExtensionRequested = (result) => console.log('Extension requested:', result);
 
-  const handleHandoverComplete = (result) => {
+  const handleHandoverComplete = () => {
     setLocalDuty(null);
     sessionStorage.removeItem('currentDuty');
+    setShowDutyPanel(false);
     loadDashboardData();
   };
 
   const fetchShiftStats = useCallback(async (duty) => {
-    if (!duty || !duty.shiftStart || !duty.shiftEnd) return;
+    if (!duty || !duty.startTime || !duty.endTime) return;
     try {
+      // DutySelectionModal only ever persists `shiftEnd` on currentDuty -
+      // `shiftStart` is never set, so this request used to require a field
+      // that doesn't exist and silently no-op forever (the duty card always
+      // showed 0 handled, even when Operations' "My Breakdowns" showed
+      // plenty). Derive both ends of the window from startTime/endTime the
+      // same way DutyCard derives its progress bar, so the numbers here
+      // describe exactly the shift window shown next to them.
+      const now = new Date();
+      const [startHour, startMin] = duty.startTime.split(':').map(Number);
+      const [endHour, endMin] = duty.endTime.split(':').map(Number);
+      const shiftStartDate = new Date();
+      shiftStartDate.setHours(startHour, startMin, 0, 0);
+      const shiftEndDate = new Date();
+      shiftEndDate.setHours(endHour, endMin, 0, 0);
+      if (shiftEndDate < shiftStartDate) {
+        if (now < shiftEndDate) {
+          shiftStartDate.setDate(shiftStartDate.getDate() - 1);
+        } else {
+          shiftEndDate.setDate(shiftEndDate.getDate() + 1);
+        }
+      }
+
       const params = new URLSearchParams({
-        shift_start: duty.shiftStart,
-        shift_end: duty.shiftEnd
+        shift_start: shiftStartDate.toISOString(),
+        shift_end: shiftEndDate.toISOString()
       });
       if (duty.code) params.append('duty_code', duty.code);
       if (currentUser?.badge_number) params.append('supervisor_badge', currentUser.badge_number);
 
+      const API_URL = import.meta.env.VITE_API_URL || 'https://api.breakdowns.gobarry.co.uk';
       const response = await fetch(`${API_URL}/api/analytics/shift-stats?${params}`, {
         credentials: 'include'
       });
@@ -177,7 +257,6 @@ const HomePage = ({ onStatsChange, currentDuty: propDuty }) => {
   }, [currentDuty, isAuthenticated, fetchShiftStats]);
 
   const formatTime = (date) => date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-  const formatDate = (date) => date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
 
   const getGreeting = () => {
     const hour = currentTime.getHours();
@@ -185,6 +264,58 @@ const HomePage = ({ onStatsChange, currentDuty: propDuty }) => {
     if (hour < 18) return 'Good afternoon';
     return 'Good evening';
   };
+
+  // Short "Duty 200 - 4h35m left" label for the header chip.
+  const dutyChipLabel = useMemo(() => {
+    if (!currentDuty || currentDuty.viewOnly) return null;
+    if (!currentDuty.startTime || !currentDuty.endTime) return `Duty ${currentDuty.code || ''}`;
+    const [startHour, startMin] = currentDuty.startTime.split(':').map(Number);
+    const [endHour, endMin] = currentDuty.endTime.split(':').map(Number);
+    const start = new Date(currentTime);
+    start.setHours(startHour, startMin, 0, 0);
+    const end = new Date(currentTime);
+    end.setHours(endHour, endMin, 0, 0);
+    if (end < start) {
+      if (currentTime < end) start.setDate(start.getDate() - 1);
+      else end.setDate(end.getDate() + 1);
+    }
+    const remainingMs = end - currentTime;
+    const remainingMin = Math.abs(Math.floor(remainingMs / 60000));
+    const h = Math.floor(remainingMin / 60);
+    const m = remainingMin % 60;
+    const duration = h > 0 ? `${h}h${m}m` : `${m}m`;
+    return remainingMs <= 0
+      ? `Duty ${currentDuty.code} · ${duration} overtime`
+      : `Duty ${currentDuty.code} · ${duration} left`;
+  }, [currentDuty, currentTime]);
+
+  // ---- Active breakdowns (shared by the map + urgent list + STOP KPI) ----
+  // Kept above the loading/auth early-returns below so hook order stays
+  // stable across renders (rules of hooks).
+  const activeBreakdowns = useMemo(() => {
+    const now = Date.now();
+    return (dashboardData.breakdowns || [])
+      .filter(b => ACTIVE_STATUSES.includes(b.status))
+      .map(b => ({
+        ...b,
+        elapsed: b.created_at ? Math.floor((now - new Date(b.created_at).getTime()) / 60000) : 0
+      }));
+  }, [dashboardData.breakdowns]);
+
+  const urgentBreakdowns = useMemo(() => {
+    return [...activeBreakdowns]
+      .sort((a, b) => {
+        const rankDiff = getSeverityRank(b) - getSeverityRank(a);
+        if (rankDiff !== 0) return rankDiff;
+        return (b.elapsed || 0) - (a.elapsed || 0);
+      })
+      .slice(0, 6);
+  }, [activeBreakdowns]);
+
+  const stopCount = useMemo(
+    () => activeBreakdowns.filter(b => getDecisionInfo(b).key === 'stop').length,
+    [activeBreakdowns]
+  );
 
   if (isSessionChecking || isLoading) {
     return (
@@ -197,223 +328,200 @@ const HomePage = ({ onStatsChange, currentDuty: propDuty }) => {
 
   if (!isAuthenticated) return null;
 
-  const hasActiveBreakdowns = dashboardData.stats.activeBreakdowns > 0;
+  // Real engineering accounts don't report breakdowns; the public demo always
+  // shows it (reporting is the core workflow a prospect needs to see)
+  const canReportBreakdown = isDemoSession() ||
+    (currentUser?.role !== 'engineering' && currentUser?.role !== 'engineering_manager');
+
+  const goToOperations = (fleetNo) => {
+    if (fleetNo && fleetNo !== 'Unknown') {
+      navigate(`/dashboards/sdc?fleet=${encodeURIComponent(fleetNo)}`);
+    } else {
+      navigate('/dashboards/sdc');
+    }
+  };
+
+  const goToBreakdownById = (breakdownId) => {
+    const target = activeBreakdowns.find(b => b.breakdown_id === breakdownId);
+    goToOperations(target ? getFleetNumber(target) : null);
+  };
+
+  const coverageInfo = coverage ? (COVERAGE_LABELS[coverage.alertLevel] || COVERAGE_LABELS.normal) : null;
 
   return (
     <div className="hp-container">
-      {/* Top Bar */}
-      <header className="hp-topbar">
-        <div className="hp-welcome">
-          <p className="hp-greeting">{getGreeting()}</p>
-          <h1 className="hp-username">{currentUser?.name || 'Supervisor'}</h1>
+      {/* Header */}
+      <header className="hp-header">
+        <div className="hp-header-greeting">
+          <span className="hp-greeting-text">{getGreeting()}, {currentUser?.name?.split(' ')[0] || 'Supervisor'}</span>
+          <span className="hp-header-clock">{formatTime(currentTime)}</span>
         </div>
 
-        <div className="hp-clock">
-          <span className="hp-time">{formatTime(currentTime)}</span>
-          <span className="hp-date">{formatDate(currentTime)}</span>
-        </div>
-
-        {currentUser?.role !== 'engineering' && currentUser?.role !== 'engineering_manager' && (
+        <div className="hp-header-duty" ref={dutyPanelRef}>
           <button
-            className={`hp-emergency-btn ${hasActiveBreakdowns ? 'hp-emergency-btn--active' : ''}`}
+            type="button"
+            className={`hp-duty-chip ${!currentDuty || currentDuty.viewOnly ? 'hp-duty-chip--empty' : ''}`}
+            onClick={() => setShowDutyPanel(v => !v)}
+            aria-expanded={showDutyPanel}
+          >
+            {currentDuty && !currentDuty.viewOnly ? (
+              <DutyBadgeIcon dutyCode={currentDuty.code} size={22} />
+            ) : (
+              <ShieldQuestion size={18} />
+            )}
+            <span className="hp-duty-chip-label">{dutyChipLabel || 'No active duty'}</span>
+            <ChevronDown size={14} className={`hp-duty-chip-caret ${showDutyPanel ? 'hp-duty-chip-caret--open' : ''}`} />
+          </button>
+
+          {showDutyPanel && (
+            <div className="hp-duty-popover" role="dialog" aria-label="Your shift">
+              <div className="hp-duty-popover-header">
+                <span>Your shift</span>
+                <button type="button" className="hp-duty-popover-close" onClick={() => setShowDutyPanel(false)} aria-label="Close">
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="hp-duty-popover-body">
+                <DutyCard
+                  currentDuty={currentDuty}
+                  onStartHandover={handleStartHandover}
+                  onExtendShift={handleExtendShift}
+                  shiftStats={shiftStats}
+                  supervisorInfo={{
+                    id: currentUser?.id,
+                    badge_number: currentUser?.badge_number,
+                    name: currentUser?.name
+                  }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="hp-header-weather">
+          <WeatherWidget compact />
+        </div>
+
+        <div className="hp-header-search">
+          <QuickFleetSearch />
+        </div>
+
+        {canReportBreakdown && (
+          <button
+            className={`hp-report-btn ${dashboardData.stats.activeBreakdowns > 0 ? 'hp-report-btn--alert' : ''}`}
             onClick={() => navigate('/breakdown-guide')}
           >
-            <span className="hp-emergency-icon"><AlertTriangle size={17} /></span>
+            <AlertTriangle size={17} />
             <span>Report Breakdown</span>
           </button>
         )}
       </header>
 
-      {/* Stats Row */}
-      <section className="hp-stats">
-        <div className={`hp-stat hp-stat--critical ${hasActiveBreakdowns ? 'hp-stat--alert' : ''}`}>
-          <span className="hp-stat-value">{dashboardData.stats.activeBreakdowns}</span>
-          <span className="hp-stat-label">Active</span>
+      {/* KPI strip */}
+      <section className="hp-kpis">
+        <button type="button" className={`hp-kpi ${dashboardData.stats.activeBreakdowns > 0 ? 'hp-kpi--alert' : ''}`} onClick={() => navigate('/dashboards/sdc')}>
+          <Gauge size={18} className="hp-kpi-icon" />
+          <span className="hp-kpi-value">{dashboardData.stats.activeBreakdowns}</span>
+          <span className="hp-kpi-label">Active</span>
+        </button>
+
+        <button type="button" className={`hp-kpi ${stopCount > 0 ? 'hp-kpi--bad' : ''}`} onClick={() => navigate('/dashboards/sdc')}>
+          <OctagonAlert size={18} className="hp-kpi-icon" />
+          <span className="hp-kpi-value">{stopCount}</span>
+          <span className="hp-kpi-label">STOP</span>
+        </button>
+
+        <div className="hp-kpi hp-kpi--static">
+          <Timer size={18} className="hp-kpi-icon" />
+          <span className="hp-kpi-value">{dashboardData.stats.avgResponseTime}<small>m</small></span>
+          <span className="hp-kpi-label">Avg response</span>
         </div>
-        <div className="hp-stat">
-          <span className="hp-stat-value">{dashboardData.stats.todayTotal}</span>
-          <span className="hp-stat-label">Today</span>
-        </div>
-        <div className="hp-stat">
-          <span className="hp-stat-value">{dashboardData.stats.avgResponseTime}<small>m</small></span>
-          <span className="hp-stat-label">Response</span>
-        </div>
-        <div className="hp-stat hp-stat--positive">
-          <span className="hp-stat-value">{dashboardData.stats.fleetHealth}<small>%</small></span>
-          <span className="hp-stat-label">Fleet OK</span>
-        </div>
+
+        <button type="button" className="hp-kpi" onClick={() => navigate('/fleet-intelligence')}>
+          <ShieldCheck size={18} className="hp-kpi-icon" />
+          <span className="hp-kpi-value">
+            {fleetAvailability != null ? <>{fleetAvailability}<small>%</small></> : <span className="hp-kpi-value--empty">&mdash;</span>}
+          </span>
+          <span className="hp-kpi-label">Fleet availability</span>
+        </button>
+
+        <button type="button" className={`hp-kpi ${coverageInfo ? coverageInfo.className : ''}`} onClick={() => navigate('/dashboards/sdc')}>
+          <ShieldAlert size={18} className="hp-kpi-icon" />
+          <span className="hp-kpi-value hp-kpi-value--text">{coverageInfo ? coverageInfo.label : '—'}</span>
+          <span className="hp-kpi-label">Coverage</span>
+        </button>
       </section>
 
-      {/* Main Grid */}
+      {/* Main grid */}
       <main className="hp-grid">
-        {/* Left Column */}
-        <aside className="hp-sidebar">
-          <div className="hp-card">
-            <DutyCard
-              currentDuty={currentDuty}
-              onStartHandover={handleStartHandover}
-              onExtendShift={handleExtendShift}
-              shiftStats={shiftStats}
-              supervisorInfo={{
-                id: currentUser?.id,
-                badge_number: currentUser?.badge_number,
-                name: currentUser?.name
-              }}
-            />
-          </div>
-
-          <div className="hp-card">
-            <WeatherWidget />
-          </div>
-        </aside>
-
-        {/* Center - Actions */}
-        <section className="hp-main">
-          {/* Fleet Lookup - prominent position */}
-          <div className="hp-card hp-search-card">
+        <div className="hp-col-left">
+          <div className="hp-card hp-map-card">
             <div className="hp-card-header">
-              <span className="hp-card-icon">●</span>
-              <h3 className="hp-card-title">Fleet Lookup</h3>
+              <MapPin size={14} />
+              <h3 className="hp-card-title">Live map</h3>
+              <span className="hp-card-count">{activeBreakdowns.length}</span>
             </div>
-            <div className="hp-card-body">
-              <QuickFleetSearch />
+            <div className="hp-map-canvas">
+              <BreakdownMap
+                breakdowns={activeBreakdowns}
+                highlightedId={null}
+                onMarkerClick={goToBreakdownById}
+                hideToggles
+              />
             </div>
           </div>
 
-          <div className="hp-card hp-actions-card">
-            <div className="hp-card-header">
-              <div className="hp-header-bar"></div>
-              <h2 className="hp-card-title">Command Console</h2>
-              <span className="hp-badge">OPS</span>
-            </div>
-
-            <nav className="hp-actions">
-              <button className="hp-action hp-action--primary" onClick={() => navigate('/dashboards/sdc')}>
-                <div className="hp-action-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="9"/>
-                    <path d="M12 6v6l4 2"/>
-                  </svg>
-                </div>
-                <span className="hp-action-title">Operations</span>
-                <span className="hp-action-desc">Service Delivery</span>
-              </button>
-
-              <button className="hp-action" onClick={() => navigate('/dashboards/engineering')}>
-                <div className="hp-action-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-                  </svg>
-                </div>
-                <span className="hp-action-title">Engineering</span>
-                <span className="hp-action-desc">Dispatch</span>
-              </button>
-
-              <button className="hp-action" onClick={() => navigate('/dashboards/control-room')}>
-                <div className="hp-action-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="2" y="3" width="20" height="14" rx="2"/>
-                    <path d="M8 21h8M12 17v4"/>
-                  </svg>
-                </div>
-                <span className="hp-action-title">Display</span>
-                <span className="hp-action-desc">Display</span>
-              </button>
-
-              <button className="hp-action" onClick={() => navigate('/fleet-intelligence')}>
-                <div className="hp-action-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M3 3v18h18"/>
-                    <path d="M18 9l-5 5-4-4-3 3"/>
-                  </svg>
-                </div>
-                <span className="hp-action-title">Fleet Intel</span>
-                <span className="hp-action-desc">Analytics</span>
-              </button>
-
-              <button className="hp-action" onClick={() => navigate('/dashboards/gtfs/routes')}>
-                <div className="hp-action-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
-                    <circle cx="12" cy="9" r="2.5"/>
-                  </svg>
-                </div>
-                <span className="hp-action-title">Route Status</span>
-                <span className="hp-action-desc">Live impact</span>
-              </button>
-
-              <button className="hp-action" onClick={() => navigate('/dashboards/ev-charges')}>
-                <div className="hp-action-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="6" y="2" width="12" height="20" rx="2"/>
-                    <line x1="10" y1="22" x2="10" y2="24"/>
-                    <line x1="14" y1="22" x2="14" y2="24"/>
-                    <path d="M13 7l-2 5h3l-2 5"/>
-                  </svg>
-                </div>
-                <span className="hp-action-title">EV Charges</span>
-                <span className="hp-action-desc">Fleet charge levels</span>
-              </button>
-
-              <button className="hp-action" onClick={() => navigate('/dashboards/fleet-defects')}>
-                <div className="hp-action-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                    <line x1="12" y1="9" x2="12" y2="13"/>
-                    <line x1="12" y1="17" x2="12.01" y2="17"/>
-                  </svg>
-                </div>
-                <span className="hp-action-title">Fleet Defects</span>
-                <span className="hp-action-desc">Patterns</span>
-              </button>
-
-              <button className="hp-action" onClick={() => navigate('/dashboards/management')}>
-                <div className="hp-action-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M18 20V10"/>
-                    <path d="M12 20V4"/>
-                    <path d="M6 20v-6"/>
-                  </svg>
-                </div>
-                <span className="hp-action-title">Management</span>
-                <span className="hp-action-desc">KPIs & Trends</span>
-              </button>
-
-              <button className="hp-action hp-action--muted" onClick={() => navigate('/settings')}>
-                <div className="hp-action-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="12" cy="12" r="3"/>
-                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-                  </svg>
-                </div>
-                <span className="hp-action-title">Settings</span>
-                <span className="hp-action-desc">Preferences</span>
-              </button>
-            </nav>
-          </div>
-        </section>
-
-        {/* Right - Activity */}
-        <aside className="hp-feed">
-          <div className="hp-card hp-feed-card">
+          <div className="hp-card hp-activity-card">
             <div className="hp-card-header">
               <span className="hp-live-dot"></span>
               <h3 className="hp-card-title">Activity</h3>
-              <span className="hp-badge hp-badge--live">LIVE</span>
+              <span className="hp-badge hp-badge--live"><Radio size={10} /> LIVE</span>
             </div>
-            <div className="hp-feed-content">
+            <div className="hp-activity-body">
               {dashboardData.metadata?.error ? (
                 <div className="hp-feed-error">
                   <p>Unable to load feed</p>
                   <button onClick={loadDashboardData} className="hp-retry-btn">Retry</button>
                 </div>
               ) : (
-                <LiveActivityFeed
-                  activities={dashboardData.activityFeed || []}
-                  embedded={true}
-                />
+                <LiveActivityFeed activities={dashboardData.activityFeed || []} embedded={true} />
               )}
             </div>
+          </div>
+        </div>
+
+        <aside className="hp-col-right">
+          <div className="hp-card hp-urgent-card">
+            <div className="hp-card-header">
+              <AlertTriangle size={14} />
+              <h3 className="hp-card-title">Most urgent</h3>
+              <span className="hp-card-count">
+                {urgentBreakdowns.length}{activeBreakdowns.length > urgentBreakdowns.length ? ` of ${activeBreakdowns.length}` : ''}
+              </span>
+            </div>
+
+            <div className="hp-urgent-list">
+              {urgentBreakdowns.length === 0 ? (
+                <div className="hp-urgent-empty">
+                  <ShieldCheck size={28} strokeWidth={1.5} />
+                  <p>No active breakdowns</p>
+                  <span>Everything is running normally.</span>
+                </div>
+              ) : (
+                urgentBreakdowns.map(breakdown => (
+                  <BreakdownRow
+                    key={breakdown.breakdown_id}
+                    breakdown={breakdown}
+                    isSelected={false}
+                    onSelect={goToBreakdownById}
+                  />
+                ))
+              )}
+            </div>
+
+            <button type="button" className="hp-urgent-viewall" onClick={() => navigate('/dashboards/sdc')}>
+              View all in Operations <ArrowRight size={14} />
+            </button>
           </div>
         </aside>
       </main>

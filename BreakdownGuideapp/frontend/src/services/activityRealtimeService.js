@@ -145,8 +145,8 @@ class ActivityRealtimeService {
         return false;
       }
 
-      // Unsubscribe from channel
-      subscription.channel.unsubscribe();
+      // Unsubscribe from channel (polling-mode subscriptions have no channel)
+      subscription.channel?.unsubscribe?.();
 
       // Remove from tracking
       this.subscriptions.delete(subscriptionId);

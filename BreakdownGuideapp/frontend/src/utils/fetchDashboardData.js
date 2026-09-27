@@ -89,6 +89,7 @@ function getDefaultData() {
       fleetHealth: 100
     },
     activityFeed: [],
+    breakdowns: [],
     metadata: {
       sources: {
         breakdowns: false,
@@ -103,6 +104,46 @@ function getDefaultData() {
       error: 'Unable to connect to server'
     }
   };
+}
+
+/**
+ * Real fleet availability (percentage of active fleet not currently off the
+ * road with a STOP breakdown), from the same KPI endpoint the Management
+ * dashboard uses. Replaces the old `100 - activeBreakdowns * 2` heuristic
+ * that used to stand in for "Fleet OK %" on the Home command-centre.
+ * Returns null (not 0) when the backend can't compute it, so callers can
+ * render "unavailable" rather than a fake number.
+ */
+export async function fetchFleetAvailability() {
+  try {
+    const response = await apiClient.get('/api/analytics/kpis?period=today');
+    const value = response?.data?.fleetAvailability?.value;
+    return typeof value === 'number' && Number.isFinite(value) ? value : null;
+  } catch (error) {
+    console.warn('Could not fetch fleet availability:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Lightweight supervisor coverage summary for a KPI tile - same source
+ * SupervisorCoverageBar uses, just reduced to what a single tile needs.
+ */
+export async function fetchCoverageSummary() {
+  try {
+    const data = await apiClient.get('/api/analytics/coverage-alert');
+    if (data?.success && data.coverage) {
+      return {
+        alertLevel: data.coverage.alertLevel || 'normal',
+        activeSupervisorCount: data.coverage.activeSupervisors?.length || 0,
+        nextShiftChange: data.nextShiftChange || null
+      };
+    }
+    return null;
+  } catch (error) {
+    console.warn('Could not fetch coverage summary:', error.message);
+    return null;
+  }
 }
 
 export async function fetchDashboardData() {
@@ -296,6 +337,10 @@ export async function fetchDashboardData() {
             fleetHealth
           },
           activityFeed: activities,
+          // Raw live breakdowns (unfiltered), for callers that need the full
+          // records rather than the derived stats/activity feed above - e.g.
+          // the Home command-centre map + "most urgent" list.
+          breakdowns: breakdownsData.breakdowns || [],
           metadata: {
             sources: activityData.sources || { breakdowns: true },
             totalActivities: activities.length,

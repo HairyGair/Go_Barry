@@ -377,7 +377,12 @@ const LOCATION_COORDINATES = {
 const BreakdownMap = ({
   breakdowns = [],
   highlightedId = null,
-  onMarkerClick = null
+  onMarkerClick = null,
+  // Home command-centre embeds a compact, read-only presentation of this
+  // same map: no layer-toggle clutter (cluster/heatmap/traffic/debug), no
+  // priority-route overlay circle. Operations behaviour is unaffected when
+  // this is left at its default.
+  hideToggles = false
 }) => {
   // Map configuration
   const center = [54.9783, -1.6178];
@@ -587,6 +592,7 @@ const BreakdownMap = ({
   return (
     <div className="breakdown-map-container">
       {/* Map layer toggles (Debug only via ?mapdebug) */}
+      {!hideToggles && (
       <div className="bm-toggles">
         {typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('mapdebug') && (
           <button className={`bm-toggle ${showDebug ? 'on' : ''}`} onClick={() => setShowDebug(!showDebug)} aria-pressed={showDebug}>
@@ -608,6 +614,7 @@ const BreakdownMap = ({
           <Car size={13} aria-hidden="true" /> Traffic{trafficEnabled && currentZoom < TRAFFIC_MIN_ZOOM ? ' (zoom in)' : ''}
         </button>
       </div>
+      )}
 
       {/* Debug overlay */}
       {showDebug && (

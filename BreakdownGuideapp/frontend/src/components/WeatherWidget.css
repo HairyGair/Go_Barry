@@ -1,5 +1,47 @@
 /* Weather Widget - Rotating Location Weather Display */
 
+/* ===========================================
+   COMPACT (header) variant
+   =========================================== */
+
+.ww-compact {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  white-space: nowrap;
+  cursor: default;
+}
+
+.ww-compact--loading {
+  min-width: 96px;
+  height: 30px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.ww-compact-temp {
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.ww-compact-location {
+  font-size: 12px;
+  font-weight: 500;
+  color: #94a3b8;
+}
+
+@media (max-width: 1280px) {
+  .ww-compact-location {
+    display: none;
+  }
+}
+
 .weather-widget {
   background: linear-gradient(135deg,
     rgba(15, 23, 42, 0.95) 0%,
