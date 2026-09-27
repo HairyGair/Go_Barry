@@ -237,7 +237,7 @@ const HomePage = ({ onStatsChange, currentDuty: propDuty }) => {
           breakdownsHandled: data.stats.breakdownsHandled || 0,
           assessments: data.stats.assessments || 0,
           avgResponse: data.stats.avgResponse,
-          resolutionRate: data.stats.resolutionRate || 100,
+          resolutionRate: data.stats.resolutionRate ?? 100,
           performance: data.stats.performance || 'good',
           bySeverity: data.stats.bySeverity,
           comparison: data.comparison
