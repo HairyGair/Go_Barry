@@ -15,19 +15,45 @@ const REAL_DEPOTS = [
 // so a module-level list could keep the previous session's depots.
 const getDepots = () => getDepotOptions(REAL_DEPOTS);
 
-const DispatchEngineerModal = ({ breakdownId, breakdownDepot, breakdownLat, breakdownLng, onDispatch, onClose }) => {
+// Breakdowns store the depot's display NAME (e.g. "Southbank"), but the
+// depot filter/on-shift endpoint work in depot CODEs (e.g. "SBK"). Passing
+// the name straight through as the initial filter silently matched nothing,
+// so the modal always opened onto an empty "No engineers on shift" state
+// even when engineers were on shift at that very depot. Resolve name -> code
+// (accepting a code unchanged) before using it as the initial filter.
+const resolveDepotCode = (nameOrCode) => {
+  if (!nameOrCode) return '';
+  const list = getDepots();
+  const byCode = list.find(d => d.code === nameOrCode);
+  if (byCode) return byCode.code;
+  const byName = list.find(d => d.name.toLowerCase() === String(nameOrCode).toLowerCase());
+  return byName ? byName.code : '';
+};
+
+const DispatchEngineerModal = ({ breakdownId, breakdownDepot, breakdownLat, breakdownLng, preselectEngineerId, onDispatch, onClose }) => {
   const [engineers, setEngineers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedEngineer, setSelectedEngineer] = useState(null);
   const [etaMinutes, setEtaMinutes] = useState('30');
   const [dispatching, setDispatching] = useState(false);
-  const [depotFilter, setDepotFilter] = useState(breakdownDepot || '');
+  // When a specific engineer is being suggested/pre-selected (e.g. from the
+  // dispatch board's "Suggested engineer" panel) they may not be based at the
+  // breakdown's own depot, so start from "All depots" rather than the
+  // breakdown's depot to make sure they actually show up in the list.
+  const [depotFilter, setDepotFilter] = useState(preselectEngineerId ? '' : resolveDepotCode(breakdownDepot));
   const [autoEta, setAutoEta] = useState(null);
   const [calculatingEta, setCalculatingEta] = useState(false);
 
   useEffect(() => {
     fetchOnShift();
   }, [depotFilter]);
+
+  // Pre-select a suggested engineer once the on-shift list has loaded.
+  useEffect(() => {
+    if (!preselectEngineerId || engineers.length === 0 || selectedEngineer) return;
+    const match = engineers.find(e => String(e.id) === String(preselectEngineerId));
+    if (match) setSelectedEngineer(match);
+  }, [preselectEngineerId, engineers, selectedEngineer]);
 
   const fetchOnShift = async () => {
     setLoading(true);

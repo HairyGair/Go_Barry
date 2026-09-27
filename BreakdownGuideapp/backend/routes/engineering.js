@@ -1400,7 +1400,7 @@ router.get('/jobs', async (req, res) => {
     const { filter = 'all', engineer_badge } = req.query;
 
     // Base query for active breakdowns
-    let sql = "SELECT * FROM breakdowns WHERE status != 'resolved'";
+    let sql = "SELECT * FROM breakdowns WHERE status NOT IN ('resolved', 'cleared', 'completed')";
     let params = [];
 
     // Demo sessions see only demo data; everyone else excludes it

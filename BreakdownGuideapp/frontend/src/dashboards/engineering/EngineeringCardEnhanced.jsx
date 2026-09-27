@@ -910,7 +910,7 @@ const EngineeringCardEnhanced = ({
 };
 
 // Helper function to format issue category from slugs to readable English
-function formatIssue(raw) {
+export function formatIssue(raw) {
   if (!raw) return 'General';
   // Known mappings for common categories
   const known = {
@@ -959,7 +959,7 @@ function formatIssue(raw) {
 }
 
 // Helper function to format status
-function formatStatus(status) {
+export function formatStatus(status) {
   const statusMap = {
     'active': 'Active',
     'pending': 'Pending',
@@ -987,7 +987,7 @@ function formatTime(timestamp) {
 }
 
 // ── Depot coordinates (verified from OpenStreetMap Dec 2025) ──
-const DEPOT_COORDS = {
+export const DEPOT_COORDS = {
   'Washington': [54.9068, -1.5140],
   'Riverside':  [54.9586, -1.6579],
   'Consett':    [54.8403, -1.8380],

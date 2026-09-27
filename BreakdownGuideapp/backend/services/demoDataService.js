@@ -51,6 +51,13 @@ function minutesAfter(mysqlDatetimeStr, minutes) {
 const resolvedAtFor = (breakdownId) =>
   ({ 'DEMO-010': timeAgo(4, 30), 'DEMO-011': timeAgo(6, 0) })[breakdownId];
 
+// Engineer name -> badge for the demo engineers (kept in sync with the demo
+// engineer list further down)
+const DEMO_ENGINEER_BADGES = {
+  'Mark Robson': 'DEMO-E01', 'Dave Hedley': 'DEMO-E02',
+  'Paul Charlton': 'DEMO-E03', 'Stephen Liddle': 'DEMO-E04',
+};
+
 /**
  * The 14 demo breakdowns covering all wizard types, severities, statuses, and depots
  */
@@ -764,11 +771,13 @@ export async function seedDemoData() {
         if (!b.engineer_name && !b.engineer_dispatched_at) continue;
         await query(
           `UPDATE breakdowns SET
-             engineer_name = ?, engineer_dispatched_at = ?,
+             engineer_name = ?, engineer_badge = ?, engineer_dispatched_at = ?,
              engineer_eta_minutes = ?, engineer_on_site_at = ?
            WHERE breakdown_id = ?`,
           [
-            b.engineer_name || null, b.engineer_dispatched_at || null,
+            // badge too: the on-shift roster joins jobs by badge, so without it
+            // busy demo engineers showed as available
+            b.engineer_name || null, DEMO_ENGINEER_BADGES[b.engineer_name] || null, b.engineer_dispatched_at || null,
             b.engineer_eta_minutes || null, b.engineer_on_site_at || null,
             b.breakdown_id
           ]
@@ -877,6 +886,10 @@ export async function seedDemoData() {
         [DEMO_SUPERVISOR_ID]
       );
 
+      const nowHour = new Date().getHours();
+      const pad = (h) => `${String(h).padStart(2, '0')}:00:00`;
+      const demoShiftStart = pad(Math.max(0, nowHour - 4));
+      const demoShiftEnd = nowHour + 8 >= 24 ? '23:59:00' : pad(nowHour + 8);
       for (const e of engineers) {
         await query(
           `INSERT INTO engineers (
@@ -888,13 +901,14 @@ export async function seedDemoData() {
             JSON.stringify(e.skills), 'available', 1, DEMO_SUPERVISOR_ID
           ]
         );
-        // Put each engineer on shift today (06:00-18:00) so the dispatch picker works
+        // Put each engineer on a shift covering NOW (a fixed 06:00-18:00 left
+        // every demo engineer 'off shift' for evening visitors)
         await query(
           `INSERT INTO engineer_daily_shifts (
             engineer_id, shift_date, shift_template_id, custom_start, custom_end,
             checked_in_by, depot_code, status
           ) VALUES (?, ?, ?, ?, ?, ?, ?, 'on_shift')`,
-          [e.id, today, null, '06:00:00', '18:00:00', DEMO_SUPERVISOR_ID, e.home_depot_code]
+          [e.id, today, null, demoShiftStart, demoShiftEnd, DEMO_SUPERVISOR_ID, e.home_depot_code]
         );
         engineerCount++;
       }
