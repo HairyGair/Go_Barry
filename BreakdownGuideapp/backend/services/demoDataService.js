@@ -44,8 +44,12 @@ function minutesAfter(mysqlDatetimeStr, minutes) {
 // Resolved timestamps for the two live demo breakdowns that are already
 // wrapped up (DEMO-010, DEMO-011). Shared between the breakdown-enrichment
 // step and the activity feed so the "resolved" activity lines up exactly
-// with the breakdown's own resolved_at.
-const RESOLVED_AT = { 'DEMO-010': timeAgo(4, 30), 'DEMO-011': timeAgo(6, 0) };
+// with the breakdown's own resolved_at. Computed per call (i.e. per seed) —
+// a module-level constant froze these at server start, so after a day of
+// uptime they fell BEFORE the freshly-seeded created_at (negative response
+// times, e.g. "-772m" in the coverage bar).
+const resolvedAtFor = (breakdownId) =>
+  ({ 'DEMO-010': timeAgo(4, 30), 'DEMO-011': timeAgo(6, 0) })[breakdownId];
 
 /**
  * The 14 demo breakdowns covering all wizard types, severities, statuses, and depots
@@ -564,7 +568,7 @@ function getDemoActivities(breakdowns, replacements) {
 
     // 5. Resolved — matches the resolved_at already written onto the breakdown
     //    (RESOLVED_AT) so the activity feed and the breakdown record agree.
-    if ((b.status === 'resolved' || b.status === 'completed') && RESOLVED_AT[b.breakdown_id]) {
+    if ((b.status === 'resolved' || b.status === 'completed') && resolvedAtFor(b.breakdown_id)) {
       activities.push({
         activity_type: 'breakdown_resolved',
         action: `resolved breakdown on fleet ${b.fleet_no}`,
@@ -578,7 +582,7 @@ function getDemoActivities(breakdowns, replacements) {
         source: 'operations',
         depot: b.depot,
         icon: '✅',
-        created_at: RESOLVED_AT[b.breakdown_id]
+        created_at: resolvedAtFor(b.breakdown_id)
       });
     }
   }
@@ -721,7 +725,7 @@ export async function seedDemoData() {
              received_at = created_at, acknowledged_at = DATE_ADD(created_at, INTERVAL ? MINUTE)
            WHERE breakdown_id = ?`,
           [ROUTE[b.breakdown_id] || null, MILEAGE[b.breakdown_id] || null,
-           RESOLVED_AT[b.breakdown_id] || null, ackMins, b.breakdown_id]
+           resolvedAtFor(b.breakdown_id) || null, ackMins, b.breakdown_id]
         );
       }
     } catch (enrichErr) {

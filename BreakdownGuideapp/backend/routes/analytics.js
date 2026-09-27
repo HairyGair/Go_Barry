@@ -1767,6 +1767,7 @@ router.get('/coverage-alert', async (req, res) => {
           AVG(TIMESTAMPDIFF(MINUTE, created_at, resolved_at)) as avg_response_minutes
         FROM breakdowns
         WHERE resolved_at IS NOT NULL
+          AND resolved_at >= created_at
           AND DATE(created_at) = CURDATE()${demoSupervisorFilter}
         GROUP BY supervisor_badge
       `);
