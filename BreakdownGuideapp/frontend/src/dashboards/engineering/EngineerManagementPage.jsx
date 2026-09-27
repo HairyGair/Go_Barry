@@ -15,14 +15,16 @@ const REAL_DEPOTS = [
   { code: 'DAR', name: 'Percy Main' }
 ];
 
-const DEPOTS = getDepotOptions(REAL_DEPOTS);
+// Evaluated at render time (not module load): modules outlive logout/login,
+// so a module-level list could keep the previous session's depots.
+const getDepots = () => getDepotOptions(REAL_DEPOTS);
 
 // Display-only names for codes returned by the API that aren't dropdown
 // options (the depots table uses PM for Percy Main). NOTE: GTS/DAR labels above
 // disagree with the depots table (GTS=Gateshead, DAR=Deptford) — pending
 // confirmation of the real depot codes, so left unchanged.
 const EXTRA_DEPOT_NAMES = { PM: 'Percy Main' };
-const depotName = (code) => DEPOTS.find(d => d.code === code)?.name || EXTRA_DEPOT_NAMES[code];
+const depotName = (code) => getDepots().find(d => d.code === code)?.name || EXTRA_DEPOT_NAMES[code];
 
 const SKILL_OPTIONS = [
   'Electrical', 'Mechanical', 'HVAC', 'Body', 'EV/Hybrid',
@@ -394,7 +396,7 @@ const EngineerForm = ({ engineer, onSave, onCancel }) => {
           <label>Home Depot</label>
           <select value={form.home_depot_code} onChange={e => setForm({...form, home_depot_code: e.target.value})}>
             <option value="">Select depot</option>
-            {DEPOTS.map(d => <option key={d.code} value={d.code}>{d.name}</option>)}
+            {getDepots().map(d => <option key={d.code} value={d.code}>{d.name}</option>)}
           </select>
         </div>
       </div>
@@ -540,7 +542,7 @@ const TemplateForm = ({ template, onSave, onCancel }) => {
           <label>Depot (optional)</label>
           <select value={form.depot_code} onChange={e => setForm({...form, depot_code: e.target.value})}>
             <option value="">All depots</option>
-            {DEPOTS.map(d => <option key={d.code} value={d.code}>{d.name}</option>)}
+            {getDepots().map(d => <option key={d.code} value={d.code}>{d.name}</option>)}
           </select>
         </div>
       </div>

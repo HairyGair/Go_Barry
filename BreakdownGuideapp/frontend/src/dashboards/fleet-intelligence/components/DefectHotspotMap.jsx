@@ -36,7 +36,8 @@ const DEMO_DEPOT_COORDS = DEMO_DEPOTS.reduce((acc, d, i) => {
   return acc;
 }, {});
 
-const DEPOT_COORDS = isDemoSession() ? DEMO_DEPOT_COORDS : REAL_DEPOT_COORDS;
+// Evaluated at render time (modules outlive logout/login)
+const getDepotCoords = () => (isDemoSession() ? DEMO_DEPOT_COORDS : REAL_DEPOT_COORDS);
 
 // Map bounds for the operator region
 const MAP_CONFIG = {
@@ -182,7 +183,7 @@ const DefectHotspotMap = ({ breakdowns = [], onMarkerClick, loading }) => {
             <TileLayer url={DARK_LABEL_TILES.url} {...DARK_LABEL_TILES.options} />
 
             {/* Depot markers */}
-            {Object.entries(DEPOT_COORDS).map(([name, coords]) => (
+            {Object.entries(getDepotCoords()).map(([name, coords]) => (
               <Marker
                 key={`depot-${name}`}
                 position={[coords.lat, coords.lng]}

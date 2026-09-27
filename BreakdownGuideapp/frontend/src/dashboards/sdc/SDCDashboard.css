@@ -1800,3 +1800,31 @@
   background: rgba(0, 151, 167, 0.25);
   border-color: var(--sdc-teal);
 }
+
+/* Footer: quiet controls (EV charges link + sound toggle) */
+.footer-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: transparent;
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.footer-link-btn:hover {
+  background: rgba(0, 188, 212, 0.08);
+  border-color: rgba(0, 188, 212, 0.35);
+  color: #5ee4f2;
+}
+
+.dashboard-footer .sound-toggle-btn.enabled {
+  background: rgba(0, 188, 212, 0.1);
+  border-color: rgba(0, 188, 212, 0.3);
+  color: #5ee4f2;
+}

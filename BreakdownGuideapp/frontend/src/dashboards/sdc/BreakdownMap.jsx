@@ -162,7 +162,8 @@ const DEMO_DEPOT_LOCATIONS = DEMO_DEPOTS.map(d => ({
   coords: [d.lat, d.lng]
 }));
 
-const DEPOT_LOCATIONS = isDemoSession() ? DEMO_DEPOT_LOCATIONS : REAL_DEPOT_LOCATIONS;
+// Evaluated at render time (modules outlive logout/login)
+const getDepotLocations = () => (isDemoSession() ? DEMO_DEPOT_LOCATIONS : REAL_DEPOT_LOCATIONS);
 
 // Depot code to coordinates mapping for fallback - VERIFIED from OpenStreetMap (December 2025).
 // Includes both real and fictional demo entries (distinct keys, so it's safe to
@@ -488,7 +489,7 @@ const BreakdownMap = ({
   const stats = useMemo(() => ({
     total: breakdowns.length,
     withCoords: breakdownMarkers.length,
-    depots: DEPOT_LOCATIONS.length
+    depots: getDepotLocations().length
   }), [breakdowns.length, breakdownMarkers.length]);
 
   // Heatmap points - with intensity based on severity
@@ -748,8 +749,8 @@ const BreakdownMap = ({
         />
 
         {/* Depot markers - 6 the operator depots */}
-        {DEPOT_LOCATIONS.map((depot, index) => {
-          console.log(`🏢 Rendering depot ${index + 1}/${DEPOT_LOCATIONS.length}: ${depot.name} (${depot.code}) at [${depot.coords[0]}, ${depot.coords[1]}]`);
+        {getDepotLocations().map((depot, index) => {
+          console.log(`🏢 Rendering depot ${index + 1}/${getDepotLocations().length}: ${depot.name} (${depot.code}) at [${depot.coords[0]}, ${depot.coords[1]}]`);
           return (
             <Marker
               key={`depot-${depot.code}`}

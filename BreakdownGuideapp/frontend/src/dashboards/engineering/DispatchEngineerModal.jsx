@@ -11,7 +11,9 @@ const REAL_DEPOTS = [
   { code: 'DAR', name: 'Percy Main' }
 ];
 
-const DEPOTS = getDepotOptions(REAL_DEPOTS);
+// Evaluated at render time (not module load): modules outlive logout/login,
+// so a module-level list could keep the previous session's depots.
+const getDepots = () => getDepotOptions(REAL_DEPOTS);
 
 const DispatchEngineerModal = ({ breakdownId, breakdownDepot, breakdownLat, breakdownLng, onDispatch, onClose }) => {
   const [engineers, setEngineers] = useState([]);
@@ -153,7 +155,7 @@ const DispatchEngineerModal = ({ breakdownId, breakdownDepot, breakdownLat, brea
             onChange={e => { setDepotFilter(e.target.value); setSelectedEngineer(null); }}
           >
             <option value="">All depots</option>
-            {DEPOTS.map(d => (
+            {getDepots().map(d => (
               <option key={d.code} value={d.code}>{d.name}</option>
             ))}
           </select>
@@ -168,7 +170,7 @@ const DispatchEngineerModal = ({ breakdownId, breakdownDepot, breakdownLat, brea
             </div>
           ) : engineers.length === 0 ? (
             <div className="dem-empty">
-              <p>No engineers on shift{depotFilter ? ` at ${DEPOTS.find(d => d.code === depotFilter)?.name || depotFilter}` : ''}.</p>
+              <p>No engineers on shift{depotFilter ? ` at ${getDepots().find(d => d.code === depotFilter)?.name || depotFilter}` : ''}.</p>
               <p className="dem-empty-hint">Use the shift check-in to set who's working today, or dispatch anonymously.</p>
             </div>
           ) : (
@@ -209,7 +211,7 @@ const DispatchEngineerModal = ({ breakdownId, breakdownDepot, breakdownLat, brea
                     )}
                     {isFloating && (
                       <span className="dem-meta-floating">
-                        Floating from {DEPOTS.find(d => d.code === eng.home_depot_code)?.name || eng.home_depot_code}
+                        Floating from {getDepots().find(d => d.code === eng.home_depot_code)?.name || eng.home_depot_code}
                       </span>
                     )}
                   </div>

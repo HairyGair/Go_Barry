@@ -71,7 +71,9 @@ const Icons = {
 
 // All known depots
 const REAL_DEPOTS = ['Washington', 'Riverside', 'Percy Main', 'Deptford', 'Consett', 'Chester-le-Street'];
-const ALL_DEPOTS = getDepotOptions(REAL_DEPOTS).map(d => (typeof d === 'string' ? d : d.name));
+// Evaluated at render time (not module load): modules outlive logout/login,
+// so a module-level list could keep the previous session's depots.
+const getAllDepots = () => getDepotOptions(REAL_DEPOTS).map(d => (typeof d === 'string' ? d : d.name));
 
 const FleetIntelligenceDashboard = () => {
   const navigate = useNavigate();
@@ -359,7 +361,7 @@ const FleetIntelligenceDashboard = () => {
           All Depots
           <span className="fi__depot-tab__count">{(breakdowns || []).length}</span>
         </button>
-        {ALL_DEPOTS.map(depot => (
+        {getAllDepots().map(depot => (
           <button
             key={depot}
             className={`fi__depot-tab ${activeDepot === depot ? 'fi__depot-tab--active' : ''}`}

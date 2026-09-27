@@ -14,7 +14,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useLocation } from 'react-router-dom';
 import {
   ClipboardList, AlertTriangle, Hourglass, RefreshCw, User, Star,
-  Smartphone, OctagonAlert, CheckCircle2, MapPin, X, Volume2, VolumeX
+  Smartphone, OctagonAlert, CheckCircle2, MapPin, X, Volume2, VolumeX, BatteryCharging
 } from 'lucide-react';
 import DashboardLayout from '../components/DashboardLayout';
 import FilterBar from '../components/FilterBar';
@@ -1802,17 +1802,6 @@ const SDCDashboard = () => {
 
         {/* Right sidebar - Depot Status Grid */}
         <div className="right-sidebar">
-          <button
-            className="sdc-ev-charges-btn"
-            onClick={() => window.open('/dashboards/ev-charges', '_blank')}
-            title="View EV fleet charge levels"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="18" height="18">
-              <rect x="6" y="2" width="12" height="20" rx="2"/>
-              <path d="M13 7l-2 5h3l-2 5"/>
-            </svg>
-            <span>EV Charges</span>
-          </button>
           <DepotStatusGrid
             breakdowns={filteredBreakdowns}
             onDepotClick={(depotId) => {
@@ -1940,9 +1929,17 @@ const SDCDashboard = () => {
       <div className="dashboard-footer">
         <span className="live-indicator">
           <span className="pulse"></span>
-          SDC Live Data - Real breakdowns from assessments
+          Live · updates automatically
         </span>
         <div className="footer-controls">
+          <button
+            className="footer-link-btn"
+            onClick={() => window.open('/dashboards/ev-charges', '_blank')}
+            title="View EV fleet charge levels"
+          >
+            <BatteryCharging size={14} aria-hidden="true" />
+            <span>EV charges</span>
+          </button>
           <button
             className={`sound-toggle-btn ${soundEnabled ? 'enabled' : 'disabled'}`}
             onClick={handleSoundToggle}
@@ -1950,7 +1947,7 @@ const SDCDashboard = () => {
           >
             {soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
             <span className="sound-toggle-label">
-              {soundEnabled ? 'Sound ON' : 'Sound OFF'}
+              {soundEnabled ? 'Sound alerts on' : 'Sound alerts off'}
             </span>
           </button>
           <span className="last-update">

@@ -11,15 +11,17 @@ const REAL_DEPOTS = [
   { code: 'PM', name: 'Percy Main' }
 ];
 
-const DEPOTS = getDepotOptions(REAL_DEPOTS);
+// Evaluated at render time (not module load): modules outlive logout/login,
+// so a module-level list could keep the previous session's depots.
+const getDepots = () => getDepotOptions(REAL_DEPOTS);
 
 const DispatchReplacementModal = ({ breakdown, isOpen, onClose, onSuccess }) => {
   const [fleetNo, setFleetNo] = useState('');
   const [depotCode, setDepotCode] = useState(() => {
     // Default to the breakdown's depot
     const bd = breakdown?.depot || '';
-    const match = DEPOTS.find(d => d.name.toLowerCase() === bd.toLowerCase());
-    return match?.code || DEPOTS[0].code;
+    const match = getDepots().find(d => d.name.toLowerCase() === bd.toLowerCase());
+    return match?.code || getDepots()[0].code;
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState(null);
@@ -129,7 +131,7 @@ const DispatchReplacementModal = ({ breakdown, isOpen, onClose, onSuccess }) => 
                   value={depotCode}
                   onChange={(e) => setDepotCode(e.target.value)}
                 >
-                  {DEPOTS.map(d => (
+                  {getDepots().map(d => (
                     <option key={d.code} value={d.code}>{d.name}</option>
                   ))}
                 </select>

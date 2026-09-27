@@ -248,6 +248,9 @@ export const AuthProvider = ({ children }) => {
 
             setIsAuthenticated(true);
             setCurrentUser(user);
+            // Demo data is re-seeded at every demo login; remember when, so a
+            // long-open demo tab can refresh itself instead of ageing
+            try { sessionStorage.setItem('demoSeededAt', String(Date.now())); } catch { /* ignore */ }
 
             console.log('🎭 Demo login successful');
 

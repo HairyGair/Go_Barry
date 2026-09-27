@@ -6,6 +6,7 @@
  */
 
 import React, { useMemo } from 'react';
+import { Building2 } from 'lucide-react';
 import { getDepotOptions } from '../../config/demoDepots';
 import './DepotStatusGrid.css';
 
@@ -18,7 +19,9 @@ const REAL_DEPOTS = [
   { id: 'Hexham', name: 'Hexham', icon: '🏭' }
 ];
 
-const DEPOTS = getDepotOptions(REAL_DEPOTS).map(d => (
+// Evaluated at render time (not module load): modules outlive logout/login,
+// so a module-level list could keep the previous session's depots.
+const getDepots = () => getDepotOptions(REAL_DEPOTS).map(d => (
   typeof d === 'string' ? { id: d, name: d, icon: '🏭' } : { id: d.name, name: d.name, icon: '🏭' }
 ));
 
@@ -28,7 +31,7 @@ const DepotStatusGrid = ({ breakdowns = [], onDepotClick }) => {
     const stats = {};
 
     // Initialize all depots with zero counts
-    DEPOTS.forEach(depot => {
+    getDepots().forEach(depot => {
       stats[depot.id] = {
         total: 0,
         critical: 0,
@@ -42,7 +45,7 @@ const DepotStatusGrid = ({ breakdowns = [], onDepotClick }) => {
       const depotName = breakdown.depot || breakdown.depot_id || breakdown.depot_display || 'Unknown';
 
       // Try to match depot name (case-insensitive, partial match)
-      const matchedDepot = DEPOTS.find(d =>
+      const matchedDepot = getDepots().find(d =>
         depotName.toLowerCase().includes(d.id.toLowerCase()) ||
         d.id.toLowerCase().includes(depotName.toLowerCase())
       );
@@ -72,15 +75,6 @@ const DepotStatusGrid = ({ breakdowns = [], onDepotClick }) => {
     return 'clear';
   };
 
-  // Get status icon
-  const getStatusIcon = (depot) => {
-    const stat = depotStats[depot.id];
-    if (stat.critical > 0) return '🔴';
-    if (stat.total > 2) return '🟡';
-    if (stat.total > 0) return '🟠';
-    return '✅';
-  };
-
   // Total breakdowns across all depots
   const totalBreakdowns = breakdowns.length;
   const totalCritical = Object.values(depotStats).reduce((sum, s) => sum + s.critical, 0);
@@ -89,10 +83,10 @@ const DepotStatusGrid = ({ breakdowns = [], onDepotClick }) => {
     <div className="depot-status-grid">
       <div className="depot-grid-header">
         <h3>
-          <span className="header-icon">🏭</span>
+          <Building2 size={16} className="dsg-header-icon" aria-hidden="true" />
           Depot Status
         </h3>
-        <div className="header-stats">
+        <div className="dsg-header-stats">
           <span className="total-count">{totalBreakdowns} active</span>
           {totalCritical > 0 && (
             <span className="critical-count">{totalCritical} critical</span>
@@ -101,7 +95,7 @@ const DepotStatusGrid = ({ breakdowns = [], onDepotClick }) => {
       </div>
 
       <div className="depot-grid-body">
-        {DEPOTS.map(depot => {
+        {getDepots().map(depot => {
           const stat = depotStats[depot.id];
           const statusClass = getStatusClass(depot);
 
@@ -114,7 +108,7 @@ const DepotStatusGrid = ({ breakdowns = [], onDepotClick }) => {
               tabIndex={0}
             >
               <div className="depot-card-header">
-                <span className="depot-status-icon">{getStatusIcon(depot)}</span>
+                <span className={`depot-status-dot ${statusClass}`} aria-hidden="true" />
                 <span className="depot-name">{depot.name}</span>
               </div>
 

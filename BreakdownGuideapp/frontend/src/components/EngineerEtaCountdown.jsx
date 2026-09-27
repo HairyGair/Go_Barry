@@ -40,7 +40,11 @@ const EngineerEtaCountdown = ({ dispatchedAt, etaMinutes, onSite, compact = true
   let timeText;
   if (remaining <= 0) {
     const overdueMins = Math.abs(remaining);
-    timeText = overdueMins === 0 ? 'OVERDUE' : `+${overdueMins}m OVERDUE`;
+    const oh = Math.floor(overdueMins / 60);
+    const om = overdueMins % 60;
+    timeText = overdueMins === 0
+      ? 'Due now'
+      : `${oh > 0 ? `${oh}h ${om}m` : `${om}m`} overdue`;
   } else if (remaining >= 60) {
     const h = Math.floor(remaining / 60);
     const m = remaining % 60;

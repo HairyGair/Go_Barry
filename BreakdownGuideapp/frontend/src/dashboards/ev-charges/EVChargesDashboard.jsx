@@ -62,9 +62,10 @@ const REAL_MOCK_EV_VEHICLES = [
 
 // In a demo session, relabel the mock fleet's depot to the fictional
 // equivalent so the public demo never shows a real GNE depot name.
-const MOCK_EV_VEHICLES = isDemoSession()
+// Evaluated at render time (modules outlive logout/login)
+const getMockEvVehicles = () => (isDemoSession()
   ? REAL_MOCK_EV_VEHICLES.map(v => ({ ...v, depot: mapRealDepotToDemo(v.depot)?.name || v.depot }))
-  : REAL_MOCK_EV_VEHICLES;
+  : REAL_MOCK_EV_VEHICLES);
 
 const getChargeLevel = (charge) => {
   if (charge >= 80) return 'high';
@@ -98,17 +99,17 @@ const EVChargesDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
   const depots = useMemo(() => {
-    const set = new Set(MOCK_EV_VEHICLES.map(v => v.depot));
+    const set = new Set(getMockEvVehicles().map(v => v.depot));
     return ['all', ...Array.from(set).sort()];
   }, []);
 
   const types = useMemo(() => {
-    const set = new Set(MOCK_EV_VEHICLES.map(v => v.type));
+    const set = new Set(getMockEvVehicles().map(v => v.type));
     return ['all', ...Array.from(set).sort()];
   }, []);
 
   const filteredVehicles = useMemo(() => {
-    let result = [...MOCK_EV_VEHICLES];
+    let result = [...getMockEvVehicles()];
 
     if (filterDepot !== 'all') {
       result = result.filter(v => v.depot === filterDepot);
@@ -140,10 +141,10 @@ const EVChargesDashboard = () => {
 
   // Summary stats
   const stats = useMemo(() => {
-    const total = MOCK_EV_VEHICLES.length;
-    const critical = MOCK_EV_VEHICLES.filter(v => v.charge < 20).length;
-    const charging = MOCK_EV_VEHICLES.filter(v => v.status === 'Charging' || v.status === 'Charging Complete').length;
-    const avgCharge = Math.round(MOCK_EV_VEHICLES.reduce((sum, v) => sum + v.charge, 0) / total);
+    const total = getMockEvVehicles().length;
+    const critical = getMockEvVehicles().filter(v => v.charge < 20).length;
+    const charging = getMockEvVehicles().filter(v => v.status === 'Charging' || v.status === 'Charging Complete').length;
+    const avgCharge = Math.round(getMockEvVehicles().reduce((sum, v) => sum + v.charge, 0) / total);
     return { total, critical, charging, avgCharge };
   }, []);
 

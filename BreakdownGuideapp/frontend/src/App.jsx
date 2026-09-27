@@ -331,7 +331,7 @@ const Navigation = ({ hide = false, activeBreakdowns = 0, currentDuty, onDutyCli
 
 // Main App Component - With Authentication
 const AppContent = () => {
-  const { isAuthenticated, currentUser, isSessionChecking } = useAuth()
+  const { isAuthenticated, currentUser, isSessionChecking, demoLogin } = useAuth()
   const [isOnline, setIsOnline] = useState(navigator.onLine)
   const [activeBreakdowns, setActiveBreakdowns] = useState(0)
   const [activeBreakdownsList, setActiveBreakdownsList] = useState([])
@@ -424,6 +424,33 @@ const AppContent = () => {
     sessionStorage.removeItem('showDutyModal')
     setShowDemoBanner(true)
   }, [isAuthenticated, isSessionChecking, isDemoUser, currentDuty])
+
+  // Keep the demo fresh: demo data is seeded at demo login, so a tab left open
+  // for hours shows breakdowns aged 14h+ with long-overdue ETAs. After 3h,
+  // quietly re-run demo login (re-seeds) and reload.
+  useEffect(() => {
+    if (!isAuthenticated || isSessionChecking || !isDemoUser) return
+    const MAX_AGE = 3 * 60 * 60 * 1000
+    let refreshing = false
+    const check = async () => {
+      if (refreshing || document.visibilityState === 'hidden') return
+      let seededAt = 0
+      try { seededAt = Number(sessionStorage.getItem('demoSeededAt')) || 0 } catch { /* ignore */ }
+      if (seededAt && Date.now() - seededAt < MAX_AGE) return
+      refreshing = true
+      const result = await demoLogin()
+      if (result?.success) {
+        try { sessionStorage.removeItem('currentDuty') } catch { /* ignore */ }
+        window.location.reload()
+      } else {
+        refreshing = false
+      }
+    }
+    check()
+    const interval = setInterval(check, 5 * 60 * 1000)
+    document.addEventListener('visibilitychange', check)
+    return () => { clearInterval(interval); document.removeEventListener('visibilitychange', check) }
+  }, [isAuthenticated, isSessionChecking, isDemoUser, demoLogin])
 
   // Show duty modal after login if no valid duty exists
   // Only runs AFTER sessionStorage duty check completes (dutyChecked=true)

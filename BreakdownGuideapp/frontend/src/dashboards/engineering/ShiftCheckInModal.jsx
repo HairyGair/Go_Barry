@@ -11,7 +11,9 @@ const REAL_DEPOTS = [
   { code: 'DAR', name: 'Percy Main' }
 ];
 
-const DEPOTS = getDepotOptions(REAL_DEPOTS);
+// Evaluated at render time (not module load): modules outlive logout/login,
+// so a module-level list could keep the previous session's depots.
+const getDepots = () => getDepotOptions(REAL_DEPOTS);
 
 const ShiftCheckInModal = ({ onComplete, onSkip }) => {
   const [step, setStep] = useState(1); // 1 = select engineers, 2 = confirm
@@ -85,7 +87,7 @@ const ShiftCheckInModal = ({ onComplete, onSkip }) => {
   // Group selected by depot
   const selectedByDepot = selectedEngineers.reduce((acc, eng) => {
     const depot = selections[eng.id]?.depotCode || eng.home_depot_code || 'Unknown';
-    const depotName = DEPOTS.find(d => d.code === depot)?.name || depot;
+    const depotName = getDepots().find(d => d.code === depot)?.name || depot;
     if (!acc[depotName]) acc[depotName] = [];
     acc[depotName].push(eng);
     return acc;
@@ -182,7 +184,7 @@ const ShiftCheckInModal = ({ onComplete, onSkip }) => {
                         <div className="sci-eng-info">
                           <span className="sci-eng-name">{eng.name}</span>
                           <span className="sci-eng-badge">{eng.badge_number}</span>
-                          <span className="sci-eng-depot">{DEPOTS.find(d => d.code === eng.home_depot_code)?.name || eng.home_depot_code || 'No depot'}</span>
+                          <span className="sci-eng-depot">{getDepots().find(d => d.code === eng.home_depot_code)?.name || eng.home_depot_code || 'No depot'}</span>
                         </div>
                         {skills.length > 0 && (
                           <div className="sci-skills">
@@ -233,7 +235,7 @@ const ShiftCheckInModal = ({ onComplete, onSkip }) => {
                             value={sel.depotCode}
                             onChange={e => updateSelection(eng.id, 'depotCode', e.target.value)}
                           >
-                            {DEPOTS.map(d => (
+                            {getDepots().map(d => (
                               <option key={d.code} value={d.code}>{d.name}</option>
                             ))}
                           </select>
