@@ -324,3 +324,41 @@ pre code {
     padding: var(--spacing-md) var(--spacing-sm);
   }
 }
+
+/* "New version ready" prompt (src/services/appUpdate.js) */
+.app-update-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100vw - 32px);
+  padding: 10px 10px 10px 16px;
+  background: #0d1420;
+  border: 1px solid rgba(34, 211, 238, 0.35);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  color: var(--color-text-primary, #e2e8f0);
+  font: 500 14px/1.3 Inter, system-ui, sans-serif;
+}
+.app-update-toast__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22d3ee;
+  flex-shrink: 0;
+}
+.app-update-toast__btn {
+  border: none;
+  border-radius: 6px;
+  padding: 7px 14px;
+  background: var(--color-primary, #0097A7);
+  color: #fff;
+  font: 600 13px/1 Inter, system-ui, sans-serif;
+  cursor: pointer;
+}
+.app-update-toast__btn:hover { background: var(--color-primary-hover, #00838F); }
+.app-update-toast__btn:focus-visible { outline: 2px solid #22d3ee; outline-offset: 2px; }

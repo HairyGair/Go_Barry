@@ -8,7 +8,10 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt': we decide when to reload (src/services/appUpdate.js) so an
+      // update never wipes a half-completed breakdown report
+      registerType: 'prompt',
+      injectRegister: false,
       manifest: false, // Use existing manifest.json in public/
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],

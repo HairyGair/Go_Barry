@@ -93,5 +93,13 @@
     ExpiresByType application/json "access plus 1 hour"
 </IfModule>
 
+# The service worker and PWA manifest must never be served stale, otherwise
+# deploys don't reach browsers that already have the app installed
+<IfModule mod_headers.c>
+    <FilesMatch "^(sw\.js|registerSW\.js|manifest\.json)$">
+        Header set Cache-Control "no-cache, must-revalidate"
+    </FilesMatch>
+</IfModule>
+
 # Error Pages (optional)
 ErrorDocument 404 /index.html

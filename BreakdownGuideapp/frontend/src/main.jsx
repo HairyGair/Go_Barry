@@ -2,6 +2,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
+import { initAppUpdates } from './services/appUpdate'
 // Self-hosted brand fonts (latin subset) — Inter (UI), Outfit (display), JetBrains Mono (figures)
 import '@fontsource/inter/latin-400.css'
 import '@fontsource/inter/latin-500.css'
@@ -30,17 +31,5 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <App />
 )
 
-// Register PWA service worker
-if ('serviceWorker' in navigator) {
-  import('virtual:pwa-register').then(({ registerSW }) => {
-    registerSW({
-      onNeedRefresh() {
-        // New content available — will auto-update on next load
-        console.log('New version available');
-      },
-      onOfflineReady() {
-        console.log('App ready to work offline');
-      },
-    });
-  });
-}
+// Service worker: poll for deploys and apply them when safe (see appUpdate.js)
+initAppUpdates();

@@ -47,7 +47,9 @@ const SuggestedEngineerCard = ({ job, engineers, jobs, onDispatch }) => {
             <div className="sge-card-top">
               <span className="sge-name">{engineer.name}</span>
               {distanceMiles !== null && (
-                <span className="sge-distance"><MapPin size={11} aria-hidden="true" /> {distanceMiles.toFixed(1)} mi</span>
+                <span className="sge-distance" title="Straight-line distance from their depot. Dispatch calculates the road ETA.">
+                  <MapPin size={11} aria-hidden="true" /> {distanceMiles.toFixed(1)} mi away
+                </span>
               )}
             </div>
             {matchedSkills.length > 0 && (
