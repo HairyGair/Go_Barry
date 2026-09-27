@@ -1,10 +1,13 @@
 /**
  * Go BARRY Breakdown Management System
- * Homepage - Mini Command Centre
+ * Homepage - Today shift briefing
  *
- * A condensed version of the Operations command centre (map + urgent
- * breakdowns + activity feed) plus the supervisor's shift status, fleet
- * lookup and quick access to reporting a breakdown.
+ * A "how is today going" summary: the supervisor's shift status, a KPI strip
+ * for today, an hourly breakdown-through-the-day chart, outcomes/top
+ * issues/depot breakdowns, engineering & recovery activity, today's
+ * handover notes (if any) and a secondary activity feed. Live triage (the
+ * map + urgent breakdown list) lives on Operations - this page deliberately
+ * doesn't repeat it, and instead links there.
  *
  * Copyright © 2025 Anthony Gair. All Rights Reserved.
  */
@@ -14,7 +17,7 @@ import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom';
 import {
   AlertTriangle, OctagonAlert, Gauge, Timer, ShieldCheck, ShieldAlert, ShieldQuestion,
-  MapPin, ArrowRight, ChevronDown, X, Radio
+  ArrowRight, ChevronDown, X, Radio, TrendingUp, TrendingDown, CheckCircle2
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import LiveActivityFeed from './LiveActivityFeed.jsx';
@@ -24,20 +27,49 @@ import DutyCard from './DutyCard.jsx';
 import DutyHandoverModal from './DutyHandoverModal.jsx';
 import DutyExtensionModal from './DutyExtensionModal.jsx';
 import { DutyBadge as DutyBadgeIcon } from './icons/DutyBadgeIcons';
-import BreakdownMap from '../dashboards/sdc/BreakdownMap.jsx';
-import BreakdownRow from '../dashboards/sdc/components/BreakdownRow.jsx';
-import { getSeverityRank, getDecisionInfo, getFleetNumber } from '../dashboards/sdc/utils/breakdownRowHelpers.js';
-import { fetchDashboardData, fetchFleetAvailability, fetchCoverageSummary } from '../utils/fetchDashboardData.js';
+import { getDecisionInfo } from '../dashboards/sdc/utils/breakdownRowHelpers.js';
+import {
+  fetchDashboardData, fetchFleetAvailability, fetchCoverageSummary,
+  fetchTodayKpis, fetchTodaySummary
+} from '../utils/fetchDashboardData.js';
+import TodayHourlyChart from './home/TodayHourlyChart.jsx';
+import TodayOutcomes from './home/TodayOutcomes.jsx';
+import TodayTopIssues from './home/TodayTopIssues.jsx';
+import TodayDepots from './home/TodayDepots.jsx';
+import TodayEngineering from './home/TodayEngineering.jsx';
+import TodayHandover from './home/TodayHandover.jsx';
+import './home/TodaySummary.css';
 import './HomePage.css';
 
 // Same "currently open" statuses fetchDashboardData() uses to compute the
-// Active stat, so the KPI tile and the map/urgent list always agree.
+// Active stat, so the KPI tile and Operations always agree.
 const ACTIVE_STATUSES = ['active', 'pending', 'in_progress', 'received', 'acknowledged', 'dispatched', 'on_site'];
 
 const COVERAGE_LABELS = {
   normal: { label: 'Covered', className: 'hp-kpi--good' },
   warning: { label: 'Partial cover', className: 'hp-kpi--warn' },
   critical: { label: 'Coverage gap', className: 'hp-kpi--bad' }
+};
+
+const EMPTY_HOURLY = Array.from({ length: 24 }, (_, h) => ({ hour: h, stop: 0, amber: 0, cont: 0, other: 0 }));
+
+// Small "+8% vs yesterday" trend chip. `goodDirection` says which sign reads
+// as positive for this metric ('down' = a fall is good, 'up' = a rise is
+// good); omit it for a purely informational, uncoloured chip. Renders
+// nothing when trend is null/undefined - never fakes a comparison.
+const TrendChip = ({ trend, goodDirection }) => {
+  if (trend == null || !Number.isFinite(trend) || trend === 0) return null;
+  const isUp = trend > 0;
+  const Icon = isUp ? TrendingUp : TrendingDown;
+  let tone = 'hp-trend--neutral';
+  if (goodDirection === 'up') tone = isUp ? 'hp-trend--good' : 'hp-trend--bad';
+  else if (goodDirection === 'down') tone = isUp ? 'hp-trend--bad' : 'hp-trend--good';
+  return (
+    <span className={`hp-trend ${tone}`}>
+      <Icon size={11} />
+      {Math.abs(trend)}%
+    </span>
+  );
 };
 
 const HomePage = ({ onStatsChange, currentDuty: propDuty }) => {
@@ -66,6 +98,8 @@ const HomePage = ({ onStatsChange, currentDuty: propDuty }) => {
   });
   const [fleetAvailability, setFleetAvailability] = useState(null);
   const [coverage, setCoverage] = useState(null);
+  const [todayKpis, setTodayKpis] = useState(null);
+  const [todaySummary, setTodaySummary] = useState(null);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -163,16 +197,21 @@ const HomePage = ({ onStatsChange, currentDuty: propDuty }) => {
     }
   }, [isAuthenticated, loadDashboardData]);
 
-  // Real fleet availability + coverage status (replaces the old fake
-  // "100 - activeBreakdowns * 2" fleet heuristic).
+  // Real fleet availability + coverage status + today's KPI/summary
+  // aggregates (replaces the old fake "100 - activeBreakdowns * 2" fleet
+  // heuristic, and drives everything on this page below the header).
   useEffect(() => {
     if (!isAuthenticated) return;
     let cancelled = false;
     const loadKpis = async () => {
-      const [avail, cov] = await Promise.all([fetchFleetAvailability(), fetchCoverageSummary()]);
+      const [avail, cov, kpis, summary] = await Promise.all([
+        fetchFleetAvailability(), fetchCoverageSummary(), fetchTodayKpis(), fetchTodaySummary()
+      ]);
       if (!cancelled) {
         setFleetAvailability(avail);
         setCoverage(cov);
+        setTodayKpis(kpis);
+        setTodaySummary(summary);
       }
     };
     loadKpis();
@@ -289,28 +328,12 @@ const HomePage = ({ onStatsChange, currentDuty: propDuty }) => {
       : `Duty ${currentDuty.code} · ${duration} left`;
   }, [currentDuty, currentTime]);
 
-  // ---- Active breakdowns (shared by the map + urgent list + STOP KPI) ----
+  // ---- Active breakdowns (used by the KPI strip + Open Operations CTA) ----
   // Kept above the loading/auth early-returns below so hook order stays
   // stable across renders (rules of hooks).
   const activeBreakdowns = useMemo(() => {
-    const now = Date.now();
-    return (dashboardData.breakdowns || [])
-      .filter(b => ACTIVE_STATUSES.includes(b.status))
-      .map(b => ({
-        ...b,
-        elapsed: b.created_at ? Math.floor((now - new Date(b.created_at).getTime()) / 60000) : 0
-      }));
+    return (dashboardData.breakdowns || []).filter(b => ACTIVE_STATUSES.includes(b.status));
   }, [dashboardData.breakdowns]);
-
-  const urgentBreakdowns = useMemo(() => {
-    return [...activeBreakdowns]
-      .sort((a, b) => {
-        const rankDiff = getSeverityRank(b) - getSeverityRank(a);
-        if (rankDiff !== 0) return rankDiff;
-        return (b.elapsed || 0) - (a.elapsed || 0);
-      })
-      .slice(0, 6);
-  }, [activeBreakdowns]);
 
   const stopCount = useMemo(
     () => activeBreakdowns.filter(b => getDecisionInfo(b).key === 'stop').length,
@@ -333,20 +356,13 @@ const HomePage = ({ onStatsChange, currentDuty: propDuty }) => {
   const canReportBreakdown = isDemoSession() ||
     (currentUser?.role !== 'engineering' && currentUser?.role !== 'engineering_manager');
 
-  const goToOperations = (fleetNo) => {
-    if (fleetNo && fleetNo !== 'Unknown') {
-      navigate(`/dashboards/sdc?fleet=${encodeURIComponent(fleetNo)}`);
-    } else {
-      navigate('/dashboards/sdc');
-    }
-  };
-
-  const goToBreakdownById = (breakdownId) => {
-    const target = activeBreakdowns.find(b => b.breakdown_id === breakdownId);
-    goToOperations(target ? getFleetNumber(target) : null);
-  };
-
   const coverageInfo = coverage ? (COVERAGE_LABELS[coverage.alertLevel] || COVERAGE_LABELS.normal) : null;
+
+  const kpis = todayKpis || {};
+  const reportedToday = kpis.breakdownsToday?.value ?? todaySummary?.totals?.reported ?? 0;
+  const resolvedToday = todaySummary?.totals?.resolved ?? null;
+  const avgResponseToday = kpis.avgResponseTime?.value ?? todaySummary?.totals?.avgResponseMinutes ?? null;
+  const hourly = todaySummary?.hourly || EMPTY_HOURLY;
 
   return (
     <div className="hp-container">
@@ -417,24 +433,36 @@ const HomePage = ({ onStatsChange, currentDuty: propDuty }) => {
         )}
       </header>
 
-      {/* KPI strip */}
+      {/* Today KPI strip */}
       <section className="hp-kpis">
-        <button type="button" className={`hp-kpi ${dashboardData.stats.activeBreakdowns > 0 ? 'hp-kpi--alert' : ''}`} onClick={() => navigate('/dashboards/sdc')}>
+        <div className="hp-kpi hp-kpi--static">
           <Gauge size={18} className="hp-kpi-icon" />
-          <span className="hp-kpi-value">{dashboardData.stats.activeBreakdowns}</span>
-          <span className="hp-kpi-label">Active</span>
-        </button>
+          <span className="hp-kpi-value">{reportedToday}</span>
+          <span className="hp-kpi-label">Reported today</span>
+          <TrendChip trend={kpis.breakdownsToday?.trend} />
+        </div>
 
-        <button type="button" className={`hp-kpi ${stopCount > 0 ? 'hp-kpi--bad' : ''}`} onClick={() => navigate('/dashboards/sdc')}>
+        <div className="hp-kpi hp-kpi--static">
+          <CheckCircle2 size={18} className="hp-kpi-icon" />
+          <span className="hp-kpi-value">
+            {resolvedToday != null ? resolvedToday : <span className="hp-kpi-value--empty">&mdash;</span>}
+          </span>
+          <span className="hp-kpi-label">Resolved today</span>
+        </div>
+
+        <button type="button" className={`hp-kpi ${dashboardData.stats.activeBreakdowns > 0 ? 'hp-kpi--alert' : ''}`} onClick={() => navigate('/dashboards/sdc')}>
           <OctagonAlert size={18} className="hp-kpi-icon" />
-          <span className="hp-kpi-value">{stopCount}</span>
-          <span className="hp-kpi-label">STOP</span>
+          <span className="hp-kpi-value">{dashboardData.stats.activeBreakdowns}</span>
+          <span className="hp-kpi-label">Open now</span>
         </button>
 
         <div className="hp-kpi hp-kpi--static">
           <Timer size={18} className="hp-kpi-icon" />
-          <span className="hp-kpi-value">{dashboardData.stats.avgResponseTime}<small>m</small></span>
-          <span className="hp-kpi-label">Avg response</span>
+          <span className="hp-kpi-value">
+            {avgResponseToday != null ? <>{avgResponseToday}<small>m</small></> : <span className="hp-kpi-value--empty">&mdash;</span>}
+          </span>
+          <span className="hp-kpi-label">Avg response today</span>
+          <TrendChip trend={kpis.avgResponseTime?.trend} goodDirection="down" />
         </div>
 
         <button type="button" className="hp-kpi" onClick={() => navigate('/fleet-intelligence')}>
@@ -443,38 +471,53 @@ const HomePage = ({ onStatsChange, currentDuty: propDuty }) => {
             {fleetAvailability != null ? <>{fleetAvailability}<small>%</small></> : <span className="hp-kpi-value--empty">&mdash;</span>}
           </span>
           <span className="hp-kpi-label">Fleet availability</span>
-        </button>
-
-        <button type="button" className={`hp-kpi ${coverageInfo ? coverageInfo.className : ''}`} onClick={() => navigate('/dashboards/sdc')}>
-          <ShieldAlert size={18} className="hp-kpi-icon" />
-          <span className="hp-kpi-value hp-kpi-value--text">{coverageInfo ? coverageInfo.label : '—'}</span>
-          <span className="hp-kpi-label">Coverage</span>
+          <TrendChip trend={kpis.fleetAvailability?.trend} goodDirection="up" />
         </button>
       </section>
 
-      {/* Main grid */}
-      <main className="hp-grid">
-        <div className="hp-col-left">
-          <div className="hp-card hp-map-card">
-            <div className="hp-card-header">
-              <MapPin size={14} />
-              <h3 className="hp-card-title">Live map</h3>
-              <span className="hp-card-count">{activeBreakdowns.length}</span>
-            </div>
-            <div className="hp-map-canvas">
-              <BreakdownMap
-                breakdowns={activeBreakdowns}
-                highlightedId={null}
-                onMarkerClick={goToBreakdownById}
-                hideToggles
-              />
-            </div>
-          </div>
+      {/* Open Operations CTA - live triage lives there, not here */}
+      <section className="hp-ops-cta">
+        <div className="hp-ops-cta-stats">
+          <span className={`hp-ops-stat ${dashboardData.stats.activeBreakdowns > 0 ? 'hp-ops-stat--alert' : ''}`}>
+            <strong>{dashboardData.stats.activeBreakdowns}</strong> active
+          </span>
+          {stopCount > 0 && (
+            <span className="hp-ops-stat hp-ops-stat--stop">
+              <strong>{stopCount}</strong> STOP
+            </span>
+          )}
+          {coverageInfo && (
+            <span className={`hp-ops-stat ${coverageInfo.className}`}>
+              <ShieldAlert size={13} className="hp-ops-stat-icon" /> {coverageInfo.label}
+            </span>
+          )}
+        </div>
+        <button type="button" className="hp-ops-cta-btn" onClick={() => navigate('/dashboards/sdc')}>
+          Open Operations <ArrowRight size={15} />
+        </button>
+      </section>
+
+      {/* Main "Today" grid */}
+      <main className="hp-today-grid">
+        <TodayHourlyChart hourly={hourly} currentTime={currentTime} />
+
+        <div className="hp-today-row3">
+          <TodayOutcomes outcomes={todaySummary?.outcomes} />
+          <TodayTopIssues topIssues={todaySummary?.topIssues} />
+          <TodayDepots depots={todaySummary?.depots} />
+        </div>
+
+        <div className="hp-today-row-bottom">
+          <TodayEngineering engineering={todaySummary?.engineering} />
+
+          {todaySummary?.handoverNotes && (
+            <TodayHandover notes={todaySummary.handoverNotes} />
+          )}
 
           <div className="hp-card hp-activity-card">
             <div className="hp-card-header">
               <span className="hp-live-dot"></span>
-              <h3 className="hp-card-title">Activity</h3>
+              <h3 className="hp-card-title">Latest activity</h3>
               <span className="hp-badge hp-badge--live"><Radio size={10} /> LIVE</span>
             </div>
             <div className="hp-activity-body">
@@ -489,41 +532,6 @@ const HomePage = ({ onStatsChange, currentDuty: propDuty }) => {
             </div>
           </div>
         </div>
-
-        <aside className="hp-col-right">
-          <div className="hp-card hp-urgent-card">
-            <div className="hp-card-header">
-              <AlertTriangle size={14} />
-              <h3 className="hp-card-title">Most urgent</h3>
-              <span className="hp-card-count">
-                {urgentBreakdowns.length}{activeBreakdowns.length > urgentBreakdowns.length ? ` of ${activeBreakdowns.length}` : ''}
-              </span>
-            </div>
-
-            <div className="hp-urgent-list">
-              {urgentBreakdowns.length === 0 ? (
-                <div className="hp-urgent-empty">
-                  <ShieldCheck size={28} strokeWidth={1.5} />
-                  <p>No active breakdowns</p>
-                  <span>Everything is running normally.</span>
-                </div>
-              ) : (
-                urgentBreakdowns.map(breakdown => (
-                  <BreakdownRow
-                    key={breakdown.breakdown_id}
-                    breakdown={breakdown}
-                    isSelected={false}
-                    onSelect={goToBreakdownById}
-                  />
-                ))
-              )}
-            </div>
-
-            <button type="button" className="hp-urgent-viewall" onClick={() => navigate('/dashboards/sdc')}>
-              View all in Operations <ArrowRight size={14} />
-            </button>
-          </div>
-        </aside>
       </main>
 
       {/* Modals */}

@@ -1,0 +1,593 @@
+/**
+ * Styles for the Home page "Today" shift-briefing cards
+ * (TodayHourlyChart, TodayOutcomes, TodayTopIssues, TodayDepots,
+ * TodayEngineering, TodayHandover). Shares card chrome (.hp-card,
+ * .hp-card-header, .hp-card-title, .hp-card-count) with HomePage.css -
+ * everything here is scoped to the `ts-` prefix so it can't leak.
+ */
+
+/* ===========================================
+   SHARED DOTS / FILLS (severity colours)
+   =========================================== */
+
+.ts-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ts-dot--stop,
+.ts-fill--stop { background: var(--hp-red, #ef4444); }
+
+.ts-dot--amber,
+.ts-fill--amber { background: var(--hp-amber, #f59e0b); }
+
+.ts-dot--cont,
+.ts-fill--cont { background: var(--hp-green, #10b981); }
+
+.ts-dot--other,
+.ts-fill--other { background: var(--hp-text-muted, #64748b); }
+
+/* ===========================================
+   HERO: BREAKDOWNS THROUGH THE DAY
+   =========================================== */
+
+.ts-hero-card {
+  flex-shrink: 0;
+}
+
+.ts-hero-body {
+  padding: 16px 18px 12px;
+}
+
+.ts-hero-empty,
+.ts-mini-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 36px 20px;
+  color: var(--hp-text-muted);
+  text-align: center;
+}
+
+.ts-hero-empty p,
+.ts-mini-empty p {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--hp-text-secondary);
+}
+
+.ts-hero-empty span,
+.ts-mini-empty span {
+  font-size: 12px;
+}
+
+.ts-hero-chart {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(24, 1fr);
+  align-items: flex-end;
+  height: 150px;
+  gap: 2px;
+}
+
+.ts-hero-col {
+  position: relative;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.ts-hero-col::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 4px;
+  background: transparent;
+  transition: background 0.12s ease;
+}
+
+.ts-hero-col--active::before {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.ts-hero-bar-track {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  padding: 0 1px;
+}
+
+.ts-hero-bar {
+  width: 100%;
+  min-height: 3px;
+  display: flex;
+  flex-direction: column-reverse;
+  border-radius: 3px 3px 1px 1px;
+  overflow: hidden;
+}
+
+.ts-hero-seg {
+  width: 100%;
+}
+
+.ts-hero-seg--stop { background: var(--hp-red, #ef4444); }
+.ts-hero-seg--amber { background: var(--hp-amber, #f59e0b); }
+.ts-hero-seg--cont { background: var(--hp-green, #10b981); }
+.ts-hero-seg--other { background: var(--hp-text-muted, #64748b); }
+
+.ts-hero-now-line {
+  position: absolute;
+  top: 0;
+  bottom: -20px;
+  width: 0;
+  border-left: 2px dashed rgba(0, 188, 212, 0.7);
+  z-index: 3;
+  pointer-events: none;
+}
+
+.ts-hero-now-label {
+  position: absolute;
+  top: -2px;
+  left: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--hp-teal-light, #00bcd4);
+  white-space: nowrap;
+}
+
+.ts-hero-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  min-width: 130px;
+  padding: 8px 10px;
+  background: #0f172a;
+  border: 1px solid var(--hp-glass-border);
+  border-radius: 8px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+  font-size: 11px;
+  color: var(--hp-text-secondary);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.ts-hero-tooltip strong {
+  display: block;
+  margin-bottom: 4px;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 11px;
+  color: var(--hp-text-primary);
+}
+
+.ts-hero-tooltip-empty {
+  color: var(--hp-text-muted);
+}
+
+.ts-hero-tooltip-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ts-hero-tooltip-rows span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-variant-numeric: tabular-nums;
+}
+
+.ts-hero-axis {
+  display: grid;
+  grid-template-columns: repeat(24, 1fr);
+  margin-top: 6px;
+}
+
+.ts-hero-axis-tick {
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 9px;
+  color: var(--hp-text-muted);
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* ---- Duty window strip ---- */
+
+.ts-duty-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 12px;
+}
+
+.ts-duty-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ts-duty-label {
+  flex-shrink: 0;
+  width: 26px;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--hp-text-muted);
+  text-align: right;
+}
+
+.ts-duty-track {
+  position: relative;
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.ts-duty-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 3px;
+  background: rgba(0, 151, 167, 0.35);
+}
+
+/* ===========================================
+   SMALL CARDS (Outcomes / Top Issues / Depots / Engineering / Handover)
+   =========================================== */
+
+.ts-card {
+  min-height: 0;
+}
+
+.ts-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 14px 16px;
+}
+
+/* The wide Engineering & recovery card can end up much taller than its stat
+   grid (rows sized by their tallest sibling - usually Latest activity) -
+   centre the grid vertically instead of leaving it stranded at the top. */
+.ts-card--wide .ts-card-body {
+  justify-content: center;
+}
+
+.ts-divider {
+  height: 1px;
+  margin: 12px 0;
+  background: var(--hp-glass-border);
+}
+
+/* ---- Outcomes ---- */
+
+.ts-stackbar {
+  display: flex;
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.ts-stackbar-seg {
+  height: 100%;
+}
+
+.ts-legend-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.ts-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--hp-text-secondary);
+}
+
+.ts-legend-label {
+  font-weight: 600;
+}
+
+.ts-legend-value {
+  margin-left: auto;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--hp-text-primary);
+}
+
+.ts-resolved-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ts-resolved-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(239, 68, 68, 0.25);
+  overflow: hidden;
+}
+
+.ts-resolved-fill {
+  height: 100%;
+  background: var(--hp-green, #10b981);
+  border-radius: 4px 0 0 4px;
+}
+
+.ts-resolved-numbers {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--hp-text-secondary);
+}
+
+.ts-resolved-numbers strong {
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-variant-numeric: tabular-nums;
+  color: var(--hp-text-primary);
+  font-size: 14px;
+}
+
+/* ---- Ranked lists (Top issues / Depots) ---- */
+
+.ts-rank-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.ts-rank-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ts-rank-index {
+  flex-shrink: 0;
+  width: 15px;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 11px;
+  color: var(--hp-text-muted);
+}
+
+.ts-rank-label {
+  flex-shrink: 0;
+  width: 84px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--hp-text-secondary);
+}
+
+.ts-rank-label--wide {
+  width: 96px;
+}
+
+.ts-rank-row--top .ts-rank-label {
+  color: var(--hp-text-primary);
+}
+
+.ts-rank-track {
+  position: relative;
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+}
+
+.ts-rank-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--hp-teal, #0097a7);
+}
+
+.ts-rank-fill--top {
+  background: var(--hp-teal-light, #00bcd4);
+}
+
+.ts-rank-value {
+  flex-shrink: 0;
+  width: 22px;
+  text-align: right;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--hp-text-primary);
+}
+
+/* ---- Engineering & recovery stat grid ---- */
+
+.ts-card--wide {
+  flex: 1.4;
+}
+
+.ts-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px 16px;
+}
+
+.ts-stat {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.ts-stat-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--hp-text-muted);
+}
+
+.ts-stat-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.ts-stat-value {
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-variant-numeric: tabular-nums;
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--hp-text-primary);
+  line-height: 1.15;
+}
+
+.ts-stat-value small {
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 1px;
+}
+
+.ts-stat-empty {
+  color: var(--hp-text-muted);
+}
+
+.ts-stat-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--hp-text-muted);
+  white-space: nowrap;
+}
+
+.ts-stat-sub {
+  font-size: 11px;
+  color: var(--hp-text-secondary);
+}
+
+/* ---- Handover / notes ---- */
+
+.ts-handover-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.ts-handover-note {
+  position: relative;
+  padding: 8px 10px 8px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-left: 3px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+}
+
+.ts-handover-note--priority {
+  border-left-color: var(--hp-amber, #f59e0b);
+  background: rgba(245, 158, 11, 0.06);
+}
+
+.ts-handover-star {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  color: var(--hp-amber, #f59e0b);
+}
+
+.ts-handover-text {
+  margin: 0 0 4px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--hp-text-primary);
+}
+
+.ts-handover-meta {
+  font-size: 10.5px;
+  color: var(--hp-text-muted);
+}
+
+/* ===========================================
+   TODAY PAGE LAYOUT (grid rows used by HomePage.jsx)
+   =========================================== */
+
+.hp-today-row3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.hp-today-row-bottom {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr;
+  gap: 12px;
+  align-items: stretch;
+}
+
+/* When today's handover/notes card is omitted (no real notes yet), Latest
+   activity is the 2nd (and last) child instead of the 3rd - let it fill the
+   space the notes card would have used rather than leaving a gap. */
+.hp-today-row-bottom > *:nth-child(2):last-child {
+  grid-column: 2 / -1;
+}
+
+@media (max-width: 1440px) {
+  .ts-stat-grid {
+    grid-template-columns: repeat(3, 1fr);
+    row-gap: 16px;
+  }
+}
+
+@media (max-width: 1280px) {
+  .hp-today-row-bottom {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .hp-today-row-bottom .ts-card--wide {
+    grid-column: 1 / -1;
+  }
+
+  .hp-today-row-bottom > *:nth-child(2):last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 1023px) {
+  .hp-today-row3 {
+    grid-template-columns: 1fr;
+  }
+
+  .hp-today-row-bottom {
+    grid-template-columns: 1fr;
+  }
+
+  .hp-today-row-bottom > *:nth-child(2):last-child {
+    grid-column: auto;
+  }
+
+  .ts-stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .ts-hero-axis-tick {
+    font-size: 8px;
+  }
+}

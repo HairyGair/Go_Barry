@@ -1,15 +1,17 @@
 /**
- * Go BARRY Homepage - Mini Command Centre
+ * Go BARRY Homepage - Today shift briefing
  *
- * Mirrors the Operations command-centre's dark, high-density styling
- * (same palette values as dashboards/sdc/SDCDashboard.css) so Home and
- * Operations read as one product, without importing that stylesheet here.
+ * Shares the dark, high-density palette with the Operations command-centre
+ * (same values as dashboards/sdc/SDCDashboard.css) so Home and Operations
+ * read as one product, without importing that stylesheet here. Unlike
+ * Operations, this page scrolls naturally - it's a summary, not a live
+ * triage console.
  */
 
 .hp-container {
   --hp-teal: #0097A7;
   --hp-teal-light: #00BCD4;
-  --hp-red: #DC2626;
+  --hp-red: #EF4444;
   --hp-amber: #F59E0B;
   --hp-green: #10B981;
   --hp-info: #3B82F6;
@@ -20,14 +22,13 @@
   --hp-text-secondary: #94A3B8;
   --hp-text-muted: #64748B;
 
-  height: calc(100vh - var(--app-top-offset, 84px));
+  min-height: calc(100vh - var(--app-top-offset, 84px));
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 14px 20px 16px;
+  gap: 14px;
+  padding: 14px 20px 28px;
   background: var(--hp-bg);
   color: var(--hp-text-primary);
-  overflow: hidden;
   font-family: var(--font-body, 'Inter', -apple-system, BlinkMacSystemFont, sans-serif);
 }
 
@@ -270,6 +271,7 @@
 }
 
 .hp-kpi {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -371,21 +373,103 @@ button.hp-kpi {
   color: var(--hp-green);
 }
 
-/* ===========================================
-   MAIN GRID
-   =========================================== */
+/* ---- Trend chip (vs yesterday / previous period) ---- */
 
-.hp-grid {
-  flex: 1;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(360px, 1.15fr) minmax(320px, 0.85fr);
-  gap: 12px;
+.hp-trend {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-variant-numeric: tabular-nums;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--hp-text-muted);
 }
 
-.hp-col-left,
-.hp-col-right {
-  min-height: 0;
+.hp-trend--good { color: var(--hp-green); }
+.hp-trend--bad { color: var(--hp-red); }
+
+/* ===========================================
+   OPEN OPERATIONS CTA
+   =========================================== */
+
+.hp-ops-cta {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 16px;
+  background: var(--hp-glass-bg);
+  border: 1px solid var(--hp-glass-border);
+  border-radius: 12px;
+}
+
+.hp-ops-cta-stats {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.hp-ops-stat {
+  font-size: 13px;
+  color: var(--hp-text-secondary);
+}
+
+.hp-ops-stat-icon {
+  vertical-align: -2px;
+  margin-right: 2px;
+}
+
+.hp-ops-stat strong {
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+  color: var(--hp-text-primary);
+  margin-right: 4px;
+}
+
+.hp-ops-stat--alert strong { color: var(--hp-red); }
+.hp-ops-stat--stop { color: var(--hp-red); }
+.hp-ops-stat--stop strong { color: var(--hp-red); }
+
+.hp-ops-stat.hp-kpi--warn { color: var(--hp-amber); }
+.hp-ops-stat.hp-kpi--bad { color: var(--hp-red); }
+.hp-ops-stat.hp-kpi--good { color: var(--hp-green); }
+
+.hp-ops-cta-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 18px;
+  height: 38px;
+  background: rgba(0, 151, 167, 0.16);
+  border: 1px solid rgba(0, 188, 212, 0.4);
+  border-radius: 10px;
+  color: var(--hp-teal-light);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease;
+}
+
+.hp-ops-cta-btn:hover {
+  background: rgba(0, 151, 167, 0.28);
+}
+
+/* ===========================================
+   TODAY GRID (hourly chart + outcomes/issues/depots + engineering/handover/activity)
+   =========================================== */
+
+.hp-today-grid {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -463,35 +547,16 @@ button.hp-kpi {
   .hp-live-dot { animation: none; }
 }
 
-/* ---- Map card ---- */
-
-.hp-map-card {
-  flex-shrink: 0;
-  height: 320px;
-}
-
-.hp-map-canvas {
-  flex: 1;
-  min-height: 0;
-  position: relative;
-}
-
-.hp-map-canvas .breakdown-map-container,
-.hp-map-canvas .breakdown-map {
-  height: 100% !important;
-  border-radius: 0 !important;
-}
-
-/* ---- Activity card ---- */
+/* ---- Activity card (secondary, alongside Engineering/Handover) ---- */
 
 .hp-activity-card {
-  flex: 1;
   min-height: 0;
 }
 
 .hp-activity-body {
   flex: 1;
-  min-height: 0;
+  min-height: 220px;
+  max-height: 420px;
   overflow-y: auto;
   padding: 12px 14px;
 }
@@ -539,215 +604,6 @@ button.hp-kpi {
   background: rgba(0, 151, 167, 0.25);
 }
 
-/* ---- Urgent card ---- */
-
-.hp-urgent-card {
-  flex: 1;
-  min-height: 0;
-}
-
-.hp-urgent-list {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px 14px;
-}
-
-.hp-urgent-list::-webkit-scrollbar {
-  width: 6px;
-}
-
-.hp-urgent-list::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.hp-urgent-list::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 3px;
-}
-
-.hp-urgent-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 40px 20px;
-  color: var(--hp-text-muted);
-  text-align: center;
-}
-
-.hp-urgent-empty p {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--hp-text-secondary);
-}
-
-.hp-urgent-empty span {
-  font-size: 12px;
-}
-
-.hp-urgent-viewall {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 10px;
-  background: rgba(255, 255, 255, 0.03);
-  border: none;
-  border-top: 1px solid var(--hp-glass-border);
-  color: var(--hp-teal-light);
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.hp-urgent-viewall:hover {
-  background: rgba(0, 151, 167, 0.12);
-}
-
-/* ---- Reused BreakdownRow presentation (BreakdownRow.jsx doesn't ship its
-   own CSS - it's normally styled by dashboards/sdc/SDCDashboard.css, which
-   isn't loaded on this page - so it's scoped/duplicated here in miniature
-   for the "Most urgent" list). ---- */
-
-.hp-urgent-list .br-row {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 9px 10px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-left: 3px solid rgba(255, 255, 255, 0.15);
-  border-radius: 10px;
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
-
-.hp-urgent-list .br-row:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.12);
-}
-
-.hp-urgent-list .br-row-stop { border-left-color: var(--hp-red); }
-.hp-urgent-list .br-row-amber { border-left-color: var(--hp-amber); }
-.hp-urgent-list .br-row-continue { border-left-color: var(--hp-green); }
-.hp-urgent-list .br-row-pending { border-left-color: var(--hp-info); }
-
-.hp-urgent-list .br-row-top {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  flex-wrap: wrap;
-}
-
-.hp-urgent-list .br-fleet {
-  font-family: var(--font-mono, 'JetBrains Mono', monospace);
-  font-weight: 700;
-  font-size: 13px;
-  color: var(--hp-text-primary);
-}
-
-.hp-urgent-list .br-vehicle-type {
-  font-size: 11px;
-  color: var(--hp-text-muted);
-}
-
-.hp-urgent-list .br-route-chip {
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--hp-text-secondary);
-  background: rgba(255, 255, 255, 0.08);
-  border-radius: 5px;
-  padding: 2px 6px;
-}
-
-.hp-urgent-list .br-decision-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  border-radius: 5px;
-  padding: 2px 6px;
-}
-
-.hp-urgent-list .br-decision-stop { background: rgba(220, 38, 38, 0.18); color: #fca5a5; }
-.hp-urgent-list .br-decision-amber { background: rgba(245, 158, 11, 0.18); color: #fcd34d; }
-.hp-urgent-list .br-decision-continue { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; }
-.hp-urgent-list .br-decision-pending { background: rgba(59, 130, 246, 0.18); color: #93c5fd; }
-
-.hp-urgent-list .br-spacer {
-  flex: 1;
-}
-
-.hp-urgent-list .br-elapsed {
-  font-family: var(--font-mono, 'JetBrains Mono', monospace);
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--hp-text-secondary);
-}
-
-.hp-urgent-list .br-row-mid {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  font-size: 12px;
-  color: var(--hp-text-secondary);
-}
-
-.hp-urgent-list .br-issue {
-  font-weight: 600;
-  color: var(--hp-text-primary);
-  flex-shrink: 0;
-}
-
-.hp-urgent-list .br-sep {
-  color: var(--hp-text-muted);
-  flex-shrink: 0;
-}
-
-.hp-urgent-list .br-location {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-}
-
-.hp-urgent-list .br-location-icon {
-  flex-shrink: 0;
-  color: var(--hp-text-muted);
-}
-
-.hp-urgent-list .br-location-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.hp-urgent-list .br-row-meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  color: var(--hp-text-muted);
-  flex-wrap: wrap;
-}
-
-.hp-urgent-list .br-replacement-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: #fcd34d;
-}
-
 /* ===========================================
    RESPONSIVE
    =========================================== */
@@ -759,10 +615,6 @@ button.hp-kpi {
 }
 
 @media (max-width: 1280px) {
-  .hp-grid {
-    grid-template-columns: 1fr 300px;
-  }
-
   .hp-greeting-text {
     display: none;
   }
@@ -770,15 +622,13 @@ button.hp-kpi {
   .hp-header-clock {
     display: none;
   }
+
+  .hp-ops-cta {
+    flex-wrap: wrap;
+  }
 }
 
 @media (max-width: 1023px) {
-  .hp-container {
-    height: auto;
-    min-height: 100vh;
-    overflow: visible;
-  }
-
   .hp-header-search {
     order: 5;
     flex-basis: 100%;
@@ -789,26 +639,17 @@ button.hp-kpi {
     grid-template-columns: repeat(3, 1fr);
   }
 
-  .hp-grid {
-    display: flex;
+  .hp-ops-cta {
     flex-direction: column;
+    align-items: stretch;
   }
 
-  .hp-col-left,
-  .hp-col-right {
-    flex: none;
-  }
-
-  .hp-map-card {
-    height: 280px;
-  }
-
-  .hp-urgent-list {
-    max-height: 420px;
+  .hp-ops-cta-btn {
+    justify-content: center;
   }
 
   .hp-activity-body {
-    max-height: 420px;
+    max-height: 340px;
   }
 }
 
@@ -822,6 +663,10 @@ button.hp-kpi {
   }
 
   .hp-report-btn span {
+    display: none;
+  }
+
+  .hp-trend {
     display: none;
   }
 }

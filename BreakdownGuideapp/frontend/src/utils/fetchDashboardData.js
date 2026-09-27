@@ -126,6 +126,42 @@ export async function fetchFleetAvailability() {
 }
 
 /**
+ * Full "today" KPI set (with period-over-period trend where computable) -
+ * same endpoint fetchFleetAvailability() reads, just not reduced to a single
+ * number. Used by the Home page's "Today" KPI strip.
+ * Returns null if the backend can't be reached.
+ */
+export async function fetchTodayKpis() {
+  try {
+    const response = await apiClient.get('/api/analytics/kpis?period=today');
+    return response?.data || null;
+  } catch (error) {
+    console.warn('Could not fetch today KPIs:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Aggregated "how is today going" data for the Home page shift-briefing
+ * view: hourly breakdown-by-severity, outcomes, top issue categories,
+ * per-depot counts, engineering/recovery stats and (if any exist) today's
+ * handover/shift notes. Backed by GET /api/analytics/today-summary.
+ *
+ * This is a new endpoint added alongside this page - until it's deployed it
+ * 404s, so every caller must treat a null return as "no data yet" and render
+ * designed empty states rather than erroring.
+ */
+export async function fetchTodaySummary() {
+  try {
+    const data = await apiClient.get('/api/analytics/today-summary');
+    return data?.success ? data : null;
+  } catch (error) {
+    console.warn('Could not fetch today summary (endpoint may not be deployed yet):', error.message);
+    return null;
+  }
+}
+
+/**
  * Lightweight supervisor coverage summary for a KPI tile - same source
  * SupervisorCoverageBar uses, just reduced to what a single tile needs.
  */

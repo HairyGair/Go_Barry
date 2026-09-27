@@ -2169,4 +2169,166 @@ router.get('/shift-coverage', async (req, res) => {
   }
 });
 
+// GET /api/analytics/today-summary - "How is today going" shift-briefing
+// aggregate for the Home page. Deliberately separate from /kpis (which is
+// period-selectable and drives the Management dashboard) - this is always
+// "today", and returns the shapes the Home page's hourly chart / outcomes /
+// top-issues / depot / engineering cards need in one round trip rather than
+// shipping every raw breakdown row to the client.
+// Demo-isolated via demoSqlFilter; read-only.
+router.get('/today-summary', async (req, res) => {
+  try {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const rows = await query(
+      `SELECT status, severity, wizard_decision, issue_category, depot, created_at,
+              resolved_at, received_at, acknowledged_at,
+              engineer_dispatched_at, engineer_on_site_at, engineer_eta_minutes,
+              estimated_mileage_lost
+       FROM breakdowns
+       WHERE created_at >= ?${demoSqlFilter(req.user)}`,
+      [startOfDay]
+    );
+
+    // Replacement vehicles dispatched against today's breakdowns.
+    let replacementsToday = 0;
+    try {
+      const [rvRow] = await query(
+        `SELECT COUNT(*) AS cnt FROM replacement_vehicles rv
+         JOIN breakdowns b ON b.breakdown_id = rv.breakdown_id
+         WHERE b.created_at >= ?${demoSqlFilter(req.user, { alias: 'b' })}`,
+        [startOfDay]
+      );
+      replacementsToday = Number(rvRow?.cnt) || 0;
+    } catch (err) {
+      console.warn('Replacement vehicle count not computable:', err.message);
+    }
+
+    const RESOLVED_STATUSES = new Set(['resolved', 'completed']);
+    const hourly = Array.from({ length: 24 }, (_, h) => ({ hour: h, stop: 0, amber: 0, cont: 0, other: 0 }));
+    const bySeverity = { STOP: 0, AMBER: 0, CONTINUE: 0, other: 0 };
+    const issueCounts = new Map();
+    const depotCounts = new Map();
+    let resolvedCount = 0;
+    let dispatchedCount = 0;
+    let onSiteCount = 0;
+    const arrivalMinutes = [];
+    const etaMinutes = [];
+    let mileageLost = 0;
+    let responseTotal = 0;
+    let responseCount = 0;
+
+    for (const b of rows) {
+      const createdAt = b.created_at ? new Date(b.created_at) : null;
+      const hour = createdAt ? createdAt.getHours() : 0;
+      const sev = String(b.wizard_decision || b.severity || '').toUpperCase();
+
+      if (sev === 'STOP') { hourly[hour].stop++; bySeverity.STOP++; }
+      else if (sev === 'AMBER') { hourly[hour].amber++; bySeverity.AMBER++; }
+      else if (sev === 'CONTINUE') { hourly[hour].cont++; bySeverity.CONTINUE++; }
+      else { hourly[hour].other++; bySeverity.other++; }
+
+      if (RESOLVED_STATUSES.has(b.status)) resolvedCount++;
+
+      if (b.issue_category) {
+        issueCounts.set(b.issue_category, (issueCounts.get(b.issue_category) || 0) + 1);
+      }
+      if (b.depot) {
+        depotCounts.set(b.depot, (depotCounts.get(b.depot) || 0) + 1);
+      }
+
+      if (b.acknowledged_at && b.received_at) {
+        const mins = (new Date(b.acknowledged_at) - new Date(b.received_at)) / 60000;
+        if (Number.isFinite(mins) && mins >= 0) { responseTotal += mins; responseCount++; }
+      }
+
+      if (b.engineer_dispatched_at) {
+        dispatchedCount++;
+        if (b.engineer_eta_minutes != null) {
+          const eta = Number(b.engineer_eta_minutes);
+          if (Number.isFinite(eta)) etaMinutes.push(eta);
+        }
+        if (b.engineer_on_site_at) {
+          onSiteCount++;
+          const mins = (new Date(b.engineer_on_site_at) - new Date(b.engineer_dispatched_at)) / 60000;
+          if (Number.isFinite(mins) && mins >= 0) arrivalMinutes.push(mins);
+        }
+      }
+
+      if (b.estimated_mileage_lost != null) {
+        const miles = parseFloat(b.estimated_mileage_lost);
+        if (Number.isFinite(miles)) mileageLost += miles;
+      }
+    }
+
+    const avg = (arr) => (arr.length > 0 ? Math.round(arr.reduce((s, v) => s + v, 0) / arr.length) : null);
+
+    const topIssues = [...issueCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+      .map(([category, count]) => ({ category, count }));
+
+    const depots = [...depotCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([depot, count]) => ({ depot, count }));
+
+    // Best-effort handover/shift notes for today - omit entirely (null) rather
+    // than show a fabricated card if the table is empty or unavailable.
+    let handoverNotes = null;
+    try {
+      const noteRows = await query(
+        `SELECT id, supervisor_name, duty_code, note, note_type, is_priority, created_at
+         FROM duty_notes
+         WHERE created_at >= ?${demoSqlFilter(req.user)}
+         ORDER BY created_at DESC
+         LIMIT 10`,
+        [startOfDay]
+      );
+      if (noteRows && noteRows.length > 0) {
+        handoverNotes = noteRows.map((n) => ({
+          id: n.id,
+          supervisorName: n.supervisor_name,
+          dutyCode: n.duty_code,
+          note: n.note,
+          type: n.note_type,
+          priority: !!n.is_priority,
+          createdAt: n.created_at
+        }));
+      }
+    } catch (err) {
+      console.warn('Duty notes not computable for today-summary:', err.message);
+      handoverNotes = null;
+    }
+
+    res.json({
+      success: true,
+      date: startOfDay.toISOString().slice(0, 10),
+      totals: {
+        reported: rows.length,
+        resolved: resolvedCount,
+        open: rows.length - resolvedCount,
+        avgResponseMinutes: responseCount > 0 ? Math.round(responseTotal / responseCount) : null
+      },
+      hourly,
+      outcomes: { bySeverity, resolved: resolvedCount, open: rows.length - resolvedCount },
+      topIssues,
+      depots,
+      engineering: {
+        dispatched: dispatchedCount,
+        onSite: onSiteCount,
+        avgArrivalMinutes: avg(arrivalMinutes),
+        avgEtaMinutes: avg(etaMinutes),
+        replacementsSent: replacementsToday,
+        mileageLost: rows.length > 0 ? Math.round(mileageLost * 10) / 10 : null
+      },
+      handoverNotes,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error fetching today summary:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch today summary' });
+  }
+});
+
 export default router;
