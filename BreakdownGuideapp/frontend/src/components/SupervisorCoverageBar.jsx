@@ -11,7 +11,8 @@ import { AlertTriangle, RefreshCw, Bus, Check, Timer } from 'lucide-react';
 import { apiClient } from '../services/api-client';
 import './SupervisorCoverageBar.css';
 
-const SupervisorCoverageBar = ({ refreshInterval = 60000 }) => {
+const SupervisorCoverageBar = ({ refreshInterval = 60000, variant = 'default' }) => {
+  const isCompact = variant === 'compact';
   const [coverageData, setCoverageData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -51,7 +52,7 @@ const SupervisorCoverageBar = ({ refreshInterval = 60000 }) => {
 
   if (loading) {
     return (
-      <div className="supervisor-coverage-bar loading">
+      <div className={`supervisor-coverage-bar loading ${isCompact ? 'supervisor-coverage-bar--compact' : ''}`}>
         <div className="coverage-bar__spinner"></div>
         <span>Loading coverage...</span>
       </div>
@@ -60,7 +61,7 @@ const SupervisorCoverageBar = ({ refreshInterval = 60000 }) => {
 
   if (error) {
     return (
-      <div className="supervisor-coverage-bar error">
+      <div className={`supervisor-coverage-bar error ${isCompact ? 'supervisor-coverage-bar--compact' : ''}`}>
         <span className="coverage-bar__icon"><AlertTriangle size={16} /></span>
         <span>{error}</span>
         <button onClick={fetchCoverageStatus} className="coverage-bar__retry">Retry</button>
@@ -73,6 +74,89 @@ const SupervisorCoverageBar = ({ refreshInterval = 60000 }) => {
   }
 
   const { coverage, nextShiftChange } = coverageData;
+
+  // Compact variant: a narrow vertical rendering for the Operations command
+  // centre's left rail - same data, denser layout, no per-supervisor stat
+  // breakdown (just active-breakdown count).
+  if (isCompact) {
+    const visibleSupervisors = coverage.activeSupervisors.slice(0, 5);
+    const extraCount = coverage.activeSupervisors.length - visibleSupervisors.length;
+
+    return (
+      <div className={`supervisor-coverage-bar supervisor-coverage-bar--compact supervisor-coverage-bar--${coverage.alertLevel}`}>
+        <div className="coverage-bar__status coverage-bar__status--compact">
+          <div className={`coverage-bar__status-indicator coverage-bar__status-indicator--${coverage.alertLevel}`}>
+            <span className="coverage-bar__status-dot"></span>
+            <span className="coverage-bar__status-text">
+              {coverage.alertLevel === 'normal' ? 'COVERED' :
+               coverage.alertLevel === 'warning' ? 'PARTIAL' :
+               coverage.alertLevel === 'critical' ? 'GAP' : 'INFO'}
+            </span>
+          </div>
+          <button
+            className="coverage-bar__refresh coverage-bar__refresh--compact"
+            onClick={fetchCoverageStatus}
+            title="Refresh coverage data"
+            aria-label="Refresh coverage data"
+          >
+            <RefreshCw size={12} />
+          </button>
+        </div>
+
+        <div className="coverage-bar__duty-pills coverage-bar__duty-pills--compact">
+          {coverage.expectedDuties.map(duty => (
+            <span
+              key={duty.code}
+              className={`coverage-bar__duty-pill ${duty.isCovered ? 'covered' : 'uncovered'}`}
+              style={{ '--duty-color': duty.color }}
+              title={`Duty ${duty.code}`}
+            >
+              {duty.code}
+            </span>
+          ))}
+        </div>
+
+        <div className="coverage-bar__supervisors coverage-bar__supervisors--compact">
+          {visibleSupervisors.length === 0 ? (
+            <div className="coverage-bar__no-supervisors">No active supervisors</div>
+          ) : (
+            <>
+              {visibleSupervisors.map(sup => (
+                <div key={sup.badge} className="coverage-bar__supervisor coverage-bar__supervisor--compact">
+                  <span className={`coverage-bar__activity-dot ${sup.isRecent ? 'active' : 'idle'}`}></span>
+                  <span className="coverage-bar__supervisor-name">
+                    {sup.name ? sup.name.split(' ')[0] : sup.badge}
+                  </span>
+                  <span className="coverage-bar__stat" title="Active breakdowns">
+                    <Bus size={11} />
+                    <span className={`coverage-bar__stat-value ${sup.activeBreakdowns > 2 ? 'high' : ''}`}>
+                      {sup.activeBreakdowns}
+                    </span>
+                  </span>
+                </div>
+              ))}
+              {extraCount > 0 && (
+                <div className="coverage-bar__supervisor-more">+{extraCount} more</div>
+              )}
+            </>
+          )}
+        </div>
+
+        {nextShiftChange && (
+          <div className="coverage-bar__next-change coverage-bar__next-change--compact">
+            <span className="coverage-bar__next-label">
+              Duty {nextShiftChange.duty} {nextShiftChange.action}
+            </span>
+            <span className="coverage-bar__next-time">
+              {nextShiftChange.minutesRemaining < 60
+                ? `${nextShiftChange.minutesRemaining}m`
+                : `${Math.floor(nextShiftChange.minutesRemaining / 60)}h ${nextShiftChange.minutesRemaining % 60}m`}
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className={`supervisor-coverage-bar supervisor-coverage-bar--${coverage.alertLevel}`}>

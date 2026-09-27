@@ -1828,3 +1828,776 @@
   border-color: rgba(0, 188, 212, 0.3);
   color: #5ee4f2;
 }
+
+/* ====================================================================
+   COMMAND CENTRE - 3 column layout (rail / list / map+drawer)
+   Added for the Operations restructure: filters/coverage/depots move
+   into a left rail, the breakdown list becomes compact selectable rows,
+   and the right column holds a live map above a persistent detail
+   drawer. Replaces the old stacked filter-cards -> full list -> depot
+   grid layout below this point in the file (that CSS is left in place
+   but no longer rendered by SDCDashboard.jsx).
+   ==================================================================== */
+
+/* Cancel the shared shell's fixed 100vh min-height + 80px bottom padding
+   (DashboardLayout.jsx sets these inline for its mobile bottom nav) only
+   while this command centre is mounted, so the page itself doesn't grow
+   taller than the viewport and scroll underneath the fixed columns. This
+   is intentionally scoped with :has() to this dashboard's own markup so
+   it never affects any other DashboardLayout-based screen. */
+.dashboard-content:has(> .sdc-dashboard) {
+  min-height: 0 !important;
+  padding-bottom: 0 !important;
+  display: flex;
+  flex-direction: column;
+}
+
+.sdc-dashboard {
+  height: calc(100vh - var(--app-top-offset, 84px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.cc-shell {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 260px minmax(340px, 1fr) minmax(400px, 1.3fr);
+  gap: 14px;
+  padding: 14px 20px 16px;
+  align-items: stretch;
+}
+
+/* ---------- Shared panel chrome ---------- */
+.cc-rail,
+.cc-list-col,
+.cc-right-col {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- LEFT RAIL ---------- */
+.cc-rail {
+  background: var(--sdc-glass-bg);
+  border: 1px solid var(--sdc-glass-border);
+  border-radius: var(--radius-xl, 16px);
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+}
+
+.cc-rail-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 14px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.cc-rail-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cc-rail-label {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sdc-text-muted);
+}
+
+.cc-rail-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cc-rail-filter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: var(--sdc-text-secondary);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.cc-rail-filter:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--sdc-text-primary);
+}
+
+.cc-rail-filter-active {
+  background: rgba(0, 188, 212, 0.14);
+  border-color: rgba(34, 211, 238, 0.4);
+  color: var(--sdc-text-primary);
+}
+
+.cc-rail-filter-icon {
+  display: flex;
+  align-items: center;
+  color: var(--sdc-teal-light);
+  flex-shrink: 0;
+}
+
+.cc-rail-filter-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cc-rail-filter-count {
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sdc-text-muted);
+  min-width: 18px;
+  text-align: right;
+}
+
+.cc-rail-filter-active .cc-rail-filter-count {
+  color: var(--sdc-teal-light);
+}
+
+.cc-rail-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--sdc-glass-border);
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.cc-rail-live {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6ee7b7;
+}
+
+.cc-rail-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  animation: cc-live-pulse 2s infinite;
+}
+
+@keyframes cc-live-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.6); }
+  70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+.cc-rail-icon-btn {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid var(--sdc-glass-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--sdc-text-secondary);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.cc-rail-icon-btn + .cc-rail-icon-btn {
+  margin-left: 0;
+}
+
+.cc-rail-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--sdc-text-primary);
+}
+
+.cc-rail-icon-btn-on {
+  color: var(--sdc-teal-light);
+  border-color: rgba(34, 211, 238, 0.4);
+}
+
+/* ---------- CENTRE COLUMN: search + list ---------- */
+.cc-list-col {
+  background: var(--sdc-glass-bg);
+  border: 1px solid var(--sdc-glass-border);
+  border-radius: var(--radius-xl, 16px);
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+}
+
+.cc-list-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--sdc-glass-border);
+  flex-wrap: wrap;
+}
+
+.cc-search-box {
+  flex: 1;
+  min-width: 160px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--sdc-glass-border);
+  border-radius: 9px;
+}
+
+.cc-search-box:focus-within {
+  border-color: rgba(34, 211, 238, 0.5);
+}
+
+.cc-search-icon {
+  color: var(--sdc-text-muted);
+  flex-shrink: 0;
+}
+
+.cc-search-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--sdc-text-primary);
+  font-size: 13px;
+  font-family: inherit;
+}
+
+.cc-search-input::placeholder {
+  color: var(--sdc-text-muted);
+}
+
+.cc-search-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--sdc-text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.cc-active-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: rgba(0, 188, 212, 0.14);
+  border: 1px solid rgba(34, 211, 238, 0.4);
+  border-radius: 999px;
+  color: #a5f3fc;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.cc-active-chip button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+}
+
+.cc-list-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cc-list-scroll:focus-visible {
+  outline: 2px solid #22d3ee;
+  outline-offset: -2px;
+}
+
+.cc-list-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 48px 20px;
+  color: var(--sdc-text-muted);
+  text-align: center;
+}
+
+.cc-list-state p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--sdc-text-secondary);
+}
+
+.cc-list-state small {
+  color: var(--sdc-text-muted);
+}
+
+.cc-spin {
+  animation: cc-spin-rotate 1s linear infinite;
+  color: var(--sdc-teal-light);
+}
+
+@keyframes cc-spin-rotate {
+  to { transform: rotate(360deg); }
+}
+
+/* ---------- Breakdown rows (centre list) ---------- */
+.br-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-left: 3px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.br-row:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.br-row-selected {
+  background: rgba(0, 188, 212, 0.12);
+  border-color: rgba(34, 211, 238, 0.5);
+  box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.25);
+}
+
+.br-row-stop { border-left-color: var(--sdc-red, #dc2626); }
+.br-row-amber { border-left-color: var(--sdc-amber, #f59e0b); }
+.br-row-continue { border-left-color: var(--sdc-green, #10b981); }
+.br-row-pending { border-left-color: var(--color-info, #3b82f6); }
+
+.br-row-fading {
+  opacity: 0;
+  transform: translateX(12px);
+  pointer-events: none;
+}
+
+.br-row-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.br-fleet {
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--sdc-text-primary);
+}
+
+.br-vehicle-type {
+  font-size: 11px;
+  color: var(--sdc-text-muted);
+}
+
+.br-route-chip {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--sdc-text-secondary);
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 5px;
+  padding: 2px 6px;
+}
+
+.br-decision-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  border-radius: 5px;
+  padding: 2px 6px;
+}
+
+.br-decision-stop { background: rgba(220, 38, 38, 0.18); color: #fca5a5; }
+.br-decision-amber { background: rgba(245, 158, 11, 0.18); color: #fcd34d; }
+.br-decision-continue { background: rgba(16, 185, 129, 0.18); color: #6ee7b7; }
+.br-decision-pending { background: rgba(59, 130, 246, 0.18); color: #93c5fd; }
+
+.br-spacer {
+  flex: 1;
+}
+
+.br-elapsed {
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--sdc-text-secondary);
+}
+
+.br-row-mid {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--sdc-text-secondary);
+}
+
+.br-issue {
+  font-weight: 600;
+  color: var(--sdc-text-primary);
+  flex-shrink: 0;
+}
+
+.br-sep {
+  color: var(--sdc-text-muted);
+  flex-shrink: 0;
+}
+
+.br-location {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.br-location-icon {
+  flex-shrink: 0;
+  color: var(--sdc-text-muted);
+}
+
+.br-location-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.br-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--sdc-text-muted);
+  flex-wrap: wrap;
+}
+
+.br-replacement-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #fcd34d;
+}
+
+/* ---------- RIGHT COLUMN: map + detail drawer ---------- */
+.cc-right-col {
+  gap: 14px;
+}
+
+.cc-right-panels {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cc-right-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--sdc-glass-border);
+  border-radius: 9px;
+  color: var(--sdc-text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Only shown on the <1024px full-screen overlay (see breakpoint below) */
+.cc-mobile-close {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  padding: 8px 12px;
+  margin-bottom: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--sdc-glass-border);
+  border-radius: 9px;
+  color: var(--sdc-text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cc-map-panel {
+  flex: 1 1 45%;
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  background: var(--sdc-glass-bg);
+  border: 1px solid var(--sdc-glass-border);
+  border-radius: var(--radius-xl, 16px);
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+}
+
+.cc-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--sdc-glass-border);
+}
+
+.cc-panel-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sdc-text-muted);
+}
+
+.cc-panel-count {
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: 11px;
+  color: var(--sdc-text-secondary);
+}
+
+.cc-map-canvas {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+.cc-map-canvas .breakdown-map-container,
+.cc-map-canvas .breakdown-map {
+  height: 100% !important;
+  width: 100%;
+  border-radius: 0;
+}
+
+.cc-drawer-panel {
+  flex: 1 1 55%;
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  background: var(--sdc-glass-bg);
+  border: 1px solid var(--sdc-glass-border);
+  border-radius: var(--radius-xl, 16px);
+  overflow-y: auto;
+  backdrop-filter: blur(12px);
+}
+
+.cc-drawer-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--sdc-text-muted);
+  text-align: center;
+  padding: 32px;
+}
+
+.cc-drawer-empty p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--sdc-text-secondary);
+  max-width: 220px;
+}
+
+/* Panel-mode SDCBreakdownCardEnhanced: it sits directly inside the drawer,
+   which already provides the outer border/radius/background, so strip the
+   card's own outer chrome and let its header/tabs/actions fill the drawer. */
+.cc-drawer-panel .sdc-card-enhanced {
+  margin-bottom: 0;
+  border: none;
+  border-left: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+  backdrop-filter: none;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.cc-drawer-panel .sdc-card-enhanced.highlighted {
+  box-shadow: inset 0 0 0 2px rgba(34, 211, 238, 0.35);
+  animation: none;
+}
+
+.cc-drawer-panel .card-header-compact {
+  cursor: default;
+}
+
+.cc-drawer-panel .card-header-compact:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.cc-drawer-panel .card-carousel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* ====================================================================
+   RESPONSIVE BREAKPOINTS
+   ==================================================================== */
+
+/* 1280-1439: narrower rail, narrower map/drawer column */
+@media (max-width: 1439px) {
+  .cc-shell {
+    grid-template-columns: 230px minmax(300px, 1fr) minmax(330px, 1fr);
+  }
+}
+
+/* 1024-1279: map and drawer can't both fit - toggle between them */
+@media (max-width: 1279px) and (min-width: 1024px) {
+  .cc-shell {
+    grid-template-columns: 210px minmax(280px, 1fr) minmax(300px, 1fr);
+  }
+
+  .cc-right-toggle {
+    display: flex;
+  }
+
+  /* The map and drawer overlap in the same box, toggled with `visibility`
+     (never `display: none`) - Leaflet corrupts its internal projection
+     state if its container is display:none while the map is mounted, which
+     threw uncaught "Invalid LatLng (NaN, NaN)" errors during pan/zoom. */
+  .cc-right-panels {
+    position: relative;
+  }
+
+  .cc-right-panels .cc-map-panel,
+  .cc-right-panels .cc-drawer-panel {
+    position: absolute;
+    inset: 0;
+  }
+
+  .cc-shell[data-rightview="drawer"] .cc-map-panel {
+    visibility: hidden;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .cc-shell[data-rightview="map"] .cc-drawer-panel {
+    visibility: hidden;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .cc-shell[data-rightview="drawer"] .cc-drawer-panel,
+  .cc-shell[data-rightview="map"] .cc-map-panel {
+    visibility: visible;
+    pointer-events: auto;
+    z-index: 1;
+  }
+}
+
+/* <1024: single column, drawer becomes a full-screen overlay */
+@media (max-width: 1023px) {
+  .sdc-dashboard {
+    height: auto;
+    min-height: calc(100vh - var(--app-top-offset, 84px));
+    overflow: visible;
+  }
+
+  .dashboard-content:has(> .sdc-dashboard) {
+    min-height: 100vh !important;
+  }
+
+  .cc-shell {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+  }
+
+  .cc-rail {
+    flex: none;
+  }
+
+  .cc-rail-scroll {
+    flex-direction: row;
+    flex-wrap: wrap;
+    overflow-y: visible;
+    overflow-x: auto;
+  }
+
+  .cc-rail-section {
+    flex: 1 1 220px;
+  }
+
+  .cc-list-col {
+    flex: none;
+    min-height: 420px;
+  }
+
+  .cc-right-col {
+    position: fixed;
+    inset: var(--app-top-offset, 84px) 0 0 0;
+    z-index: 40;
+    background: var(--sdc-bg-primary);
+    padding: 12px;
+    transform: translateX(100%);
+    transition: transform 0.25s ease;
+  }
+
+  .cc-right-col.cc-right-col-open {
+    transform: translateX(0);
+  }
+
+  .cc-right-toggle {
+    display: none !important;
+  }
+
+  .cc-mobile-close {
+    display: flex;
+  }
+
+  .cc-map-panel,
+  .cc-drawer-panel {
+    flex: 1 1 50%;
+  }
+}

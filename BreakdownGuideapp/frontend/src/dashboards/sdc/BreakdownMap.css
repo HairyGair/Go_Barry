@@ -519,3 +519,38 @@
 .marker-cluster-large div {
   background: none !important;
 }
+
+/* Map layer toggles — quiet pills (replaces coloured inline buttons) */
+.bm-toggles {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+.bm-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(10, 16, 28, 0.85);
+  backdrop-filter: blur(8px);
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.bm-toggle:hover { color: #e2e8f0; border-color: rgba(255, 255, 255, 0.22); }
+.bm-toggle.on {
+  color: #5ee4f2;
+  border-color: rgba(0, 188, 212, 0.45);
+  background: rgba(0, 151, 167, 0.2);
+}
+.bm-toggle:focus-visible { outline: 2px solid #22d3ee; outline-offset: 2px; }

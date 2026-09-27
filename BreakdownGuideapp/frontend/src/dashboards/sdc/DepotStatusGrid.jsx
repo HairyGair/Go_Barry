@@ -25,7 +25,8 @@ const getDepots = () => getDepotOptions(REAL_DEPOTS).map(d => (
   typeof d === 'string' ? { id: d, name: d, icon: '🏭' } : { id: d.name, name: d.name, icon: '🏭' }
 ));
 
-const DepotStatusGrid = ({ breakdowns = [], onDepotClick }) => {
+const DepotStatusGrid = ({ breakdowns = [], onDepotClick, variant = 'default', activeDepot = null }) => {
+  const isCompact = variant === 'compact';
   // Calculate breakdown counts per depot
   const depotStats = useMemo(() => {
     const stats = {};
@@ -78,6 +79,37 @@ const DepotStatusGrid = ({ breakdowns = [], onDepotClick }) => {
   // Total breakdowns across all depots
   const totalBreakdowns = breakdowns.length;
   const totalCritical = Object.values(depotStats).reduce((sum, s) => sum + s.critical, 0);
+
+  // Compact variant: a narrow vertical list for the Operations command
+  // centre's left rail. Clicking a depot toggles a filter (handled by the
+  // parent via onDepotClick) rather than opening the Engineering display.
+  if (isCompact) {
+    return (
+      <div className="depot-status-grid depot-status-grid--compact">
+        {getDepots().map(depot => {
+          const stat = depotStats[depot.id];
+          const statusClass = getStatusClass(depot);
+          const isActive = activeDepot === depot.id;
+
+          return (
+            <button
+              key={depot.id}
+              type="button"
+              className={`dsg-compact-row dsg-compact-status-${statusClass} ${isActive ? 'dsg-compact-selected' : ''}`}
+              onClick={() => onDepotClick && onDepotClick(depot.id)}
+              aria-pressed={isActive}
+              title={`${depot.name}: ${stat.total} breakdown${stat.total !== 1 ? 's' : ''}${stat.critical > 0 ? `, ${stat.critical} STOP` : ''}`}
+            >
+              <span className={`depot-status-dot ${statusClass}`} aria-hidden="true" />
+              <span className="dsg-compact-name">{depot.name}</span>
+              <span className="dsg-compact-count">{stat.total}</span>
+              {stat.critical > 0 && <span className="dsg-compact-critical-badge">{stat.critical}</span>}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <div className="depot-status-grid">

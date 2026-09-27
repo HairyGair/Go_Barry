@@ -14,12 +14,13 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useLocation } from 'react-router-dom';
 import {
   ClipboardList, AlertTriangle, Hourglass, RefreshCw, User, Star,
-  Smartphone, OctagonAlert, CheckCircle2, MapPin, X, Volume2, VolumeX, BatteryCharging
+  Smartphone, OctagonAlert, CheckCircle2, MapPin, X, Volume2, VolumeX, BatteryCharging,
+  Search, Building2, Map as MapIcon, PanelRightClose
 } from 'lucide-react';
 import DashboardLayout from '../components/DashboardLayout';
-import FilterBar from '../components/FilterBar';
-import EnhancedFilterBar from './EnhancedFilterBar';
 import SDCBreakdownCardEnhanced from './SDCBreakdownCardEnhanced';
+import BreakdownRow from './components/BreakdownRow';
+import { getSeverityRank, matchesSearch } from './utils/breakdownRowHelpers';
 import { getSDCGuidance, getSLAForIssue } from './utils/sdcGuideReference';
 import PriorityAlerts from './PriorityAlerts';
 import StatusWidget from './StatusWidget';
@@ -94,9 +95,17 @@ const SDCDashboard = () => {
     breakdown: null
   });
 
-  // Full-screen map mode
-  const [fullScreenMap, setFullScreenMap] = useState(false);
-  const [expandedCard, setExpandedCard] = useState(null);
+  // Command centre selection/search state (3-column layout)
+  const [selectedBreakdownId, setSelectedBreakdownId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [depotFilter, setDepotFilter] = useState(null);
+  // Which panel shows in the right column at the 1024-1279px breakpoint,
+  // where the map and the detail drawer can't both fit ('drawer' | 'map').
+  const [rightPanelView, setRightPanelView] = useState('drawer');
+  // Below 1024px the right column becomes a full-screen overlay - this
+  // tracks whether it's currently slid into view (see SDCDashboard.css).
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const autoSelectedRef = useRef(false);
 
   // URL parameter handling state
   const [redirectNotification, setRedirectNotification] = useState(null);
@@ -458,8 +467,9 @@ const SDCDashboard = () => {
         setHighlightedBreakdown(targetBreakdown.breakdown_id);
         setScrollToBreakdown(targetBreakdown.breakdown_id);
 
-        // Auto-expand the card
-        setExpandedCard(targetBreakdown.breakdown_id);
+        // Select the breakdown so the detail drawer shows it
+        setSelectedBreakdownId(targetBreakdown.breakdown_id);
+        autoSelectedRef.current = true;
 
         // Clear highlight after 10 seconds
         setTimeout(() => {
@@ -489,7 +499,9 @@ const SDCDashboard = () => {
       // Set highlight state
       setHighlightedBreakdown(highlightId);
       setScrollToBreakdown(highlightId);
-      
+      setSelectedBreakdownId(highlightId);
+      autoSelectedRef.current = true;
+
       // Create completion notification if this is from an assessment
       if (decision && source === 'breakdown-guide') {
         const notificationData = {
@@ -576,18 +588,13 @@ const SDCDashboard = () => {
         setTimeout(() => {
           const breakdownElement = breakdownRefs.current.get(scrollToBreakdown);
           if (breakdownElement) {
-            // Smooth scroll to breakdown with offset for header
-            const yOffset = -100;
-            const y = breakdownElement.getBoundingClientRect().top + window.pageYOffset + yOffset;
-            
-            window.scrollTo({
-              top: y,
-              behavior: 'smooth'
-            });
-            
+            // The centre column scrolls internally now (fixed-height command
+            // centre layout), so scroll the row into view within its own
+            // scroll container rather than the page.
+            breakdownElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
             console.log('📍 Auto-scrolled to breakdown:', scrollToBreakdown);
           }
-          
+
           // Clear scroll target
           setScrollToBreakdown(null);
         }, 500);
@@ -1219,6 +1226,119 @@ const SDCDashboard = () => {
     });
   }, [breakdowns, activeFilter, activeAssessments, currentSupervisor]);
 
+  // Depot + free-text search narrowing on top of the active filter - drives
+  // the centre list, the map, and the "N breakdowns displayed" footer count.
+  // Depot Status Grid counts intentionally use `filteredBreakdowns` (above,
+  // without the depot narrowing) so a supervisor can still see every depot's
+  // count while one depot is selected.
+  const depotAndSearchFilteredBreakdowns = useMemo(() => {
+    return filteredBreakdowns.filter(b => {
+      if (depotFilter) {
+        const depotName = b.depot || b.depot_id || b.depot_display || '';
+        if (depotName.toLowerCase() !== depotFilter.toLowerCase()) return false;
+      }
+      return matchesSearch(b, searchQuery);
+    });
+  }, [filteredBreakdowns, depotFilter, searchQuery]);
+
+  // Most-urgent-first ordering for the centre column (STOP > AMBER > PENDING
+  // > CONTINUE, then longest-elapsed within the same severity).
+  const sortedCentreBreakdowns = useMemo(() => {
+    return [...depotAndSearchFilteredBreakdowns].sort((a, b) => {
+      const rankDiff = getSeverityRank(b) - getSeverityRank(a);
+      if (rankDiff !== 0) return rankDiff;
+      return (b.elapsed || 0) - (a.elapsed || 0);
+    });
+  }, [depotAndSearchFilteredBreakdowns]);
+
+  // Auto-select the most urgent breakdown once data first loads, unless a
+  // deep link (?fleet=/?highlight=) already made a selection.
+  useEffect(() => {
+    if (loading || autoSelectedRef.current) return;
+    if (sortedCentreBreakdowns.length > 0) {
+      setSelectedBreakdownId(sortedCentreBreakdowns[0].breakdown_id);
+      autoSelectedRef.current = true;
+    }
+  }, [loading, sortedCentreBreakdowns]);
+
+  // Selection lookup - re-derived from the live `breakdowns` state on every
+  // render so it stays correct across refreshes/WebSocket updates without
+  // needing to store the breakdown object itself (only its id).
+  const selectedBreakdown = useMemo(() => {
+    if (!selectedBreakdownId) return null;
+    return breakdowns.find(b => b.breakdown_id === selectedBreakdownId) || null;
+  }, [breakdowns, selectedBreakdownId]);
+
+  // Same per-item enhancement the old inline list used to apply, now
+  // computed once for the selected breakdown (feeds the detail drawer).
+  const selectedBreakdownEnhanced = useMemo(() => {
+    if (!selectedBreakdown) return null;
+    const hasActiveAssessment = activeAssessments.some(a =>
+      a.breakdown_id === selectedBreakdown.breakdown_id || a.fleet_no === selectedBreakdown.fleet_number
+    );
+    return {
+      ...selectedBreakdown,
+      hasActiveAssessment,
+      inAssessment: hasActiveAssessment,
+      elapsed: selectedBreakdown.created_at
+        ? Math.floor((new Date() - new Date(selectedBreakdown.created_at)) / 1000 / 60)
+        : 0,
+      sla: getSLAForIssue(selectedBreakdown.issue_type || selectedBreakdown.wizard_type, selectedBreakdown.isPriorityRoute),
+      sdcGuidance: getSDCGuidance(selectedBreakdown.issue_type || selectedBreakdown.wizard_type)
+    };
+  }, [selectedBreakdown, activeAssessments]);
+
+  const selectedRecentlyCompleted = useMemo(() => {
+    if (!selectedBreakdown) return false;
+    return completedAssessments.some(c =>
+      c.id === selectedBreakdown.breakdown_id && (Date.now() - new Date(c.completedAt)) < 10000
+    );
+  }, [selectedBreakdown, completedAssessments]);
+
+  const selectedEngineeringTimer = selectedBreakdown ? engineeringTimers.get(selectedBreakdown.breakdown_id) : null;
+
+  const handleSelectBreakdown = useCallback((breakdownId) => {
+    setSelectedBreakdownId(breakdownId);
+    // Below 1024px the drawer is an overlay rather than a permanent column -
+    // selecting a row from the list opens it. Harmless at wider widths since
+    // the overlay styling only applies under that breakpoint (see CSS).
+    setMobileDrawerOpen(true);
+  }, []);
+
+  const handleDepotFilterToggle = useCallback((depotId) => {
+    setDepotFilter(prev => (prev === depotId ? null : depotId));
+  }, []);
+
+  // Keyboard navigation (Arrow Up/Down + Enter) across the centre list.
+  const handleListKeyDown = useCallback((e) => {
+    if (!['ArrowDown', 'ArrowUp', 'Enter', 'Home', 'End'].includes(e.key)) return;
+    if (sortedCentreBreakdowns.length === 0) return;
+    e.preventDefault();
+
+    const currentIndex = sortedCentreBreakdowns.findIndex(b => b.breakdown_id === selectedBreakdownId);
+
+    if (e.key === 'Enter') {
+      if (currentIndex === -1) {
+        setSelectedBreakdownId(sortedCentreBreakdowns[0].breakdown_id);
+      }
+      return;
+    }
+
+    let nextIndex;
+    if (e.key === 'Home') nextIndex = 0;
+    else if (e.key === 'End') nextIndex = sortedCentreBreakdowns.length - 1;
+    else if (currentIndex === -1) nextIndex = 0;
+    else if (e.key === 'ArrowDown') nextIndex = Math.min(sortedCentreBreakdowns.length - 1, currentIndex + 1);
+    else nextIndex = Math.max(0, currentIndex - 1);
+
+    const nextBreakdown = sortedCentreBreakdowns[nextIndex];
+    if (!nextBreakdown) return;
+    setSelectedBreakdownId(nextBreakdown.breakdown_id);
+
+    const el = breakdownRefs.current.get(nextBreakdown.breakdown_id);
+    if (el) el.scrollIntoView({ block: 'nearest' });
+  }, [sortedCentreBreakdowns, selectedBreakdownId]);
+
   // Memoized action handlers for performance
   const handleEmergencyBreakdown = useCallback(() => {
     window.location.href = '/breakdown-guide';
@@ -1714,246 +1834,223 @@ const SDCDashboard = () => {
       )}
 
 
-      {/* Enhanced Filter Bar with Assessment Details */}
-      <EnhancedFilterBar
-        filters={filters}
-        activeFilter={activeFilter}
-        onFilterChange={setActiveFilter}
-      />
+      {/* Command Centre - 3 column layout (rail / list / map+drawer) */}
+      <div className="cc-shell" data-rightview={rightPanelView}>
 
-      {/* Supervisor Coverage Bar - Shows shift coverage status with stats */}
-      <div className="sdc-coverage-bar-wrapper">
-        <SupervisorCoverageBar refreshInterval={60000} />
-      </div>
+        {/* ===== LEFT RAIL: filters, coverage, depots, footer controls ===== */}
+        <aside className="cc-rail" aria-label="Filters and status">
+          <div className="cc-rail-scroll">
+            <div className="cc-rail-section">
+              <h3 className="cc-rail-label">Filters</h3>
+              <nav className="cc-rail-filters" aria-label="Breakdown filters">
+                {filters.map(f => (
+                  <button
+                    key={f.value}
+                    type="button"
+                    className={`cc-rail-filter ${activeFilter === f.value ? 'cc-rail-filter-active' : ''}`}
+                    onClick={() => setActiveFilter(f.value)}
+                    title={f.subtitle || f.label}
+                    aria-pressed={activeFilter === f.value}
+                  >
+                    <span className="cc-rail-filter-icon">{f.icon}</span>
+                    <span className="cc-rail-filter-label">{f.label}</span>
+                    <span className="cc-rail-filter-count">{f.count}</span>
+                  </button>
+                ))}
+              </nav>
+            </div>
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-        {/* Breakdown List - 2/3 width */}
-        <div className="lg:col-span-2">
-          <div className="breakdown-list">
-            {loading ? (
-              <div className="text-center py-8">
-                <div className="spinner-border" role="status">
-                  <span className="sr-only">Loading real SDC data...</span>
-                </div>
-                <p className="mt-2">Fetching live breakdowns...</p>
+            <div className="cc-rail-section">
+              <h3 className="cc-rail-label">Coverage</h3>
+              <SupervisorCoverageBar refreshInterval={60000} variant="compact" />
+            </div>
+
+            <div className="cc-rail-section">
+              <h3 className="cc-rail-label">Depots</h3>
+              <DepotStatusGrid
+                variant="compact"
+                breakdowns={filteredBreakdowns}
+                activeDepot={depotFilter}
+                onDepotClick={handleDepotFilterToggle}
+              />
+            </div>
+          </div>
+
+          <div className="cc-rail-footer">
+            <span className="cc-rail-live" title="Live - updates automatically">
+              <span className="cc-rail-live-dot" aria-hidden="true"></span>
+              Live
+            </span>
+            <button
+              type="button"
+              className={`cc-rail-icon-btn ${soundEnabled ? 'cc-rail-icon-btn-on' : ''}`}
+              onClick={handleSoundToggle}
+              title={soundEnabled ? 'Click to disable sound alerts' : 'Click to enable sound alerts'}
+              aria-pressed={soundEnabled}
+            >
+              {soundEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
+            </button>
+            <button
+              type="button"
+              className="cc-rail-icon-btn"
+              onClick={() => window.open('/dashboards/ev-charges', '_blank')}
+              title="View EV fleet charge levels"
+            >
+              <BatteryCharging size={14} />
+            </button>
+          </div>
+        </aside>
+
+        {/* ===== CENTRE COLUMN: search + selectable breakdown list ===== */}
+        <section className="cc-list-col" aria-label="Breakdown list">
+          <div className="cc-list-header">
+            <div className="cc-search-box">
+              <Search size={14} className="cc-search-icon" aria-hidden="true" />
+              <input
+                type="text"
+                className="cc-search-input"
+                placeholder="Search fleet, route, location, issue…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                aria-label="Search breakdowns"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  className="cc-search-clear"
+                  onClick={() => setSearchQuery('')}
+                  aria-label="Clear search"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+            {depotFilter && (
+              <div className="cc-active-chip">
+                <Building2 size={12} aria-hidden="true" />
+                <span>{depotFilter}</span>
+                <button
+                  type="button"
+                  onClick={() => setDepotFilter(null)}
+                  aria-label={`Clear depot filter: ${depotFilter}`}
+                >
+                  <X size={12} />
+                </button>
               </div>
-            ) : filteredBreakdowns.length === 0 ? (
-              <div className="no-breakdowns">
+            )}
+          </div>
+
+          <div
+            className="cc-list-scroll"
+            role="listbox"
+            aria-label="Breakdowns, most urgent first"
+            tabIndex={0}
+            onKeyDown={handleListKeyDown}
+          >
+            {loading ? (
+              <div className="cc-list-state">
+                <RefreshCw size={22} className="cc-spin" aria-hidden="true" />
+                <p>Fetching live breakdowns…</p>
+              </div>
+            ) : sortedCentreBreakdowns.length === 0 ? (
+              <div className="cc-list-state">
+                <ClipboardList size={22} aria-hidden="true" />
                 <p>No breakdowns matching filter</p>
                 <small>Real-time data from assessments</small>
               </div>
             ) : (
-              filteredBreakdowns.map(breakdown => {
-                const isHighlighted = highlightedBreakdown === breakdown.breakdown_id;
-                const hasActiveAssessment = activeAssessments.some(a => 
-                  a.breakdown_id === breakdown.breakdown_id || a.fleet_no === breakdown.fleet_number
-                );
-                const recentlyCompleted = completedAssessments.some(c => 
-                  c.id === breakdown.breakdown_id && 
-                  (Date.now() - new Date(c.completedAt)) < 10000 // Within last 10 seconds
-                );
-                const engineeringTimer = engineeringTimers.get(breakdown.breakdown_id);
-                
-                return (
-                  <div
-                    key={breakdown.breakdown_id}
-                    ref={(el) => setBreakdownRef(breakdown.breakdown_id, el)}
-                    className={`breakdown-card-container ${
-                      breakdown.isFadingOut ? 'fading-out' : ''
-                    } ${breakdown.isResolving ? 'resolving' : ''}`}
-                  >
-                    <SDCBreakdownCardEnhanced
-                      breakdown={{
-                        ...breakdown,
-                        hasActiveAssessment,
-                        inAssessment: hasActiveAssessment,
-                        // Add elapsed time calculation
-                        elapsed: breakdown.created_at ? 
-                          Math.floor((new Date() - new Date(breakdown.created_at)) / 1000 / 60) : 0,
-                        // Add SLA information based on issue type
-                        sla: getSLAForIssue(breakdown.issue_type || breakdown.wizard_type, breakdown.isPriorityRoute),
-                        // Add SDC guidance
-                        sdcGuidance: getSDCGuidance(breakdown.issue_type || breakdown.wizard_type)
-                      }}
-                      isHighlighted={isHighlighted}
-                      recentlyCompleted={recentlyCompleted}
-                      engineeringTimer={engineeringTimer ? {
-                        ...engineeringTimer,
-                        remaining: Math.max(0, engineeringTimer.targetTime - (Date.now() - engineeringTimer.startTime))
-                      } : null}
-                      onAcknowledge={() => handleAcknowledge(breakdown.breakdown_id)}
-                      onMakeDecision={(decision) => handleMakeDecision(breakdown.breakdown_id, decision)}
-                      onRequestEngineering={() => handleRequestEngineering(breakdown.breakdown_id)}
-                      onEditAssessment={() => handleEditAssessment(breakdown.breakdown_id)}
-                      onResolve={() => handleResolveBreakdown(breakdown)}
-                      onViewGuide={handleViewGuide}
-                      onAddNote={handleAddNote}
-                      onContact={handleContact}
-                      onDispatchReplacement={handleDispatchReplacement}
-                      onReturnToService={handleReturnToService}
-                    />
-                  </div>
-                );
-              })
+              sortedCentreBreakdowns.map(breakdown => (
+                <BreakdownRow
+                  key={breakdown.breakdown_id}
+                  breakdown={breakdown}
+                  isSelected={selectedBreakdownId === breakdown.breakdown_id}
+                  onSelect={handleSelectBreakdown}
+                  rowRef={(el) => setBreakdownRef(breakdown.breakdown_id, el)}
+                />
+              ))
             )}
           </div>
-        </div>
+        </section>
 
-        {/* Right sidebar - Depot Status Grid */}
-        <div className="right-sidebar">
-          <DepotStatusGrid
-            breakdowns={filteredBreakdowns}
-            onDepotClick={(depotId) => {
-              // Navigate to Engineering display filtered by depot
-              window.open(`/dashboards/engineering?depot=${encodeURIComponent(depotId)}`, '_blank');
-            }}
-          />
-        </div>
-      </div>
+        {/* ===== RIGHT COLUMN: live map (top) + detail drawer (bottom) ===== */}
+        <section
+          className={`cc-right-col ${mobileDrawerOpen ? 'cc-right-col-open' : ''}`}
+          aria-label="Map and breakdown details"
+        >
+          <button
+            type="button"
+            className="cc-mobile-close"
+            onClick={() => setMobileDrawerOpen(false)}
+            aria-label="Close details"
+          >
+            <X size={16} /> Back to list
+          </button>
+          <button
+            type="button"
+            className="cc-right-toggle"
+            onClick={() => setRightPanelView(v => (v === 'map' ? 'drawer' : 'map'))}
+          >
+            {rightPanelView === 'map'
+              ? <><PanelRightClose size={13} /> Show details</>
+              : <><MapIcon size={13} /> Show map</>}
+          </button>
 
-      {/* Full-Screen Map Overlay */}
-      {fullScreenMap && (
-        <div className="fullscreen-map-overlay">
-          <div className="fullscreen-map-header">
-            <div className="fullscreen-map-title">
-              <span className="title-icon">🗺️</span>
-              <h2>Live Breakdown Locations</h2>
-              <span className="breakdown-count">
-                {filteredBreakdowns.length} active breakdown{filteredBreakdowns.length !== 1 ? 's' : ''}
-              </span>
-            </div>
-            <div className="fullscreen-map-info">
-              <span className="live-dot"></span>
-              <span className="info-text">Auto-refreshing every 30 seconds</span>
-              <span className="current-time">
-                {new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
-              </span>
-            </div>
-            <button
-              className="close-fullscreen-btn"
-              onClick={() => setFullScreenMap(false)}
-              title="Close full-screen map"
-            >
-              <X size={15} /> Close
-            </button>
-          </div>
-          <div className="fullscreen-map-container">
-            <div className="fullscreen-map-content">
-              <BreakdownMap
-                breakdowns={filteredBreakdowns}
-                highlightedId={highlightedBreakdown}
-                onMarkerClick={(breakdownId) => {
-                  setHighlightedBreakdown(breakdownId);
-                  // Expand the sidebar card for this breakdown
-                  setExpandedCard(breakdownId);
-                  // Clear highlight after 10 seconds
-                  setTimeout(() => setHighlightedBreakdown(null), 10000);
-                }}
-              />
-            </div>
-            <div className="fullscreen-map-sidebar">
-              <div className="sidebar-header">
-                <h3>Active Breakdowns</h3>
-                <button
-                  className="toggle-sidebar-btn"
-                  onClick={(e) => {
-                    e.currentTarget.closest('.fullscreen-map-sidebar').classList.toggle('collapsed');
+          {/* Wrapper so the 1024-1279px breakpoint can overlap the map and
+              drawer in the same box (toggling visibility, not `display`) -
+              Leaflet corrupts its internal state if its container is ever
+              `display: none` while mounted. */}
+          <div className="cc-right-panels">
+            <div className="cc-map-panel">
+              <div className="cc-panel-header">
+                <span className="cc-panel-title">Live Map</span>
+                <span className="cc-panel-count">
+                  {depotAndSearchFilteredBreakdowns.length} breakdown{depotAndSearchFilteredBreakdowns.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+              <div className="cc-map-canvas">
+                <BreakdownMap
+                  breakdowns={depotAndSearchFilteredBreakdowns}
+                  highlightedId={highlightedBreakdown || selectedBreakdownId}
+                  onMarkerClick={(breakdownId) => {
+                    setSelectedBreakdownId(breakdownId);
+                    setHighlightedBreakdown(breakdownId);
+                    setTimeout(() => setHighlightedBreakdown(null), 4000);
                   }}
-                >
-                  ◀
-                </button>
-              </div>
-              <div className="sidebar-breakdown-list">
-                {filteredBreakdowns.map(breakdown => (
-                  <div
-                    key={breakdown.breakdown_id}
-                    className={`sidebar-breakdown-card ${
-                      highlightedBreakdown === breakdown.breakdown_id ? 'highlighted' : ''
-                    } ${expandedCard === breakdown.breakdown_id ? 'expanded' : ''}`}
-                    onClick={() => {
-                      setHighlightedBreakdown(breakdown.breakdown_id);
-                      setExpandedCard(expandedCard === breakdown.breakdown_id ? null : breakdown.breakdown_id);
-                    }}
-                  >
-                    <div className="card-header-mini">
-                      <span className={`severity-badge severity-${(breakdown.wizard_decision || breakdown.severity || 'continue').toLowerCase()}`}>
-                        {breakdown.wizard_decision || breakdown.severity || 'PENDING'}
-                      </span>
-                      <span className="fleet-number">Fleet {breakdown.fleet_no}</span>
-                      <span className="elapsed-time">
-                        {breakdown.elapsed || Math.floor((new Date() - new Date(breakdown.created_at)) / 1000 / 60)} min
-                      </span>
-                    </div>
-                    <div className="card-location">
-                      <MapPin size={12} style={{ verticalAlign: '-2px' }} /> {breakdown.location_description || breakdown.location || 'Location TBC'}
-                    </div>
-                    {expandedCard === breakdown.breakdown_id && (
-                      <div className="card-details-mini">
-                        <div className="detail-row">
-                          <span className="label">Route:</span>
-                          <span className="value">{breakdown.route_id || 'N/A'}</span>
-                        </div>
-                        <div className="detail-row">
-                          <span className="label">Depot:</span>
-                          <span className="value">{breakdown.depot || 'Unknown'}</span>
-                        </div>
-                        <div className="detail-row">
-                          <span className="label">Issue:</span>
-                          <span className="value">{breakdown.issue_category || 'Not specified'}</span>
-                        </div>
-                        <button
-                          className="view-details-btn"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setFullScreenMap(false);
-                            const cardElement = breakdownRefs.current.get(breakdown.breakdown_id);
-                            if (cardElement) {
-                              cardElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            }
-                          }}
-                        >
-                          View Full Details
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                />
               </div>
             </div>
-          </div>
-        </div>
-      )}
 
-      {/* Real-time indicator */}
-      <div className="dashboard-footer">
-        <span className="live-indicator">
-          <span className="pulse"></span>
-          Live · updates automatically
-        </span>
-        <div className="footer-controls">
-          <button
-            className="footer-link-btn"
-            onClick={() => window.open('/dashboards/ev-charges', '_blank')}
-            title="View EV fleet charge levels"
-          >
-            <BatteryCharging size={14} aria-hidden="true" />
-            <span>EV charges</span>
-          </button>
-          <button
-            className={`sound-toggle-btn ${soundEnabled ? 'enabled' : 'disabled'}`}
-            onClick={handleSoundToggle}
-            title={soundEnabled ? 'Click to disable sound alerts' : 'Click to enable sound alerts'}
-          >
-            {soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
-            <span className="sound-toggle-label">
-              {soundEnabled ? 'Sound alerts on' : 'Sound alerts off'}
-            </span>
-          </button>
-          <span className="last-update">
-            {filteredBreakdowns.length} breakdown{filteredBreakdowns.length !== 1 ? 's' : ''} displayed
-          </span>
-        </div>
+            <div className="cc-drawer-panel">
+              {selectedBreakdown ? (
+                <SDCBreakdownCardEnhanced
+                  mode="panel"
+                  breakdown={selectedBreakdownEnhanced}
+                  isHighlighted={highlightedBreakdown === selectedBreakdown.breakdown_id}
+                  recentlyCompleted={selectedRecentlyCompleted}
+                  engineeringTimer={selectedEngineeringTimer ? {
+                    ...selectedEngineeringTimer,
+                    remaining: Math.max(0, selectedEngineeringTimer.targetTime - (Date.now() - selectedEngineeringTimer.startTime))
+                  } : null}
+                  onAcknowledge={() => handleAcknowledge(selectedBreakdown.breakdown_id)}
+                  onMakeDecision={(decision) => handleMakeDecision(selectedBreakdown.breakdown_id, decision)}
+                  onRequestEngineering={() => handleRequestEngineering(selectedBreakdown.breakdown_id)}
+                  onEditAssessment={() => handleEditAssessment(selectedBreakdown.breakdown_id)}
+                  onResolve={() => handleResolveBreakdown(selectedBreakdown)}
+                  onViewGuide={handleViewGuide}
+                  onAddNote={handleAddNote}
+                  onContact={handleContact}
+                  onDispatchReplacement={handleDispatchReplacement}
+                  onReturnToService={handleReturnToService}
+                />
+              ) : (
+                <div className="cc-drawer-empty">
+                  <ClipboardList size={28} aria-hidden="true" />
+                  <p>Select a breakdown to see details and actions</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
       </div>
 
       {/* Breakdown Resolution Dialog */}

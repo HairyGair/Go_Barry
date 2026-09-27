@@ -142,8 +142,15 @@ const SDCBreakdownCardEnhanced = memo(({
   animationDelay = 0,
   isHighlighted = false,
   engineeringTimer = null,
-  recentlyCompleted = false
+  recentlyCompleted = false,
+  // mode: 'card' (default) is the original self-contained, click-to-expand
+  // card. mode: 'panel' renders permanently expanded with no collapse
+  // control - used inside the Operations command centre's detail drawer,
+  // where the surrounding panel chrome (border/shadow) is provided by the
+  // drawer itself, not this component.
+  mode = 'card'
 }) => {
+  const isPanelMode = mode === 'panel';
   const [showDetails, setShowDetails] = useState(false);
   const [slaStatus, setSlaStatus] = useState('ok');
   const [timeElapsed, setTimeElapsed] = useState(0);
@@ -572,19 +579,26 @@ const SDCBreakdownCardEnhanced = memo(({
   };
 
   const toggleExpanded = () => {
+    if (isPanelMode) return; // Panel mode is always expanded
     setIsExpanded(!isExpanded);
     if (!isExpanded) {
       setActiveCardIndex(0); // Reset to first card when expanding
     }
   };
 
+  // Panel mode (detail drawer) is always fully expanded - there's no
+  // collapsed state to toggle back to.
+  const effectiveExpanded = isPanelMode ? true : isExpanded;
+
   return (
     <div
-      className={`sdc-card-enhanced ${decisionInfo.class} ${slaStatus} ${isHighlighted ? 'highlighted' : ''} ${isExpanded ? 'expanded' : 'collapsed'}`}
+      className={`sdc-card-enhanced ${decisionInfo.class} ${slaStatus} ${isHighlighted ? 'highlighted' : ''} ${effectiveExpanded ? 'expanded' : 'collapsed'} ${isPanelMode ? 'sdc-card-enhanced--panel' : ''}`}
       style={{ animationDelay: `${animationDelay}s` }}
     >
-      {/* Compact Header - Always Visible */}
-      <div className="card-header-compact" onClick={toggleExpanded}>
+      {/* Compact Header - Always Visible. In panel mode this doubles as the
+          drawer header (fleet, route, decision, elapsed, ETA) and is not
+          clickable since there's nothing to collapse. */}
+      <div className="card-header-compact" onClick={isPanelMode ? undefined : toggleExpanded}>
         <div className="header-top-row">
           <div className="header-left">
             <div className="fleet-number-compact">
@@ -627,14 +641,16 @@ const SDCBreakdownCardEnhanced = memo(({
             <div className={`timer-compact ${slaStatus}`}>
               {formatTime(timeElapsed)} ELAPSED
             </div>
-            <button
-              className="expand-toggle"
-              onClick={(e) => { e.stopPropagation(); toggleExpanded(); }}
-              aria-label={isExpanded ? 'Collapse card' : 'Expand card'}
-              aria-expanded={isExpanded}
-            >
-              {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-            </button>
+            {!isPanelMode && (
+              <button
+                className="expand-toggle"
+                onClick={(e) => { e.stopPropagation(); toggleExpanded(); }}
+                aria-label={isExpanded ? 'Collapse card' : 'Expand card'}
+                aria-expanded={isExpanded}
+              >
+                {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              </button>
+            )}
           </div>
         </div>
 
@@ -666,7 +682,7 @@ const SDCBreakdownCardEnhanced = memo(({
       </div>
 
       {/* Expanded Card Carousel - Only visible when expanded */}
-      {isExpanded && (
+      {effectiveExpanded && (
         <div className="card-carousel">
           {/* Card Navigation */}
           <div className="carousel-navigation">
@@ -701,6 +717,8 @@ const SDCBreakdownCardEnhanced = memo(({
                   Breakdown Overview
                 </h3>
                 <div className="overview-grid">
+                  {/* Panel mode: fleet and elapsed are already in the panel header */}
+                  {!isPanelMode && (
                   <div className="overview-item fleet-display">
                     <div className="overview-label">Fleet Number</div>
                     <div className="overview-value fleet-large">{fleetNumber}</div>
@@ -708,12 +726,15 @@ const SDCBreakdownCardEnhanced = memo(({
                       <div className="overview-subvalue">{simplifiedVehicleType}</div>
                     )}
                   </div>
+                  )}
                   <div className="overview-item">
-                    <div className="overview-label">Time Elapsed</div>
+                    <div className="overview-label">{isPanelMode ? 'SLA' : 'Time Elapsed'}</div>
+                    {!isPanelMode && (
                     <div className={`overview-value timer-large ${slaStatus}`}>
                       {formatTime(timeElapsed)}
                     </div>
-                    <div className="overview-subvalue">
+                    )}
+                    <div className={isPanelMode ? `overview-value sla-${slaStatus}` : 'overview-subvalue'}>
                       {slaStatus === 'breached' ? 'SLA Breached' :
                        slaStatus === 'warning' ? 'SLA Warning' :
                        'Within SLA'}
@@ -1024,7 +1045,7 @@ const SDCBreakdownCardEnhanced = memo(({
       )}
 
       {/* Action Buttons - Always visible at bottom */}
-      {isExpanded && (
+      {effectiveExpanded && (
         <div className="action-buttons-container">
           {/* Quick Decision Buttons - Show for acknowledged or when no decision */}
           {(breakdown.currentStage === 'acknowledged' || !breakdown.wizard_decision) && (

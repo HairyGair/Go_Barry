@@ -1,5 +1,6 @@
 import React, { useMemo, useCallback, useState, useEffect, useRef } from 'react';
-import { Building2, MapPin } from 'lucide-react';
+import { Building2, MapPin, Bug, Layers, Flame, Car } from 'lucide-react';
+import { DARK_BASE_TILES, DARK_LABEL_TILES } from '../../config/mapTiles';
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMap } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
@@ -92,35 +93,107 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-// Create icons OUTSIDE component to prevent recreation
-const breakdownIcon = L.divIcon({
-  html: `
-    <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="12" cy="12" r="10" fill="#dc2626" opacity="0.3"/>
-      <circle cx="12" cy="12" r="8" fill="#dc2626" stroke="white" stroke-width="2"/>
-      <circle cx="12" cy="12" r="3" fill="#ff4444"/>
-    </svg>
-  `,
-  className: 'breakdown-marker',
-  iconSize: [24, 24],
-  iconAnchor: [12, 12],
-  popupAnchor: [0, -12]
-});
+// Marker colours by decision/severity - kept in sync with the triage chip
+// colours used in the breakdown row and detail drawer (STOP/AMBER/CONTINUE/PENDING).
+const SEVERITY_COLORS = {
+  stop: '#dc2626',
+  amber: '#f59e0b',
+  continue: '#10b981',
+  pending: '#3b82f6'
+};
 
-// Highlighted breakdown icon - larger with pulsing effect
-const highlightedBreakdownIcon = L.divIcon({
-  html: `
-    <svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="18" cy="18" r="16" fill="#dc2626" opacity="0.2" class="pulse-ring"/>
-      <circle cx="18" cy="18" r="12" fill="#dc2626" stroke="white" stroke-width="3"/>
-      <circle cx="18" cy="18" r="5" fill="#ff4444"/>
-    </svg>
-  `,
-  className: 'breakdown-marker highlighted',
-  iconSize: [36, 36],
-  iconAnchor: [18, 18],
-  popupAnchor: [0, -18]
-});
+const getBreakdownSeverityKey = (breakdown) => {
+  const decision = (breakdown.decision || breakdown.wizard_decision || breakdown.severity || '').toUpperCase();
+  if (decision === 'STOP') return 'stop';
+  if (decision === 'AMBER') return 'amber';
+  if (decision === 'CONTINUE') return 'continue';
+  return 'pending';
+};
+
+const buildBreakdownIcon = (color, highlighted) => {
+  if (highlighted) {
+    return L.divIcon({
+      html: `
+        <svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="18" cy="18" r="16" fill="${color}" opacity="0.25" class="pulse-ring"/>
+          <circle cx="18" cy="18" r="12" fill="${color}" stroke="white" stroke-width="3"/>
+          <circle cx="18" cy="18" r="5" fill="white" opacity="0.9"/>
+        </svg>
+      `,
+      className: 'breakdown-marker highlighted',
+      iconSize: [36, 36],
+      iconAnchor: [18, 18],
+      popupAnchor: [0, -18]
+    });
+  }
+  return L.divIcon({
+    html: `
+      <svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="12" cy="12" r="10" fill="${color}" opacity="0.3"/>
+        <circle cx="12" cy="12" r="8" fill="${color}" stroke="white" stroke-width="2"/>
+        <circle cx="12" cy="12" r="3" fill="white" opacity="0.9"/>
+      </svg>
+    `,
+    className: 'breakdown-marker',
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
+    popupAnchor: [0, -12]
+  });
+};
+
+// Pre-built once per severity/highlight combination (created outside the
+// component so re-renders don't recreate Leaflet icon instances).
+const BREAKDOWN_ICONS = Object.keys(SEVERITY_COLORS).reduce((acc, key) => {
+  acc[key] = {
+    normal: buildBreakdownIcon(SEVERITY_COLORS[key], false),
+    highlighted: buildBreakdownIcon(SEVERITY_COLORS[key], true)
+  };
+  return acc;
+}, {});
+
+const getMarkerIcon = (breakdown, isHighlighted) => {
+  const key = getBreakdownSeverityKey(breakdown);
+  const set = BREAKDOWN_ICONS[key] || BREAKDOWN_ICONS.pending;
+  return isHighlighted ? set.highlighted : set.normal;
+};
+
+// Pans/flies the map to the currently-highlighted (selected) breakdown so
+// clicking a row in the centre list brings its marker into view.
+const PanToHighlighted = ({ highlightedId, markers }) => {
+  const map = useMap();
+  const lastPannedRef = useRef(null);
+  const isFirstRunRef = useRef(true);
+
+  useEffect(() => {
+    // Skip the very first selection (the dashboard auto-selects the most
+    // urgent breakdown on load) so the map doesn't immediately jump away
+    // from its overview position/zoom before the supervisor has done
+    // anything - only pan in response to an explicit row/marker selection.
+    if (isFirstRunRef.current) {
+      isFirstRunRef.current = false;
+      lastPannedRef.current = highlightedId;
+      return;
+    }
+
+    if (!highlightedId || highlightedId === lastPannedRef.current) return;
+    const target = markers.find(m => m.breakdown_id === highlightedId);
+    if (!target || !Array.isArray(target.coords)) return;
+    const [lat, lng] = target.coords;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+
+    lastPannedRef.current = highlightedId;
+    // Pan only (no forced zoom change) - changing zoom while the marker
+    // cluster group is still settling new markers has been observed to
+    // drop markers from the cluster group entirely.
+    try {
+      map.panTo([lat, lng], { animate: true, duration: 0.6 });
+    } catch (err) {
+      console.warn('PanToHighlighted: panTo failed', err);
+    }
+  }, [highlightedId, markers, map]);
+
+  return null;
+};
 
 const depotIcon = L.divIcon({
   html: `<div style="
@@ -513,83 +586,26 @@ const BreakdownMap = ({
 
   return (
     <div className="breakdown-map-container">
-      {/* Map Control Buttons */}
-      <div style={{
-        position: 'absolute',
-        top: '10px',
-        right: '10px',
-        zIndex: 1001,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '8px'
-      }}>
-        {/* Debug toggle button */}
-        <button
-          onClick={() => setShowDebug(!showDebug)}
-          style={{
-            background: showDebug ? '#3b82f6' : 'rgba(0, 0, 0, 0.7)',
-            color: 'white',
-            border: 'none',
-            padding: '8px 12px',
-            borderRadius: '8px',
-            fontSize: '12px',
-            cursor: 'pointer',
-            fontWeight: '600'
-          }}
-        >
-          🐛 Debug {showDebug ? 'ON' : 'OFF'}
+      {/* Map layer toggles (Debug only via ?mapdebug) */}
+      <div className="bm-toggles">
+        {typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('mapdebug') && (
+          <button className={`bm-toggle ${showDebug ? 'on' : ''}`} onClick={() => setShowDebug(!showDebug)} aria-pressed={showDebug}>
+            <Bug size={13} aria-hidden="true" /> Debug
+          </button>
+        )}
+        <button className={`bm-toggle ${clusteringEnabled ? 'on' : ''}`} onClick={() => setClusteringEnabled(!clusteringEnabled)} aria-pressed={clusteringEnabled} title="Group nearby breakdowns">
+          <Layers size={13} aria-hidden="true" /> Cluster
         </button>
-
-        {/* Clustering toggle button */}
-        <button
-          onClick={() => setClusteringEnabled(!clusteringEnabled)}
-          style={{
-            background: clusteringEnabled ? '#8b5cf6' : 'rgba(0, 0, 0, 0.7)',
-            color: 'white',
-            border: 'none',
-            padding: '8px 12px',
-            borderRadius: '8px',
-            fontSize: '12px',
-            cursor: 'pointer',
-            fontWeight: '600'
-          }}
-        >
-          🔗 Cluster {clusteringEnabled ? 'ON' : 'OFF'}
+        <button className={`bm-toggle ${heatmapEnabled ? 'on' : ''}`} onClick={() => setHeatmapEnabled(!heatmapEnabled)} aria-pressed={heatmapEnabled} title="Show breakdown density">
+          <Flame size={13} aria-hidden="true" /> Heatmap
         </button>
-
-        {/* Heatmap toggle button */}
         <button
-          onClick={() => setHeatmapEnabled(!heatmapEnabled)}
-          style={{
-            background: heatmapEnabled ? '#f97316' : 'rgba(0, 0, 0, 0.7)',
-            color: 'white',
-            border: 'none',
-            padding: '8px 12px',
-            borderRadius: '8px',
-            fontSize: '12px',
-            cursor: 'pointer',
-            fontWeight: '600'
-          }}
-        >
-          🔥 Heatmap {heatmapEnabled ? 'ON' : 'OFF'}
-        </button>
-
-        {/* Traffic toggle button */}
-        <button
+          className={`bm-toggle ${trafficEnabled ? 'on' : ''}`}
           onClick={() => setTrafficEnabled(!trafficEnabled)}
-          style={{
-            background: trafficEnabled ? '#10b981' : 'rgba(0, 0, 0, 0.7)',
-            color: 'white',
-            border: 'none',
-            padding: '8px 12px',
-            borderRadius: '8px',
-            fontSize: '12px',
-            cursor: 'pointer',
-            fontWeight: '600'
-          }}
-          title={currentZoom < TRAFFIC_MIN_ZOOM ? `Zoom in to level ${TRAFFIC_MIN_ZOOM} to see traffic` : 'Toggle live traffic overlay'}
+          aria-pressed={trafficEnabled}
+          title={currentZoom < TRAFFIC_MIN_ZOOM ? `Traffic shows from zoom level ${TRAFFIC_MIN_ZOOM}` : 'Toggle live traffic overlay'}
         >
-          🚗 Traffic {trafficEnabled ? (currentZoom >= TRAFFIC_MIN_ZOOM ? 'ON' : `(zoom ${TRAFFIC_MIN_ZOOM}+)`) : 'OFF'}
+          <Car size={13} aria-hidden="true" /> Traffic{trafficEnabled && currentZoom < TRAFFIC_MIN_ZOOM ? ' (zoom in)' : ''}
         </button>
       </div>
 
@@ -716,11 +732,9 @@ const BreakdownMap = ({
         zoomControl={true}
         attributionControl={true}
       >
-        <TileLayer
-          url="https://mt1.google.com/vt/lyrs=m&hl=en&x={x}&y={y}&z={z}"
-          attribution='&copy; Google Maps'
-          maxZoom={20}
-        />
+        {/* Dark base map to match the UI (Esri — see config/mapTiles.js) */}
+        <TileLayer url={DARK_BASE_TILES.url} {...DARK_BASE_TILES.options} />
+        <TileLayer url={DARK_LABEL_TILES.url} {...DARK_LABEL_TILES.options} />
 
         {/* Google Traffic Layer - shows when zoomed in and enabled */}
         {trafficEnabled && currentZoom >= TRAFFIC_MIN_ZOOM && (
@@ -733,6 +747,9 @@ const BreakdownMap = ({
 
         {/* Zoom tracker to monitor zoom level */}
         <ZoomTracker onZoomChange={setCurrentZoom} />
+
+        {/* Fly to the selected/highlighted breakdown's marker */}
+        <PanToHighlighted highlightedId={highlightedId} markers={breakdownMarkers} />
 
         {/* Priority routes area circle */}
         <Circle
@@ -820,7 +837,7 @@ const BreakdownMap = ({
                 <Marker
                   key={breakdown.breakdown_id}
                   position={breakdown.coords}
-                  icon={isHighlighted ? highlightedBreakdownIcon : breakdownIcon}
+                  icon={getMarkerIcon(breakdown, isHighlighted)}
                   eventHandlers={{
                     click: () => {
                       if (onMarkerClick) {
@@ -890,7 +907,7 @@ const BreakdownMap = ({
               <Marker
                 key={breakdown.breakdown_id}
                 position={breakdown.coords}
-                icon={isHighlighted ? highlightedBreakdownIcon : breakdownIcon}
+                icon={getMarkerIcon(breakdown, isHighlighted)}
                 eventHandlers={{
                   click: () => {
                     if (onMarkerClick) {
