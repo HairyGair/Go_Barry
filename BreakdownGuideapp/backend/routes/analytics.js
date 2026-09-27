@@ -985,8 +985,9 @@ router.get('/shift-stats', async (req, res) => {
       queryParams.push(supervisor_badge);
     }
 
-    // Filter by duty code if provided
-    if (duty_code) {
+    // Filter by duty code if provided. Demo: the demo duty follows the clock,
+    // so seeded breakdowns can't carry it — the time window is the filter.
+    if (duty_code && !isDemoUser) {
       breakdownsQuery += ' AND duty_code = ?';
       queryParams.push(duty_code);
     }
