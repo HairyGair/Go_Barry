@@ -16,8 +16,8 @@ import { displayDepotName } from '../../../config/demoDepots';
 import EngineerEtaCountdown from '../../../components/EngineerEtaCountdown';
 import { deriveEngineerLiveStatus, REAL_DEPOT_CODE_TO_NAME } from './dispatchBoardHelpers';
 
-const STATUS_ORDER = { available: 0, en_route: 1, on_site: 2, off_shift: 3 };
-const STATUS_LABEL = { available: 'Available', en_route: 'En route', on_site: 'On site', off_shift: 'Off shift' };
+const STATUS_ORDER = { available: 0, en_route: 1, on_site: 2, upcoming: 3, off_shift: 4 };
+const STATUS_LABEL = { available: 'Available', en_route: 'En route', on_site: 'On site', upcoming: 'Later', off_shift: 'Off shift' };
 
 function depotLabel(code) {
   if (!code) return null;
@@ -43,7 +43,9 @@ const EngineerRoster = ({ engineers, jobs, selectedEngineerBadge, onSelectEngine
     <aside className={`erb-roster ${collapsed ? 'erb-roster-collapsed' : ''}`} aria-label="Engineer roster">
       <div className="erb-roster-head">
         <h3 className="erb-roster-title">Engineers</h3>
-        <span className="erb-roster-count">{engineers.length} on shift</span>
+        <span className="erb-roster-count">
+          {enriched.filter(x => x.status !== 'upcoming' && x.status !== 'off_shift').length} on shift
+        </span>
         {onClose && (
           <button type="button" className="erb-roster-close" onClick={onClose} aria-label="Close engineer roster">
             <X size={16} />
@@ -71,7 +73,11 @@ const EngineerRoster = ({ engineers, jobs, selectedEngineerBadge, onSelectEngine
                 <div className="erb-eng-top">
                   <span className={`erb-dot erb-dot-${status}`} aria-hidden="true" />
                   <span className="erb-eng-name">{engineer.name}</span>
-                  <span className="erb-eng-status">{STATUS_LABEL[status]}</span>
+                  <span className="erb-eng-status">
+                    {status === 'upcoming' && engineer.shift_start
+                      ? `From ${String(engineer.shift_start).slice(0, 5)}`
+                      : STATUS_LABEL[status]}
+                  </span>
                 </div>
 
                 {job ? (
@@ -206,7 +212,7 @@ const EngineerRoster = ({ engineers, jobs, selectedEngineerBadge, onSelectEngine
           border-color: rgba(34,211,238,0.4) !important;
         }
 
-        .erb-eng-off_shift { opacity: 0.55; }
+        .erb-eng-off_shift, .erb-eng-upcoming { opacity: 0.55; }
 
         .erb-eng-top {
           display: flex;
@@ -224,6 +230,7 @@ const EngineerRoster = ({ engineers, jobs, selectedEngineerBadge, onSelectEngine
         .erb-dot-en_route { background: #3b82f6; }
         .erb-dot-on_site { background: #f59e0b; }
         .erb-dot-off_shift { background: #475569; }
+        .erb-dot-upcoming { background: transparent; border: 1.5px solid #64748b; }
 
         .erb-eng-name {
           flex: 1;

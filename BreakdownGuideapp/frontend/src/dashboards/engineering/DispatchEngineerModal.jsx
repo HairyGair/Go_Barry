@@ -1,6 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '../../services/api-client';
 import { getDepotOptions } from '../../config/demoDepots';
+import { getShiftWindow } from './board/dispatchBoardHelpers';
+
+// The on-shift list includes everyone rostered today; someone whose shift hasn't
+// started yet (or has finished) isn't free to send even with no active job
+const withShiftState = (eng) => {
+  const { state } = getShiftWindow(eng);
+  const offShift = state === 'upcoming' || state === 'ended';
+  return { ...eng, shift_state: state, is_available: eng.is_available && !offShift };
+};
+
+const statusLabel = (eng) => {
+  if (eng.shift_state === 'upcoming') return `Starts ${eng.shift_start?.slice(0, 5)}`;
+  if (eng.shift_state === 'ended') return 'Shift ended';
+  return eng.is_available ? 'Available' : `On Job (${eng.active_jobs} active)`;
+};
 
 const REAL_DEPOTS = [
   { code: 'WAS', name: 'Washington' },
@@ -64,7 +79,7 @@ const DispatchEngineerModal = ({ breakdownId, breakdownDepot, breakdownLat, brea
       const response = await apiClient.get(endpoint);
       if (response.success) {
         // Sort: available first, then by workload
-        const sorted = (response.engineers || []).sort((a, b) => {
+        const sorted = (response.engineers || []).map(withShiftState).sort((a, b) => {
           if (a.is_available && !b.is_available) return -1;
           if (!a.is_available && b.is_available) return 1;
           return (a.active_jobs || 0) - (b.active_jobs || 0);
@@ -217,7 +232,7 @@ const DispatchEngineerModal = ({ breakdownId, breakdownDepot, breakdownLat, brea
                       <span className="dem-card-badge">{eng.badge_number}</span>
                     </div>
                     <div className={`dem-card-status ${eng.is_available ? 'dem-available' : 'dem-busy'}`}>
-                      {eng.is_available ? 'Available' : `On Job (${eng.active_jobs} active)`}
+                      {statusLabel(eng)}
                     </div>
                   </div>
 

@@ -476,6 +476,9 @@ function getDemoEngineers() {
     // Two free engineers, so the dispatch board always has someone to suggest
     { id: 'demo-eng-0000-0000-000000000005', name: 'Gary Pattinson', badge_number: 'DEMO-E05', home_depot_code: NGT.code, skills: ['Mechanical', 'Electrical', 'Doors'] },
     { id: 'demo-eng-0000-0000-000000000006', name: 'Lee Swinburne', badge_number: 'DEMO-E06', home_depot_code: HCR.code, skills: ['Diagnostics', 'HVAC', 'Transmission'] },
+    // Rostered on the next shift, so the roster shows upcoming cover too
+    { id: 'demo-eng-0000-0000-000000000007', name: 'Craig Dunn', badge_number: 'DEMO-E07', home_depot_code: EFD.code, skills: ['Body', 'Doors', 'Electrical'], upcoming: true },
+    { id: 'demo-eng-0000-0000-000000000008', name: 'Neil Tate', badge_number: 'DEMO-E08', home_depot_code: WMR.code, skills: ['Mechanical', 'Brakes', 'Suspension'], upcoming: true },
   ];
 }
 
@@ -879,9 +882,13 @@ export async function seedDemoData() {
       const engineers = getDemoEngineers();
       const today = new Date().toISOString().slice(0, 10);
 
-      // Clear previous demo shifts (FK) then engineers
+      // Clear previous demo shifts (FK) then patterns and engineers
       await query(
         "DELETE FROM engineer_daily_shifts WHERE checked_in_by = ?",
+        [DEMO_SUPERVISOR_ID]
+      );
+      await query(
+        "DELETE FROM engineer_shift_templates WHERE created_by = ?",
         [DEMO_SUPERVISOR_ID]
       );
       await query(
@@ -889,10 +896,31 @@ export async function seedDemoData() {
         [DEMO_SUPERVISOR_ID]
       );
 
-      const nowHour = new Date().getHours();
+      // Shift patterns. Between them every hour of the day is covered, so
+      // whenever someone opens the demo there's a live shift to roster onto.
+      const patterns = [
+        { name: 'Early', start: 6, end: 14 },
+        { name: 'Day', start: 8, end: 17 },
+        { name: 'Late', start: 14, end: 22 },
+        { name: 'Night', start: 22, end: 6 },
+      ];
       const pad = (h) => `${String(h).padStart(2, '0')}:00:00`;
-      const demoShiftStart = pad(Math.max(0, nowHour - 4));
-      const demoShiftEnd = nowHour + 8 >= 24 ? '23:59:00' : pad(nowHour + 8);
+      for (const pt of patterns) {
+        const r = await query(
+          `INSERT INTO engineer_shift_templates (name, start_time, end_time, created_by, depot_code, is_active)
+           VALUES (?, ?, ?, ?, NULL, 1)`,
+          [pt.name, pad(pt.start), pad(pt.end), DEMO_SUPERVISOR_ID]
+        );
+        pt.id = r.insertId;
+      }
+      const nowHour = new Date().getHours();
+      const covers = (pt, h) => (pt.end > pt.start ? h >= pt.start && h < pt.end : h >= pt.start || h < pt.end);
+      const current = patterns.filter(pt => covers(pt, nowHour));
+      // The next pattern to start after now (for the 'upcoming' engineers)
+      const next = [...patterns]
+        .filter(pt => !covers(pt, nowHour))
+        .sort((a, b) => ((a.start - nowHour + 24) % 24) - ((b.start - nowHour + 24) % 24))[0] || current[0];
+      let rota = 0;
       for (const e of engineers) {
         await query(
           `INSERT INTO engineers (
@@ -904,14 +932,16 @@ export async function seedDemoData() {
             JSON.stringify(e.skills), 'available', 1, DEMO_SUPERVISOR_ID
           ]
         );
-        // Put each engineer on a shift covering NOW (a fixed 06:00-18:00 left
-        // every demo engineer 'off shift' for evening visitors)
+        // Roster each engineer onto a pattern covering NOW (a fixed 06:00-18:00
+        // left every demo engineer 'off shift' for evening visitors); the two
+        // 'upcoming' engineers go on the next pattern instead
+        const pattern = e.upcoming ? next : current[rota++ % current.length];
         await query(
           `INSERT INTO engineer_daily_shifts (
             engineer_id, shift_date, shift_template_id, custom_start, custom_end,
             checked_in_by, depot_code, status
           ) VALUES (?, ?, ?, ?, ?, ?, ?, 'on_shift')`,
-          [e.id, today, null, demoShiftStart, demoShiftEnd, DEMO_SUPERVISOR_ID, e.home_depot_code]
+          [e.id, today, pattern.id, pad(pattern.start), pad(pattern.end), DEMO_SUPERVISOR_ID, e.home_depot_code]
         );
         engineerCount++;
       }

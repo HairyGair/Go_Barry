@@ -1,1124 +1,280 @@
+/**
+ * Engineer Management
+ *
+ * Three views over the same data:
+ *  - Today:          who covers each depot across the day (timeline + gaps)
+ *  - Engineers:      the full directory with live status and today's shift
+ *  - Shift patterns: reusable shift times used at check-in
+ *
+ * Live status comes from the jobs list using the dispatch board's rules, so
+ * both screens always agree on who is available.
+ *
+ * @author Anthony Gair
+ * @license Proprietary
+ */
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Users, CheckCircle2, Wrench, Building2, MapPin } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Users, UserPlus, Plus, LayoutGrid, CheckCircle2, Wrench, CalendarClock, UserMinus } from 'lucide-react';
 import DashboardLayout from '../components/DashboardLayout';
+import ShiftCheckInModal from './ShiftCheckInModal';
+import TodayRoster from './manage/TodayRoster';
+import EngineersTable from './manage/EngineersTable';
+import ShiftPatterns from './manage/ShiftPatterns';
+import { EngineerFormModal, PatternFormModal } from './manage/ManageForms';
+import { liveStatusFor } from './manage/manageHelpers';
 import { apiClient } from '../../services/api-client';
-import { getDepotOptions } from '../../config/demoDepots';
+import './manage/manage.css';
 
-const ACTIVE_JOB_STATUSES = new Set(['dispatched', 'on_site', 'in_progress']);
-
-const REAL_DEPOTS = [
-  { code: 'WAS', name: 'Washington' },
-  { code: 'NCL', name: 'Riverside' },
-  { code: 'CON', name: 'Consett' },
-  { code: 'GTS', name: 'Deptford' },
-  { code: 'HEX', name: 'Hexham' },
-  { code: 'DAR', name: 'Percy Main' }
-];
-
-// Evaluated at render time (not module load): modules outlive logout/login,
-// so a module-level list could keep the previous session's depots.
-const getDepots = () => getDepotOptions(REAL_DEPOTS);
-
-// Display-only names for codes returned by the API that aren't dropdown
-// options (the depots table uses PM for Percy Main). NOTE: GTS/DAR labels above
-// disagree with the depots table (GTS=Gateshead, DAR=Deptford) — pending
-// confirmation of the real depot codes, so left unchanged.
-const EXTRA_DEPOT_NAMES = { PM: 'Percy Main' };
-const depotName = (code) => getDepots().find(d => d.code === code)?.name || EXTRA_DEPOT_NAMES[code];
-
-const SKILL_OPTIONS = [
-  'Electrical', 'Mechanical', 'HVAC', 'Body', 'EV/Hybrid',
-  'Diagnostics', 'Brakes', 'Transmission', 'Doors', 'Suspension'
-];
+const REFRESH_MS = 30 * 1000;
 
 const EngineerManagementPage = () => {
-  const [activeTab, setActiveTab] = useState('engineers');
+  const [activeTab, setActiveTab] = useState('today');
   const [engineers, setEngineers] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [roster, setRoster] = useState([]);
-  const [liveJobs, setLiveJobs] = useState({});
+  const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [now, setNow] = useState(() => new Date());
+  const [notice, setNotice] = useState(null);
 
-  // Form state
-  const [showEngineerForm, setShowEngineerForm] = useState(false);
-  const [editingEngineer, setEditingEngineer] = useState(null);
-  const [showTemplateForm, setShowTemplateForm] = useState(false);
-  const [editingTemplate, setEditingTemplate] = useState(null);
+  const [engineerForm, setEngineerForm] = useState(null); // null | { engineer }
+  const [patternForm, setPatternForm] = useState(null);   // null | { template }
+  const [showCheckIn, setShowCheckIn] = useState(false);
 
-  const fetchEngineers = useCallback(async () => {
-    try {
-      const res = await apiClient.get('/api/engineer-management/engineers?include_all=true');
-      if (res.success) setEngineers(res.engineers || []);
-    } catch (err) {
-      console.error('Error fetching engineers:', err);
-    }
-  }, []);
-
-  const fetchTemplates = useCallback(async () => {
-    try {
-      const res = await apiClient.get('/api/engineer-management/shift-templates');
-      if (res.success) setTemplates(res.templates || []);
-    } catch (err) {
-      console.error('Error fetching templates:', err);
-    }
-  }, []);
-
-  const fetchRoster = useCallback(async () => {
-    try {
-      const res = await apiClient.get('/api/engineer-management/on-shift');
-      if (res.success) setRoster(res.engineers || []);
-    } catch (err) {
-      console.error('Error fetching roster:', err);
-    }
-  }, []);
-
-  // Current job (if any) per engineer, keyed by badge number - used to show
-  // "on this breakdown" detail on the roster instead of just an "on a job" pill.
-  const fetchLiveJobs = useCallback(async () => {
-    try {
-      const res = await apiClient.get('/api/breakdowns/live');
-      const list = res?.breakdowns || [];
-      const map = {};
-      list.forEach(b => {
-        if (b.engineer_badge && ACTIVE_JOB_STATUSES.has(b.status)) {
-          map[b.engineer_badge] = b;
-        }
-      });
-      setLiveJobs(map);
-    } catch (err) {
-      console.error('Error fetching live jobs:', err);
-    }
+  const flash = useCallback((text, tone = 'ok') => {
+    setNotice({ text, tone, at: Date.now() });
   }, []);
 
   useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      await Promise.all([fetchEngineers(), fetchTemplates(), fetchRoster(), fetchLiveJobs()]);
+    if (!notice) return undefined;
+    const t = setTimeout(() => setNotice(null), 4000);
+    return () => clearTimeout(t);
+  }, [notice]);
+
+  const loadAll = useCallback(async ({ quiet = false } = {}) => {
+    const results = await Promise.allSettled([
+      apiClient.get('/api/engineer-management/engineers?include_all=true'),
+      apiClient.get('/api/engineer-management/shift-templates'),
+      apiClient.get('/api/engineer-management/on-shift'),
+      apiClient.get('/api/engineering/jobs?filter=all'),
+    ]);
+    const [eng, tmpl, onShift, jobRes] = results.map(r => (r.status === 'fulfilled' ? r.value : null));
+    if (eng?.success) setEngineers(eng.engineers || []);
+    if (tmpl?.success) setTemplates(tmpl.templates || []);
+    if (onShift?.success) setRoster(onShift.engineers || []);
+    if (jobRes) setJobs(jobRes.jobs || jobRes.data || []);
+    const failed = results.some(r => r.status === 'rejected');
+    if (!quiet) setLoadError(failed ? 'Some information couldn’t be loaded. Showing what we have.' : '');
+    setNow(new Date());
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      await loadAll();
       setLoading(false);
-    };
-    load();
-  }, [fetchEngineers, fetchTemplates, fetchRoster, fetchLiveJobs]);
+    })();
+    const poll = setInterval(() => loadAll({ quiet: true }), REFRESH_MS);
+    const tick = setInterval(() => setNow(new Date()), 60 * 1000);
+    return () => { clearInterval(poll); clearInterval(tick); };
+  }, [loadAll]);
 
-  const tabs = [
-    { id: 'engineers', label: 'My Engineers', count: engineers.length },
-    { id: 'templates', label: 'Shift Templates', count: templates.length },
-    { id: 'roster', label: "Today's Roster", count: roster.length }
-  ];
-
-  return (
-    <DashboardLayout title="Engineer Management" icon="wrench">
-      {/* Header */}
-      <div className="emp-header">
-        <div className="emp-header-left">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-            <circle cx="9" cy="7" r="4"/>
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-          </svg>
-          <div>
-            <h2>Engineer Management</h2>
-            <p>Manage your engineers, shift patterns, and daily roster</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="emp-tabs" role="tablist">
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            role="tab"
-            aria-selected={activeTab === tab.id}
-            className={`emp-tab ${activeTab === tab.id ? 'emp-tab-active' : ''}`}
-            onClick={() => setActiveTab(tab.id)}
-          >
-            {tab.label}
-            <span className="emp-tab-count">{tab.count}</span>
-          </button>
-        ))}
-      </div>
-
-      {loading ? (
-        <div className="emp-loading">
-          <div className="emp-spinner" />
-          <p>Loading data...</p>
-        </div>
-      ) : (
-        <>
-          {activeTab === 'engineers' && (
-            <EngineersTab
-              engineers={engineers}
-              roster={roster}
-              liveJobs={liveJobs}
-              onRefresh={() => { fetchEngineers(); fetchRoster(); fetchLiveJobs(); }}
-              showForm={showEngineerForm}
-              setShowForm={setShowEngineerForm}
-              editing={editingEngineer}
-              setEditing={setEditingEngineer}
-            />
-          )}
-          {activeTab === 'templates' && (
-            <TemplatesTab
-              templates={templates}
-              onRefresh={fetchTemplates}
-              showForm={showTemplateForm}
-              setShowForm={setShowTemplateForm}
-              editing={editingTemplate}
-              setEditing={setEditingTemplate}
-            />
-          )}
-          {activeTab === 'roster' && (
-            <RosterTab roster={roster} onRefresh={fetchRoster} />
-          )}
-        </>
-      )}
-
-      <style>{empStyles}</style>
-    </DashboardLayout>
-  );
-};
-
-// ─── Engineers Tab ────────────────────────────────────────────────────────────
-
-const EngineersTab = ({ engineers, roster, liveJobs, onRefresh, showForm, setShowForm, editing, setEditing }) => {
-  const handleEdit = (eng) => {
-    setEditing(eng);
-    setShowForm(true);
-  };
-
-  const handleDelete = async (id) => {
-    if (!confirm('Deactivate this engineer?')) return;
-    try {
-      await apiClient.delete(`/api/engineer-management/engineers/${id}`);
-      onRefresh();
-    } catch (err) {
-      console.error('Error deleting:', err);
-    }
-  };
-
-  // Roster is keyed by engineer id and only contains today's on-shift engineers
   const rosterById = useMemo(() => {
     const map = {};
-    (roster || []).forEach(r => { map[r.id] = r; });
+    roster.forEach(r => { map[r.id] = r; });
     return map;
   }, [roster]);
 
-  // Summary strip: on shift / available / on a job today, plus a per-depot breakdown
-  const summary = useMemo(() => {
-    const list = roster || [];
-    const onShift = list.length;
-    const available = list.filter(r => r.is_available).length;
-    const onJob = list.filter(r => r.active_jobs > 0).length;
-    const byDepot = list.reduce((acc, r) => {
-      const code = r.shift_depot || r.home_depot_code || 'Unassigned';
-      const name = depotName(code) || code;
-      acc[name] = (acc[name] || 0) + 1;
-      return acc;
-    }, {});
-    return { onShift, available, onJob, byDepot };
-  }, [roster]);
+  const stats = useMemo(() => {
+    const statuses = engineers.map(e => liveStatusFor(e, rosterById[e.id], jobs).status);
+    return {
+      working: statuses.filter(s => ['available', 'en_route', 'on_site'].includes(s)).length,
+      available: statuses.filter(s => s === 'available').length,
+      busy: statuses.filter(s => s === 'en_route' || s === 'on_site').length,
+      later: statuses.filter(s => s === 'upcoming').length,
+      notRostered: statuses.filter(s => s === 'not_rostered').length,
+    };
+  }, [engineers, rosterById, jobs]);
 
-  return (
-    <div>
-      <div className="emp-summary-strip">
-        <div className="emp-summary-tile">
-          <Users size={18} className="emp-summary-icon" />
-          <div>
-            <div className="emp-summary-value">{summary.onShift}</div>
-            <div className="emp-summary-label">On Shift Today</div>
-          </div>
-        </div>
-        <div className="emp-summary-tile">
-          <CheckCircle2 size={18} className="emp-summary-icon emp-summary-icon--good" />
-          <div>
-            <div className="emp-summary-value">{summary.available}</div>
-            <div className="emp-summary-label">Available</div>
-          </div>
-        </div>
-        <div className="emp-summary-tile">
-          <Wrench size={18} className="emp-summary-icon emp-summary-icon--warn" />
-          <div>
-            <div className="emp-summary-value">{summary.onJob}</div>
-            <div className="emp-summary-label">On A Job</div>
-          </div>
-        </div>
-        <div className="emp-summary-tile emp-summary-tile--depots">
-          <Building2 size={18} className="emp-summary-icon" />
-          <div className="emp-summary-depots">
-            {Object.keys(summary.byDepot).length === 0 ? (
-              <span className="emp-summary-label">No one checked in yet</span>
-            ) : (
-              Object.entries(summary.byDepot).map(([name, count]) => (
-                <span key={name} className="emp-summary-depot-pill">{name} <strong>{count}</strong></span>
-              ))
-            )}
-          </div>
-        </div>
-      </div>
-
-      <div className="emp-section-header">
-        <h3>{engineers.length} Engineer{engineers.length !== 1 ? 's' : ''}</h3>
-        <button className="emp-add-btn" onClick={() => { setEditing(null); setShowForm(true); }}>
-          + Add Engineer
-        </button>
-      </div>
-
-      {showForm && (
-        <EngineerForm
-          engineer={editing}
-          onSave={() => { setShowForm(false); setEditing(null); onRefresh(); }}
-          onCancel={() => { setShowForm(false); setEditing(null); }}
-        />
-      )}
-
-      <div className="emp-card-grid">
-        {engineers.map(eng => {
-          const skills = Array.isArray(eng.skills) ? eng.skills : [];
-          const engDepotName = depotName(eng.home_depot_code) || eng.home_depot_code || 'No depot';
-          const shift = rosterById[eng.id];
-          const job = liveJobs[eng.badge_number];
-          return (
-            <div key={eng.id} className="emp-eng-card">
-              <div className="emp-eng-card-top">
-                <div>
-                  <div className="emp-eng-name">{eng.name}</div>
-                  <div className="emp-eng-badge">{eng.badge_number}</div>
-                </div>
-                <div className={`emp-eng-status emp-st-${eng.status}`}>
-                  {eng.status || 'unknown'}
-                </div>
-              </div>
-              <div className="emp-eng-detail">
-                <span className="emp-eng-depot">{engDepotName}</span>
-                {eng.phone && <span className="emp-eng-phone">{eng.phone}</span>}
-              </div>
-
-              <div className={`emp-eng-shift ${shift ? 'emp-eng-shift--on' : 'emp-eng-shift--off'}`}>
-                {shift ? (
-                  <>On shift {shift.shift_start?.slice(0, 5)}–{shift.shift_end?.slice(0, 5)}{shift.shift_depot ? ` · ${depotName(shift.shift_depot) || shift.shift_depot}` : ''}</>
-                ) : (
-                  'Not checked in today'
-                )}
-              </div>
-
-              {job && (
-                <div className="emp-eng-job">
-                  <Wrench size={12} />
-                  <span>{job.breakdown_id || 'Breakdown'}{job.fleet_no ? ` · Fleet ${job.fleet_no}` : ''}</span>
-                  {job.location_description && (
-                    <span className="emp-eng-job-loc"><MapPin size={11} />{job.location_description}</span>
-                  )}
-                </div>
-              )}
-
-              {skills.length > 0 && (
-                <div className="emp-eng-skills">
-                  {skills.map((s, i) => (
-                    <span key={i} className="emp-skill-pill">{s}</span>
-                  ))}
-                </div>
-              )}
-              <div className="emp-eng-actions">
-                <button className="emp-action-btn" onClick={() => handleEdit(eng)}>Edit</button>
-                <button className="emp-action-btn emp-action-del" onClick={() => handleDelete(eng.id)}>Remove</button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
-
-// ─── Engineer Form ───────────────────────────────────────────────────────────
-
-const EngineerForm = ({ engineer, onSave, onCancel }) => {
-  const [form, setForm] = useState({
-    name: engineer?.name || '',
-    badge_number: engineer?.badge_number || '',
-    phone: engineer?.phone || '',
-    email: engineer?.email || '',
-    home_depot_code: engineer?.home_depot_code || '',
-    skills: Array.isArray(engineer?.skills) ? engineer.skills : []
-  });
-  const [saving, setSaving] = useState(false);
-
-  const toggleSkill = (skill) => {
-    setForm(prev => ({
-      ...prev,
-      skills: prev.skills.includes(skill)
-        ? prev.skills.filter(s => s !== skill)
-        : [...prev.skills, skill]
-    }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.name || !form.badge_number) return;
-    setSaving(true);
+  const handleDeactivate = async (eng) => {
     try {
-      if (engineer) {
-        await apiClient.put(`/api/engineer-management/engineers/${engineer.id}`, form);
-      } else {
-        await apiClient.post('/api/engineer-management/engineers', form);
-      }
-      onSave();
+      await apiClient.delete(`/api/engineer-management/engineers/${eng.id}`);
+      flash(`${eng.name} deactivated`);
+      loadAll({ quiet: true });
     } catch (err) {
-      console.error('Error saving engineer:', err);
-      alert('Failed to save: ' + (err.message || 'Unknown error'));
-    } finally {
-      setSaving(false);
+      flash(err?.message || `Couldn’t deactivate ${eng.name}`, 'error');
     }
   };
 
-  return (
-    <form className="emp-form" onSubmit={handleSubmit}>
-      <h4 className="emp-form-title">{engineer ? 'Edit Engineer' : 'Add New Engineer'}</h4>
-      <div className="emp-form-grid">
-        <div className="emp-form-group">
-          <label>Name *</label>
-          <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} required />
-        </div>
-        <div className="emp-form-group">
-          <label>Badge Number *</label>
-          <input value={form.badge_number} onChange={e => setForm({...form, badge_number: e.target.value})} required />
-        </div>
-        <div className="emp-form-group">
-          <label>Phone</label>
-          <input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} />
-        </div>
-        <div className="emp-form-group">
-          <label>Email</label>
-          <input type="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} />
-        </div>
-        <div className="emp-form-group">
-          <label>Home Depot</label>
-          <select value={form.home_depot_code} onChange={e => setForm({...form, home_depot_code: e.target.value})}>
-            <option value="">Select depot</option>
-            {getDepots().map(d => <option key={d.code} value={d.code}>{d.name}</option>)}
-          </select>
-        </div>
-      </div>
-      <div className="emp-form-group emp-form-skills">
-        <label>Skills</label>
-        <div className="emp-skill-options">
-          {SKILL_OPTIONS.map(skill => (
-            <button
-              key={skill}
-              type="button"
-              aria-pressed={form.skills.includes(skill)}
-              className={`emp-skill-opt ${form.skills.includes(skill) ? 'emp-skill-on' : ''}`}
-              onClick={() => toggleSkill(skill)}
-            >
-              {skill}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="emp-form-actions">
-        <button type="button" className="emp-action-btn" onClick={onCancel}>Cancel</button>
-        <button type="submit" className="emp-add-btn" disabled={saving}>
-          {saving ? 'Saving...' : (engineer ? 'Update' : 'Add Engineer')}
-        </button>
-      </div>
-    </form>
-  );
-};
-
-// ─── Templates Tab ───────────────────────────────────────────────────────────
-
-const TemplatesTab = ({ templates, onRefresh, showForm, setShowForm, editing, setEditing }) => {
-  const handleDelete = async (id) => {
-    if (!confirm('Delete this shift template?')) return;
+  const handleEndShift = async (entry) => {
     try {
-      await apiClient.delete(`/api/engineer-management/shift-templates/${id}`);
-      onRefresh();
+      await apiClient.post(`/api/engineer-management/daily-shifts/${entry.id}/end`, {});
+      flash(`${entry.name} signed off for today`);
+      loadAll({ quiet: true });
     } catch (err) {
-      console.error('Error deleting template:', err);
+      flash(err?.message || `Couldn’t sign ${entry.name} off`, 'error');
     }
   };
 
+  const handleDeletePattern = async (tmpl) => {
+    try {
+      await apiClient.delete(`/api/engineer-management/shift-templates/${tmpl.id}`);
+      flash(`${tmpl.name} deleted`);
+      loadAll({ quiet: true });
+    } catch (err) {
+      flash(err?.message || `Couldn’t delete ${tmpl.name}`, 'error');
+    }
+  };
+
+  const afterSave = (message) => {
+    setEngineerForm(null);
+    setPatternForm(null);
+    flash(message);
+    loadAll({ quiet: true });
+  };
+
+  const tabs = [
+    { id: 'today', label: 'Today', count: roster.length },
+    { id: 'engineers', label: 'Engineers', count: engineers.length },
+    { id: 'patterns', label: 'Shift patterns', count: templates.length },
+  ];
+
+  const primaryAction = {
+    today: { label: 'Check in engineers', icon: UserPlus, onClick: () => setShowCheckIn(true) },
+    engineers: { label: 'Add engineer', icon: Plus, onClick: () => setEngineerForm({ engineer: null }) },
+    patterns: { label: 'Add shift pattern', icon: Plus, onClick: () => setPatternForm({ template: null }) },
+  }[activeTab];
+  const PrimaryIcon = primaryAction.icon;
+
   return (
-    <div>
-      <div className="emp-section-header">
-        <h3>{templates.length} Shift Template{templates.length !== 1 ? 's' : ''}</h3>
-        <button className="emp-add-btn" onClick={() => { setEditing(null); setShowForm(true); }}>
-          + Add Template
-        </button>
-      </div>
-
-      {showForm && (
-        <TemplateForm
-          template={editing}
-          onSave={() => { setShowForm(false); setEditing(null); onRefresh(); }}
-          onCancel={() => { setShowForm(false); setEditing(null); }}
-        />
-      )}
-
-      <div className="emp-template-list">
-        {templates.map(tmpl => (
-          <div key={tmpl.id} className="emp-template-card">
-            <div className="emp-tmpl-left">
-              <span className="emp-tmpl-name">{tmpl.name}</span>
-              <span className="emp-tmpl-time">
-                {tmpl.start_time?.slice(0,5)} - {tmpl.end_time?.slice(0,5)}
-              </span>
-              {tmpl.depot_code && (
-                <span className="emp-tmpl-depot">
-                  {depotName(tmpl.depot_code) || tmpl.depot_code}
-                </span>
-              )}
-            </div>
-            <div className="emp-tmpl-actions">
-              <button className="emp-action-btn" onClick={() => { setEditing(tmpl); setShowForm(true); }}>Edit</button>
-              <button className="emp-action-btn emp-action-del" onClick={() => handleDelete(tmpl.id)}>Delete</button>
+    <DashboardLayout title="Engineer Management" icon="wrench">
+      <div className="emg-page">
+        <header className="emg-header">
+          <div className="emg-header-left">
+            <div className="emg-header-icon"><Users size={20} aria-hidden="true" /></div>
+            <div>
+              <h2>Engineer Management</h2>
+              <p>Rosters, cover and your engineering team</p>
             </div>
           </div>
-        ))}
-        {templates.length === 0 && (
-          <div className="emp-empty-state">
-            <p>No shift templates yet. Create templates like "Early 06:00-14:00" or "Late 14:00-22:00".</p>
+
+          <div className="emg-kpis" role="list" aria-label="Engineer summary">
+            <div className="emg-kpi" role="listitem">
+              <Users size={13} aria-hidden="true" />
+              <span className="emg-kpi-val">{stats.working}</span>
+              <span className="emg-kpi-lbl">Working now</span>
+            </div>
+            <div className="emg-kpi emg-kpi-good" role="listitem">
+              <CheckCircle2 size={13} aria-hidden="true" />
+              <span className="emg-kpi-val">{stats.available}</span>
+              <span className="emg-kpi-lbl">Available</span>
+            </div>
+            <div className="emg-kpi emg-kpi-warn" role="listitem">
+              <Wrench size={13} aria-hidden="true" />
+              <span className="emg-kpi-val">{stats.busy}</span>
+              <span className="emg-kpi-lbl">On a job</span>
+            </div>
+            <div className="emg-kpi" role="listitem">
+              <CalendarClock size={13} aria-hidden="true" />
+              <span className="emg-kpi-val">{stats.later}</span>
+              <span className="emg-kpi-lbl">Later today</span>
+            </div>
+            <div className="emg-kpi" role="listitem">
+              <UserMinus size={13} aria-hidden="true" />
+              <span className="emg-kpi-val">{stats.notRostered}</span>
+              <span className="emg-kpi-lbl">Not rostered</span>
+            </div>
+          </div>
+
+          <Link to="/dashboards/engineering" className="emg-btn">
+            <LayoutGrid size={14} aria-hidden="true" /> Dispatch board
+          </Link>
+        </header>
+
+        <div className="emg-tabbar">
+          <div className="emg-tabs" role="tablist" aria-label="Engineer management views">
+            {tabs.map(tab => (
+              <button
+                key={tab.id}
+                id={`emg-tab-${tab.id}`}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === tab.id}
+                aria-controls={`emg-panel-${tab.id}`}
+                className={`emg-tab ${activeTab === tab.id ? 'emg-tab-on' : ''}`}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                {tab.label}
+                <span className="emg-tab-count">{tab.count}</span>
+              </button>
+            ))}
+          </div>
+          <button type="button" className="emg-btn emg-btn-primary" onClick={primaryAction.onClick}>
+            <PrimaryIcon size={15} aria-hidden="true" /> {primaryAction.label}
+          </button>
+        </div>
+
+        {loadError && <div className="emg-banner" role="status">{loadError}</div>}
+
+        <section
+          id={`emg-panel-${activeTab}`}
+          role="tabpanel"
+          aria-labelledby={`emg-tab-${activeTab}`}
+          className="emg-panel"
+        >
+          {loading ? (
+            <div className="emg-loading" aria-busy="true">
+              <div className="emg-skel" /><div className="emg-skel" /><div className="emg-skel" />
+            </div>
+          ) : activeTab === 'today' ? (
+            <TodayRoster
+              roster={roster}
+              jobs={jobs}
+              now={now}
+              onCheckIn={() => setShowCheckIn(true)}
+              onEndShift={handleEndShift}
+            />
+          ) : activeTab === 'engineers' ? (
+            <EngineersTable
+              engineers={engineers}
+              rosterById={rosterById}
+              jobs={jobs}
+              onEdit={(engineer) => setEngineerForm({ engineer })}
+              onDeactivate={handleDeactivate}
+            />
+          ) : (
+            <ShiftPatterns
+              templates={templates}
+              roster={roster}
+              onAdd={() => setPatternForm({ template: null })}
+              onEdit={(template) => setPatternForm({ template })}
+              onDelete={handleDeletePattern}
+            />
+          )}
+        </section>
+
+        {notice && (
+          <div key={notice.at} className={`emg-toast emg-toast-${notice.tone}`} role={notice.tone === 'error' ? 'alert' : 'status'}>
+            {notice.text}
           </div>
         )}
       </div>
-    </div>
-  );
-};
 
-// ─── Template Form ───────────────────────────────────────────────────────────
-
-const TemplateForm = ({ template, onSave, onCancel }) => {
-  const [form, setForm] = useState({
-    name: template?.name || '',
-    start_time: template?.start_time?.slice(0,5) || '',
-    end_time: template?.end_time?.slice(0,5) || '',
-    depot_code: template?.depot_code || ''
-  });
-  const [saving, setSaving] = useState(false);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.name || !form.start_time || !form.end_time) return;
-    setSaving(true);
-    try {
-      const data = {
-        ...form,
-        start_time: form.start_time + ':00',
-        end_time: form.end_time + ':00',
-        depot_code: form.depot_code || null
-      };
-      if (template) {
-        await apiClient.put(`/api/engineer-management/shift-templates/${template.id}`, data);
-      } else {
-        await apiClient.post('/api/engineer-management/shift-templates', data);
-      }
-      onSave();
-    } catch (err) {
-      console.error('Error saving template:', err);
-      alert('Failed to save: ' + (err.message || 'Unknown error'));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <form className="emp-form" onSubmit={handleSubmit}>
-      <h4 className="emp-form-title">{template ? 'Edit Template' : 'Add Shift Template'}</h4>
-      <div className="emp-form-grid">
-        <div className="emp-form-group">
-          <label>Name *</label>
-          <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="e.g. Early Shift" required />
-        </div>
-        <div className="emp-form-group">
-          <label>Start Time *</label>
-          <input type="time" value={form.start_time} onChange={e => setForm({...form, start_time: e.target.value})} required />
-        </div>
-        <div className="emp-form-group">
-          <label>End Time *</label>
-          <input type="time" value={form.end_time} onChange={e => setForm({...form, end_time: e.target.value})} required />
-        </div>
-        <div className="emp-form-group">
-          <label>Depot (optional)</label>
-          <select value={form.depot_code} onChange={e => setForm({...form, depot_code: e.target.value})}>
-            <option value="">All depots</option>
-            {getDepots().map(d => <option key={d.code} value={d.code}>{d.name}</option>)}
-          </select>
-        </div>
-      </div>
-      <div className="emp-form-actions">
-        <button type="button" className="emp-action-btn" onClick={onCancel}>Cancel</button>
-        <button type="submit" className="emp-add-btn" disabled={saving}>
-          {saving ? 'Saving...' : (template ? 'Update' : 'Create Template')}
-        </button>
-      </div>
-    </form>
-  );
-};
-
-// ─── Roster Tab ──────────────────────────────────────────────────────────────
-
-const RosterTab = ({ roster, onRefresh }) => {
-  // Group by depot
-  const byDepot = roster.reduce((acc, eng) => {
-    const depot = eng.shift_depot || eng.home_depot_code || 'Unknown';
-    const name = depotName(depot) || depot;
-    if (!acc[name]) acc[name] = [];
-    acc[name].push(eng);
-    return acc;
-  }, {});
-
-  return (
-    <div>
-      <div className="emp-section-header">
-        <h3>{roster.length} Engineer{roster.length !== 1 ? 's' : ''} on Shift Today</h3>
-        <button className="emp-action-btn" onClick={onRefresh}>Refresh</button>
-      </div>
-
-      {roster.length === 0 ? (
-        <div className="emp-empty-state">
-          <p>No engineers checked in today. Use the shift check-in on the Engineering Dashboard to set who's working.</p>
-        </div>
-      ) : (
-        Object.entries(byDepot).map(([depotName, engs]) => (
-          <div key={depotName} className="emp-roster-depot">
-            <div className="emp-roster-depot-hdr">
-              <span className="emp-roster-depot-name">{depotName}</span>
-              <span className="emp-roster-depot-count">
-                {engs.filter(e => e.is_available).length} available / {engs.length} on shift
-              </span>
-            </div>
-            {engs.map(eng => {
-              const skills = Array.isArray(eng.skills) ? eng.skills : [];
-              return (
-                <div key={eng.id} className="emp-roster-eng">
-                  <div className="emp-roster-eng-left">
-                    <span className="emp-roster-eng-name">{eng.name}</span>
-                    <span className="emp-roster-eng-badge">{eng.badge_number}</span>
-                  </div>
-                  <div className="emp-roster-eng-mid">
-                    {skills.slice(0,3).map((s,i) => (
-                      <span key={i} className="emp-skill-pill">{s}</span>
-                    ))}
-                  </div>
-                  <div className="emp-roster-eng-right">
-                    <span className="emp-roster-time">
-                      {eng.shift_start?.slice(0,5)} - {eng.shift_end?.slice(0,5)}
-                    </span>
-                    <span className={`emp-roster-status ${eng.is_available ? 'emp-r-avail' : 'emp-r-busy'}`}>
-                      {eng.is_available ? 'Available' : `On Job (${eng.active_jobs})`}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ))
+      {engineerForm && (
+        <EngineerFormModal engineer={engineerForm.engineer} onClose={() => setEngineerForm(null)} onSaved={afterSave} />
       )}
-    </div>
+      {patternForm && (
+        <PatternFormModal template={patternForm.template} onClose={() => setPatternForm(null)} onSaved={afterSave} />
+      )}
+      {showCheckIn && (
+        <ShiftCheckInModal
+          onComplete={() => { setShowCheckIn(false); flash('Check-in saved'); loadAll({ quiet: true }); }}
+          onSkip={() => setShowCheckIn(false)}
+        />
+      )}
+    </DashboardLayout>
   );
 };
-
-// ─── Styles ──────────────────────────────────────────────────────────────────
-
-const empStyles = `
-  .emp-header {
-    background: rgba(15, 23, 42, 0.6);
-    padding: 20px 24px;
-    border-radius: 16px;
-    margin-bottom: 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-  }
-
-  .emp-header-left {
-    display: flex; align-items: center; gap: 14px; color: #f1f5f9;
-  }
-
-  .emp-header-left svg {
-    width: 44px; height: 44px;
-    padding: 10px;
-    box-sizing: border-box;
-    background: rgba(0, 188, 212, 0.12);
-    border: 1px solid rgba(0, 188, 212, 0.25);
-    border-radius: 10px;
-    color: #22d3ee;
-    flex-shrink: 0;
-  }
-
-  .emp-header-left h2 {
-    margin: 0; font-size: 24px; font-weight: 700;
-    font-family: 'Outfit', sans-serif;
-    letter-spacing: -0.01em;
-    color: #f1f5f9;
-  }
-
-  .emp-header-left p {
-    margin: 2px 0 0; color: #94a3b8;
-    font-size: 13px; font-family: 'Inter', sans-serif;
-  }
-
-  .emp-tabs {
-    display: flex; gap: 22px;
-    background: transparent;
-    border-radius: 0;
-    padding: 0;
-    margin-bottom: 20px;
-    border: none;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-  }
-
-  .emp-tab {
-    flex: none;
-    padding: 10px 2px 12px;
-    background: transparent;
-    border: none;
-    border-bottom: 2px solid transparent;
-    border-radius: 0;
-    color: #94a3b8;
-    font-family: 'Outfit', sans-serif;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.15s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-  }
-
-  .emp-tab:hover { color: #e2e8f0; }
-
-  .emp-tab-active {
-    background: transparent !important;
-    color: #22d3ee !important;
-    border-bottom-color: #22d3ee;
-  }
-
-  .emp-tab-count {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px;
-    background: rgba(255,255,255,0.08);
-    padding: 2px 6px;
-    border-radius: 8px;
-  }
-
-  .emp-tab-active .emp-tab-count {
-    background: rgba(0,151,167,0.25);
-  }
-
-  /* Engineers summary strip */
-  .emp-summary-strip {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(120px, 160px)) 1fr;
-    gap: 12px;
-    margin-bottom: 20px;
-  }
-
-  .emp-summary-tile {
-    display: flex; align-items: center; gap: 12px;
-    background: #141d2b;
-    border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 10px;
-    padding: 14px 16px;
-  }
-
-  .emp-summary-icon { color: #64748b; flex-shrink: 0; }
-  .emp-summary-icon--good { color: #34d399; }
-  .emp-summary-icon--warn { color: #fbbf24; }
-
-  .emp-summary-value {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 22px; font-weight: 700; color: #f1f5f9;
-    line-height: 1;
-  }
-
-  .emp-summary-label {
-    font-size: 11px; color: #94a3b8;
-    font-family: 'Inter', sans-serif;
-    margin-top: 4px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-  }
-
-  .emp-summary-tile--depots { align-items: center; }
-
-  .emp-summary-depots {
-    display: flex; flex-wrap: wrap; gap: 6px;
-  }
-
-  .emp-summary-depot-pill {
-    font-size: 11px; color: #94a3b8;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.07);
-    padding: 3px 8px; border-radius: 6px;
-    font-family: 'Inter', sans-serif;
-  }
-
-  .emp-summary-depot-pill strong {
-    color: #e2e8f0;
-    font-family: 'JetBrains Mono', monospace;
-    margin-left: 3px;
-  }
-
-  .emp-loading {
-    text-align: center; padding: 60px 20px;
-    color: #94a3b8; font-family: 'Inter', sans-serif;
-  }
-
-  .emp-spinner {
-    width: 36px; height: 36px;
-    border: 3px solid #1e293b; border-top-color: #0097A7;
-    border-radius: 50%;
-    animation: emp-spin 0.8s linear infinite;
-    margin: 0 auto 16px;
-  }
-  @keyframes emp-spin { to { transform: rotate(360deg); } }
-
-  .emp-section-header {
-    display: flex; justify-content: space-between; align-items: center;
-    margin-bottom: 16px;
-  }
-
-  .emp-section-header h3 {
-    font-size: 16px; font-weight: 600; color: #e2e8f0;
-    font-family: 'Outfit', sans-serif; margin: 0;
-  }
-
-  .emp-add-btn {
-    padding: 8px 16px;
-    background: linear-gradient(135deg, #0097A7, #00838F);
-    color: white; border: none; border-radius: 6px;
-    font-family: 'Outfit', sans-serif;
-    font-size: 12px; font-weight: 700;
-    cursor: pointer; transition: all 0.15s;
-  }
-  .emp-add-btn:hover:not(:disabled) {
-    background: linear-gradient(135deg, #00ACC1, #0097A7);
-    box-shadow: 0 4px 14px rgba(0,151,167,0.3);
-  }
-  .emp-add-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-  .emp-action-btn {
-    padding: 6px 14px;
-    background: rgba(255,255,255,0.06);
-    color: #94a3b8; border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 6px; font-size: 12px; font-weight: 600;
-    font-family: 'Outfit', sans-serif;
-    cursor: pointer; transition: all 0.15s;
-  }
-  .emp-action-btn:hover { background: rgba(255,255,255,0.1); color: #e2e8f0; }
-
-  .emp-action-del { color: #f87171; border-color: rgba(239,68,68,0.2); }
-  .emp-action-del:hover { background: rgba(239,68,68,0.1); color: #fca5a5; }
-
-  .emp-empty-state {
-    text-align: center; padding: 40px 20px; color: #64748b;
-    font-size: 13px; font-family: 'Inter', sans-serif;
-    background: rgba(255,255,255,0.02);
-    border: 1px dashed rgba(255,255,255,0.08);
-    border-radius: 10px;
-  }
-
-  /* Engineer cards */
-  .emp-card-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 12px;
-  }
-
-  .emp-eng-card {
-    background: #141d2b;
-    border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 10px;
-    padding: 14px;
-    transition: border-color 0.15s;
-  }
-  .emp-eng-card:hover { border-color: rgba(255,255,255,0.12); }
-
-  .emp-eng-card-top {
-    display: flex; justify-content: space-between; align-items: flex-start;
-    margin-bottom: 8px;
-  }
-
-  .emp-eng-name {
-    font-size: 15px; font-weight: 700; color: #e2e8f0;
-    font-family: 'Outfit', sans-serif;
-  }
-
-  .emp-eng-badge {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px; color: #64748b;
-  }
-
-  .emp-eng-status {
-    font-size: 9px; font-weight: 800; text-transform: uppercase;
-    letter-spacing: 0.5px; padding: 3px 8px; border-radius: 4px;
-  }
-
-  .emp-st-available { background: rgba(16,185,129,0.12); color: #34d399; border: 1px solid rgba(16,185,129,0.25); }
-  .emp-st-on_job { background: rgba(245,158,11,0.12); color: #fbbf24; border: 1px solid rgba(245,158,11,0.25); }
-  .emp-st-off_duty { background: rgba(100,116,139,0.12); color: #94a3b8; border: 1px solid rgba(100,116,139,0.2); }
-
-  .emp-eng-detail {
-    display: flex; gap: 12px; margin-bottom: 8px;
-    font-size: 12px; color: #94a3b8;
-    font-family: 'Inter', sans-serif;
-  }
-
-  .emp-eng-depot { color: #a5b4fc; }
-
-  .emp-eng-shift {
-    font-size: 11px;
-    font-family: 'Inter', sans-serif;
-    padding: 5px 8px;
-    border-radius: 6px;
-    margin-bottom: 8px;
-    display: inline-block;
-  }
-
-  .emp-eng-shift--on {
-    color: #34d399;
-    background: rgba(16,185,129,0.08);
-    border: 1px solid rgba(16,185,129,0.18);
-  }
-
-  .emp-eng-shift--off {
-    color: #64748b;
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.06);
-  }
-
-  .emp-eng-job {
-    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-    font-size: 11px; color: #fbbf24;
-    background: rgba(245,158,11,0.08);
-    border: 1px solid rgba(245,158,11,0.2);
-    border-radius: 6px;
-    padding: 6px 8px;
-    margin-bottom: 10px;
-    font-family: 'Inter', sans-serif;
-  }
-
-  .emp-eng-job-loc {
-    display: flex; align-items: center; gap: 3px;
-    color: #94a3b8;
-  }
-
-  .emp-eng-skills {
-    display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 10px;
-  }
-
-  .emp-skill-pill {
-    font-size: 9px; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.5px; padding: 2px 6px; border-radius: 3px;
-    background: rgba(0,151,167,0.12); color: #22d3ee;
-    border: 1px solid rgba(0,151,167,0.2);
-  }
-
-  .emp-eng-actions {
-    display: flex; gap: 6px;
-    border-top: 1px solid rgba(255,255,255,0.04);
-    padding-top: 10px;
-  }
-
-  /* Form */
-  .emp-form {
-    background: #141d2b;
-    border: 1px solid rgba(0,151,167,0.2);
-    border-radius: 10px;
-    padding: 20px;
-    margin-bottom: 20px;
-  }
-
-  .emp-form-title {
-    font-size: 14px; font-weight: 700; color: #22d3ee;
-    font-family: 'Outfit', sans-serif;
-    margin: 0 0 16px;
-  }
-
-  .emp-form-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 12px;
-    margin-bottom: 12px;
-  }
-
-  .emp-form-group {
-    display: flex; flex-direction: column; gap: 4px;
-  }
-
-  .emp-form-group label {
-    font-size: 11px; font-weight: 600; color: #94a3b8;
-    text-transform: uppercase; letter-spacing: 0.5px;
-    font-family: 'Inter', sans-serif;
-  }
-
-  .emp-form-group input, .emp-form-group select {
-    background: #0d1420;
-    border: 1px solid rgba(255,255,255,0.1);
-    color: #e2e8f0;
-    padding: 8px 10px;
-    border-radius: 6px;
-    font-size: 13px;
-    font-family: 'Inter', sans-serif;
-  }
-
-  .emp-form-group input:focus, .emp-form-group select:focus {
-    outline: none;
-    border-color: rgba(0,151,167,0.5);
-  }
-
-  .emp-form-skills {
-    margin-bottom: 16px;
-  }
-
-  .emp-skill-options {
-    display: flex; gap: 6px; flex-wrap: wrap;
-  }
-
-  .emp-skill-opt {
-    padding: 5px 10px;
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.08);
-    color: #94a3b8;
-    border-radius: 4px;
-    font-size: 11px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.15s;
-    font-family: 'Inter', sans-serif;
-  }
-  .emp-skill-opt:hover { border-color: rgba(0,151,167,0.3); color: #e2e8f0; }
-
-  .emp-skill-on {
-    background: rgba(0,151,167,0.15) !important;
-    border-color: rgba(0,151,167,0.4) !important;
-    color: #22d3ee !important;
-  }
-
-  .emp-form-actions {
-    display: flex; gap: 8px; justify-content: flex-end;
-  }
-
-  /* Template list */
-  .emp-template-list {
-    display: flex; flex-direction: column; gap: 8px;
-  }
-
-  .emp-template-card {
-    display: flex; justify-content: space-between; align-items: center;
-    background: #141d2b;
-    border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 8px;
-    padding: 12px 16px;
-  }
-
-  .emp-tmpl-left {
-    display: flex; align-items: center; gap: 14px;
-  }
-
-  .emp-tmpl-name {
-    font-size: 14px; font-weight: 700; color: #e2e8f0;
-    font-family: 'Outfit', sans-serif;
-  }
-
-  .emp-tmpl-time {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 12px; color: #94a3b8;
-    background: rgba(255,255,255,0.04);
-    padding: 3px 8px; border-radius: 4px;
-  }
-
-  .emp-tmpl-depot {
-    font-size: 11px; color: #a5b4fc;
-    font-family: 'Inter', sans-serif;
-  }
-
-  .emp-tmpl-actions {
-    display: flex; gap: 6px;
-  }
-
-  /* Roster */
-  .emp-roster-depot {
-    background: #141d2b;
-    border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 10px;
-    margin-bottom: 12px;
-    overflow: hidden;
-  }
-
-  .emp-roster-depot-hdr {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 10px 16px;
-    background: rgba(0,151,167,0.06);
-    border-bottom: 1px solid rgba(255,255,255,0.04);
-  }
-
-  .emp-roster-depot-name {
-    font-size: 13px; font-weight: 700; color: #22d3ee;
-    text-transform: uppercase; letter-spacing: 0.5px;
-    font-family: 'Outfit', sans-serif;
-  }
-
-  .emp-roster-depot-count {
-    font-size: 11px; color: #94a3b8;
-    font-family: 'Inter', sans-serif;
-  }
-
-  .emp-roster-eng {
-    display: flex; align-items: center; gap: 12px;
-    padding: 10px 16px;
-    border-bottom: 1px solid rgba(255,255,255,0.03);
-  }
-  .emp-roster-eng:last-child { border-bottom: none; }
-
-  .emp-roster-eng-left {
-    min-width: 140px;
-  }
-
-  .emp-roster-eng-name {
-    font-size: 13px; font-weight: 600; color: #e2e8f0;
-    font-family: 'Outfit', sans-serif;
-    display: block;
-  }
-
-  .emp-roster-eng-badge {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 10px; color: #64748b;
-  }
-
-  .emp-roster-eng-mid {
-    flex: 1;
-    display: flex; gap: 4px; flex-wrap: wrap;
-  }
-
-  .emp-roster-eng-right {
-    display: flex; align-items: center; gap: 10px;
-  }
-
-  .emp-roster-time {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px; color: #64748b;
-  }
-
-  .emp-roster-status {
-    font-size: 9px; font-weight: 800; text-transform: uppercase;
-    letter-spacing: 0.5px; padding: 3px 8px; border-radius: 4px;
-  }
-
-  .emp-r-avail {
-    background: rgba(16,185,129,0.12); color: #34d399;
-    border: 1px solid rgba(16,185,129,0.25);
-  }
-
-  .emp-r-busy {
-    background: rgba(245,158,11,0.12); color: #fbbf24;
-    border: 1px solid rgba(245,158,11,0.25);
-  }
-`;
 
 export default EngineerManagementPage;

@@ -12,6 +12,19 @@ import express from 'express';
 import { query, select, insert, update } from '../config/mysql.js';
 import { from } from '../utils/queryHelpers.js';
 import { isDemoUser, demoSqlFilter, DEMO_SUPERVISOR_ID } from '../utils/demoFilter.js';
+
+// Demo engineers are the ones managed by the demo supervisor. A demo session may
+// only touch demo engineers and a real session only real ones - ids are UUIDs so
+// this is defence in depth, but it keeps the two datasets strictly apart.
+const sameWorld = (engineer, user) =>
+  (engineer?.managed_by === DEMO_SUPERVISOR_ID) === isDemoUser(user);
+
+// The engineering routes separate demo engineers by the DEMO- badge prefix, so
+// anything a demo session creates must carry it
+const demoBadge = (badge) => {
+  const clean = String(badge).trim().toUpperCase().replace(/^DEMO-/, '');
+  return `DEMO-${clean}`.slice(0, 20);
+};
 import { findDemoDepot } from '../data/demoDepots.js';
 
 const router = express.Router();
@@ -77,19 +90,21 @@ router.get('/engineers', async (req, res) => {
 router.post('/engineers', async (req, res) => {
   try {
     const supervisorId = req.user.id;
-    const { name, badge_number, phone, email, home_depot_code, skills } = req.body;
+    const { name, phone, email, home_depot_code, skills } = req.body;
+    let { badge_number } = req.body;
 
-    if (!name || !badge_number) {
-      return res.status(400).json({ success: false, error: 'name and badge_number are required' });
+    if (!name || !badge_number || !home_depot_code) {
+      return res.status(400).json({ success: false, error: 'Name, badge number and home depot are required' });
     }
+    if (isDemoUser(req.user)) badge_number = demoBadge(badge_number);
 
     const result = await insert('engineers', {
       name,
       badge_number,
       phone: phone || null,
       email: email || null,
-      depot: home_depot_code || null,
-      home_depot_code: home_depot_code || null,
+      depot: home_depot_code,
+      home_depot_code,
       skills: JSON.stringify(skills || []),
       status: 'available',
       is_active: 1,
@@ -111,13 +126,15 @@ router.put('/engineers/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const supervisorId = req.user.id;
-    const { name, badge_number, phone, email, home_depot_code, skills } = req.body;
+    const { name, phone, email, home_depot_code, skills } = req.body;
+    let { badge_number } = req.body;
 
     // Verify ownership
     const [engineer] = await select('engineers', { id });
-    if (!engineer) {
+    if (!engineer || !sameWorld(engineer, req.user)) {
       return res.status(404).json({ success: false, error: 'Engineer not found' });
     }
+    if (badge_number !== undefined && isDemoUser(req.user)) badge_number = demoBadge(badge_number);
     if (engineer.managed_by && engineer.managed_by !== supervisorId) {
       return res.status(403).json({ success: false, error: 'Not authorized to edit this engineer' });
     }
@@ -127,7 +144,7 @@ router.put('/engineers/:id', async (req, res) => {
     if (badge_number !== undefined) updateFields.badge_number = badge_number;
     if (phone !== undefined) updateFields.phone = phone;
     if (email !== undefined) updateFields.email = email;
-    if (home_depot_code !== undefined) {
+    if (home_depot_code) {
       updateFields.home_depot_code = home_depot_code;
       updateFields.depot = home_depot_code;
     }
@@ -138,6 +155,9 @@ router.put('/engineers/:id', async (req, res) => {
     res.json({ success: true, message: 'Engineer updated' });
   } catch (error) {
     console.error('Error updating engineer:', error);
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(409).json({ success: false, error: 'Badge number already exists' });
+    }
     res.status(500).json({ success: false, error: 'Failed to update engineer' });
   }
 });
@@ -149,7 +169,7 @@ router.delete('/engineers/:id', async (req, res) => {
     const supervisorId = req.user.id;
 
     const [engineer] = await select('engineers', { id });
-    if (!engineer) {
+    if (!engineer || !sameWorld(engineer, req.user)) {
       return res.status(404).json({ success: false, error: 'Engineer not found' });
     }
     if (engineer.managed_by && engineer.managed_by !== supervisorId) {
@@ -172,13 +192,22 @@ router.get('/shift-templates', async (req, res) => {
   try {
     const supervisorId = req.user.id;
 
-    const templates = await query(
-      `SELECT * FROM engineer_shift_templates
-       WHERE (created_by = ? OR created_by IN (SELECT id FROM supervisors WHERE role = 'admin'))
-       AND is_active = 1
-       ORDER BY start_time ASC`,
-      [supervisorId]
-    );
+    // Demo sessions see only the demo patterns; real users never see them
+    const templates = isDemoUser(req.user)
+      ? await query(
+          `SELECT * FROM engineer_shift_templates
+           WHERE created_by = ? AND is_active = 1
+           ORDER BY start_time ASC`,
+          [DEMO_SUPERVISOR_ID]
+        )
+      : await query(
+          `SELECT * FROM engineer_shift_templates
+           WHERE (created_by = ? OR created_by IN (SELECT id FROM supervisors WHERE role = 'admin'))
+           AND created_by != ?
+           AND is_active = 1
+           ORDER BY start_time ASC`,
+          [supervisorId, DEMO_SUPERVISOR_ID]
+        );
 
     res.json({ success: true, templates });
   } catch (error) {
@@ -289,10 +318,21 @@ router.post('/daily-shifts', async (req, res) => {
     let inserted = 0;
     let updated = 0;
 
+    // Only engineers from the caller's own dataset (demo vs real) can be checked in
+    const requestedIds = [...new Set(shifts.map(sh => sh.engineer_id).filter(Boolean))];
+    const allowedIds = new Set();
+    if (requestedIds.length > 0) {
+      const found = await query(
+        `SELECT id, managed_by FROM engineers WHERE id IN (${requestedIds.map(() => '?').join(',')})`,
+        requestedIds
+      );
+      found.filter(e => sameWorld(e, req.user)).forEach(e => allowedIds.add(e.id));
+    }
+
     for (const shift of shifts) {
       const { engineer_id, shift_template_id, custom_start, custom_end, depot_code } = shift;
 
-      if (!engineer_id || !depot_code) continue;
+      if (!engineer_id || !depot_code || !allowedIds.has(engineer_id)) continue;
 
       // Use INSERT ... ON DUPLICATE KEY UPDATE
       const sql = `
@@ -325,7 +365,7 @@ router.post('/daily-shifts', async (req, res) => {
     }
 
     // Also update the engineer status to available for checked-in engineers
-    const engineerIds = shifts.map(s => s.engineer_id).filter(Boolean);
+    const engineerIds = [...allowedIds];
     if (engineerIds.length > 0) {
       const placeholders = engineerIds.map(() => '?').join(',');
       await query(
@@ -343,6 +383,34 @@ router.post('/daily-shifts', async (req, res) => {
   } catch (error) {
     console.error('Error setting daily shifts:', error);
     res.status(500).json({ success: false, error: 'Failed to set daily shifts' });
+  }
+});
+
+// POST /api/engineer-management/daily-shifts/:engineerId/end - Sign an engineer
+// off for today (drops them from the on-shift roster and dispatch picker)
+router.post('/daily-shifts/:engineerId/end', async (req, res) => {
+  try {
+    const { engineerId } = req.params;
+    const today = new Date().toISOString().split('T')[0];
+
+    const [engineer] = await select('engineers', { id: engineerId });
+    if (!engineer || !sameWorld(engineer, req.user)) {
+      return res.status(404).json({ success: false, error: 'Engineer not found' });
+    }
+
+    const result = await query(
+      `UPDATE engineer_daily_shifts SET status = 'completed', updated_at = CURRENT_TIMESTAMP
+       WHERE engineer_id = ? AND shift_date = ? AND status = 'on_shift'`,
+      [engineerId, today]
+    );
+    if (!result.affectedRows) {
+      return res.status(404).json({ success: false, error: 'Engineer is not on shift today' });
+    }
+
+    res.json({ success: true, message: `${engineer.name} signed off` });
+  } catch (error) {
+    console.error('Error ending shift:', error);
+    res.status(500).json({ success: false, error: 'Failed to end shift' });
   }
 });
 

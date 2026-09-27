@@ -133,7 +133,10 @@ const EngineeringDashboard = () => {
     // is_available flag, which relies on an engineer_badge match that the
     // demo seed doesn't populate - see dispatchBoardHelpers for the same
     // badge+name matching used everywhere else on this board).
-    const available = onShiftEngineers.filter(e => deriveEngineerLiveStatus(e, allJobs).status === 'available').length;
+    const liveStatuses = onShiftEngineers.map(e => deriveEngineerLiveStatus(e, allJobs).status);
+    const available = liveStatuses.filter(st => st === 'available').length;
+    // Rostered today but not started yet / already finished don't count as on shift
+    const workingNow = liveStatuses.filter(st => st !== 'upcoming' && st !== 'off_shift').length;
     return {
       total: activeJobs.length,
       awaiting,
@@ -141,7 +144,7 @@ const EngineeringDashboard = () => {
       onSite,
       doneToday,
       engineersAvailable: available,
-      engineersOnShift: onShiftEngineers.length,
+      engineersOnShift: workingNow,
       slaCompliance: engineeringMetrics.slaCompliance ?? null,
       avgResponseTime: engineeringMetrics.avgResponseTime ?? null
     };

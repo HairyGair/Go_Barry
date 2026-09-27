@@ -152,7 +152,7 @@ export function isActiveJob(job) {
 }
 
 /** Determine an on-shift engineer's live status from the current jobs list.
- *  Returns { status: 'available'|'en_route'|'on_site'|'off_shift', job }. */
+ *  Returns { status: 'available'|'en_route'|'on_site'|'upcoming'|'off_shift', job }. */
 export function deriveEngineerLiveStatus(engineer, jobs) {
   const badge = engineer.badge_number;
   const name = engineer.name;
@@ -171,19 +171,45 @@ export function deriveEngineerLiveStatus(engineer, jobs) {
     return { status: deriveStage(activeJob), job: activeJob };
   }
 
-  // Shift-end check: an on-shift engineer whose shift has already ended and
-  // who isn't on a job right now reads as "off shift" rather than idle.
-  if (engineer.shift_end) {
-    const [h, m] = String(engineer.shift_end).split(':').map(Number);
-    if (!Number.isNaN(h)) {
-      const now = new Date();
-      const shiftEnd = new Date();
-      shiftEnd.setHours(h, m || 0, 0, 0);
-      if (now > shiftEnd) return { status: 'off_shift', job: null };
-    }
-  }
+  // Not on a job: whether they're free depends on where we are in their shift
+  const { state } = getShiftWindow(engineer);
+  if (state === 'upcoming') return { status: 'upcoming', job: null };
+  if (state === 'ended') return { status: 'off_shift', job: null };
 
   return { status: 'available', job: null };
+}
+
+function parseClock(value) {
+  if (!value) return null;
+  const [h, m] = String(value).split(':').map(Number);
+  if (Number.isNaN(h)) return null;
+  return h * 60 + (m || 0);
+}
+
+/**
+ * Where "now" sits in an engineer's rostered shift for today.
+ * Overnight shifts (end <= start, e.g. 22:00-06:00) run past midnight: before
+ * the end time we're in the tail of the shift, after the start we're in it.
+ * Returns { state: 'current'|'upcoming'|'ended'|'unknown', startMin, endMin, overnight }.
+ */
+export function getShiftWindow(engineer, now = new Date()) {
+  const startMin = parseClock(engineer?.shift_start);
+  const endMin = parseClock(engineer?.shift_end);
+  if (startMin === null || endMin === null) return { state: 'unknown', startMin, endMin, overnight: false };
+
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  const overnight = endMin <= startMin;
+  let state;
+  if (overnight) {
+    state = (nowMin >= startMin || nowMin < endMin) ? 'current' : 'upcoming';
+  } else if (nowMin < startMin) {
+    state = 'upcoming';
+  } else if (nowMin >= endMin) {
+    state = 'ended';
+  } else {
+    state = 'current';
+  }
+  return { state, startMin, endMin, overnight };
 }
 
 /**
