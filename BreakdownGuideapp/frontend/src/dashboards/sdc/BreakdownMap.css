@@ -152,21 +152,31 @@
    MARKER STYLING
    ==================================== */
 .breakdown-marker {
-  animation: breakdownPulse 2s ease-in-out infinite;
+  /* Never set animation/transform on the marker element itself: Leaflet
+     positions markers with an inline transform (translate3d), and an animated
+     transform overrides it — markers then collapse to the map's top-left. */
   cursor: pointer;
   filter: drop-shadow(0 4px 8px rgba(220, 38, 38, 0.4));
-  transition: transform 0.3s ease;
 }
 
-.breakdown-marker:hover {
+.breakdown-marker > svg {
+  animation: breakdownPulse 2s ease-in-out infinite;
+  transform-origin: center;
+  transition: transform 0.2s ease;
+}
+
+.breakdown-marker:hover > svg {
   animation: none;
   transform: scale(1.2);
 }
 
 /* Highlighted marker - pulsing ring effect */
 .breakdown-marker.highlighted {
-  animation: highlightedPulse 1.5s ease-in-out infinite;
   z-index: 1000 !important;
+}
+
+.breakdown-marker.highlighted > svg {
+  animation: highlightedPulse 1.5s ease-in-out infinite;
 }
 
 .breakdown-marker.highlighted svg .pulse-ring {
@@ -431,7 +441,7 @@
    ACCESSIBILITY
    ==================================== */
 @media (prefers-reduced-motion: reduce) {
-  .breakdown-marker,
+  .breakdown-marker > svg,
   .depot-marker {
     animation: none;
   }
