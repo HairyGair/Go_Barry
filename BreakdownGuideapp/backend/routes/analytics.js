@@ -1787,6 +1787,25 @@ router.get('/coverage-alert', async (req, res) => {
       console.warn('Error fetching supervisor stats:', err.message);
     }
 
+    // Demo: the demo supervisor is signed in and on duty — the frontend assigns
+    // it the running standard duty with the most time left, so mirror that
+    // here (otherwise every demo visit shows a red "no coverage" alarm).
+    if (isDemoUser && expectedDuties.length > 0) {
+      const minsLeft = (d) => {
+        const [h, m] = d.end.split(':').map(Number);
+        let end = h * 60 + m;
+        if (end <= currentTimeMinutes) end += 24 * 60;
+        return end - currentTimeMinutes;
+      };
+      const demoDuty = [...expectedDuties].sort((a, b) => minsLeft(b) - minsLeft(a))[0];
+      const existing = activeSupervisors.find(s => s.badge === 'DEMO01');
+      if (existing) {
+        existing.duty = demoDuty.code;
+      } else {
+        activeSupervisors.push({ badge: 'DEMO01', name: 'Demo User', duty: demoDuty.code, depot: 'Northgate', lastActive: now });
+      }
+    }
+
     // Determine coverage status
     const activeDuties = [...new Set(activeSupervisors.map(s => s.duty).filter(Boolean))];
     const coveredDuties = expectedDuties.filter(d => activeDuties.includes(d.code));
