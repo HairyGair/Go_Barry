@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '../../services/api-client';
 import { getDepotOptions } from '../../config/demoDepots';
+import { getShiftWindow } from './board/dispatchBoardHelpers';
 
 const REAL_DEPOTS = [
   { code: 'WAS', name: 'Washington' },
@@ -15,13 +16,19 @@ const REAL_DEPOTS = [
 // so a module-level list could keep the previous session's depots.
 const getDepots = () => getDepotOptions(REAL_DEPOTS);
 
-const ShiftCheckInModal = ({ onComplete, onSkip }) => {
+// The pattern covering the current time - a sensible default when checking someone in
+const currentTemplate = (templates) =>
+  templates.find(t => getShiftWindow({ shift_start: t.start_time, shift_end: t.end_time }).state === 'current') || null;
+
+const ShiftCheckInModal = ({ onComplete, onSkip, dismissLabel = 'Skip for now' }) => {
   const [step, setStep] = useState(1); // 1 = select engineers, 2 = confirm
   const [engineers, setEngineers] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [selections, setSelections] = useState({}); // { engineerId: { checked, templateId, customStart, customEnd, depotCode } }
+  const [rosteredById, setRosteredById] = useState({});
+  const [submitError, setSubmitError] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -30,23 +37,33 @@ const ShiftCheckInModal = ({ onComplete, onSkip }) => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [engRes, tmplRes] = await Promise.all([
+      const [engRes, tmplRes, shiftRes] = await Promise.all([
         apiClient.get('/api/engineer-management/engineers?include_all=true'),
-        apiClient.get('/api/engineer-management/shift-templates')
+        apiClient.get('/api/engineer-management/shift-templates'),
+        apiClient.get('/api/engineer-management/on-shift').catch(() => null)
       ]);
 
+      const tmpls = tmplRes.success ? (tmplRes.templates || []) : [];
       if (engRes.success) setEngineers(engRes.engineers || []);
-      if (tmplRes.success) setTemplates(tmplRes.templates || []);
+      setTemplates(tmpls);
 
-      // Initialize selections
+      // Who is already rostered today (re-checking them in updates their shift)
+      const rostered = {};
+      (shiftRes?.engineers || []).forEach(r => { rostered[r.id] = r; });
+      setRosteredById(rostered);
+
+      // Initialize selections: already-rostered engineers start from their
+      // current shift; everyone else defaults to the pattern covering now
+      const fallback = currentTemplate(tmpls);
       const initial = {};
       (engRes.engineers || []).forEach(e => {
+        const r = rostered[e.id];
         initial[e.id] = {
           checked: false,
-          templateId: null,
-          customStart: '',
-          customEnd: '',
-          depotCode: e.home_depot_code || ''
+          templateId: r ? (r.shift_template_id ? String(r.shift_template_id) : null) : (fallback ? String(fallback.id) : null),
+          customStart: r && !r.shift_template_id ? (r.shift_start || '').slice(0, 5) : '',
+          customEnd: r && !r.shift_template_id ? (r.shift_end || '').slice(0, 5) : '',
+          depotCode: (r && r.shift_depot) || e.home_depot_code || ''
         };
       });
       setSelections(initial);
@@ -72,6 +89,19 @@ const ShiftCheckInModal = ({ onComplete, onSkip }) => {
   };
 
   const selectedEngineers = engineers.filter(e => selections[e.id]?.checked);
+  const allSelected = engineers.length > 0 && selectedEngineers.length === engineers.length;
+  const toggleAll = () => {
+    setSelections(prev => {
+      const next = { ...prev };
+      engineers.forEach(e => { next[e.id] = { ...next[e.id], checked: !allSelected }; });
+      return next;
+    });
+  };
+  // A selected engineer needs either a pattern or both custom times
+  const missingTimes = selectedEngineers.filter(e => {
+    const sel = selections[e.id];
+    return !sel?.templateId && !(sel?.customStart && sel?.customEnd);
+  });
 
   const getShiftTime = (engineerId) => {
     const sel = selections[engineerId];
@@ -95,6 +125,7 @@ const ShiftCheckInModal = ({ onComplete, onSkip }) => {
 
   const handleSubmit = async () => {
     setSubmitting(true);
+    setSubmitError('');
     try {
       const shifts = selectedEngineers.map(eng => {
         const sel = selections[eng.id];
@@ -115,8 +146,12 @@ const ShiftCheckInModal = ({ onComplete, onSkip }) => {
         sessionStorage.setItem(`shift_checkin_${today}`, 'done');
         if (onComplete) onComplete(response);
       }
+      else setSubmitError(response?.error || 'Check-in could not be saved. Please try again.');
     } catch (error) {
       console.error('Error submitting shift check-in:', error);
+      setSubmitError(error?.message && !/^(Server error|HTTP error)/.test(error.message)
+        ? error.message
+        : 'Check-in could not be saved. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -167,6 +202,13 @@ const ShiftCheckInModal = ({ onComplete, onSkip }) => {
               </div>
             ) : (
               <div className="sci-engineer-list">
+                <div className="sci-list-head">
+                  <label className="sci-select-all">
+                    <input type="checkbox" checked={allSelected} onChange={toggleAll} />
+                    Select all
+                  </label>
+                  <span className="sci-list-hint">Ticking someone already on shift updates their shift.</span>
+                </div>
                 {engineers.map(eng => {
                   const sel = selections[eng.id];
                   const skills = Array.isArray(eng.skills) ? eng.skills : [];
@@ -182,7 +224,14 @@ const ShiftCheckInModal = ({ onComplete, onSkip }) => {
                           <span className="sci-checkmark" />
                         </label>
                         <div className="sci-eng-info">
-                          <span className="sci-eng-name">{eng.name}</span>
+                          <span className="sci-eng-name">
+                            {eng.name}
+                            {rosteredById[eng.id] && (
+                              <span className="sci-rostered">
+                                On shift {rosteredById[eng.id].shift_start?.slice(0, 5)}–{rosteredById[eng.id].shift_end?.slice(0, 5)}
+                              </span>
+                            )}
+                          </span>
                           <span className="sci-eng-badge">{eng.badge_number}</span>
                           <span className="sci-eng-depot">{getDepots().find(d => d.code === eng.home_depot_code)?.name || eng.home_depot_code || 'No depot'}</span>
                         </div>
@@ -248,10 +297,13 @@ const ShiftCheckInModal = ({ onComplete, onSkip }) => {
             )}
 
             <div className="sci-footer">
-              <button className="sci-btn sci-btn-skip" onClick={handleSkip}>Skip for now</button>
+              <button className="sci-btn sci-btn-skip" onClick={handleSkip}>{dismissLabel}</button>
+              {missingTimes.length > 0 && (
+                <span className="sci-footer-warn">Set hours for {missingTimes.map(e => e.name.split(' ')[0]).join(', ')}</span>
+              )}
               <button
                 className="sci-btn sci-btn-next"
-                disabled={selectedEngineers.length === 0}
+                disabled={selectedEngineers.length === 0 || missingTimes.length > 0}
                 onClick={() => setStep(2)}
               >
                 Next ({selectedEngineers.length} selected)
@@ -281,6 +333,7 @@ const ShiftCheckInModal = ({ onComplete, onSkip }) => {
               ))}
             </div>
 
+            {submitError && <div className="sci-error" role="alert">{submitError}</div>}
             <div className="sci-footer">
               <button className="sci-btn sci-btn-back" onClick={() => setStep(1)}>Back</button>
               <button
@@ -300,6 +353,37 @@ const ShiftCheckInModal = ({ onComplete, onSkip }) => {
 };
 
 const shiftCheckInStyles = `
+  .sci-list-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    position: sticky; top: 0; z-index: 1;
+    background: #0d1420;
+  }
+  .sci-select-all { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #cbd5e1; cursor: pointer; }
+  .sci-select-all input { width: 16px; height: 16px; accent-color: #0097A7; }
+  .sci-list-hint { font-size: 11px; color: #64748b; }
+  .sci-rostered {
+    margin-left: 8px;
+    padding: 1px 7px;
+    border-radius: 10px;
+    background: rgba(16,185,129,0.1);
+    border: 1px solid rgba(16,185,129,0.3);
+    color: #6ee7b7;
+    font-size: 10px; font-weight: 600;
+    font-family: var(--font-mono, 'JetBrains Mono'), monospace;
+    vertical-align: middle;
+  }
+  .sci-footer-warn { font-size: 12px; color: #fbbf24; margin-left: auto; }
+  .sci-error {
+    margin: 0 20px 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: rgba(248,113,113,0.1);
+    border: 1px solid rgba(248,113,113,0.35);
+    color: #fecaca;
+    font-size: 13px;
+  }
   .sci-overlay {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
@@ -562,7 +646,7 @@ const shiftCheckInStyles = `
 
   /* Footer */
   .sci-footer {
-    display: flex; gap: 10px;
+    display: flex; gap: 10px; align-items: center;
     padding: 16px 20px;
     border-top: 1px solid rgba(255,255,255,0.06);
     background: rgba(0,0,0,0.2);

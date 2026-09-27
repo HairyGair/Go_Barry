@@ -173,20 +173,28 @@ const TodayRoster = ({ roster, jobs, now, onCheckIn, onEndShift }) => {
                     {AXIS_HOURS.slice(1, -1).map(h => (
                       <span key={h} className="emg-grid" style={{ left: `${(h / 24) * 100}%` }} aria-hidden="true" />
                     ))}
-                    {segs.map(([a, b], i) => (
-                      <span
-                        key={i}
-                        className={`emg-bar emg-bar-${status}`}
-                        style={{ left: `${(a / 1440) * 100}%`, width: `${((b - a) / 1440) * 100}%` }}
-                      >
-                        {i === 0 && (
-                          <span className="emg-bar-text">
-                            {hhmm(entry.shift_start)}–{hhmm(entry.shift_end)}
-                            {entry.template_name ? ` · ${entry.template_name}` : ''}
-                          </span>
-                        )}
-                      </span>
-                    ))}
+                    {segs.map(([a, b], i) => {
+                      // Only the stretch containing "now" carries the live colour.
+                      // The other half of an overnight shift is either last
+                      // night's tail (finished) or tonight's start (planned).
+                      const live = nowMin >= a && nowMin < b;
+                      const tone = live ? status : b <= nowMin ? 'off_shift' : 'upcoming';
+                      const labelled = live || (!segs.some(([x, y]) => nowMin >= x && nowMin < y) && i === 0);
+                      return (
+                        <span
+                          key={i}
+                          className={`emg-bar emg-bar-${tone}`}
+                          style={{ left: `${(a / 1440) * 100}%`, width: `${((b - a) / 1440) * 100}%` }}
+                        >
+                          {labelled && (
+                            <span className="emg-bar-text">
+                              {hhmm(entry.shift_start)}–{hhmm(entry.shift_end)}
+                              {entry.template_name ? ` · ${entry.template_name}` : ''}
+                            </span>
+                          )}
+                        </span>
+                      );
+                    })}
                     <span className="emg-now-line" style={{ left: `${nowPct}%` }} aria-hidden="true" />
                     <span className="emg-sr-only">
                       {hhmm(entry.shift_start)} to {hhmm(entry.shift_end)}, {STATUS_LABEL[status]}

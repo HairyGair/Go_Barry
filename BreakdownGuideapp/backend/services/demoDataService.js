@@ -916,10 +916,12 @@ export async function seedDemoData() {
       const nowHour = new Date().getHours();
       const covers = (pt, h) => (pt.end > pt.start ? h >= pt.start && h < pt.end : h >= pt.start || h < pt.end);
       const current = patterns.filter(pt => covers(pt, nowHour));
-      // The next pattern to start after now (for the 'upcoming' engineers)
+      // The next pattern starting later TODAY (for the 'upcoming' engineers).
+      // Late in the evening nothing else starts today; they then join the
+      // current shift rather than showing as a finished morning shift.
       const next = [...patterns]
-        .filter(pt => !covers(pt, nowHour))
-        .sort((a, b) => ((a.start - nowHour + 24) % 24) - ((b.start - nowHour + 24) % 24))[0] || current[0];
+        .filter(pt => pt.start > nowHour)
+        .sort((a, b) => a.start - b.start)[0] || null;
       let rota = 0;
       for (const e of engineers) {
         await query(
@@ -935,7 +937,7 @@ export async function seedDemoData() {
         // Roster each engineer onto a pattern covering NOW (a fixed 06:00-18:00
         // left every demo engineer 'off shift' for evening visitors); the two
         // 'upcoming' engineers go on the next pattern instead
-        const pattern = e.upcoming ? next : current[rota++ % current.length];
+        const pattern = e.upcoming && next ? next : current[rota++ % current.length];
         await query(
           `INSERT INTO engineer_daily_shifts (
             engineer_id, shift_date, shift_template_id, custom_start, custom_end,

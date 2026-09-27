@@ -271,6 +271,7 @@ const EngineerManagementPage = () => {
         <ShiftCheckInModal
           onComplete={() => { setShowCheckIn(false); flash('Check-in saved'); loadAll({ quiet: true }); }}
           onSkip={() => setShowCheckIn(false)}
+          dismissLabel="Cancel"
         />
       )}
     </DashboardLayout>
