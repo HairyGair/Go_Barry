@@ -42,10 +42,8 @@ const JobDetailsModal = ({ show, onClose, breakdownId }) => {
       <div className="modal-container" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <div>
-            <h2>Job Details: {breakdownId}</h2>
-            {jobDetails && (
-              <p className="fleet-number">Fleet {jobDetails.fleet_number}</p>
-            )}
+            <h2>{jobDetails?.fleet_no ? `Fleet ${jobDetails.fleet_no}` : 'Job details'}</h2>
+            <p className="fleet-number">{breakdownId}</p>
           </div>
           <button className="close-button" onClick={onClose}><X size={20} /></button>
         </div>
@@ -57,11 +55,12 @@ const JobDetailsModal = ({ show, onClose, breakdownId }) => {
         ) : jobDetails ? (
           <>
             {/* Tab Navigation */}
-            <div className="tab-navigation">
+            <div className="jdm-tabs">
               {tabs.map(tab => (
                 <button
+                  type="button"
                   key={tab.id}
-                  className={`tab-button ${activeTab === tab.id ? 'active' : ''}`}
+                  className={`jdm-tab ${activeTab === tab.id ? 'active' : ''}`}
                   onClick={() => setActiveTab(tab.id)}
                 >
                   <tab.Icon className="tab-icon" size={16} />
@@ -166,7 +165,7 @@ const JobDetailsModal = ({ show, onClose, breakdownId }) => {
           color: white;
         }
 
-        .tab-navigation {
+        .jdm-tabs {
           display: flex;
           padding: 0 24px;
           gap: 8px;
@@ -174,7 +173,7 @@ const JobDetailsModal = ({ show, onClose, breakdownId }) => {
           overflow-x: auto;
         }
 
-        .tab-button {
+        .jdm-tab {
           background: none;
           border: none;
           color: #94a3b8;
@@ -190,12 +189,15 @@ const JobDetailsModal = ({ show, onClose, breakdownId }) => {
           white-space: nowrap;
         }
 
-        .tab-button:hover {
+        .jdm-tab:focus { outline: none; }
+        .jdm-tab:focus-visible { outline: 2px solid #22d3ee; outline-offset: -2px; }
+
+        .jdm-tab:hover {
           color: white;
           background: rgba(255, 255, 255, 0.05);
         }
 
-        .tab-button.active {
+        .jdm-tab.active {
           color: #22d3ee;
           border-bottom-color: #22d3ee;
         }
@@ -208,6 +210,8 @@ const JobDetailsModal = ({ show, onClose, breakdownId }) => {
           flex: 1;
           overflow-y: auto;
           padding: 24px;
+          /* steady height so switching tabs doesn't make the dialog jump */
+          min-height: min(420px, 55vh);
         }
 
         .modal-footer {
@@ -251,8 +255,8 @@ const JobDetailsModal = ({ show, onClose, breakdownId }) => {
 const OverviewTab = ({ job }) => (
   <div className="overview-tab">
     <div className="info-grid">
-      <InfoCard label="Fleet Number" value={job.fleet_number} />
-      <InfoCard label="Location" value={job.location || 'Unknown'} />
+      <InfoCard label="Fleet Number" value={job.fleet_no || 'Unknown'} />
+      <InfoCard label="Location" value={job.location_description || job.location || 'Unknown'} />
       <InfoCard label="Depot" value={job.depot || 'Unknown'} />
       <InfoCard label="Supervisor" value={job.supervisor_name || 'Unknown'} />
       <InfoCard
@@ -264,11 +268,20 @@ const OverviewTab = ({ job }) => (
       <InfoCard label="Elapsed Time" value={`${job.timeline?.total_elapsed || 0} min`} />
       <InfoCard
         label="Engineer Status"
-        value={job.engineer_dispatched_at ? 'Engineer Dispatched' : 'Awaiting Dispatch'}
+        value={
+          job.engineer_on_site_at ? `On site${job.engineer_name ? ` · ${job.engineer_name}` : ''}`
+            : job.engineer_dispatched_at ? `En route${job.engineer_name ? ` · ${job.engineer_name}` : ''}`
+            : 'Awaiting dispatch'
+        }
       />
     </div>
 
+    {/* Only when there is something to summarise - an empty heading looked broken */}
     {job.assessment_summary && (
+      job.assessment_summary.key_symptoms.length > 0 ||
+      job.assessment_summary.safety_concerns.length > 0 ||
+      job.assessment_summary.recommended_actions.length > 0
+    ) && (
       <div className="summary-section">
         <h3>Assessment Summary</h3>
 

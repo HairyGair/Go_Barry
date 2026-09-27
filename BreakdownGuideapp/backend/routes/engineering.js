@@ -1481,7 +1481,9 @@ router.get('/job/:breakdown_id', async (req, res) => {
     // Get breakdown with all details
     const [breakdown] = await select('breakdowns', { breakdown_id });
 
-    if (!breakdown) {
+    // Demo sessions only see demo jobs, and real users never see demo jobs
+    const isDemoJob = breakdown?.supervisor_badge === 'DEMO01';
+    if (!breakdown || isDemoJob !== isDemoUser(req.user)) {
       return res.status(404).json({
         success: false,
         error: 'Breakdown not found'
