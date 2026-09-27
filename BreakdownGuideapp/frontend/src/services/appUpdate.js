@@ -78,6 +78,16 @@ export const initAppUpdates = async () => {
     },
   });
 
+  // If a new worker takes control by any other route (e.g. the one-time
+  // handover in public/sw-transition.js) this page is running old code whose
+  // lazy chunks may no longer exist on the server - reload when safe
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController) return;
+    updateReady = true;
+    tryApply();
+  });
+
   // Route changes are a natural moment to pick up a pending update
   window.addEventListener('popstate', tryApply);
 };
