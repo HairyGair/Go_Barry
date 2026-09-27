@@ -98,8 +98,23 @@ echo "--- Deploying frontend to $FRONTEND_DIR ---"
 
 # Preserve any custom .htaccess additions (the dist should include one from build)
 mkdir -p "$FRONTEND_DIR"
+# Keep the previous releases' hashed assets: tabs left open (wall displays,
+# dashboards) still reference them and lazy-load them on navigation. Without
+# them those screens fail to load until a full refresh.
+PREV_ASSETS="$HOME/.breakdown-prev-assets"
+rm -rf "$PREV_ASSETS"
+if [ -d "$FRONTEND_DIR/assets" ]; then
+  mv "$FRONTEND_DIR/assets" "$PREV_ASSETS"
+fi
 rm -rf "$FRONTEND_DIR"/*
 cp -r "$STAGING"/frontend-dist/* "$FRONTEND_DIR/"
+if [ -d "$PREV_ASSETS" ]; then
+  # -n: never overwrite the new build; -p: keep old mtimes so pruning works
+  cp -rnp "$PREV_ASSETS"/. "$FRONTEND_DIR/assets/"
+  rm -rf "$PREV_ASSETS"
+fi
+# Drop assets no release has shipped for 14 days
+find "$FRONTEND_DIR/assets" -type f -mtime +14 -delete 2>/dev/null || true
 # The dist also ships a .htaccess (SPA rewrite + caching); the glob above skips dotfiles
 if [ -f "$STAGING/frontend-dist/.htaccess" ]; then
   cp -f "$STAGING/frontend-dist/.htaccess" "$FRONTEND_DIR/.htaccess"

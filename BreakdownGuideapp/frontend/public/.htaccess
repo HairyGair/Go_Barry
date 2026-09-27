@@ -10,6 +10,11 @@
     # This prevents React Router from catching API calls
     RewriteCond %{REQUEST_URI} !^/api/
 
+    # A missing hashed asset must 404, not come back as index.html with a 200
+    # (the browser then fails with a confusing MIME error instead of a clean miss)
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^assets/ - [R=404,L]
+
     # Handle React Router - Don't rewrite files that exist
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d

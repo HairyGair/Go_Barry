@@ -88,6 +88,18 @@ export const initAppUpdates = async () => {
     tryApply();
   });
 
+  // A screen's code failed to load (usually a tab from before a deploy asking
+  // for a file that has since been removed). The screen can't render anyway,
+  // so reload onto the current version - at most once a minute to avoid loops.
+  window.addEventListener('vite:preloadError', (event) => {
+    let last = 0;
+    try { last = Number(sessionStorage.getItem('gbChunkReloadAt')) || 0; } catch { /* ignore */ }
+    if (Date.now() - last < 60 * 1000) return;
+    event.preventDefault();
+    try { sessionStorage.setItem('gbChunkReloadAt', String(Date.now())); } catch { /* ignore */ }
+    window.location.reload();
+  });
+
   // Route changes are a natural moment to pick up a pending update
   window.addEventListener('popstate', tryApply);
 };
