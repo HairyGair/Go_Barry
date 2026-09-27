@@ -195,24 +195,46 @@ const PanToHighlighted = ({ highlightedId, markers }) => {
   return null;
 };
 
+// Fit the view to the breakdowns once they first load (the map otherwise
+// opens at a fixed city-centre view and outlying breakdowns start off-screen).
+// No animation, after a short delay so the cluster layer has settled.
+const FitToMarkers = ({ markers }) => {
+  const map = useMap();
+  const fittedRef = useRef(false);
+  const markersRef = useRef(markers);
+  markersRef.current = markers;
+  useEffect(() => {
+    if (fittedRef.current || !markers || markers.length === 0) return;
+    fittedRef.current = true;
+    // Deliberately not cleared on re-render: markers are recomputed on every
+    // live refresh, which would otherwise cancel the pending fit for good.
+    setTimeout(() => {
+      const pts = (markersRef.current || []).map(m => m.coords)
+        .filter(c => Array.isArray(c) && Number.isFinite(c[0]) && Number.isFinite(c[1]));
+      if (pts.length === 0) return;
+      try {
+        map.invalidateSize(); // panel layout may have resized the container
+        if (pts.length === 1) map.setView(pts[0], 14, { animate: false });
+        else map.fitBounds(L.latLngBounds(pts), { padding: [36, 36], maxZoom: 14, animate: false });
+      } catch (err) { console.warn('FitToMarkers failed', err); }
+    }, 300);
+  }, [markers, map]);
+  return null;
+};
+
 const depotIcon = L.divIcon({
   html: `<div style="
-    width: 36px;
-    height: 36px;
-    background: linear-gradient(135deg, #003B5C 0%, #00527a 100%);
-    border: 3px solid white;
-    border-radius: 8px 8px 8px 0;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-    transform: rotate(-45deg);
-  "><span style="transform: rotate(45deg);">🏢</span></div>`,
+    width: 22px; height: 22px;
+    background: rgba(15, 23, 42, 0.9);
+    border: 1.5px solid rgba(148, 163, 184, 0.7);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  "><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v8h4"/><path d="M18 9h2a2 2 0 0 1 2 2v11h-4"/><path d="M10 6h4M10 10h4M10 14h4M10 18h4"/></svg></div>`,
   className: 'depot-marker-simple',
-  iconSize: [36, 36],
-  iconAnchor: [18, 36],
-  popupAnchor: [0, -36]
+  iconSize: [22, 22],
+  iconAnchor: [11, 11],
+  popupAnchor: [0, -12]
 });
 
 // Depot locations - VERIFIED from OpenStreetMap Nominatim API (December 2025)
@@ -589,6 +611,78 @@ const BreakdownMap = ({
     return breakdowns.filter(b => !getCoordinates(b));
   }, [breakdowns, getCoordinates]);
 
+  // Plain (non-clustered) markers; the selected one sits on top
+  const renderPlainMarkers = (list) => (
+    list.map((breakdown) => {
+              const isHighlighted = highlightedId === breakdown.breakdown_id;
+  
+              return (
+                <Marker
+                  key={breakdown.breakdown_id}
+                  position={breakdown.coords}
+                  icon={getMarkerIcon(breakdown, isHighlighted)}
+                  zIndexOffset={isHighlighted ? 1000 : 0}
+                  eventHandlers={{
+                    click: () => {
+                      if (onMarkerClick) {
+                        onMarkerClick(breakdown.breakdown_id);
+                      }
+                    }
+                  }}
+                >
+                  <Popup className="breakdown-popup">
+                    <div style={{ padding: '8px', minWidth: '200px' }}>
+                      <div style={{
+                        fontWeight: '700',
+                        fontSize: '16px',
+                        color: '#f8fafc',
+                        marginBottom: '8px',
+                        borderBottom: '1px solid rgba(255,255,255,0.12)',
+                        paddingBottom: '4px'
+                      }}>
+                        Fleet {breakdown.fleet_no}
+                      </div>
+                      <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '4px' }}>
+                        <strong>Route:</strong> <span style={{
+                          background: '#3b82f6',
+                          color: 'white',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          fontWeight: '600',
+                          marginLeft: '4px'
+                        }}>{breakdown.route_id || 'N/A'}</span>
+                      </div>
+                      <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '4px' }}>
+                        <strong>Location:</strong> {breakdown.location || 'Unknown'}
+                      </div>
+                      <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '4px' }}>
+                        <strong>Depot:</strong> {breakdown.depot_display || breakdown.depot || 'Unknown'}
+                      </div>
+                      <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '8px' }}>
+                        <strong>Duration:</strong> <span style={{ color: '#dc2626', fontWeight: '600' }}>
+                          {breakdown.elapsed || 0} mins
+                        </span>
+                      </div>
+                      <div style={{
+                        fontSize: '12px',
+                        padding: '4px 8px',
+                        borderRadius: '6px',
+                        textAlign: 'center',
+                        fontWeight: '600',
+                        background: breakdown.criticality === 'critical' ? 'rgba(239, 68, 68, 0.18)' :
+                                   breakdown.criticality === 'warning' ? 'rgba(245, 158, 11, 0.18)' : 'rgba(59, 130, 246, 0.18)',
+                        color: breakdown.criticality === 'critical' ? '#fca5a5' :
+                               breakdown.criticality === 'warning' ? '#fbbf24' : '#93c5fd'
+                      }}>
+                        {breakdown.currentStage || breakdown.status || 'ACTIVE'}
+                      </div>
+                    </div>
+                  </Popup>
+                </Marker>
+              );
+            })
+  );
+
   return (
     <div className="breakdown-map-container">
       {/* Map layer toggles (Debug only via ?mapdebug) */}
@@ -756,6 +850,7 @@ const BreakdownMap = ({
         <ZoomTracker onZoomChange={setCurrentZoom} />
 
         {/* Fly to the selected/highlighted breakdown's marker */}
+        <FitToMarkers markers={breakdownMarkers} />
         <PanToHighlighted highlightedId={highlightedId} markers={breakdownMarkers} />
 
         {/* Priority routes area circle */}
@@ -774,12 +869,12 @@ const BreakdownMap = ({
 
         {/* Depot markers - 6 the operator depots */}
         {getDepotLocations().map((depot, index) => {
-          console.log(`🏢 Rendering depot ${index + 1}/${getDepotLocations().length}: ${depot.name} (${depot.code}) at [${depot.coords[0]}, ${depot.coords[1]}]`);
           return (
             <Marker
               key={`depot-${depot.code}`}
               position={depot.coords}
               icon={depotIcon}
+              zIndexOffset={-1000}
             >
               <Popup className="depot-popup">
                 <div style={{ padding: '8px', minWidth: '150px' }}>
@@ -820,11 +915,12 @@ const BreakdownMap = ({
 
         {/* Breakdown markers - with optional clustering */}
         {clusteringEnabled ? (
+          <>
           <MarkerClusterGroup
             chunkedLoading
             showCoverageOnHover={false}
             spiderfyOnMaxZoom={true}
-            maxClusterRadius={60}
+            maxClusterRadius={40}
             iconCreateFunction={(cluster) => {
               const count = cluster.getChildCount();
               const size = count < 5 ? 'small' : count < 10 ? 'medium' : 'large';
@@ -837,8 +933,8 @@ const BreakdownMap = ({
               });
             }}
           >
-            {breakdownMarkers.map((breakdown) => {
-              const isHighlighted = highlightedId === breakdown.breakdown_id;
+            {breakdownMarkers.filter(b => b.breakdown_id !== highlightedId).map((breakdown) => {
+              const isHighlighted = false;
 
               return (
                 <Marker
@@ -905,75 +1001,11 @@ const BreakdownMap = ({
               );
             })}
           </MarkerClusterGroup>
+          {/* The selected breakdown is never hidden inside a cluster */}
+          {renderPlainMarkers(breakdownMarkers.filter(b => b.breakdown_id === highlightedId))}
+          </>
         ) : (
-          /* Non-clustered markers */
-          breakdownMarkers.map((breakdown) => {
-            const isHighlighted = highlightedId === breakdown.breakdown_id;
-
-            return (
-              <Marker
-                key={breakdown.breakdown_id}
-                position={breakdown.coords}
-                icon={getMarkerIcon(breakdown, isHighlighted)}
-                eventHandlers={{
-                  click: () => {
-                    if (onMarkerClick) {
-                      onMarkerClick(breakdown.breakdown_id);
-                    }
-                  }
-                }}
-              >
-                <Popup className="breakdown-popup">
-                  <div style={{ padding: '8px', minWidth: '200px' }}>
-                    <div style={{
-                      fontWeight: '700',
-                      fontSize: '16px',
-                      color: '#f8fafc',
-                      marginBottom: '8px',
-                      borderBottom: '1px solid rgba(255,255,255,0.12)',
-                      paddingBottom: '4px'
-                    }}>
-                      Fleet {breakdown.fleet_no}
-                    </div>
-                    <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '4px' }}>
-                      <strong>Route:</strong> <span style={{
-                        background: '#3b82f6',
-                        color: 'white',
-                        padding: '2px 6px',
-                        borderRadius: '4px',
-                        fontWeight: '600',
-                        marginLeft: '4px'
-                      }}>{breakdown.route_id || 'N/A'}</span>
-                    </div>
-                    <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '4px' }}>
-                      <strong>Location:</strong> {breakdown.location || 'Unknown'}
-                    </div>
-                    <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '4px' }}>
-                      <strong>Depot:</strong> {breakdown.depot_display || breakdown.depot || 'Unknown'}
-                    </div>
-                    <div style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '8px' }}>
-                      <strong>Duration:</strong> <span style={{ color: '#dc2626', fontWeight: '600' }}>
-                        {breakdown.elapsed || 0} mins
-                      </span>
-                    </div>
-                    <div style={{
-                      fontSize: '12px',
-                      padding: '4px 8px',
-                      borderRadius: '6px',
-                      textAlign: 'center',
-                      fontWeight: '600',
-                      background: breakdown.criticality === 'critical' ? 'rgba(239, 68, 68, 0.18)' :
-                                 breakdown.criticality === 'warning' ? 'rgba(245, 158, 11, 0.18)' : 'rgba(59, 130, 246, 0.18)',
-                      color: breakdown.criticality === 'critical' ? '#fca5a5' :
-                             breakdown.criticality === 'warning' ? '#fbbf24' : '#93c5fd'
-                    }}>
-                      {breakdown.currentStage || breakdown.status || 'ACTIVE'}
-                    </div>
-                  </div>
-                </Popup>
-              </Marker>
-            );
-          })
+          renderPlainMarkers(breakdownMarkers)
         )}
       </MapContainer>
     </div>
