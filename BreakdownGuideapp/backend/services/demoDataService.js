@@ -465,7 +465,7 @@ function getDemoReplacements() {
  * Demo engineers - tagged managed_by = DEMO_SUPERVISOR_ID so they isolate cleanly
  * from real staff. Names match the engineers dispatched on the demo breakdowns.
  * home_depot_code uses the fictional demo depot codes (data/demoDepots.js):
- * NGT=Northgate, EFD=Eastfield, SBK=Southbank, HBS=Harbourside.
+ * NGT=Northgate, EFD=Eastfield, SBK=Southbank, HBS=Harbourside, HCR=Hillcrest.
  */
 function getDemoEngineers() {
   return [
@@ -473,6 +473,9 @@ function getDemoEngineers() {
     { id: 'demo-eng-0000-0000-000000000002', name: 'Dave Hedley', badge_number: 'DEMO-E02', home_depot_code: EFD.code, skills: ['Electrical', 'Doors', 'Diagnostics'] },
     { id: 'demo-eng-0000-0000-000000000003', name: 'Paul Charlton', badge_number: 'DEMO-E03', home_depot_code: SBK.code, skills: ['Mechanical', 'HVAC', 'Suspension'] },
     { id: 'demo-eng-0000-0000-000000000004', name: 'Stephen Liddle', badge_number: 'DEMO-E04', home_depot_code: HBS.code, skills: ['EV/Hybrid', 'Electrical', 'Brakes'] },
+    // Two free engineers, so the dispatch board always has someone to suggest
+    { id: 'demo-eng-0000-0000-000000000005', name: 'Gary Pattinson', badge_number: 'DEMO-E05', home_depot_code: NGT.code, skills: ['Mechanical', 'Electrical', 'Doors'] },
+    { id: 'demo-eng-0000-0000-000000000006', name: 'Lee Swinburne', badge_number: 'DEMO-E06', home_depot_code: HCR.code, skills: ['Diagnostics', 'HVAC', 'Transmission'] },
   ];
 }
 

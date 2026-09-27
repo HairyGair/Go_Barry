@@ -453,11 +453,20 @@ const TimelineTab = ({ job }) => {
 
   const events = [
     { label: 'Breakdown Created', time: job.created_at, Icon: AlertTriangle },
+    {
+      label: job.engineer_name ? `Engineer Dispatched · ${job.engineer_name}` : 'Engineer Dispatched',
+      time: job.engineer_dispatched_at,
+      Icon: Wrench,
+      duration: job.engineer_dispatched_at
+        ? Math.max(0, Math.floor((new Date(job.engineer_dispatched_at) - new Date(job.created_at)) / 60000))
+        : null
+    },
     { label: 'Engineer Accepted', time: job.engineer_accepted_at, Icon: CheckCircle2, duration: timeline.time_to_accept },
     { label: 'Engineer On Site', time: job.engineer_on_site_at, Icon: MapPin, duration: timeline.time_to_site },
     { label: 'Fixing Started', time: job.engineer_fixing_at, Icon: Wrench },
     { label: 'Job Completed', time: job.engineer_completed_at, Icon: CheckCircle2, duration: timeline.time_on_site }
-  ].filter(event => event.time);
+  ].filter(event => event.time)
+    .sort((a, b) => new Date(a.time) - new Date(b.time));
 
   return (
     <div className="timeline-tab">
@@ -476,7 +485,7 @@ const TimelineTab = ({ job }) => {
         ))}
       </div>
 
-      {timeline.total_elapsed && (
+      {timeline.total_elapsed != null && (
         <div className="timeline-summary">
           <h4>Total Time: {timeline.total_elapsed} minutes</h4>
         </div>
