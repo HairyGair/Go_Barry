@@ -176,7 +176,7 @@ const LiveRouteStatusDashboard = () => {
                     <div className="rst-card-title">
                       <span id="rst-unlinked-title" className="rst-status">Not linked to a route</span>
                       <span className="rst-dest">
-                        {unlinked.length} open breakdown{unlinked.length === 1 ? ' has' : 's have'} no route, so {unlinked.length === 1 ? 'it doesn’t' : 'they don’t'} affect the statuses above. Add the route in Operations.
+                        {unlinked.length} open breakdown{unlinked.length === 1 ? ' has' : 's have'} no recognised route, so {unlinked.length === 1 ? 'it isn’t' : 'they aren’t'} counted in the route statuses above.
                       </span>
                     </div>
                   </header>

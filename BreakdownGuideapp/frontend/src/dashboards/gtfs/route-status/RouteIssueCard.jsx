@@ -73,6 +73,7 @@ export const BreakdownLine = ({ b, now }) => {
         <span className="rst-bd-where">
           {b.location && <><MapPin size={11} aria-hidden="true" />{b.location}</>}
           {b.depot && <span className="rst-bd-depot">{displayDepotName(b.depot)}</span>}
+          {b.routeRef && <span className="rst-bd-depot" title="This route isn’t in the loaded timetable data">Route {b.routeRef} not recognised</span>}
         </span>
       </span>
       <span className="rst-bd-side">

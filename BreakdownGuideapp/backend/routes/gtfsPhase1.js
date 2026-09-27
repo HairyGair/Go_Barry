@@ -53,7 +53,22 @@ function formatBreakdown(b) {
 const OPEN_BREAKDOWN_COLUMNS = `
   id, breakdown_id, fleet_no, severity, status, issue_category, location_description,
   depot, route_id, created_at, engineer_name, engineer_dispatched_at,
-  engineer_eta_minutes, engineer_on_site_at`;
+  engineer_eta_minutes, engineer_on_site_at, wizard_assessment_data`;
+
+// Closed as far as every other screen is concerned (Operations, dispatch board)
+const CLOSED_STATUSES = `('resolved', 'cleared', 'completed')`;
+
+// The route a breakdown is on: the route_id column, or - as Operations does -
+// the route captured in the wizard answers when the column is empty
+function breakdownRouteRef(b) {
+  if (b.route_id) return b.route_id;
+  let data = b.wizard_assessment_data;
+  if (typeof data === 'string') {
+    try { data = JSON.parse(data); } catch { data = null; }
+  }
+  const ref = data && (data.route || data.route_number || data.routeNumber);
+  return ref ? String(ref) : null;
+}
 
 // Where each route runs, from its two most common trip destinations. GTFS is
 // static between imports, so this is cached rather than re-aggregating 14k+
@@ -103,7 +118,7 @@ router.get('/routes/status/live', async (req, res) => {
       query(`
         SELECT ${OPEN_BREAKDOWN_COLUMNS}
         FROM breakdowns
-        WHERE status NOT IN ('resolved', 'cleared')${demoSqlFilter(req.user)}
+        WHERE status NOT IN ${CLOSED_STATUSES}${demoSqlFilter(req.user)}
         ORDER BY created_at DESC
       `),
       // Real place names - the public demo uses fictional geography, so skip
@@ -121,10 +136,11 @@ router.get('/routes/status/live', async (req, res) => {
     const breakdownsByRoute = {};
     const unlinked = [];
     (openRows || []).forEach(b => {
-      const id = b.route_id ? byKey.get(routeKey(b.route_id)) : null;
+      const ref = breakdownRouteRef(b);
+      const id = ref ? byKey.get(routeKey(ref)) : null;
       const formatted = formatBreakdown(b);
       if (id) (breakdownsByRoute[id] = breakdownsByRoute[id] || []).push(formatted);
-      else unlinked.push({ ...formatted, routeRef: b.route_id || null });
+      else unlinked.push({ ...formatted, routeRef: ref });
     });
 
     const statusOrder = { RED: 0, AMBER: 1, GREEN: 2 };
@@ -207,7 +223,7 @@ router.get('/routes/:routeId/status', async (req, res) => {
       SELECT ${OPEN_BREAKDOWN_COLUMNS}
       FROM breakdowns
       WHERE (route_id = ? OR route_id = ?)
-      AND status NOT IN ('resolved', 'cleared')${demoSqlFilter(req.user)}
+      AND status NOT IN ${CLOSED_STATUSES}${demoSqlFilter(req.user)}
       ORDER BY created_at DESC;
     `, [routeId, route.route_short_name]);
     const formatted = (breakdowns || []).map(formatBreakdown);

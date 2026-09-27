@@ -206,6 +206,8 @@
   border-radius: 14px;
   max-height: calc(100vh - var(--app-top-offset, 84px) - 40px);
 }
+.rst-board > * { flex-shrink: 0; }
+.rst-board > .rst-tiles { flex: 1 1 auto; flex-shrink: 1; }
 .rst-board-head { display: flex; align-items: baseline; gap: 8px; }
 .rst-board-head h3 { margin: 0; font: 700 15px/1.2 var(--font-display, 'Outfit'), sans-serif; color: var(--rst-text); }
 .rst-board-sub { font-size: 12px; color: var(--rst-text-3); }
