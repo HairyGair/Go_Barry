@@ -16,6 +16,7 @@ import QuickDecisionButtons from './QuickDecisionButtons';
 import apiClient from '../../services/api-client';
 import { GOOGLE_MAPS_API_KEY } from '@/config/maps.js';
 import { DEMO_DEPOTS } from '../../config/demoDepots';
+import { getStatusLabel } from './utils/breakdownRowHelpers';
 import './SDCBreakdownCard-Carousel.css';
 
 // standard procedure category mappings with icons
@@ -742,7 +743,7 @@ const SDCBreakdownCardEnhanced = memo(({
                   </div>
                   <div className="overview-item">
                     <div className="overview-label">Status</div>
-                    <div className="overview-value">{breakdown.currentStage || 'Received'}</div>
+                    <div className="overview-value">{getStatusLabel(breakdown)}</div>
                   </div>
                   <div className="overview-item">
                     <div className="overview-label">Breakdown ID</div>
@@ -881,7 +882,7 @@ const SDCBreakdownCardEnhanced = memo(({
                   </div>
                   <div className="detail-row">
                     <span className="detail-label">Current Status</span>
-                    <span className="detail-value">{breakdown.currentStage || 'Received'}</span>
+                    <span className="detail-value">{getStatusLabel(breakdown)}</span>
                   </div>
                   <div className="detail-row">
                     <span className="detail-label">Breakdown ID</span>
