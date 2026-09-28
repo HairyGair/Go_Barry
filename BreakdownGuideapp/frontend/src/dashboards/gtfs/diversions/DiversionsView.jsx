@@ -176,7 +176,7 @@ const Planner = ({ routes, initialRoute, onCancel, onSaved, preset }) => {
     let options = await getRoadOptions(seg.plan.from, seg.plan.to, viaPts);
     if (!viaPts.length && seg.plan.detourVias?.length) {
       const detours = await Promise.allSettled(
-        seg.plan.detourVias.map(v => getRoadOptions(seg.plan.from, seg.plan.to, [v]))
+        seg.plan.detourVias.map(v => getRoadOptions(seg.plan.from, seg.plan.to, v))
       );
       detours.forEach(r => { if (r.status === 'fulfilled') options = options.concat(r.value); });
     }

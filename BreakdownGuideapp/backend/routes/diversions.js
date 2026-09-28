@@ -43,7 +43,7 @@ const CLICK_TOLERANCE_M = 200;     // how close a click must be to the route lin
 const STOP_BUFFER_M = 40;          // stops this close to the closure count as blocked
 const CLOSED_ROAD_M = 20;          // a path this close to the closed stretch still uses it
 const SINGLE_POINT_HALF_M = 40;    // a one-click closure covers this much road either side
-const DETOUR_OFFSETS_M = [300, 650, 1100]; // how far either side of the closure to try detours
+const DETOUR_OFFSETS_M = [350, 750, 1300]; // how far either side of the closure to try detours
 const SERVED_STOP_M = 45;          // stops this close to a diversion path could be served
 const REASONS = new Set(['road_closure', 'roadworks', 'incident', 'event', 'weather', 'other']);
 
@@ -328,10 +328,14 @@ router.post('/plan', async (req, res) => {
     }
     // The closed stretch as points along the route shape
     const section = [];
+    const inner = []; // the stretch minus 30 m at each end, where the junctions are
     for (let i = 0; i < g.path.length; i++) {
-      if (g.cumulative[i] >= startAlong && g.cumulative[i] <= endAlong) section.push(g.path[i]);
+      const along = g.cumulative[i];
+      if (along >= startAlong && along <= endAlong) section.push(g.path[i]);
+      if (along >= startAlong + 30 && along <= endAlong - 30) inner.push(g.path[i]);
     }
     if (section.length === 0) section.push(g.path[a.idx]);
+    if (inner.length === 0) inner.push(section[Math.floor(section.length / 2)]);
     const closurePt = g.path[a.idx];
 
     // Leave after the last stop clear of the closure, rejoin at the first stop past it
@@ -394,9 +398,9 @@ router.post('/plan', async (req, res) => {
 
     // Does a path still run along the closed stretch? Check the stretch's inner
     // points (sampled) against the path
-    const sectionSample = section.length > 60
-      ? section.filter((_, i) => i % Math.ceil(section.length / 60) === 0)
-      : section;
+    const sectionSample = inner.length > 60
+      ? inner.filter((_, i) => i % Math.ceil(inner.length / 60) === 0)
+      : inner;
     const usesClosed = (path) => sectionSample.some(pt => distToPathM(pt, path) <= CLOSED_ROAD_M);
 
     const scored = routes.map((r, i) => {
@@ -415,7 +419,11 @@ router.post('/plan', async (req, res) => {
         distanceMeters: r.distanceMeters,
         durationMinutes: Math.round(r.durationSeconds / 60),
         extraMiles: Math.round(((r.distanceMeters - originalMeters) / METERS_PER_MILE) * 10) / 10,
-        extraMinutes: scheduledMinutes != null ? Math.round(r.durationSeconds / 60) - scheduledMinutes : null,
+        // Extra driving time for the extra distance, at this option's own average
+        // speed (comparing with the timetable would count dwell time at stops)
+        extraMinutes: r.distanceMeters > 0
+          ? Math.round((r.durationSeconds / 60) * ((r.distanceMeters - originalMeters) / r.distanceMeters))
+          : null,
         usesClosedRoad,
         missedStops: stillMissed,
         servedStops: servedStops.filter(s => !missedStops.some(m => m.stopId === s.stopId)).slice(0, 30),
@@ -431,8 +439,10 @@ router.post('/plan', async (req, res) => {
     });
     candidates.forEach((c, i) => { c.id = `opt-${i + 1}`; });
 
-    // Detour points either side of the closed stretch, for the browser to try
-    // (Google has no 'avoid this road' option, so we steer it round)
+    // Detours for the browser to try (Google has no 'avoid this road'): for
+    // each side and distance, a pair of via points beside each end of the closed
+    // stretch, which steers the route onto a parallel road rather than up the
+    // closed one and off again
     const first = section[0];
     const last = section[section.length - 1];
     const mid = section[Math.floor(section.length / 2)];
@@ -445,10 +455,14 @@ router.post('/plan', async (req, res) => {
     const perp = [-dy / len, dx / len]; // unit vector across the road (x=east, y=north)
     const mPerDegLat = 111320;
     const mPerDegLng = 111320 * Math.cos(mid[0] * Math.PI / 180);
-    const detourVias = DETOUR_OFFSETS_M.flatMap(off => [1, -1].map(side => [
-      Math.round((mid[0] + (perp[1] * off * side) / mPerDegLat) * 1e6) / 1e6,
-      Math.round((mid[1] + (perp[0] * off * side) / mPerDegLng) * 1e6) / 1e6,
-    ]));
+    const offset = (pt, off, side) => [
+      Math.round((pt[0] + (perp[1] * off * side) / mPerDegLat) * 1e6) / 1e6,
+      Math.round((pt[1] + (perp[0] * off * side) / mPerDegLng) * 1e6) / 1e6,
+    ];
+    const shortStretch = distM(first, last) < 150;
+    const detourVias = DETOUR_OFFSETS_M.flatMap(off => [1, -1].map(side => (
+      shortStretch ? [offset(mid, off, side)] : [offset(first, off, side), offset(last, off, side)]
+    )));
 
     res.json({
       success: true,
