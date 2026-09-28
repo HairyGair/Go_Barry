@@ -18,7 +18,7 @@ SetEnv NODE_ENV production
 
 # Allow CORS from frontend domains
 Header always set Access-Control-Allow-Origin "*"
-Header always set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+Header always set Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
 Header always set Access-Control-Allow-Headers "Content-Type, Authorization"
 
 # Handle OPTIONS requests for CORS preflight
