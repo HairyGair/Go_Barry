@@ -41,7 +41,9 @@ const router = express.Router();
 const METERS_PER_MILE = 1609.344;
 const CLICK_TOLERANCE_M = 200;     // how close a click must be to the route line
 const STOP_BUFFER_M = 40;          // stops this close to the closure count as blocked
-const CLOSED_ROAD_M = 30;          // a path this close to the closure still uses the closed road
+const CLOSED_ROAD_M = 20;          // a path this close to the closed stretch still uses it
+const SINGLE_POINT_HALF_M = 40;    // a one-click closure covers this much road either side
+const DETOUR_OFFSETS_M = [300, 650, 1100]; // how far either side of the closure to try detours
 const SERVED_STOP_M = 45;          // stops this close to a diversion path could be served
 const REASONS = new Set(['road_closure', 'roadworks', 'incident', 'event', 'weather', 'other']);
 
@@ -286,7 +288,7 @@ router.get('/geometry/:route', async (req, res) => {
 router.post('/plan', async (req, res) => {
   try {
     const {
-      routeShortName, directionId, closure, via = [], fromStopId, toStopId,
+      routeShortName, directionId, closure, closureEnd, via = [], fromStopId, toStopId,
       candidates: clientCandidates, clientDirections = false,
     } = req.body || {};
     const cLat = parseFloat(closure?.lat);
@@ -302,21 +304,42 @@ router.post('/plan', async (req, res) => {
     const g = await loadGeometry(routeShortName, directionId);
     if (!g || g.error) return res.status(404).json({ success: false, error: g?.error || 'Route not found' });
 
-    const closurePt = [cLat, cLng];
-    let cIdx = 0;
-    let cBest = Infinity;
-    g.path.forEach((pt, i) => { const d = distM(closurePt, pt); if (d < cBest) { cBest = d; cIdx = i; } });
-    if (cBest > CLICK_TOLERANCE_M) {
+    // Snap the closure (one point, or both ends of a closed stretch) onto the route
+    const snap = (pt) => {
+      let idx = 0;
+      let best = Infinity;
+      g.path.forEach((p, i) => { const d = distM(pt, p); if (d < best) { best = d; idx = i; } });
+      return { idx, best };
+    };
+    const a = snap([cLat, cLng]);
+    const eLat = parseFloat(closureEnd?.lat);
+    const eLng = parseFloat(closureEnd?.lng);
+    const b2 = !Number.isNaN(eLat) && !Number.isNaN(eLng) ? snap([eLat, eLng]) : null;
+    if (a.best > CLICK_TOLERANCE_M || (b2 && b2.best > CLICK_TOLERANCE_M)) {
       return res.status(400).json({ success: false, error: 'Mark the closure on the route line' });
     }
-    const closureAlong = g.cumulative[cIdx];
+    let startAlong = g.cumulative[a.idx];
+    let endAlong = b2 ? g.cumulative[b2.idx] : startAlong;
+    if (endAlong < startAlong) [startAlong, endAlong] = [endAlong, startAlong];
+    if (!b2 || endAlong - startAlong < 2 * SINGLE_POINT_HALF_M) {
+      const mid = (startAlong + endAlong) / 2;
+      startAlong = Math.min(startAlong, mid - SINGLE_POINT_HALF_M);
+      endAlong = Math.max(endAlong, mid + SINGLE_POINT_HALF_M);
+    }
+    // The closed stretch as points along the route shape
+    const section = [];
+    for (let i = 0; i < g.path.length; i++) {
+      if (g.cumulative[i] >= startAlong && g.cumulative[i] <= endAlong) section.push(g.path[i]);
+    }
+    if (section.length === 0) section.push(g.path[a.idx]);
+    const closurePt = g.path[a.idx];
 
     // Leave after the last stop clear of the closure, rejoin at the first stop past it
     let fromIdx = -1;
     let toIdx = -1;
     g.stops.forEach((s, i) => {
-      if (s.distAlong < closureAlong - STOP_BUFFER_M) fromIdx = i;
-      if (toIdx === -1 && s.distAlong > closureAlong + STOP_BUFFER_M) toIdx = i;
+      if (s.distAlong < startAlong - STOP_BUFFER_M) fromIdx = i;
+      if (toIdx === -1 && s.distAlong > endAlong + STOP_BUFFER_M) toIdx = i;
     });
     // Supervisor can leave earlier / rejoin later (but not straddle the closure the wrong way)
     if (fromStopId) {
@@ -342,7 +365,7 @@ router.post('/plan', async (req, res) => {
     // Road options: supplied by the browser, or fetched here when possible
     let routes = [];
     if (Array.isArray(clientCandidates) && clientCandidates.length) {
-      routes = clientCandidates.slice(0, 5).map(c => ({
+      routes = clientCandidates.slice(0, 12).map(c => ({
         path: (Array.isArray(c.path) ? c.path : []).slice(0, 8000)
           .map(p => [parseFloat(p[0]), parseFloat(p[1])])
           .filter(([a, b]) => !Number.isNaN(a) && !Number.isNaN(b)),
@@ -369,8 +392,15 @@ router.post('/plan', async (req, res) => {
     );
     const routeStopIds = new Set(g.stops.map(s => s.stopId));
 
-    const candidates = routes.map((r, i) => {
-      const usesClosedRoad = distToPathM(closurePt, r.path) <= CLOSED_ROAD_M;
+    // Does a path still run along the closed stretch? Check the stretch's inner
+    // points (sampled) against the path
+    const sectionSample = section.length > 60
+      ? section.filter((_, i) => i % Math.ceil(section.length / 60) === 0)
+      : section;
+    const usesClosed = (path) => sectionSample.some(pt => distToPathM(pt, path) <= CLOSED_ROAD_M);
+
+    const scored = routes.map((r, i) => {
+      const usesClosedRoad = usesClosed(r.path);
       const servedStops = nearby
         .filter(s => !routeStopIds.has(s.stop_id) || missedStops.some(m => m.stopId === s.stop_id))
         .map(s => ({ stopId: s.stop_id, name: s.stop_name, lat: parseFloat(s.stop_lat), lng: parseFloat(s.stop_lon) }))
@@ -392,13 +422,42 @@ router.post('/plan', async (req, res) => {
       };
     }).sort((a, b) => Number(a.usesClosedRoad) - Number(b.usesClosedRoad) || a.distanceMeters - b.distanceMeters);
 
+    // Drop near-duplicates (the detour attempts often land on the same roads)
+    const candidates = [];
+    scored.forEach(c => {
+      const dup = candidates.some(k => k.usesClosedRoad === c.usesClosedRoad
+        && Math.abs(k.distanceMeters - c.distanceMeters) <= Math.max(60, k.distanceMeters * 0.03));
+      if (!dup && candidates.length < 5) candidates.push(c);
+    });
+    candidates.forEach((c, i) => { c.id = `opt-${i + 1}`; });
+
+    // Detour points either side of the closed stretch, for the browser to try
+    // (Google has no 'avoid this road' option, so we steer it round)
+    const first = section[0];
+    const last = section[section.length - 1];
+    const mid = section[Math.floor(section.length / 2)];
+    const [fx, fy] = toXY(first[0], first[1], mid[0]);
+    const [lx, ly] = toXY(last[0], last[1], mid[0]);
+    let dx = lx - fx;
+    let dy = ly - fy;
+    if (Math.hypot(dx, dy) < 1) { dx = to.lng - from.lng; dy = to.lat - from.lat; }
+    const len = Math.hypot(dx, dy) || 1;
+    const perp = [-dy / len, dx / len]; // unit vector across the road (x=east, y=north)
+    const mPerDegLat = 111320;
+    const mPerDegLng = 111320 * Math.cos(mid[0] * Math.PI / 180);
+    const detourVias = DETOUR_OFFSETS_M.flatMap(off => [1, -1].map(side => [
+      Math.round((mid[0] + (perp[1] * off * side) / mPerDegLat) * 1e6) / 1e6,
+      Math.round((mid[1] + (perp[0] * off * side) / mPerDegLng) * 1e6) / 1e6,
+    ]));
+
     res.json({
       success: true,
       plan: {
         route: g.route,
         directionId: g.directionId,
         headsign: g.headsign,
-        closure: { lat: cLat, lng: cLng, snapped: g.path[cIdx] },
+        closure: { lat: cLat, lng: cLng, snapped: closurePt, section, end: b2 ? { lat: eLat, lng: eLng } : null },
+        detourVias,
         from: { stopId: from.stopId, name: from.name, lat: from.lat, lng: from.lng, index: fromIdx },
         to: { stopId: to.stopId, name: to.name, lat: to.lat, lng: to.lng, index: toIdx },
         missedStops,

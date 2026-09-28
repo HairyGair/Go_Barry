@@ -120,6 +120,7 @@ const Planner = ({ routes, initialRoute, onCancel, onSaved, preset }) => {
   const [candidates, setCandidates] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [closure, setClosure] = useState(null);
+  const [closureEnd, setClosureEnd] = useState(null);
   const [via, setVia] = useState([]);
   const [override, setOverride] = useState({ fromStopId: null, toStopId: null });
   const [clickMode, setClickMode] = useState(null);
@@ -145,7 +146,7 @@ const Planner = ({ routes, initialRoute, onCancel, onSaved, preset }) => {
   const loadRoute = useCallback(async (short, dir) => {
     setBusy('route');
     setError('');
-    setPlan(null); setCandidates([]); setSelectedId(null); setClosure(null); setVia([]);
+    setPlan(null); setCandidates([]); setSelectedId(null); setClosure(null); setClosureEnd(null); setVia([]);
     setOverride({ fromStopId: null, toStopId: null });
     try {
       const res = await getGeometry(short, dir);
@@ -168,7 +169,7 @@ const Planner = ({ routes, initialRoute, onCancel, onSaved, preset }) => {
     if (preset?.routeShortName) loadRoute(preset.routeShortName, preset.directionId);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const runPlan = useCallback(async ({ closurePt = closure, viaPts = via, ov = override } = {}) => {
+  const runPlan = useCallback(async ({ closurePt = closure, endPt = closureEnd, viaPts = via, ov = override } = {}) => {
     if (!closurePt || !routeShort) return;
     setBusy('plan');
     setError('');
@@ -176,6 +177,7 @@ const Planner = ({ routes, initialRoute, onCancel, onSaved, preset }) => {
       routeShortName: routeShort,
       directionId,
       closure: { lat: closurePt[0], lng: closurePt[1] },
+      closureEnd: endPt ? { lat: endPt[0], lng: endPt[1] } : null,
       via: viaPts,
       fromStopId: ov.fromStopId,
       toStopId: ov.toStopId,
@@ -192,6 +194,14 @@ const Planner = ({ routes, initialRoute, onCancel, onSaved, preset }) => {
         setError(errText(e, 'Road directions aren’t available right now.'));
         return;
       }
+      // Google doesn't know about the closure, so its own suggestions often run
+      // straight through it - also try routes steered round either side
+      if (!viaPts.length && seg.plan.detourVias?.length) {
+        const detours = await Promise.allSettled(
+          seg.plan.detourVias.map(v => getRoadOptions(seg.plan.from, seg.plan.to, [v]))
+        );
+        detours.forEach(r => { if (r.status === 'fulfilled') options.push(...r.value); });
+      }
       const res = await planDiversion({ ...base, candidates: options });
       setPlan(res.plan);
       setCandidates(res.plan.candidates);
@@ -205,18 +215,22 @@ const Planner = ({ routes, initialRoute, onCancel, onSaved, preset }) => {
     } finally {
       setBusy('');
     }
-  }, [closure, via, override, routeShort, directionId]);
+  }, [closure, closureEnd, via, override, routeShort, directionId]);
 
   const onMapClick = (lat, lng) => {
     if (busy) return;
     if (clickMode === 'closure') {
-      const pt = [lat, lng];
-      setClosure(pt);
+      // First click: start of the closed stretch - then its end (or plan now)
+      setClosure([lat, lng]);
+      setClosureEnd(null);
       setVia([]);
-      const ov = { fromStopId: null, toStopId: null };
-      setOverride(ov);
+      setOverride({ fromStopId: null, toStopId: null });
+      setClickMode('closureEnd');
+    } else if (clickMode === 'closureEnd') {
+      const endPt = [lat, lng];
+      setClosureEnd(endPt);
       setClickMode(null);
-      runPlan({ closurePt: pt, viaPts: [], ov });
+      runPlan({ endPt, viaPts: [], ov: { fromStopId: null, toStopId: null } });
     } else if (clickMode === 'via') {
       const next = [...via, [lat, lng]];
       setVia(next);
@@ -338,10 +352,21 @@ const Planner = ({ routes, initialRoute, onCancel, onSaved, preset }) => {
           </section>
 
           {/* 2. Closure */}
-          {geometry && !plan && (
+          {geometry && !plan && clickMode === 'closure' && (
             <div className="dvs-callout">
               <MousePointerClick size={18} aria-hidden="true" />
-              <p><strong>Click the route on the map where the road is closed.</strong> Zoom in for accuracy.</p>
+              <p><strong>Click the route where the closure starts.</strong> Zoom in for accuracy.</p>
+            </div>
+          )}
+          {geometry && !plan && clickMode === 'closureEnd' && (
+            <div className="dvs-callout dvs-callout-col">
+              <div>
+                <MousePointerClick size={18} aria-hidden="true" />
+                <p><strong>Now click where the closure ends</strong>, so the whole closed stretch is avoided.</p>
+              </div>
+              <button type="button" className="dvs-btn" onClick={() => { setClickMode(null); runPlan({ endPt: null, viaPts: [], ov: { fromStopId: null, toStopId: null } }); }}>
+                It’s just one point
+              </button>
             </div>
           )}
 
@@ -415,7 +440,7 @@ const Planner = ({ routes, initialRoute, onCancel, onSaved, preset }) => {
                     <Trash2 size={14} aria-hidden="true" /> Clear via points
                   </button>
                 )}
-                <button type="button" className="dvs-btn" onClick={() => { setPlan(null); setCandidates([]); setClosure(null); setVia([]); setClickMode('closure'); }} disabled={!!busy}>
+                <button type="button" className="dvs-btn" onClick={() => { setPlan(null); setCandidates([]); setClosure(null); setClosureEnd(null); setVia([]); setClickMode('closure'); }} disabled={!!busy}>
                   <MapPin size={14} aria-hidden="true" /> Move closure
                 </button>
               </div>
@@ -482,11 +507,14 @@ const Planner = ({ routes, initialRoute, onCancel, onSaved, preset }) => {
           onRemoveVia={removeVia}
           onMapClick={onMapClick}
           clickMode={clickMode}
+          pendingClosure={!plan ? closure : null}
           fitKey={fitKey}
         />
         {clickMode && (
           <div className="dvs-map-hint" role="status">
-            {clickMode === 'closure' ? 'Click the route where the road is closed' : 'Click a road the diversion should use'}
+            {clickMode === 'closure' ? 'Click the route where the closure starts'
+              : clickMode === 'closureEnd' ? 'Click where the closure ends'
+                : 'Click a road the diversion should use'}
           </div>
         )}
         {!geometry && (

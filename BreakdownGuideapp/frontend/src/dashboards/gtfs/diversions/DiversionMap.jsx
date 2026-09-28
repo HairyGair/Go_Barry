@@ -65,6 +65,7 @@ const DiversionMap = ({
   onMapClick,
   clickMode,
   savedPath,
+  pendingClosure,
   fitKey,
 }) => {
   const fitPoints = useMemo(() => {
@@ -141,9 +142,20 @@ const DiversionMap = ({
 
         {plan?.from && <Marker position={[plan.from.lat, plan.from.lng]} icon={LEAVE_ICON}><Tooltip>Leave route after {plan.from.name}</Tooltip></Marker>}
         {plan?.to && <Marker position={[plan.to.lat, plan.to.lng]} icon={REJOIN_ICON}><Tooltip>Rejoin at {plan.to.name}</Tooltip></Marker>}
+        {/* The closed stretch itself */}
+        {plan?.closure?.section?.length > 1 && (
+          <Polyline positions={plan.closure.section} pathOptions={{ color: '#dc2626', weight: 9, opacity: 0.9 }}>
+            <Tooltip sticky>Closed</Tooltip>
+          </Polyline>
+        )}
         {plan?.closure && (
           <Marker position={plan.closure.snapped || [plan.closure.lat, plan.closure.lng]} icon={closureIcon}>
             <Tooltip>Road closed</Tooltip>
+          </Marker>
+        )}
+        {pendingClosure && (
+          <Marker position={pendingClosure} icon={closureIcon}>
+            <Tooltip permanent direction="right">Closure starts here</Tooltip>
           </Marker>
         )}
         {via.map((p, i) => (

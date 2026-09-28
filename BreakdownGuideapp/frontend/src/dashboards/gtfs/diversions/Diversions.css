@@ -373,3 +373,6 @@
 @media (prefers-reduced-motion: reduce) {
   .dvs-spin, .dvs-skel { animation: none; }
 }
+.dvs-callout-col { flex-direction: column; align-items: stretch; }
+.dvs-callout-col > div { display: flex; gap: 10px; align-items: flex-start; }
+.dvs-callout-col .dvs-btn { align-self: flex-start; }
