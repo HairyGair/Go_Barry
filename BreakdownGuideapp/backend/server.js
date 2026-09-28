@@ -123,7 +123,11 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With', 'CSRF-Token'],
   exposedHeaders: ['Content-Length', 'X-Kuma-Revision']
 }));
-app.use(express.json());
+// Diversion planning posts several road paths at once, so it gets a larger body
+// limit; everything else keeps the 100kb default
+const jsonDefault = express.json();
+const jsonDiversions = express.json({ limit: '2mb' });
+app.use((req, res, next) => (req.path.startsWith('/api/diversions') ? jsonDiversions : jsonDefault)(req, res, next));
 // HTTP-only cookie parser - must be after CORS and before routes
 // This enables secure session management via cookies instead of localStorage (XSS protection)
 app.use(cookieParser());

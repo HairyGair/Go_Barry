@@ -87,6 +87,19 @@ export async function getRoadOptions(from, to, via = []) {
     });
   });
 
+  // Thin the path: ~1 m precision and no points within 6 m of the last one
+  // (Google's step paths are very dense; this keeps requests small)
+  const thin = (pts) => {
+    const out = [];
+    pts.forEach((p, i) => {
+      const q = [Math.round(p[0] * 1e5) / 1e5, Math.round(p[1] * 1e5) / 1e5];
+      const last = out[out.length - 1];
+      const far = !last || Math.hypot((q[0] - last[0]) * 111320, (q[1] - last[1]) * 64000) > 6;
+      if (far || i === pts.length - 1) out.push(q);
+    });
+    return out;
+  };
+
   return response.routes.map(r => {
     const legs = r.legs || [];
     const steps = legs.flatMap(l => l.steps || []);
@@ -98,7 +111,7 @@ export async function getRoadOptions(from, to, via = []) {
     });
     return {
       summary: r.summary || '',
-      path: path.length ? path : (r.overview_path || []).map(ll => [ll.lat(), ll.lng()]),
+      path: thin(path.length ? path : (r.overview_path || []).map(ll => [ll.lat(), ll.lng()])),
       distanceMeters: legs.reduce((sum, l) => sum + (l.distance?.value || 0), 0),
       durationSeconds: legs.reduce((sum, l) => sum + (l.duration?.value || 0), 0),
       steps: steps.map(st => ({ instruction: st.instructions || '', distanceMeters: st.distance?.value || 0 })),
