@@ -43,7 +43,9 @@ const CLICK_TOLERANCE_M = 200;     // how close a click must be to the route lin
 const STOP_BUFFER_M = 40;          // stops this close to the closure count as blocked
 const CLOSED_ROAD_M = 20;          // a path this close to the closed stretch still uses it
 const SINGLE_POINT_HALF_M = 40;    // a one-click closure covers this much road either side
-const DETOUR_OFFSETS_M = [350, 750, 1300]; // how far either side of the closure to try detours
+const DETOUR_OFFSETS_M = [300, 650, 1100]; // how far either side of the closure to try detours
+const DETOUR_SNAP_M = 450;          // detour points snap to a bus stop within this distance
+const TURN_PENALTY_M = 120;         // ranking: each turn counts as this much extra distance
 const SERVED_STOP_M = 45;          // stops this close to a diversion path could be served
 const REASONS = new Set(['road_closure', 'roadworks', 'incident', 'event', 'weather', 'other']);
 
@@ -80,6 +82,20 @@ function distToPathM(p, path) {
     if (d < best) best = d;
   }
   return best;
+}
+
+/** True when a path doubles back on itself (e.g. into a cul-de-sac estate and out) */
+function hasLoop(path) {
+  if (path.length < 8) return false;
+  const along = [0];
+  for (let i = 1; i < path.length; i++) along.push(along[i - 1] + distM(path[i - 1], path[i]));
+  const step = Math.max(1, Math.floor(path.length / 250));
+  for (let i = 0; i < path.length; i += step) {
+    for (let j = i + step; j < path.length; j += step) {
+      if (along[j] - along[i] > 400 && distM(path[i], path[j]) < 30) return true;
+    }
+  }
+  return false;
 }
 
 function pathBounds(path, padM) {
@@ -414,6 +430,8 @@ router.post('/plan', async (req, res) => {
       return {
         id: `opt-${i + 1}`,
         summary: r.summary,
+        hasLoop: hasLoop(r.path),
+        turns: r.steps.length,
         path: r.path,
         steps: r.steps,
         distanceMeters: r.distanceMeters,
@@ -428,7 +446,11 @@ router.post('/plan', async (req, res) => {
         missedStops: stillMissed,
         servedStops: servedStops.filter(s => !missedStops.some(m => m.stopId === s.stopId)).slice(0, 30),
       };
-    }).sort((a, b) => Number(a.usesClosedRoad) - Number(b.usesClosedRoad) || a.distanceMeters - b.distanceMeters);
+    }).sort((a, b) => Number(a.usesClosedRoad) - Number(b.usesClosedRoad)
+      || Number(a.hasLoop) - Number(b.hasLoop)
+      // Simple routes first: a short diversion with a dozen turns through an
+      // estate is worse for a bus than a slightly longer one on main roads
+      || (a.distanceMeters + TURN_PENALTY_M * a.turns) - (b.distanceMeters + TURN_PENALTY_M * b.turns));
 
     // Drop near-duplicates (the detour attempts often land on the same roads)
     const candidates = [];
@@ -459,10 +481,36 @@ router.post('/plan', async (req, res) => {
       Math.round((pt[0] + (perp[1] * off * side) / mPerDegLat) * 1e6) / 1e6,
       Math.round((pt[1] + (perp[0] * off * side) / mPerDegLng) * 1e6) / 1e6,
     ];
+    // Snap each point to the nearest bus stop that isn't on the closed road:
+    // stops sit on roads buses already use, so this keeps detours on bus-suitable
+    // roads instead of threading through housing estates
+    const reach = Math.max(...DETOUR_OFFSETS_M) + DETOUR_SNAP_M + distM(first, last);
+    const sb = pathBounds([first, last], reach);
+    const stopPool = (await query(
+      `SELECT stop_lat, stop_lon FROM gtfs_stops
+       WHERE stop_lat BETWEEN ? AND ? AND stop_lon BETWEEN ? AND ?
+       LIMIT 4000`,
+      [sb.minLat, sb.maxLat, sb.minLng, sb.maxLng]
+    )).map(r => [parseFloat(r.stop_lat), parseFloat(r.stop_lon)])
+      .filter(pt => distToPathM(pt, section) > 200 && distToPathM(pt, originalPath) > 120);
+    const snapToStop = (pt) => {
+      let best = null;
+      let bestD = DETOUR_SNAP_M;
+      stopPool.forEach(sp => { const d = distM(pt, sp); if (d < bestD) { bestD = d; best = sp; } });
+      return best;
+    };
     const shortStretch = distM(first, last) < 150;
-    const detourVias = DETOUR_OFFSETS_M.flatMap(off => [1, -1].map(side => (
-      shortStretch ? [offset(mid, off, side)] : [offset(first, off, side), offset(last, off, side)]
-    )));
+    const seen = new Set();
+    const detourVias = [];
+    DETOUR_OFFSETS_M.forEach(off => [1, -1].forEach(side => {
+      const raw = shortStretch ? [offset(mid, off, side)] : [offset(first, off, side), offset(last, off, side)];
+      const snapped = raw.map(snapToStop);
+      if (snapped.some(p => !p)) return;
+      const key = snapped.map(p => p.join(',')).join('|');
+      if (seen.has(key)) return;
+      seen.add(key);
+      detourVias.push(snapped);
+    }));
 
     res.json({
       success: true,

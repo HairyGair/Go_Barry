@@ -376,3 +376,15 @@
 .dvs-callout-col { flex-direction: column; align-items: stretch; }
 .dvs-callout-col > div { display: flex; gap: 10px; align-items: flex-start; }
 .dvs-callout-col .dvs-btn { align-self: flex-start; }
+.dvs-safety {
+  display: flex; gap: 8px; align-items: flex-start;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  color: #fcd34d;
+  font-size: 11px; line-height: 1.45;
+}
+.dvs-safety svg { flex-shrink: 0; margin-top: 1px; }
+.dvs-sheet-check { margin-top: 18px !important; font-size: 12px; font-style: italic; color: #475569 !important; }

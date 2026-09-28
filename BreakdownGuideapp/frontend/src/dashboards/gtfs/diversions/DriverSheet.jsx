@@ -92,6 +92,8 @@ const DriverSheet = ({ diversion: d, onClose }) => (
         </section>
       )}
 
+      <p className="dvs-sheet-check">Route checked for bus suitability by the issuing supervisor. Report any problem on the route to control straight away.</p>
+
       <footer className="dvs-sheet-foot">
         Issued {fmtDateTime(new Date())}{d.createdByName ? ` · Set up by ${d.createdByName}` : ''}
       </footer>

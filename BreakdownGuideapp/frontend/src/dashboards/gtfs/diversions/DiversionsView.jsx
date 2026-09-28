@@ -221,7 +221,8 @@ const Planner = ({ routes, initialRoute, onCancel, onSaved, preset }) => {
       }
       setPlan(result);
       setCandidates(result.candidates);
-      const best = result.candidates.find(c => !c.usesClosedRoad) || result.candidates[0];
+      const best = result.candidates.find(c => !c.usesClosedRoad && !c.hasLoop)
+        || result.candidates.find(c => !c.usesClosedRoad) || result.candidates[0];
       setSelectedId(best?.id || null);
       setFitKey(k => k + 1);
     } catch (e) {
@@ -433,14 +434,21 @@ const Planner = ({ routes, initialRoute, onCancel, onSaved, preset }) => {
                     </span>
                     {c.usesClosedRoad ? (
                       <span className="dvs-option-warn"><AlertTriangle size={12} aria-hidden="true" /> Still uses the closed road - add a via point</span>
+                    ) : c.hasLoop ? (
+                      <span className="dvs-option-warn"><AlertTriangle size={12} aria-hidden="true" /> Loops back on itself - check before using</span>
                     ) : (
                       <span className="dvs-option-sub">
-                        {c.missedStops.length} stop{c.missedStops.length === 1 ? '' : 's'} missed · {c.servedStops.length} on the way
+                        {c.turns} turn{c.turns === 1 ? '' : 's'} · {c.missedStops.length} stop{c.missedStops.length === 1 ? '' : 's'} missed · {c.servedStops.length} on the way
                       </span>
                     )}
                   </button>
                 ))}
               </div>
+
+              <p className="dvs-safety">
+                <AlertTriangle size={13} aria-hidden="true" />
+                Road options come from car routing. Check the roads suit buses (width, weight and height limits, turns) before using a diversion.
+              </p>
 
               <div className="dvs-row">
                 <button
