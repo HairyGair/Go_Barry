@@ -55,7 +55,7 @@ function httpsGetJSON(url) {
  */
 export async function calculateRoadDistance(originLat, originLng, destLat, destLng) {
   // Read at call time so dotenv has loaded
-  const GOOGLE_API_KEY = process.env.GOOGLE_DIRECTIONS_API_KEY || process.env.GOOGLE_MAPS_API_KEY || process.env.VITE_GOOGLE_MAPS_KEY;
+  const GOOGLE_API_KEY = process.env.GOOGLE_SERVER_API_KEY || process.env.GOOGLE_DIRECTIONS_API_KEY || process.env.GOOGLE_MAPS_API_KEY || process.env.VITE_GOOGLE_MAPS_KEY;
   if (!GOOGLE_API_KEY) {
     throw new Error('Google Maps API key not configured (GOOGLE_MAPS_API_KEY env var missing)');
   }
@@ -151,7 +151,7 @@ export const stripHtml = (html) => String(html || '')
  *   steps: Array<{ instruction: string, distanceMeters: number }> }>>}
  */
 export async function getDrivingRoutes(origin, destination, { via = [], alternatives = true } = {}) {
-  const GOOGLE_API_KEY = process.env.GOOGLE_DIRECTIONS_API_KEY || process.env.GOOGLE_MAPS_API_KEY || process.env.VITE_GOOGLE_MAPS_KEY;
+  const GOOGLE_API_KEY = process.env.GOOGLE_SERVER_API_KEY || process.env.GOOGLE_DIRECTIONS_API_KEY || process.env.GOOGLE_MAPS_API_KEY || process.env.VITE_GOOGLE_MAPS_KEY;
   if (!GOOGLE_API_KEY) {
     throw new Error('Google Maps API key not configured (GOOGLE_MAPS_API_KEY env var missing)');
   }

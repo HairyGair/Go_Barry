@@ -293,7 +293,7 @@ router.get('/geocode/reverse', async (req, res) => {
     }
 
     // Use Google Geocoding API
-    const GOOGLE_API_KEY = process.env.GOOGLE_MAPS_API_KEY || process.env.VITE_GOOGLE_MAPS_KEY;
+    const GOOGLE_API_KEY = process.env.GOOGLE_SERVER_API_KEY || process.env.GOOGLE_MAPS_API_KEY || process.env.VITE_GOOGLE_MAPS_KEY;
 
     if (!GOOGLE_API_KEY) {
       console.error('Google Maps API key not configured');
