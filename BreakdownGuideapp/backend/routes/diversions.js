@@ -10,6 +10,13 @@
  *   POST  /api/diversions                             save a diversion
  *   PATCH /api/diversions/:id                         end / cancel / edit
  *
+ * Road paths: the Maps key in use is referrer-restricted, which Google rejects
+ * for server-side Directions calls (REQUEST_DENIED). So the browser fetches the
+ * road options (Maps JS DirectionsService, which accepts that key) and posts
+ * them back here to be checked; with `clientDirections` the server doesn't try
+ * Google itself. If a server key is configured later, omitting it lets the
+ * server fetch them directly.
+ *
  * Planning works on the route's real road shape (GTFS shapes) and stop order:
  * the bus leaves the route after the last stop before the closure and rejoins
  * at the first stop after it (either can be widened), and Google Directions
@@ -27,7 +34,7 @@
 import express from 'express';
 import { query } from '../config/mysql.js';
 import { demoSqlFilter } from '../utils/demoFilter.js';
-import { getDrivingRoutes } from '../services/googleDirectionsService.js';
+import { getDrivingRoutes, stripHtml } from '../services/googleDirectionsService.js';
 
 const router = express.Router();
 
@@ -278,7 +285,10 @@ router.get('/geometry/:route', async (req, res) => {
 
 router.post('/plan', async (req, res) => {
   try {
-    const { routeShortName, directionId, closure, via = [], fromStopId, toStopId } = req.body || {};
+    const {
+      routeShortName, directionId, closure, via = [], fromStopId, toStopId,
+      candidates: clientCandidates, clientDirections = false,
+    } = req.body || {};
     const cLat = parseFloat(closure?.lat);
     const cLng = parseFloat(closure?.lng);
     if (!routeShortName || Number.isNaN(cLat) || Number.isNaN(cLng)) {
@@ -329,7 +339,24 @@ router.post('/plan', async (req, res) => {
       ? Math.max(0, Math.round(to.departureMins - from.departureMins))
       : null;
 
-    const routes = await getDrivingRoutes([from.lat, from.lng], [to.lat, to.lng], { via: viaPoints });
+    // Road options: supplied by the browser, or fetched here when possible
+    let routes = [];
+    if (Array.isArray(clientCandidates) && clientCandidates.length) {
+      routes = clientCandidates.slice(0, 5).map(c => ({
+        path: (Array.isArray(c.path) ? c.path : []).slice(0, 8000)
+          .map(p => [parseFloat(p[0]), parseFloat(p[1])])
+          .filter(([a, b]) => !Number.isNaN(a) && !Number.isNaN(b)),
+        distanceMeters: parseInt(c.distanceMeters, 10) || 0,
+        durationSeconds: parseInt(c.durationSeconds, 10) || 0,
+        summary: String(c.summary || '').slice(0, 120),
+        steps: (Array.isArray(c.steps) ? c.steps : []).slice(0, 200).map(st => ({
+          instruction: stripHtml(st.instruction).slice(0, 500),
+          distanceMeters: parseInt(st.distanceMeters, 10) || 0,
+        })),
+      })).filter(r => r.path.length >= 2);
+    } else if (!clientDirections) {
+      routes = await getDrivingRoutes([from.lat, from.lng], [to.lat, to.lng], { via: viaPoints });
+    }
 
     // Stops near any candidate path, fetched once for the union bounding box
     const allPts = routes.flatMap(r => r.path);

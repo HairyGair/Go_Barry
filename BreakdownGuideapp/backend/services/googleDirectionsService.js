@@ -129,7 +129,7 @@ export function decodePolyline(encoded) {
   return points;
 }
 
-const stripHtml = (html) => String(html || '')
+export const stripHtml = (html) => String(html || '')
   .replace(/<div[^>]*>/gi, '. ')
   .replace(/<[^>]+>/g, '')
   .replace(/&nbsp;/g, ' ')

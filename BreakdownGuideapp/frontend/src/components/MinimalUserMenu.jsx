@@ -97,7 +97,7 @@ const MinimalUserMenu = ({ currentDuty, onDutyClick }) => {
       path: '/dashboards/gtfs/network',
       label: 'Timetables & Stops',
       Icon: Clock,
-      description: 'Route timetables and stop departures'
+      description: 'Timetables, stops and diversions'
     }
   ];
 

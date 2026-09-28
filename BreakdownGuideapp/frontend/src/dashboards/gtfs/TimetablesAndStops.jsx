@@ -15,20 +15,23 @@
 
 import React, { useCallback } from 'react';
 import { Navigate, useLocation, useSearchParams } from 'react-router-dom';
-import { CalendarDays, MapPin, Clock } from 'lucide-react';
+import { CalendarDays, MapPin, Clock, Construction } from 'lucide-react';
 import DashboardLayout from '../components/DashboardLayout';
 import RouteTimetableViewer from './RouteTimetableViewer';
 import StopFinder from './StopFinder';
+import DiversionsView from './diversions/DiversionsView';
 import './TimetablesAndStops.css';
 
 const VIEWS = [
   { id: 'timetable', label: 'Route timetable', Icon: CalendarDays },
   { id: 'stops', label: 'Stops & departures', Icon: MapPin },
+  { id: 'diversions', label: 'Diversions', Icon: Construction },
 ];
 
 const TimetablesAndStops = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const view = searchParams.get('view') === 'stops' ? 'stops' : 'timetable';
+  const requested = searchParams.get('view');
+  const view = requested === 'stops' || requested === 'diversions' ? requested : 'timetable';
   const route = searchParams.get('route');
 
   const setParams = useCallback((changes) => {
@@ -53,7 +56,7 @@ const TimetablesAndStops = () => {
             <div className="tns-header-icon"><Clock size={20} aria-hidden="true" /></div>
             <div>
               <h2>Timetables &amp; Stops</h2>
-              <p>Check a route’s schedule or what’s due at a stop</p>
+              <p>Route schedules, what’s due at a stop, and diversions</p>
             </div>
           </div>
 
@@ -78,11 +81,9 @@ const TimetablesAndStops = () => {
         </header>
 
         <section id="tns-panel" role="tabpanel" aria-labelledby={`tns-tab-${view}`} className="tns-panel">
-          {view === 'timetable' ? (
-            <RouteTimetableViewer embedded onOpenStop={openStop} />
-          ) : (
-            <StopFinder embedded onOpenRoute={openRoute} />
-          )}
+          {view === 'timetable' && <RouteTimetableViewer embedded onOpenStop={openStop} />}
+          {view === 'stops' && <StopFinder embedded onOpenRoute={openRoute} />}
+          {view === 'diversions' && <DiversionsView />}
         </section>
       </div>
     </DashboardLayout>
