@@ -169,6 +169,21 @@ const Planner = ({ routes, initialRoute, onCancel, onSaved, preset }) => {
     if (preset?.routeShortName) loadRoute(preset.routeShortName, preset.directionId);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // One pass: where the bus leaves/rejoins, road options (Google's own plus
+  // detours steered round the closure), then the server checks each option
+  const planOnce = useCallback(async (base, viaPts) => {
+    const seg = await planDiversion({ ...base, clientDirections: true });
+    let options = await getRoadOptions(seg.plan.from, seg.plan.to, viaPts);
+    if (!viaPts.length && seg.plan.detourVias?.length) {
+      const detours = await Promise.allSettled(
+        seg.plan.detourVias.map(v => getRoadOptions(seg.plan.from, seg.plan.to, [v]))
+      );
+      detours.forEach(r => { if (r.status === 'fulfilled') options = options.concat(r.value); });
+    }
+    const res = await planDiversion({ ...base, candidates: options });
+    return res.plan;
+  }, []);
+
   const runPlan = useCallback(async ({ closurePt = closure, endPt = closureEnd, viaPts = via, ov = override } = {}) => {
     if (!closurePt || !routeShort) return;
     setBusy('plan');
@@ -183,29 +198,30 @@ const Planner = ({ routes, initialRoute, onCancel, onSaved, preset }) => {
       toStopId: ov.toStopId,
     };
     try {
-      // 1. where the bus leaves and rejoins, 2. road options, 3. check them
-      const seg = await planDiversion({ ...base, clientDirections: true });
-      setPlan(seg.plan);
-      let options = [];
-      try {
-        options = await getRoadOptions(seg.plan.from, seg.plan.to, viaPts);
-      } catch (e) {
-        setCandidates([]);
-        setError(errText(e, 'Road directions aren’t available right now.'));
-        return;
+      let result = await planOnce(base, viaPts);
+      let widened = 0;
+      // If the stops either side of the closure have no side road between them
+      // and it, every option runs through the closure. Buses turn off at an
+      // earlier junction in practice, so leave a stop earlier and rejoin a stop
+      // later (up to 3 times) until there's an option that avoids it.
+      const autoWiden = !viaPts.length && !ov.fromStopId && !ov.toStopId && geometry;
+      while (autoWiden && widened < 3 && result.candidates.length && result.candidates.every(c => c.usesClosedRoad)) {
+        const fromStop = geometry.stops[result.from.index - 1];
+        const toStop = geometry.stops[result.to.index + 1];
+        if (!fromStop && !toStop) break;
+        widened += 1;
+        result = await planOnce({
+          ...base,
+          fromStopId: (fromStop || geometry.stops[result.from.index]).stopId,
+          toStopId: (toStop || geometry.stops[result.to.index]).stopId,
+        }, viaPts);
       }
-      // Google doesn't know about the closure, so its own suggestions often run
-      // straight through it - also try routes steered round either side
-      if (!viaPts.length && seg.plan.detourVias?.length) {
-        const detours = await Promise.allSettled(
-          seg.plan.detourVias.map(v => getRoadOptions(seg.plan.from, seg.plan.to, [v]))
-        );
-        detours.forEach(r => { if (r.status === 'fulfilled') options.push(...r.value); });
+      if (widened) {
+        setOverride({ fromStopId: result.from.stopId, toStopId: result.to.stopId });
       }
-      const res = await planDiversion({ ...base, candidates: options });
-      setPlan(res.plan);
-      setCandidates(res.plan.candidates);
-      const best = res.plan.candidates.find(c => !c.usesClosedRoad) || res.plan.candidates[0];
+      setPlan(result);
+      setCandidates(result.candidates);
+      const best = result.candidates.find(c => !c.usesClosedRoad) || result.candidates[0];
       setSelectedId(best?.id || null);
       setFitKey(k => k + 1);
     } catch (e) {
@@ -215,7 +231,7 @@ const Planner = ({ routes, initialRoute, onCancel, onSaved, preset }) => {
     } finally {
       setBusy('');
     }
-  }, [closure, closureEnd, via, override, routeShort, directionId]);
+  }, [closure, closureEnd, via, override, routeShort, directionId, geometry, planOnce]);
 
   const onMapClick = (lat, lng) => {
     if (busy) return;
