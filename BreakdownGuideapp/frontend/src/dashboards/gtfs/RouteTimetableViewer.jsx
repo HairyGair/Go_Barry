@@ -67,8 +67,8 @@ function getStopId(stop) {
   return typeof stop === 'string' ? null : stop?.id || null;
 }
 
-const RouteTimetableViewer = () => {
-  const [searchParams] = useSearchParams();
+const RouteTimetableViewer = ({ embedded = false, onOpenStop } = {}) => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [routes, setRoutes] = useState([]);
   const [selectedRouteId, setSelectedRouteId] = useState(null);
@@ -351,25 +351,44 @@ const RouteTimetableViewer = () => {
     return points;
   }, [currentDir]);
 
-  // Navigate to Stop Finder when clicking a stop name
+  // Open a stop's departures + map when clicking a stop name
   const handleStopClick = useCallback((stop, e) => {
     e.stopPropagation();
     const stopId = getStopId(stop);
-    if (stopId) {
-      navigate(`/dashboards/gtfs/stops?stop=${encodeURIComponent(stopId)}`);
-    }
-  }, [navigate]);
+    if (!stopId) return;
+    if (onOpenStop) onOpenStop(stopId);
+    else navigate(`/dashboards/gtfs/network?view=stops&stop=${encodeURIComponent(stopId)}`);
+  }, [navigate, onOpenStop]);
+
+  // Keep the selected route in the URL, so it survives switching to the stops
+  // view and back, and the link can be shared
+  useEffect(() => {
+    if (!selectedRouteId) return;
+    const short = routes.find(r => r.routeId === selectedRouteId)?.routeShortName;
+    if (!short || searchParams.get('route') === short) return;
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev);
+      next.set('route', short);
+      return next;
+    }, { replace: true });
+  }, [selectedRouteId, routes, searchParams, setSearchParams]);
+
+  const Shell = embedded ? React.Fragment : DashboardLayout;
 
   // Track first match ref assignment
   let firstMatchAssigned = false;
 
   return (
-    <DashboardLayout>
-      <div className="rtv-container">
+    <Shell>
+      <div className={`rtv-container ${embedded ? 'rtv-container--embedded' : ''}`}>
         <div className="rtv-header">
           <div>
-            <h2 className="rtv-title">Route Timetable</h2>
-            <div className="rtv-subtitle">View full daily schedules for any route</div>
+            {!embedded && (
+              <>
+                <h2 className="rtv-title">Route Timetable</h2>
+                <div className="rtv-subtitle">View full daily schedules for any route</div>
+              </>
+            )}
           </div>
           <div className="rtv-selector">
             <div className="rtv-search-wrap">
@@ -675,7 +694,7 @@ const RouteTimetableViewer = () => {
                               <td
                                 className={`rtv-stop-name ${stopId ? 'rtv-stop-link' : ''}`}
                                 onClick={stopId ? (e) => handleStopClick(stop, e) : undefined}
-                                title={stopId ? `View ${stopName} in Stop Finder` : undefined}
+                                title={stopId ? `Departures and map for ${stopName}` : undefined}
                               >
                                 {stopName}
                               </td>
@@ -720,7 +739,7 @@ const RouteTimetableViewer = () => {
           </>
         )}
       </div>
-    </DashboardLayout>
+    </Shell>
   );
 };
 

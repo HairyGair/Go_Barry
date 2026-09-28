@@ -952,3 +952,11 @@
     padding: 4px 8px;
   }
 }
+
+/* Inside the Timetables & Stops page: fills the space under the page header */
+.sf-container.sf-container--embedded {
+  margin: 0;
+  height: calc(100vh - var(--app-top-offset, 84px) - 130px);
+  min-height: 480px;
+  border-radius: 14px;
+}

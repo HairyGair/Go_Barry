@@ -8,7 +8,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Home, Target, Monitor, Wrench, BarChart3, BatteryCharging, Bus, Clock, Search,
+  Home, Target, Monitor, Wrench, BarChart3, BatteryCharging, Bus, Clock,
   Factory, Building2, Siren, MapPin, ExternalLink, Lock, Settings, LogOut,
   ChevronDown, ChevronUp, ChevronLeft, Sunrise, Sun, Sunset, Moon, ClipboardList
 } from 'lucide-react';
@@ -94,16 +94,10 @@ const MinimalUserMenu = ({ currentDuty, onDutyClick }) => {
       description: 'Live route status'
     },
     {
-      path: '/dashboards/gtfs/timetable',
-      label: 'Timetable',
+      path: '/dashboards/gtfs/network',
+      label: 'Timetables & Stops',
       Icon: Clock,
-      description: 'Route timetable viewer'
-    },
-    {
-      path: '/dashboards/gtfs/stops',
-      label: 'Stop Finder',
-      Icon: Search,
-      description: 'Search stops & departures'
+      description: 'Route timetables and stop departures'
     }
   ];
 

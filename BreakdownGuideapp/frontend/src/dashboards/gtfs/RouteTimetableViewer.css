@@ -899,3 +899,7 @@ th.rtv-col-now {
 .rtv-empty p {
   margin: 0;
 }
+
+/* Inside the Timetables & Stops page: the page header replaces this one */
+.rtv-container.rtv-container--embedded { padding: 0; }
+.rtv-container--embedded .rtv-header { margin-bottom: 14px; }

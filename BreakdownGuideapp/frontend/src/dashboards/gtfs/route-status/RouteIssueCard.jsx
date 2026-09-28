@@ -109,7 +109,7 @@ const RouteIssueCard = forwardRef(({ route, now, highlighted }, ref) => {
           {route.breakdownCount} breakdown{route.breakdownCount === 1 ? '' : 's'}
         </span>
         <Link
-          to={`/dashboards/gtfs/timetable?route=${encodeURIComponent(route.routeShortName)}`}
+          to={`/dashboards/gtfs/network?route=${encodeURIComponent(route.routeShortName)}`}
           className="rst-mini-link"
           title={`Timetable for route ${route.routeShortName}`}
         >

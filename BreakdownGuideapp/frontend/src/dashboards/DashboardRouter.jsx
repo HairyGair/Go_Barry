@@ -8,8 +8,9 @@ const EngineeringDashboard = lazy(() => import('./engineering/EngineeringDashboa
 const ManagementDashboard = lazy(() => import('./management/ManagementDashboard'));
 const SDCDashboard = lazy(() => import('./sdc/SDCDashboard'));
 const LiveRouteStatusDashboard = lazy(() => import('./gtfs/LiveRouteStatusDashboard'));
-const RouteTimetableViewer = lazy(() => import('./gtfs/RouteTimetableViewer'));
-const StopFinder = lazy(() => import('./gtfs/StopFinder'));
+const TimetablesAndStops = lazy(() => import('./gtfs/TimetablesAndStops'));
+const LegacyTimetablesRedirect = lazy(() =>
+  import('./gtfs/TimetablesAndStops').then(m => ({ default: m.LegacyTimetablesRedirect })));
 const FleetIntelligenceDashboard = lazy(() => import('./fleet-intelligence/FleetIntelligenceDashboard'));
 const EngineerManagementPage = lazy(() => import('./engineering/EngineerManagementPage'));
 const EVChargesDashboard = lazy(() => import('./ev-charges/EVChargesDashboard'));
@@ -47,8 +48,10 @@ const DashboardRouter = () => {
         <Route path="/management" element={<EngineeringGuard><ManagementDashboard /></EngineeringGuard>} />
         <Route path="/sdc" element={<EngineeringGuard><SDCDashboard /></EngineeringGuard>} />
         <Route path="/gtfs/routes" element={<EngineeringGuard><LiveRouteStatusDashboard /></EngineeringGuard>} />
-        <Route path="/gtfs/timetable" element={<EngineeringGuard><RouteTimetableViewer /></EngineeringGuard>} />
-        <Route path="/gtfs/stops" element={<EngineeringGuard><StopFinder /></EngineeringGuard>} />
+        <Route path="/gtfs/network" element={<EngineeringGuard><TimetablesAndStops /></EngineeringGuard>} />
+        {/* Timetable and Stop Finder were separate pages - old links still work */}
+        <Route path="/gtfs/timetable" element={<LegacyTimetablesRedirect view="timetable" />} />
+        <Route path="/gtfs/stops" element={<LegacyTimetablesRedirect view="stops" />} />
         <Route path="/fleet-defects" element={<EngineeringGuard><FleetIntelligenceDashboard /></EngineeringGuard>} />
         <Route path="/ev-charges" element={<EngineeringGuard><EVChargesDashboard /></EngineeringGuard>} />
       </Routes>

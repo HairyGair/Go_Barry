@@ -77,7 +77,7 @@ const RouteBoard = ({ routes, onJumpToRoute }) => {
               {selected.destinations?.length ? ` · ${selected.destinations.join(' ↔ ')}` : ''}
             </span>
           </div>
-          <Link to={`/dashboards/gtfs/timetable?route=${encodeURIComponent(selected.routeShortName)}`} className="rst-mini-link">
+          <Link to={`/dashboards/gtfs/network?route=${encodeURIComponent(selected.routeShortName)}`} className="rst-mini-link">
             <CalendarDays size={13} aria-hidden="true" /> Timetable
           </Link>
           <button type="button" className="rst-icon-btn" onClick={() => setSelectedId(null)} aria-label="Clear selected route">

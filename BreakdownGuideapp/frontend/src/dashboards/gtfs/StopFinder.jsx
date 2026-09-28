@@ -14,6 +14,8 @@ import DashboardLayout from '../components/DashboardLayout';
 import { gtfsApiService } from '../../services/gtfsApiService';
 import { apiClient } from '../../services/api-client';
 import { GOOGLE_MAPS_API_KEY } from '@/config/maps.js';
+import { DARK_BASE_TILES, DARK_LABEL_TILES } from '../../config/mapTiles';
+import { getDepotOptions } from '../../config/demoDepots';
 import './StopFinder.css';
 
 const NE_CENTER = [54.97, -1.60]; // Newcastle center
@@ -100,9 +102,9 @@ function useGooglePlaces() {
   return { ready, service: serviceRef };
 }
 
-const StopFinder = () => {
+const StopFinder = ({ embedded = false, onOpenRoute } = {}) => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [stops, setStops] = useState([]);
@@ -171,7 +173,8 @@ const StopFinder = () => {
     if (!selectedStop) return null;
     let best = null;
     let bestDist = Infinity;
-    for (const depot of DEPOTS) {
+    // Demo sessions get the fictional depots (evaluated per call, not at load)
+    for (const depot of getDepotOptions(DEPOTS)) {
       const dist = haversineKm(selectedStop.lat, selectedStop.lng, depot.lat, depot.lng);
       if (dist < bestDist) {
         bestDist = dist;
@@ -420,6 +423,14 @@ const StopFinder = () => {
   // Select a stop
   const handleSelectStop = useCallback((stop) => {
     setSelectedStop(stop);
+    // Keep the stop in the URL so it survives switching views and can be shared
+    if (stop?.stopId && searchParams.get('stop') !== String(stop.stopId)) {
+      setSearchParams(prev => {
+        const next = new URLSearchParams(prev);
+        next.set('stop', stop.stopId);
+        return next;
+      }, { replace: true });
+    }
     setError(null);
     setPlaceName(null);
     setFlyToPos([stop.lat, stop.lng]);
@@ -429,7 +440,7 @@ const StopFinder = () => {
     if (diversionAbortRef.current) diversionAbortRef.current.abort();
     loadDepartures(stop.stopId);
     loadNearbyStops(stop.lat, stop.lng, stop.stopId);
-  }, [loadDepartures, loadNearbyStops]);
+  }, [loadDepartures, loadNearbyStops, searchParams, setSearchParams]);
 
   // Auto-refresh departures every 30 seconds (skip if request already in-flight)
   useEffect(() => {
@@ -593,12 +604,15 @@ const StopFinder = () => {
 
   // === Feature 2: navigate to timetable ===
   const handleRouteBadgeClick = useCallback((routeShortName) => {
-    navigate(`/dashboards/gtfs/timetable?route=${encodeURIComponent(routeShortName)}`);
-  }, [navigate]);
+    if (onOpenRoute) onOpenRoute(routeShortName);
+    else navigate(`/dashboards/gtfs/network?route=${encodeURIComponent(routeShortName)}`);
+  }, [navigate, onOpenRoute]);
+
+  const Shell = embedded ? React.Fragment : DashboardLayout;
 
   return (
-    <DashboardLayout>
-      <div className="sf-container">
+    <Shell>
+      <div className={`sf-container ${embedded ? 'sf-container--embedded' : ''}`}>
         {/* Map panel */}
         <div className="sf-map-panel">
           <MapContainer
@@ -607,11 +621,9 @@ const StopFinder = () => {
             style={{ height: '100%', width: '100%' }}
             scrollWheelZoom={true}
           >
-            <TileLayer
-              url="https://mt1.google.com/vt/lyrs=m&hl=en&x={x}&y={y}&z={z}"
-              attribution="&copy; Google Maps"
-              maxZoom={20}
-            />
+            {/* Dark basemap to match the rest of the app (was a light Google tile layer) */}
+            <TileLayer url={DARK_BASE_TILES.url} {...DARK_BASE_TILES.options} />
+            <TileLayer url={DARK_LABEL_TILES.url} {...DARK_LABEL_TILES.options} />
 
             <MapClickHandler onMapClick={handleMapClick} />
             <MapFlyTo position={flyToPos} zoom={16} />
@@ -1130,7 +1142,7 @@ const StopFinder = () => {
           )}
         </div>
       </div>
-    </DashboardLayout>
+    </Shell>
   );
 };
 
