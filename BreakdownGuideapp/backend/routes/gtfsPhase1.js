@@ -7,6 +7,7 @@
 import express from 'express';
 import { query } from '../utils/queryHelpers.js';
 import { demoSqlFilter, isDemoUser } from '../utils/demoFilter.js';
+import { getCurrentDiversions } from './diversions.js';
 
 const router = express.Router();
 
@@ -108,7 +109,7 @@ async function getRouteDestinations() {
 router.get('/routes/status/live', async (req, res) => {
   try {
     const demo = isDemoUser(req.user);
-    const [routeRows, openRows, destinations] = await Promise.all([
+    const [routeRows, openRows, destinations, diversions] = await Promise.all([
       query(`
         SELECT route_id, route_short_name, route_long_name
         FROM gtfs_routes
@@ -123,7 +124,18 @@ router.get('/routes/status/live', async (req, res) => {
       `),
       // Real place names - the public demo uses fictional geography, so skip
       demo ? Promise.resolve({}) : getRouteDestinations().catch(() => ({})),
+      // Diversions in force (table may not exist on older installs)
+      getCurrentDiversions(req.user).catch(() => []),
     ]);
+    const diversionsByRoute = {};
+    diversions.forEach(d => {
+      const k = String(d.routeShortName || '').trim().toUpperCase();
+      (diversionsByRoute[k] = diversionsByRoute[k] || []).push({
+        id: d.id, title: d.title, reason: d.reason, directionLabel: d.directionLabel,
+        from: d.from?.name, to: d.to?.name, endAt: d.endAt,
+        missedStops: (d.missedStops || []).length, extraMinutes: d.extraMinutes,
+      });
+    });
 
     // Match on the full GTFS id or the short name (breakdowns store '21')
     const routeKey = (v) => String(v || '').trim().toUpperCase();
@@ -160,6 +172,7 @@ router.get('/routes/status/live', async (req, res) => {
         lastBreakdownTime: list.length ? list.reduce((m, b) => (new Date(b.createdAt) > new Date(m) ? b.createdAt : m), list[0].createdAt) : null,
         breakdownSeverities: [...new Set(list.map(b => b.severity).filter(Boolean))],
         breakdowns: list,
+        diversions: diversionsByRoute[String(row.route_short_name || '').trim().toUpperCase()] || [],
         timestamp: new Date().toISOString(),
       };
     }).sort((a, b) => statusOrder[a.status] - statusOrder[b.status]
@@ -174,6 +187,7 @@ router.get('/routes/status/live', async (req, res) => {
       total_active_breakdowns: linkedCount,
       unlinked_breakdowns: unlinked.length,
       open_breakdowns: linkedCount + unlinked.length,
+      diverted_routes: formattedResults.filter(r => r.diversions.length > 0).length,
     };
 
     return res.json({

@@ -211,6 +211,7 @@ import dutyBreaksRoutes from './routes/dutyBreaks.js';
 import dutyExtensionsRoutes from './routes/dutyExtensions.js';
 import systemSettingsRoutes from './routes/systemSettings.js';
 import mileageRoutes from './routes/mileage.js';
+import diversionRoutes from './routes/diversions.js';
 import engineerManagementRoutes from './routes/engineerManagement.js';
 import webSocketHandler from './routes/webSocketHandler.js';
 
@@ -685,6 +686,7 @@ app.use('/api/gtfs', authenticateSupervisor, gtfsPhase1Routes);
 // GTFS Phase 2 Features - Trips at risk, service gaps, shape matching, timetable, stop finder
 app.use('/api/gtfs', authenticateSupervisor, gtfsPhase2Routes);
 app.use('/api/mileage', authenticateSupervisor, mileageRoutes); // Mileage lost calculation
+app.use('/api/diversions', authenticateSupervisor, diversionRoutes); // Route diversions around road closures
 
 // SDC Dashboard API routes (requires SDC operator authentication and rate limiting)
 app.use('/api/sdc', rateLimitSDC, authenticateSDC, breakdownsAPIRoutes);
