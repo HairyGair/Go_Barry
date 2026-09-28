@@ -26,6 +26,7 @@ import DriverSheet from './DriverSheet';
 import {
   REASONS, reasonLabel, getGeometry, planDiversion, getRoadOptions, listDiversions, getDiversion,
   saveDiversion, updateDiversion, fmtDateTime, fmtMiles, fmtMinutes, toLocalInput, STATE_META,
+  uniqueStopNames,
 } from './diversionsApi';
 import './Diversions.css';
 
@@ -102,14 +103,17 @@ const DiversionList = ({ items, loading, onOpen, onNew }) => {
 
 // ── Planner ───────────────────────────────────────────────────────────────────
 
-const StopList = ({ title, stops, tone, empty }) => (
-  <div className={`dvs-stops dvs-stops-${tone}`}>
-    <h5>{title} <span>{stops.length}</span></h5>
-    {stops.length ? (
-      <ul>{stops.map(s => <li key={s.stopId}>{s.name}</li>)}</ul>
-    ) : <p className="dvs-muted">{empty}</p>}
-  </div>
-);
+const StopList = ({ title, stops, tone, empty }) => {
+  const names = uniqueStopNames(stops);
+  return (
+    <div className={`dvs-stops dvs-stops-${tone}`}>
+      <h5>{title} <span>{names.length}</span></h5>
+      {names.length ? (
+        <ul>{names.map(n => <li key={n}>{n}</li>)}</ul>
+      ) : <p className="dvs-muted">{empty}</p>}
+    </div>
+  );
+};
 
 const Planner = ({ routes, initialRoute, onCancel, onSaved, preset }) => {
   const [routeQuery, setRouteQuery] = useState(preset?.routeShortName || initialRoute || '');
@@ -593,6 +597,7 @@ const Detail = ({ id, onBack, onChanged, onPlanOther }) => {
   const meta = d ? STATE_META[d.state] || STATE_META.past : null;
   const planLike = d ? {
     closure: d.closure ? { lat: d.closure.lat, lng: d.closure.lng } : null,
+    missedStops: d.missedStops || [],
   } : null;
   const otherDirection = geometry?.directions?.find(x => x.directionId !== d?.directionId);
 
@@ -658,7 +663,13 @@ const Detail = ({ id, onBack, onChanged, onPlanOther }) => {
         )}
       </aside>
       <div className="dvs-map">
-        <DiversionMap geometry={geometry} plan={planLike} savedPath={d?.path} fitKey={`${id}-${d ? 1 : 0}`} />
+        <DiversionMap
+          geometry={geometry}
+          plan={planLike}
+          savedPath={d?.path}
+          savedServed={d?.servedStops || []}
+          fitKey={`${id}-${d ? 1 : 0}`}
+        />
       </div>
       {sheet && d && <DriverSheet diversion={d} onClose={() => setSheet(false)} />}
     </div>

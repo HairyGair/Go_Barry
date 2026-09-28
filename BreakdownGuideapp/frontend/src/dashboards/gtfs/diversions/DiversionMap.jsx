@@ -65,16 +65,18 @@ const DiversionMap = ({
   onMapClick,
   clickMode,
   savedPath,
+  savedServed = [],
   pendingClosure,
   fitKey,
 }) => {
   const fitPoints = useMemo(() => {
-    if (plan) {
-      const pts = [...(plan.original?.path || [])];
+    // Saved diversion: frame the diversion itself, not the whole route
+    if (savedPath?.length) return savedPath;
+    if (plan?.original) {
+      const pts = [...(plan.original.path || [])];
       candidates.forEach(c => pts.push(...c.path));
       return pts.length ? pts : geometry?.path;
     }
-    if (savedPath?.length) return savedPath;
     return geometry?.path;
   }, [plan, candidates, geometry, savedPath]);
 
@@ -114,7 +116,7 @@ const DiversionMap = ({
         {selected && (
           <Polyline positions={selected.path} pathOptions={{ color: '#10b981', weight: 7, opacity: 0.95 }} />
         )}
-        {!plan && savedPath?.length > 1 && (
+        {savedPath?.length > 1 && (
           <Polyline positions={savedPath} pathOptions={{ color: '#10b981', weight: 7, opacity: 0.95 }} />
         )}
 
@@ -129,7 +131,7 @@ const DiversionMap = ({
             <Tooltip>{s.name}{s.departure ? ` · ${s.departure}` : ''}</Tooltip>
           </CircleMarker>
         ))}
-        {(selected?.servedStops || []).map(s => (
+        {(selected?.servedStops || savedServed).map(s => (
           <CircleMarker key={`sv-${s.stopId}`} center={[s.lat, s.lng]} radius={6} pathOptions={{ color: '#0b1220', weight: 2, fillColor: '#60a5fa', fillOpacity: 1 }}>
             <Tooltip>On the diversion: {s.name}</Tooltip>
           </CircleMarker>

@@ -127,6 +127,9 @@ export const fmtDateTime = (v) => {
   return d.toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 };
 
+/** Stop names without repeats (a stop often has one on each side of the road) */
+export const uniqueStopNames = (stops = []) => [...new Set(stops.map(s => s.name).filter(Boolean))];
+
 export const fmtMiles = (m) => (m == null ? '' : `${m > 0 ? '+' : ''}${m} mi`);
 export const fmtMinutes = (m) => (m == null ? '' : `${m > 0 ? '+' : ''}${m} min`);
 export const fmtDistance = (meters) => (meters >= 1000 ? `${(meters / 1609.344).toFixed(1)} mi` : `${Math.round(meters)} m`);

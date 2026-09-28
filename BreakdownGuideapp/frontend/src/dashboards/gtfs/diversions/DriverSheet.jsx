@@ -12,7 +12,7 @@
 import React from 'react';
 import { Printer, X } from 'lucide-react';
 import AccessibleModal from '../../../components/AccessibleModal';
-import { reasonLabel, fmtDateTime, fmtDistance } from './diversionsApi';
+import { reasonLabel, fmtDateTime, fmtDistance, uniqueStopNames } from './diversionsApi';
 
 const DriverSheet = ({ diversion: d, onClose }) => (
   <AccessibleModal
@@ -53,7 +53,7 @@ const DriverSheet = ({ diversion: d, onClose }) => (
               <td>
                 {d.extraMiles != null ? `${d.extraMiles} miles` : ''}
                 {d.extraMiles != null && d.extraMinutes != null ? ' · ' : ''}
-                {d.extraMinutes != null ? `about ${d.extraMinutes} minutes` : ''}
+                {d.extraMinutes != null ? `about ${d.extraMinutes} minute${Math.abs(d.extraMinutes) === 1 ? '' : 's'}` : ''}
               </td>
             </tr>
           )}
@@ -62,26 +62,26 @@ const DriverSheet = ({ diversion: d, onClose }) => (
 
       <section>
         <h2>Route</h2>
+        <p className="dvs-sheet-key"><strong>Leave the normal route after {d.from.name}.</strong></p>
         <ol className="dvs-sheet-steps">
-          <li className="dvs-sheet-key"><strong>Leave the normal route after {d.from.name}.</strong></li>
           {(d.directions || []).map((s, i) => (
             <li key={i}>
               {s.instruction}
               {s.distanceMeters ? <span className="dvs-sheet-dist"> ({fmtDistance(s.distanceMeters)})</span> : null}
             </li>
           ))}
-          <li className="dvs-sheet-key"><strong>Rejoin the normal route at {d.to.name}.</strong></li>
         </ol>
+        <p className="dvs-sheet-key"><strong>Rejoin the normal route at {d.to.name}.</strong></p>
       </section>
 
       <div className="dvs-sheet-cols">
         <section>
           <h2>Stops not served</h2>
-          {d.missedStops?.length ? <ul>{d.missedStops.map(s => <li key={s.stopId}>{s.name}</li>)}</ul> : <p>None.</p>}
+          {d.missedStops?.length ? <ul>{uniqueStopNames(d.missedStops).map(n => <li key={n}>{n}</li>)}</ul> : <p>None.</p>}
         </section>
         <section>
           <h2>Stops on the diversion</h2>
-          {d.servedStops?.length ? <ul>{d.servedStops.map(s => <li key={s.stopId}>{s.name}</li>)}</ul> : <p>None.</p>}
+          {d.servedStops?.length ? <ul>{uniqueStopNames(d.servedStops).map(n => <li key={n}>{n}</li>)}</ul> : <p>None.</p>}
         </section>
       </div>
 
