@@ -1130,7 +1130,12 @@ const StopFinder = ({ embedded = false, onOpenRoute } = {}) => {
                         </div>
                         <div className="sf-dep-group-info">
                           <div className="sf-dep-headsign">{nextDep.headsign}</div>
-                          <div className="sf-dep-group-count">{group.departures.length} departure{group.departures.length !== 1 ? 's' : ''}</div>
+                          <div className="sf-dep-group-count">
+                            {group.departures.length} departure{group.departures.length !== 1 ? 's' : ''}
+                            {stopDiversions.skipped.some(d => String(d.routeShortName) === String(group.routeShortName)) && (
+                              <span className="sf-dep-diverted">Diverted · not calling here</span>
+                            )}
+                          </div>
                         </div>
                         <div className={`sf-dep-mins ${nextDep.minutesUntilDeparture <= 2 ? 'sf-due' : ''}`}>
                           {nextDep.minutesUntilDeparture <= 0 ? 'Due' : `${nextDep.minutesUntilDeparture} min`}
