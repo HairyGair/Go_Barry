@@ -781,9 +781,11 @@ router.get('/stops/search', async (req, res) => {
     const params = [];
 
     // Text search
+    // Text search - a name, or an exact stop id / stop code (deep links from
+    // the timetable pass the stop id, which a name-only match never found)
     if (q) {
-      conditions.push('s.stop_name LIKE ?');
-      params.push(`%${q}%`);
+      conditions.push('(s.stop_name LIKE ? OR s.stop_id = ? OR s.stop_code = ?)');
+      params.push(`%${q}%`, q, q);
     }
 
     // Proximity search

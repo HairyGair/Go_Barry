@@ -76,6 +76,16 @@ function MapFlyTo({ position, zoom }) {
   return null;
 }
 
+/** Fits the map to a set of points whenever `request` changes */
+function MapFitBounds({ points, request }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!request || points.length === 0) return;
+    map.fitBounds(L.latLngBounds(points), { padding: [48, 48], maxZoom: 15 });
+  }, [request]); // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
+}
+
 /** Load Google Places script once */
 function useGooglePlaces() {
   const [ready, setReady] = useState(false);
@@ -122,6 +132,7 @@ const StopFinder = ({ embedded = false, onOpenRoute } = {}) => {
 
   // Feature 5: live breakdowns
   const [liveBreakdowns, setLiveBreakdowns] = useState([]);
+  const [fitBreakdownsAt, setFitBreakdownsAt] = useState(0);
   const breakdownRefreshRef = useRef(null);
 
   // Feature 7: diversion planning
@@ -627,6 +638,10 @@ const StopFinder = ({ embedded = false, onOpenRoute } = {}) => {
 
             <MapClickHandler onMapClick={handleMapClick} />
             <MapFlyTo position={flyToPos} zoom={16} />
+            <MapFitBounds
+              request={fitBreakdownsAt}
+              points={liveBreakdowns.map(b => [parseFloat(b.location_lat), parseFloat(b.location_lng)])}
+            />
 
             {/* Stop markers */}
             {stops.map(stop => (
@@ -717,9 +732,14 @@ const StopFinder = ({ embedded = false, onOpenRoute } = {}) => {
 
           {/* Breakdown count overlay */}
           {liveBreakdowns.length > 0 && (
-            <div className="sf-breakdown-badge">
+            <button
+              type="button"
+              className="sf-breakdown-badge"
+              onClick={() => setFitBreakdownsAt(Date.now())}
+              title="Show all breakdowns on the map"
+            >
               {liveBreakdowns.length} active breakdown{liveBreakdowns.length !== 1 ? 's' : ''}
-            </div>
+            </button>
           )}
         </div>
 

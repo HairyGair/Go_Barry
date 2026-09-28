@@ -960,3 +960,8 @@
   min-height: 480px;
   border-radius: 14px;
 }
+
+/* The breakdown count is a button: it fits the map to the breakdowns */
+button.sf-breakdown-badge { cursor: pointer; }
+button.sf-breakdown-badge:hover { background: rgba(239, 68, 68, 1); }
+button.sf-breakdown-badge:focus-visible { outline: 2px solid #22d3ee; outline-offset: 2px; }
