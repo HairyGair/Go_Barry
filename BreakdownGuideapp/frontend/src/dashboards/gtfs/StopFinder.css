@@ -965,3 +965,23 @@
 button.sf-breakdown-badge { cursor: pointer; }
 button.sf-breakdown-badge:hover { background: rgba(239, 68, 68, 1); }
 button.sf-breakdown-badge:focus-visible { outline: 2px solid #22d3ee; outline-offset: 2px; }
+
+/* Diversions affecting the selected stop */
+.sf-diversion {
+  display: flex; flex-direction: column; gap: 2px;
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 10px;
+  text-align: left;
+  border-radius: 8px;
+  background: rgba(168, 85, 247, 0.1);
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  color: #e9d5ff;
+  font-family: inherit;
+  cursor: pointer;
+}
+.sf-diversion strong { font-size: 12px; color: #f5f3ff; }
+.sf-diversion span { font-size: 11px; color: #d8b4fe; }
+.sf-diversion--skipped { background: rgba(168, 85, 247, 0.18); border-color: rgba(168, 85, 247, 0.6); }
+.sf-diversion:hover { background: rgba(168, 85, 247, 0.25); }
+.sf-diversion:focus-visible { outline: 2px solid #22d3ee; outline-offset: 2px; }

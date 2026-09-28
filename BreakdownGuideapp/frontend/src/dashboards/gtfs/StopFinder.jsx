@@ -16,6 +16,7 @@ import { apiClient } from '../../services/api-client';
 import { GOOGLE_MAPS_API_KEY } from '@/config/maps.js';
 import { DARK_BASE_TILES, DARK_LABEL_TILES } from '../../config/mapTiles';
 import { getDepotOptions } from '../../config/demoDepots';
+import { listDiversions } from './diversions/diversionsApi';
 import './StopFinder.css';
 
 const NE_CENTER = [54.97, -1.60]; // Newcastle center
@@ -133,6 +134,11 @@ const StopFinder = ({ embedded = false, onOpenRoute } = {}) => {
   // Feature 5: live breakdowns
   const [liveBreakdowns, setLiveBreakdowns] = useState([]);
   const [fitBreakdownsAt, setFitBreakdownsAt] = useState(0);
+  // Diversions in force - a stop may be skipped by one, or newly on one
+  const [currentDiversions, setCurrentDiversions] = useState([]);
+  useEffect(() => {
+    listDiversions('current').then(res => setCurrentDiversions(res?.diversions || [])).catch(() => {});
+  }, []);
   const breakdownRefreshRef = useRef(null);
 
   // Feature 7: diversion planning
@@ -178,6 +184,15 @@ const StopFinder = ({ embedded = false, onOpenRoute } = {}) => {
       return a.localeCompare(b);
     });
   }, [departures]);
+
+  const stopDiversions = useMemo(() => {
+    if (!selectedStop) return { skipped: [], added: [] };
+    const id = String(selectedStop.stopId);
+    return {
+      skipped: currentDiversions.filter(d => (d.missedStops || []).some(m => String(m.stopId) === id)),
+      added: currentDiversions.filter(d => (d.servedStops || []).some(m => String(m.stopId) === id)),
+    };
+  }, [selectedStop, currentDiversions]);
 
   // === Feature 3: nearest depot ===
   const nearestDepot = useMemo(() => {
@@ -864,6 +879,29 @@ const StopFinder = ({ embedded = false, onOpenRoute } = {}) => {
                 {selectedStop.stopCode && (
                   <div className="sf-dep-stop-code">Stop code: {selectedStop.stopCode}</div>
                 )}
+
+                {stopDiversions.skipped.map(d => (
+                  <button
+                    key={`sk-${d.id}`}
+                    type="button"
+                    className="sf-diversion sf-diversion--skipped"
+                    onClick={() => navigate(`/dashboards/gtfs/network?view=diversions&diversion=${encodeURIComponent(d.id)}`)}
+                  >
+                    <strong>Route {d.routeShortName} is diverted and doesn’t serve this stop</strong>
+                    <span>{d.title}{d.endAt ? ` · until ${new Date(d.endAt).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}` : ''}</span>
+                  </button>
+                ))}
+                {stopDiversions.added.map(d => (
+                  <button
+                    key={`ad-${d.id}`}
+                    type="button"
+                    className="sf-diversion"
+                    onClick={() => navigate(`/dashboards/gtfs/network?view=diversions&diversion=${encodeURIComponent(d.id)}`)}
+                  >
+                    <strong>Route {d.routeShortName} passes this stop on a diversion</strong>
+                    <span>{d.title}</span>
+                  </button>
+                ))}
 
                 {/* Feature 1: route badges */}
                 {uniqueRoutes.length > 0 && (

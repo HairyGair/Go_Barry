@@ -10,7 +10,7 @@
 
 import React, { forwardRef } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight, Clock, MapPin, Wrench, CalendarDays } from 'lucide-react';
+import { ChevronRight, Clock, MapPin, Wrench, CalendarDays, Construction } from 'lucide-react';
 import EngineerEtaCountdown from '../../../components/EngineerEtaCountdown';
 import { displayDepotName } from '../../../config/demoDepots';
 
@@ -37,6 +37,26 @@ const titleCase = (s) => String(s || '')
   .replace(/\s+/g, ' ')
   .trim()
   .replace(/\b\w/g, c => c.toUpperCase());
+
+const untilText = (endAt) => (endAt
+  ? `until ${new Date(endAt).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`
+  : 'until further notice');
+
+/** One diversion in force on a route, linking to its details */
+export const DiversionLine = ({ d }) => (
+  <Link to={`/dashboards/gtfs/network?view=diversions&diversion=${encodeURIComponent(d.id)}`} className="rst-div">
+    <Construction size={14} aria-hidden="true" className="rst-div-icon" />
+    <span className="rst-div-main">
+      <span className="rst-div-title">{d.title}</span>
+      <span className="rst-div-sub">
+        {d.directionLabel ? `To ${d.directionLabel} · ` : ''}
+        {d.missedStops ? `${d.missedStops} stop${d.missedStops === 1 ? '' : 's'} not served · ` : ''}
+        {untilText(d.endAt)}
+      </span>
+    </span>
+    <ChevronRight size={16} className="rst-bd-chev" aria-hidden="true" />
+  </Link>
+);
 
 export const EngineerState = ({ b }) => {
   if (b.engineerOnSiteAt) {
@@ -105,6 +125,7 @@ const RouteIssueCard = forwardRef(({ route, now, highlighted }, ref) => {
             <span className="rst-dest">{dest.join(' ↔ ')}</span>
           )}
         </div>
+        {route.diversions?.length > 0 && <span className="rst-diverted-chip">Diverted</span>}
         <span className="rst-card-count">
           {route.breakdownCount} breakdown{route.breakdownCount === 1 ? '' : 's'}
         </span>
@@ -117,6 +138,7 @@ const RouteIssueCard = forwardRef(({ route, now, highlighted }, ref) => {
         </Link>
       </header>
       <div className="rst-bd-list">
+        {(route.diversions || []).map(d => <DiversionLine key={d.id} d={d} />)}
         {route.breakdowns.map(b => <BreakdownLine key={b.id} b={b} now={now} />)}
       </div>
     </article>

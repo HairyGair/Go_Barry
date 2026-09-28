@@ -74,6 +74,7 @@ const RouteBoard = ({ routes, onJumpToRoute }) => {
               {selected.breakdownCount
                 ? `${selected.breakdownCount} open breakdown${selected.breakdownCount === 1 ? '' : 's'}`
                 : 'No open breakdowns'}
+              {selected.diversions?.length ? ` · ${selected.diversions.length} diversion${selected.diversions.length === 1 ? '' : 's'}` : ''}
               {selected.destinations?.length ? ` · ${selected.destinations.join(' ↔ ')}` : ''}
             </span>
           </div>
@@ -94,9 +95,9 @@ const RouteBoard = ({ routes, onJumpToRoute }) => {
             <button
               key={r.routeId}
               type="button"
-              className={`rst-tile rst-tile-${meta.tone} ${dim ? 'rst-tile-dim' : ''} ${selectedId === r.routeId ? 'rst-tile-on' : ''}`}
+              className={`rst-tile rst-tile-${meta.tone} ${r.diversions?.length ? 'rst-tile-diverted' : ''} ${dim ? 'rst-tile-dim' : ''} ${selectedId === r.routeId ? 'rst-tile-on' : ''}`}
               onClick={() => pick(r)}
-              title={`Route ${r.routeShortName} · ${meta.label}${r.breakdownCount ? ` · ${r.breakdownCount} breakdown${r.breakdownCount === 1 ? '' : 's'}` : ''}${r.destinations?.length ? ` · ${r.destinations.join(' ↔ ')}` : ''}`}
+              title={`Route ${r.routeShortName} · ${meta.label}${r.diversions?.length ? ' · Diverted' : ''}${r.breakdownCount ? ` · ${r.breakdownCount} breakdown${r.breakdownCount === 1 ? '' : 's'}` : ''}${r.destinations?.length ? ` · ${r.destinations.join(' ↔ ')}` : ''}`}
               aria-label={`Route ${r.routeShortName}, ${meta.label}`}
             >
               {r.routeShortName}
@@ -109,6 +110,7 @@ const RouteBoard = ({ routes, onJumpToRoute }) => {
         <span><i className="rst-sw rst-sw-red" />Disrupted</span>
         <span><i className="rst-sw rst-sw-amber" />Affected</span>
         <span><i className="rst-sw rst-sw-green" />Normal</span>
+        <span><i className="rst-sw rst-sw-diverted" />Diverted</span>
       </div>
     </section>
   );

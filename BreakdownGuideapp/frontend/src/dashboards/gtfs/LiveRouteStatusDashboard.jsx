@@ -13,9 +13,9 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Bus, AlertOctagon, AlertTriangle, CheckCircle2, ClipboardList, RefreshCw, Unlink } from 'lucide-react';
+import { Bus, AlertOctagon, AlertTriangle, CheckCircle2, ClipboardList, RefreshCw, Unlink, Construction } from 'lucide-react';
 import DashboardLayout from '../components/DashboardLayout';
-import RouteIssueCard, { BreakdownLine } from './route-status/RouteIssueCard';
+import RouteIssueCard, { BreakdownLine, DiversionLine } from './route-status/RouteIssueCard';
 import RouteBoard from './route-status/RouteBoard';
 import { gtfsApiService } from '../../services/gtfsApiService';
 import './LiveRouteStatusDashboard.css';
@@ -69,6 +69,12 @@ const LiveRouteStatusDashboard = () => {
   };
 
   const affected = useMemo(() => routes.filter(r => r.status !== 'GREEN'), [routes]);
+  // Routes running normally apart from a diversion - listed so they aren't missed
+  const divertedOnly = useMemo(
+    () => routes.filter(r => r.status === 'GREEN' && r.diversions?.length),
+    [routes]
+  );
+  const divertedCount = summary?.diverted_routes ?? routes.filter(r => r.diversions?.length).length;
   const counts = {
     red: summary?.red_routes ?? affected.filter(r => r.status === 'RED').length,
     amber: summary?.amber_routes ?? affected.filter(r => r.status === 'AMBER').length,
@@ -113,6 +119,11 @@ const LiveRouteStatusDashboard = () => {
               <span className="rst-kpi-val">{counts.green}</span>
               <span className="rst-kpi-lbl">Running normally</span>
             </div>
+            <div className="rst-kpi rst-kpi-div" role="listitem">
+              <Construction size={13} aria-hidden="true" />
+              <span className="rst-kpi-val">{divertedCount}</span>
+              <span className="rst-kpi-lbl">Diverted</span>
+            </div>
             <div className="rst-kpi" role="listitem">
               <ClipboardList size={13} aria-hidden="true" />
               <span className="rst-kpi-val">{counts.open}</span>
@@ -142,6 +153,29 @@ const LiveRouteStatusDashboard = () => {
         ) : (
           <div className="rst-grid">
             <div className="rst-col">
+              {divertedOnly.length > 0 && (
+                <>
+                  <div className="rst-section-head">
+                    <h3>Diversions in force</h3>
+                    <span className="rst-section-count">{divertedOnly.length} route{divertedOnly.length === 1 ? '' : 's'} with no breakdowns</span>
+                  </div>
+                  {divertedOnly.map(route => (
+                    <article key={route.routeId} className="rst-card rst-card-diverted" aria-label={`Route ${route.routeShortName}, diverted`}>
+                      <header className="rst-card-head">
+                        <span className="rst-route rst-route-div">{route.routeShortName}</span>
+                        <div className="rst-card-title">
+                          <span className="rst-status rst-status-div">Diverted</span>
+                          {route.destinations?.length > 0 && <span className="rst-dest">{route.destinations.join(' ↔ ')}</span>}
+                        </div>
+                      </header>
+                      <div className="rst-bd-list">
+                        {route.diversions.map(d => <DiversionLine key={d.id} d={d} />)}
+                      </div>
+                    </article>
+                  ))}
+                </>
+              )}
+
               <div className="rst-section-head">
                 <h3>Needs attention</h3>
                 <span className="rst-section-count">

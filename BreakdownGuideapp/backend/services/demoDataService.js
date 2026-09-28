@@ -8,6 +8,7 @@
 
 import { query } from '../utils/queryHelpers.js';
 import { DEMO_DEPOTS } from '../data/demoDepots.js';
+import DEMO_DIVERSION from '../data/demoDiversion.js';
 
 // Fictional depot shorthands, so the breakdown/engineer/replacement fixtures
 // below read clearly (matches data/demoDepots.js exactly - the canonical table).
@@ -952,8 +953,37 @@ export async function seedDemoData() {
       seedErrors.push('engineers: ' + engErr.message);
     }
 
+    // 8. One diversion in force (a worked example), clearing anything a previous
+    //    demo visitor planned. Isolated like the steps above.
+    let diversionCount = 0;
+    try {
+      await query("DELETE FROM route_diversions WHERE supervisor_badge = 'DEMO01'");
+      const d = DEMO_DIVERSION;
+      const now = Date.now();
+      await query(
+        `INSERT INTO route_diversions (
+           id, route_id, route_short_name, direction_id, direction_label, title, reason,
+           closure_description, closure_lat, closure_lng, from_stop_id, from_stop_name,
+           to_stop_id, to_stop_name, diversion_path, directions, missed_stops, served_stops,
+           extra_miles, extra_minutes, start_at, end_at, status, notes,
+           created_by, created_by_name, supervisor_badge
+         ) VALUES (UUID(), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, 'Demo Supervisor', 'DEMO01')`,
+        [
+          d.routeId, d.routeShortName, d.directionId, d.directionLabel, d.title, d.reason,
+          d.closureDescription, d.closureLat, d.closureLng, d.fromStopId, d.fromStopName,
+          d.toStopId, d.toStopName, JSON.stringify(d.path), JSON.stringify(d.directions),
+          JSON.stringify(d.missedStops), JSON.stringify(d.servedStops), d.extraMiles, d.extraMinutes,
+          new Date(now - 3 * 3600 * 1000), new Date(now + 5 * 86400 * 1000), d.notes, DEMO_SUPERVISOR_ID,
+        ]
+      );
+      diversionCount = 1;
+    } catch (divErr) {
+      console.error('🎭 Demo diversion seeding skipped (non-fatal):', divErr.message);
+      seedErrors.push('diversions: ' + divErr.message);
+    }
+
     console.log(`🎭 Demo data seeded: ${breakdowns.length} breakdowns (+${historyCount} history), ${replacementCount} replacements, ${activityCount} activities, ${engineerCount} engineers`);
-    return { breakdowns: breakdowns.length, history: historyCount, replacements: replacementCount, activities: activityCount, engineers: engineerCount, errors: seedErrors };
+    return { breakdowns: breakdowns.length, history: historyCount, replacements: replacementCount, activities: activityCount, engineers: engineerCount, diversions: diversionCount, errors: seedErrors };
   } catch (error) {
     console.error('🎭 Error seeding demo data:', error);
     throw error;

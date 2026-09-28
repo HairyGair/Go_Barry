@@ -9,9 +9,10 @@
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { AlertTriangle, ChevronDown, ChevronUp, Search, Clock } from 'lucide-react';
+import { AlertTriangle, ChevronDown, ChevronUp, Search, Clock, Construction } from 'lucide-react';
 import DashboardLayout from '../components/DashboardLayout';
 import { gtfsApiService } from '../../services/gtfsApiService';
+import { listDiversions } from './diversions/diversionsApi';
 import './RouteTimetableViewer.css';
 
 // UI-only convenience: remember whether the full route list is expanded.
@@ -210,6 +211,34 @@ const RouteTimetableViewer = ({ embedded = false, onOpenStop } = {}) => {
   const directions = timetable?.directions || [];
   const currentDir = directions[directionIdx] || null;
   const currentTime = timetable?.currentTime || '';
+
+  // Diversions in force on this route. Matched to the direction shown by its
+  // destination, or by any of its missed stops appearing in this direction.
+  const [routeDiversions, setRouteDiversions] = useState([]);
+  const selectedShort = routes.find(r => r.routeId === selectedRouteId)?.routeShortName;
+  useEffect(() => {
+    if (!selectedShort) { setRouteDiversions([]); return undefined; }
+    let alive = true;
+    listDiversions('current', selectedShort)
+      .then(res => { if (alive) setRouteDiversions(res?.diversions || []); })
+      .catch(() => { if (alive) setRouteDiversions([]); });
+    return () => { alive = false; };
+  }, [selectedShort]);
+  const { dirDiversions, otherDirDiversions, missedStopIds } = useMemo(() => {
+    const ids = new Set((currentDir?.stops || []).map(getStopId).filter(Boolean));
+    const mine = [];
+    const other = [];
+    routeDiversions.forEach(d => {
+      const matches = (d.directionLabel && currentDir?.headsign && d.directionLabel === currentDir.headsign)
+        || (d.missedStops || []).some(m => ids.has(m.stopId));
+      (matches ? mine : other).push(d);
+    });
+    return {
+      dirDiversions: mine,
+      otherDirDiversions: other,
+      missedStopIds: new Set(mine.flatMap(d => (d.missedStops || []).map(m => m.stopId))),
+    };
+  }, [routeDiversions, currentDir]);
 
   // Filter trips by time period and past/future
   const periodFilter = TIME_PERIODS.find(p => p.key === timePeriod) || TIME_PERIODS[0];
@@ -545,6 +574,32 @@ const RouteTimetableViewer = ({ embedded = false, onOpenStop } = {}) => {
 
             {currentDir && currentDir.trips.length > 0 ? (
               <>
+                {dirDiversions.map(d => (
+                  <div key={d.id} className="rtv-diversion" role="status">
+                    <Construction size={16} aria-hidden="true" />
+                    <div>
+                      <strong>Diversion in force: {d.title}</strong>
+                      <span>
+                        Leaves the route after {d.from?.name}, rejoins at {d.to?.name}
+                        {d.missedStops?.length ? ` · ${d.missedStops.length} stop${d.missedStops.length === 1 ? '' : 's'} not served (marked below)` : ''}
+                        {d.endAt ? ` · until ${new Date(d.endAt).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}` : ''}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="rtv-diversion-link"
+                      onClick={() => navigate(`/dashboards/gtfs/network?view=diversions&diversion=${encodeURIComponent(d.id)}`)}
+                    >
+                      Details
+                    </button>
+                  </div>
+                ))}
+                {otherDirDiversions.length > 0 && (
+                  <div className="rtv-diversion rtv-diversion--other" role="status">
+                    <Construction size={14} aria-hidden="true" />
+                    <span>Also diverted in the other direction: {otherDirDiversions.map(d => d.title).join('; ')}</span>
+                  </div>
+                )}
                 {/* Time banner */}
                 <div className="rtv-time-banner">
                   <span className="rtv-time-now"><Clock size={16} />{currentTime?.substring(0, 5)}</span>
@@ -697,6 +752,7 @@ const RouteTimetableViewer = ({ embedded = false, onOpenStop } = {}) => {
                                 title={stopId ? `Departures and map for ${stopName}` : undefined}
                               >
                                 {stopName}
+                                {stopId && missedStopIds.has(stopId) && <span className="rtv-not-served">Not served · diversion</span>}
                               </td>
                               {filteredTrips.map(({ trip, origIdx }, colIdx) => {
                                 const time = trip.departureTimes[rowIdx];
