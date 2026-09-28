@@ -196,7 +196,7 @@ const MySQLLoginPage = () => {
                         <GoBarryLogo size="md" variant="compact" theme="dark" />
                     </div>
                     <div className="lp-nav-actions" ref={loginPanelRef}>
-                        <a href="/showcase.html" className="lp-nav-learn-more">Learn More</a>
+                        <a href="https://gobarry.co.uk/" className="lp-nav-learn-more">Learn More</a>
                         <button
                             className={`lp-nav-signin ${loginOpen ? 'active' : ''}`}
                             onClick={() => setLoginOpen(!loginOpen)}
@@ -333,7 +333,7 @@ const MySQLLoginPage = () => {
                                 </>
                             )}
                         </button>
-                        <a href="/showcase.html" className="lp-learn-more-btn lp-cta-secondary">
+                        <a href="https://gobarry.co.uk/" className="lp-learn-more-btn lp-cta-secondary">
                             See The Full Platform
                             <ArrowRight size={16} strokeWidth={2} />
                         </a>

@@ -982,10 +982,31 @@ router.get('/service-gaps', async (req, res) => {
   }
 });
 
+// Simple per-address limit for the public enquiry form (the website and the
+// app's "I'm interested" dialog). The honeypot catches most bots; this stops
+// anything that gets past it from flooding the inbox.
+const INTEREST_WINDOW_MS = 60 * 60 * 1000;
+const INTEREST_MAX = 5;
+const interestHits = new Map();
+function interestLimited(ip) {
+  const now = Date.now();
+  const hits = (interestHits.get(ip) || []).filter(t => now - t < INTEREST_WINDOW_MS);
+  hits.push(now);
+  interestHits.set(ip, hits);
+  if (interestHits.size > 5000) {
+    for (const [k, v] of interestHits) if (!v.some(t => now - t < INTEREST_WINDOW_MS)) interestHits.delete(k);
+  }
+  return hits.length > INTEREST_MAX;
+}
+
 // POST /api/public/interest - Sales enquiry from the public "I am interested" form
 // No authentication required (prospective operators are not logged in).
 router.post('/interest', async (req, res) => {
   try {
+    const clientIp = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '').toString().split(',')[0].trim();
+    if (interestLimited(clientIp)) {
+      return res.status(429).json({ success: false, error: 'Too many enquiries from this connection. Please email gair@gairware.com instead.' });
+    }
     const {
       name, company, email, phone, role,
       fleetSize, depots, currentProcess, features, message,

@@ -126,6 +126,39 @@ fi
 find "$FRONTEND_DIR" -type d -exec chmod 755 {} +
 find "$FRONTEND_DIR" -type f -exec chmod 644 {} +
 
+# ── Deploy marketing site (gobarry.co.uk) ───────────────────────────────────
+# ~/public_html is the gobarry.co.uk docroot, but it also CONTAINS the
+# subdomain docroots (api/, breakdowns.gobarry.co.uk/) plus cgi-bin and
+# .well-known. Only ever touch the entries the site itself shipped: remove the
+# previous release's entries (listed in a manifest), then copy the new ones.
+SITE_DIR="$HOME/public_html"
+SITE_MANIFEST="$HOME/.gobarry-site-manifest"
+if [ -d "$STAGING/website-dist" ] && [ -f "$STAGING/website-dist/index.html" ]; then
+  echo ""
+  echo "--- Deploying marketing site to $SITE_DIR ---"
+  PROTECTED=" api breakdowns.gobarry.co.uk cgi-bin .well-known "
+  if [ -f "$SITE_MANIFEST" ]; then
+    while IFS= read -r entry; do
+      case "$entry" in ""|*/*|.|..) continue ;; esac
+      case "$PROTECTED" in *" $entry "*) continue ;; esac
+      rm -rf "${SITE_DIR:?}/$entry"
+    done < "$SITE_MANIFEST"
+  fi
+  NEW_ENTRIES=$(ls -A "$STAGING/website-dist")
+  for entry in $NEW_ENTRIES; do
+    case "$PROTECTED" in *" $entry "*) echo "Refusing to overwrite protected entry: $entry"; continue ;; esac
+    cp -r "$STAGING/website-dist/$entry" "$SITE_DIR/"
+    if [ -d "$SITE_DIR/$entry" ]; then
+      find "$SITE_DIR/$entry" -type d -exec chmod 755 {} +
+      find "$SITE_DIR/$entry" -type f -exec chmod 644 {} +
+    else
+      chmod 644 "$SITE_DIR/$entry"
+    fi
+  done
+  printf '%s\n' $NEW_ENTRIES > "$SITE_MANIFEST"
+  echo "Marketing site deployed ($(echo $NEW_ENTRIES | wc -w | tr -d ' ') entries)"
+fi
+
 # ── Restart Services ────────────────────────────────────────────────────────
 
 echo ""

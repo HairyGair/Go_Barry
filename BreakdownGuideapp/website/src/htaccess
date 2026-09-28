@@ -1,0 +1,71 @@
+# gobarry.co.uk — marketing site (~/public_html/.htaccess)
+#
+# IMPORTANT: the subdomain docroots live inside this folder
+# (~/public_html/api and ~/public_html/breakdowns.gobarry.co.uk). The api
+# folder's .htaccess doesn't turn on rewriting, so any rewrite rule here would
+# also run for api.breakdowns.gobarry.co.uk. Every rule below is therefore
+# limited to the gobarry.co.uk / www.gobarry.co.uk hosts.
+
+Options -Indexes
+DirectoryIndex index.html
+ErrorDocument 404 /404.html
+
+<IfModule mod_rewrite.c>
+RewriteEngine On
+
+# www -> apex (one canonical host)
+RewriteCond %{HTTP_HOST} ^www\.gobarry\.co\.uk$ [NC]
+RewriteRule ^(.*)$ https://gobarry.co.uk/$1 [R=301,L]
+
+# Force HTTPS
+RewriteCond %{HTTP_HOST} ^gobarry\.co\.uk$ [NC]
+RewriteCond %{HTTPS} !=on
+RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+RewriteRule ^(.*)$ https://gobarry.co.uk/$1 [R=301,L]
+
+# Links into the app that used to live on this domain keep working
+RewriteCond %{HTTP_HOST} ^gobarry\.co\.uk$ [NC]
+RewriteRule ^(dashboards|breakdown-guide|fleet-intelligence|settings|help|login|showcase\.html)(/.*)?$ https://breakdowns.gobarry.co.uk/$1$2 [R=301,L]
+
+# Old tracking query strings on the home page (e.g. ?logout=...) go to the app
+RewriteCond %{HTTP_HOST} ^gobarry\.co\.uk$ [NC]
+RewriteCond %{QUERY_STRING} (^|&)logout= [NC]
+RewriteRule ^$ https://breakdowns.gobarry.co.uk/ [R=301,L]
+</IfModule>
+
+# Compression
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css application/javascript text/javascript application/json image/svg+xml application/xml text/xml text/plain
+</IfModule>
+
+# Caching: HTML revalidates; versioned CSS/JS, images and fonts cache for a year
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/html "access plus 0 seconds"
+  ExpiresByType text/css "access plus 1 year"
+  ExpiresByType application/javascript "access plus 1 year"
+  ExpiresByType text/javascript "access plus 1 year"
+  ExpiresByType image/webp "access plus 1 year"
+  ExpiresByType image/png "access plus 1 month"
+  ExpiresByType image/svg+xml "access plus 1 month"
+  ExpiresByType font/woff2 "access plus 1 year"
+  ExpiresByType application/xml "access plus 1 day"
+  ExpiresByType text/plain "access plus 1 day"
+</IfModule>
+
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+<IfModule mod_mime.c>
+  AddType font/woff2 .woff2
+  AddType image/webp .webp
+</IfModule>
+
+# php -- BEGIN cPanel-generated handler, do not edit
+# Set the “ea-php84” package as the default “PHP” programming language.
+<IfModule mime_module>
+  AddHandler application/x-httpd-ea-php84 .php .php8 .phtml
+</IfModule>
+# php -- END cPanel-generated handler, do not edit

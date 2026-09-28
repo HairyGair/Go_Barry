@@ -50,10 +50,14 @@ jobs:
           VITE_ENABLE_MOCK_DATA: false
           VITE_GOOGLE_MAPS_KEY: ${{ secrets.VITE_GOOGLE_MAPS_KEY }}
 
+      - name: Build marketing site (gobarry.co.uk)
+        run: node BreakdownGuideapp/website/build.mjs
+
       - name: Package for deployment
         run: |
           mkdir -p deploy/breakdown-deploy/backend
           mkdir -p deploy/breakdown-deploy/frontend-dist
+          mkdir -p deploy/breakdown-deploy/website-dist
 
           cd BreakdownGuideapp
 
@@ -73,6 +77,9 @@ jobs:
 
           # Frontend dist
           cp -r frontend/dist/. ../deploy/breakdown-deploy/frontend-dist/   # "/." includes dotfiles (.htaccess)
+
+          # Marketing site for gobarry.co.uk ("/." includes its .htaccess)
+          cp -r website/dist/. ../deploy/breakdown-deploy/website-dist/
 
           # Stamp the build so the server can verify it installed this commit
           echo "$GITHUB_SHA" > ../deploy/breakdown-deploy/BUILD_SHA

@@ -43,3 +43,6 @@ deploy-staging/
 # Test coverage
 coverage/
 .nyc_output/
+
+# Built marketing site
+website/dist/

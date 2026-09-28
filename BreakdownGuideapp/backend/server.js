@@ -103,7 +103,10 @@ const getAllowedOrigins = () => {
     'http://localhost:5173',
     'https://breakdowns.gobarry.co.uk',
     'https://www.breakdowns.gobarry.co.uk',
-    'https://api.breakdowns.gobarry.co.uk'
+    'https://api.breakdowns.gobarry.co.uk',
+    // Marketing site (enquiry form)
+    'https://gobarry.co.uk',
+    'https://www.gobarry.co.uk'
   ];
 
   const regexOrigins = [

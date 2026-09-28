@@ -6,16 +6,18 @@
     RewriteEngine On
     RewriteBase /
 
-    # Don't rewrite /api requests - let them pass through to the backend
-    # This prevents React Router from catching API calls
-    RewriteCond %{REQUEST_URI} !^/api/
+    # The old marketing page moved to the website at gobarry.co.uk
+    RewriteRule ^showcase\.html$ https://gobarry.co.uk/ [R=301,L]
 
     # A missing hashed asset must 404, not come back as index.html with a 200
     # (the browser then fails with a confusing MIME error instead of a clean miss)
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^assets/ - [R=404,L]
 
-    # Handle React Router - Don't rewrite files that exist
+    # Handle React Router - Don't rewrite files that exist, and never rewrite
+    # /api requests (they pass through to the backend). A RewriteCond only
+    # applies to the rule directly after it, so these must stay together.
+    RewriteCond %{REQUEST_URI} !^/api/
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME} !-l
