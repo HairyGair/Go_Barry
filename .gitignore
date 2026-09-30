@@ -103,3 +103,6 @@ service-account.json
 *secrets*
 *.pem
 *.key
+
+# Expo cPanel build output
+Go_BARRY/cpanel-build/

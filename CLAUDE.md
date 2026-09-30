@@ -160,3 +160,18 @@ backend/
 3. **backend/DEPLOYMENT_CHECKLIST.md** - Production deployment guide
 4. **backend/index.js** - Main server architecture
 5. **Go_BARRY/app/(tabs)/index.js** - Frontend entry point
+
+## Portfolio changelog
+
+After shipping anything significant in this project (significant = a visitor to gairware.com would care: launches, new features, status/version changes — not routine patches), add an entry to the GairWare site changelog.
+
+**File:** `/Users/anthony/Projects/gairware-site/src/data/site.ts` — the `CHANGELOG` array, newest entry first:
+
+```ts
+{ date: 'YYYY-MM-DD', proj: 'Go BARRY', note: 'What shipped, in one plain sentence.', tag: 'minor' },
+```
+
+- `proj` for this project is exactly `'Go BARRY'` (matches the portfolio site).
+- `tag`: `major` (launch/new system/rebuild) · `minor` (feature) · `patch` (notable fix).
+- **Verified facts only** — no usage, traction or status claims that aren't true. The site build (`npm run build` in `gairware-site`) lints rendered output against forbidden claims and fails if violated; run it to validate after adding the entry.
+- If the project's status or key metrics changed, also update its content file in `gairware-site/src/content/work/` and bump `verifiedDate`.
