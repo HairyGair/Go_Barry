@@ -13,8 +13,14 @@ import express from 'express';
 import { pool } from '../config/mysql.js';
 import { logAuditEvent, ACTION_TYPES } from './dutyAudit.js';
 import { activityLogger, ACTIVITY_TYPES, ACTOR_TYPES, ENTITY_TYPES, SEVERITY_LEVELS } from '../services/activityLogger.js';
+import { demoSqlFilter, isRowInDemoScope, demoSelfOnlyParam, demoSelfOnlyBody } from '../utils/demoFilter.js';
 
 const router = express.Router();
+
+// Demo isolation: a demo session may only act on and read its own records.
+router.param('supervisorId', demoSelfOnlyParam('id'));
+router.param('supervisorBadge', demoSelfOnlyParam('badge'));
+router.use(demoSelfOnlyBody);
 
 // Extension duration options (minutes)
 const EXTENSION_OPTIONS = [30, 60, 90, 120];
@@ -178,7 +184,7 @@ router.post('/:id/approve', async (req, res) => {
       [id]
     );
 
-    if (extensions.length === 0) {
+    if (extensions.length === 0 || !isRowInDemoScope(extensions[0], req.user)) {
       return res.status(404).json({
         success: false,
         error: 'Extension request not found'
@@ -289,7 +295,7 @@ router.post('/:id/deny', async (req, res) => {
       [id]
     );
 
-    if (extensions.length === 0) {
+    if (extensions.length === 0 || !isRowInDemoScope(extensions[0], req.user)) {
       return res.status(404).json({
         success: false,
         error: 'Extension request not found'
@@ -474,7 +480,7 @@ router.get('/status/:supervisorId', async (req, res) => {
 router.get('/pending', async (req, res) => {
   try {
     const [pendingExtensions] = await pool.query(
-      `SELECT * FROM v_pending_extensions`
+      `SELECT * FROM v_pending_extensions WHERE 1=1${demoSqlFilter(req.user)}`
     );
 
     res.json({
@@ -579,6 +585,7 @@ router.get('/today', async (req, res) => {
       FROM duty_extensions de
       LEFT JOIN supervisors s ON de.supervisor_id = s.id
       WHERE de.shift_date = CURDATE()
+        ${demoSqlFilter(req.user, { alias: 'de' })}
       ORDER BY de.request_time DESC`
     );
 

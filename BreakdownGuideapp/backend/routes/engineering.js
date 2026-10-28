@@ -19,12 +19,25 @@
 import express from 'express';
 import { query, select, insert, update } from '../config/mysql.js';
 import { from } from '../utils/queryHelpers.js';
-import { applyEngineerDemoFilter, isDemoUser } from '../utils/demoFilter.js';
+import {
+  applyEngineerDemoFilter, isDemoUser, demoSqlFilter,
+  requireBreakdownInScope, breakdownScopeParam, bodyBreakdownRef,
+} from '../utils/demoFilter.js';
 import { activityLogger, ACTIVITY_TYPES, ACTOR_TYPES, SEVERITY_LEVELS } from '../services/activityLogger.js';
 import { calculateRoadDistance } from '../services/googleDirectionsService.js';
 import { DEMO_DEPOTS, findDemoDepot } from '../data/demoDepots.js';
 
 const router = express.Router();
+
+// Demo isolation: routes addressing one breakdown (URL :id / :breakdown_id, or body
+// breakdown_id) refuse breakdowns from the other world (demo vs real) with a 404.
+router.param('id', breakdownScopeParam);
+router.param('breakdown_id', breakdownScopeParam);
+const inScope = requireBreakdownInScope(bodyBreakdownRef);
+
+// Demo engineers carry a DEMO- badge prefix (see applyEngineerDemoFilter).
+const isEngineerInDemoScope = (engineer, user) =>
+  String(engineer?.badge_number || '').startsWith('DEMO-') === isDemoUser(user);
 
 // WebSocket broadcaster (imported from server)
 let wsBroadcast = null;
@@ -309,7 +322,7 @@ router.get('/engineers/available/:depotId', async (req, res) => {
 });
 
 // POST /api/engineering/assign - Dispatch engineer (named or anonymous)
-router.post('/assign', async (req, res) => {
+router.post('/assign', inScope, async (req, res) => {
   try {
     const { breakdown_id, engineer_id, estimated_arrival_minutes, assigned_by } = req.body;
 
@@ -327,7 +340,7 @@ router.post('/assign', async (req, res) => {
     // If engineer_id provided, look up the engineer and validate
     if (engineer_id) {
       const [engineer] = await select('engineers', { id: engineer_id });
-      if (!engineer) {
+      if (!engineer || !isEngineerInDemoScope(engineer, req.user)) {
         return res.status(404).json({ success: false, error: 'Engineer not found' });
       }
       engineerName = engineer.name;
@@ -445,7 +458,7 @@ router.post('/assign', async (req, res) => {
 });
 
 // POST /api/engineering/update-engineer-status - Update engineer arrival/completion status
-router.post('/update-engineer-status', async (req, res) => {
+router.post('/update-engineer-status', inScope, async (req, res) => {
   try {
     const { breakdown_id, status, notes } = req.body;
 
@@ -559,7 +572,7 @@ router.post('/update-engineer-status', async (req, res) => {
 });
 
 // POST /api/engineering/auto-assign - Auto-assign nearest available engineer
-router.post('/auto-assign', async (req, res) => {
+router.post('/auto-assign', inScope, async (req, res) => {
   try {
     const { breakdown_id, depot_id } = req.body;
 
@@ -1134,7 +1147,7 @@ router.get('/teams', async (req, res) => {
 });
 
 // POST /api/engineering/accept-job - Engineer accepts a breakdown job
-router.post('/accept-job', async (req, res) => {
+router.post('/accept-job', inScope, async (req, res) => {
   try {
     const { breakdown_id, engineer_badge, engineer_name, eta_minutes } = req.body;
 
@@ -1206,7 +1219,7 @@ router.post('/accept-job', async (req, res) => {
 });
 
 // PUT /api/engineering/update-status - Update engineer job status
-router.put('/update-status', async (req, res) => {
+router.put('/update-status', inScope, async (req, res) => {
   try {
     const { breakdown_id, status, engineer_badge, notes } = req.body;
 
@@ -1298,7 +1311,7 @@ router.put('/update-status', async (req, res) => {
 });
 
 // POST /api/engineering/complete-job - Complete a breakdown job
-router.post('/complete-job', async (req, res) => {
+router.post('/complete-job', inScope, async (req, res) => {
   try {
     const {
       breakdown_id,
@@ -1594,6 +1607,7 @@ router.get('/vehicle-history/:fleet_no', async (req, res) => {
     const sql = `
       SELECT * FROM breakdowns
       WHERE fleet_no = ?
+      ${demoSqlFilter(req.user)}
       ORDER BY created_at DESC
       LIMIT ${parseInt(limit) || 20}
     `;

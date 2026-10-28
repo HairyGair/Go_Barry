@@ -22,10 +22,19 @@ import breakdownAssignmentService from '../services/breakdownAssignmentService.j
 import { calculateMileageLost } from '../services/mileageCalculationService.js';
 import { calculateRoadDistance } from '../services/googleDirectionsService.js';
 import { replacementSchemas } from '../validation/schemas.js';
-import { isDemoUser } from '../utils/demoFilter.js';
+import {
+  isDemoUser, applyDemoFilter, demoSqlFilter, isRowInDemoScope, scopedSupervisorBadge,
+  requireBreakdownInScope, breakdownScopeParam, bodyBreakdownRef,
+} from '../utils/demoFilter.js';
 import { findDemoDepot } from '../data/demoDepots.js';
 
 const router = express.Router();
+
+// Demo isolation for every route that addresses one breakdown by URL. :id and
+// :breakdown_id may be the numeric breakdowns.id or the BD-YYYY-NNNNN breakdown_id;
+// a demo session can never read or change a real breakdown, and vice versa (404).
+router.param('id', breakdownScopeParam);
+router.param('breakdown_id', breakdownScopeParam);
 
 // Helper function to format datetime for MySQL
 // Converts ISO 8601 (2025-10-28T22:29:52.324Z) to MySQL format (2025-10-28 22:29:52)
@@ -645,6 +654,8 @@ router.post('/', async (req, res) => {
     const breakdownData = {
       ...req.body,
       breakdown_id: idResult.id,
+      // Demo sessions are pinned to DEMO01; real sessions can never write DEMO01
+      supervisor_badge: scopedSupervisorBadge(req.user, req.body.supervisor_badge),
       created_at: toMySQLDatetime(),
       status: req.body.status || 'received',
       // Normalise severity so malformed client input can't be persisted
@@ -964,9 +975,9 @@ router.get('/stats/summary', async (req, res) => {
         startDate.setHours(0, 0, 0, 0);
     }
 
-    const { data, error } = await from('breakdowns')
+    const { data, error } = await applyDemoFilter(from('breakdowns')
       .select('status')
-      .gte('created_at', startDate.toISOString())
+      .gte('created_at', startDate.toISOString()), req.user)
       .execute();
 
     if (error) throw error;
@@ -1462,7 +1473,7 @@ router.post('/from-wizard', async (req, res) => {
       service,
 
       // Supervisor information
-      supervisor_badge,
+      supervisor_badge: requestedSupervisorBadge,
       supervisor_name,
 
       // Issue details
@@ -1481,6 +1492,9 @@ router.post('/from-wizard', async (req, res) => {
       trip_id,
       block_id
     } = req.body;
+
+    // Demo sessions are pinned to DEMO01; real sessions can never write DEMO01
+    const supervisor_badge = scopedSupervisorBadge(req.user, requestedSupervisorBadge);
 
     // Check for duplicate submissions (same vehicle + supervisor within last 10 seconds)
     const tenSecondsAgo = new Date();
@@ -1761,6 +1775,7 @@ router.get('/dashboard/cards', async (req, res) => {
       FROM breakdown_dashboard_cards c
       LEFT JOIN breakdowns b ON c.breakdown_id = b.breakdown_id
       WHERE c.${visibilityField} = 1
+        ${demoSqlFilter(req.user, { alias: 'b' })}
       ORDER BY c.priority_level ASC, c.created_at DESC
     `;
 
@@ -2092,7 +2107,7 @@ router.post('/smart-route-match', async (req, res) => {
 });
 
 // POST /api/breakdowns/resolve - Mark breakdown as resolved/completed
-router.post('/resolve', async (req, res) => {
+router.post('/resolve', requireBreakdownInScope(bodyBreakdownRef), async (req, res) => {
   try {
     const {
       breakdown_id,
@@ -2284,6 +2299,10 @@ router.post('/:breakdown_id/assign', async (req, res) => {
       });
     }
 
+    if (isDemoUser(req.user) && supervisor_id !== req.user.id) {
+      return res.status(403).json({ success: false, error: 'Not available in demo' });
+    }
+
     const result = await breakdownAssignmentService.manualAssignBreakdown(
       breakdown_id,
       supervisor_id,
@@ -2323,7 +2342,7 @@ router.post('/:breakdown_id/assign', async (req, res) => {
 // GET /api/breakdowns/assignments/stats - Get assignment statistics
 router.get('/assignments/stats', async (req, res) => {
   try {
-    const stats = await breakdownAssignmentService.getAssignmentStats();
+    const stats = await breakdownAssignmentService.getAssignmentStats(demoSqlFilter(req.user));
 
     res.json({
       success: true,
@@ -2342,7 +2361,7 @@ router.get('/assignments/stats', async (req, res) => {
 // GET /api/breakdowns/assignments/unassigned - Get unassigned breakdowns
 router.get('/assignments/unassigned', async (req, res) => {
   try {
-    const { data, error } = await from('breakdowns')
+    const { data, error } = await applyDemoFilter(from('breakdowns'), req.user)
       .select('breakdown_id, fleet_no, depot, location_description, issue_category, severity, status, created_at')
       .isNull('assigned_supervisor_id')
       .notIn('status', ['resolved', 'cleared', 'completed'])
@@ -2370,7 +2389,8 @@ router.get('/assignments/unassigned', async (req, res) => {
 router.get('/assignments/on-duty', async (req, res) => {
   try {
     const { depot } = req.query;
-    const supervisors = await breakdownAssignmentService.getOnDutySupervisors(depot || null);
+    const supervisors = (await breakdownAssignmentService.getOnDutySupervisors(depot || null))
+      .filter(s => isRowInDemoScope(s, req.user, 'badge_number'));
 
     res.json({
       success: true,

@@ -19,8 +19,14 @@ import {
   sanitizeNotes
 } from '../middleware/validationMiddleware.js';
 import { activityLogger, ACTIVITY_TYPES, ACTOR_TYPES, ENTITY_TYPES, SEVERITY_LEVELS } from '../services/activityLogger.js';
+import { requireBreakdownInScope, breakdownScopeParam, bodyBreakdownRef } from '../utils/demoFilter.js';
 
 const router = express.Router();
+
+// Demo isolation: any route addressing one breakdown (URL :id or body breakdown_id)
+// refuses breakdowns from the other world (demo vs real) with a 404.
+router.param('id', breakdownScopeParam);
+const inScope = requireBreakdownInScope(bodyBreakdownRef);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -824,7 +830,7 @@ const calculateProgressData = (activities) => {
 };
 
 // POST /api/sdc/acknowledge - SDC acknowledges a breakdown
-router.post('/acknowledge', validateBody(acknowledgeBreakdownSchema), sanitizeNotes, async (req, res) => {
+router.post('/acknowledge', inScope, validateBody(acknowledgeBreakdownSchema), sanitizeNotes, async (req, res) => {
   try {
     const { breakdown_id, acknowledged_by, supervisor_badge, notes } = req.body;
 
@@ -956,7 +962,7 @@ router.post('/acknowledge', validateBody(acknowledgeBreakdownSchema), sanitizeNo
 });
 
 // POST /api/sdc/decision - SDC records operational decision
-router.post('/decision', validateBody(recordDecisionSchema), sanitizeNotes, async (req, res) => {
+router.post('/decision', inScope, validateBody(recordDecisionSchema), sanitizeNotes, async (req, res) => {
   try {
     const { breakdown_id, decision, decided_by, supervisor_badge, notes, decision_notes } = req.body;
 
@@ -1115,7 +1121,7 @@ router.post('/decision', validateBody(recordDecisionSchema), sanitizeNotes, asyn
 });
 
 // POST /api/sdc/add-note - Add operational note to breakdown
-router.post('/add-note', validateBody(addNoteSchema), sanitizeNotes, async (req, res) => {
+router.post('/add-note', inScope, validateBody(addNoteSchema), sanitizeNotes, async (req, res) => {
   try {
     const { breakdown_id, note, added_by, supervisor_badge, note_type } = req.body;
 
@@ -1300,7 +1306,7 @@ router.post('/add-note', validateBody(addNoteSchema), sanitizeNotes, async (req,
 });
 
 // POST /api/sdc/request-engineering - Request engineering assistance
-router.post('/request-engineering', validateBody(requestEngineeringSchema), sanitizeNotes, async (req, res) => {
+router.post('/request-engineering', inScope, validateBody(requestEngineeringSchema), sanitizeNotes, async (req, res) => {
   try {
     const {
       breakdown_id,
@@ -1493,7 +1499,7 @@ router.post('/request-engineering', validateBody(requestEngineeringSchema), sani
 });
 
 // POST /api/sdc/resolve - Mark breakdown as resolved/completed
-router.post('/resolve', validateBody(Joi.object({
+router.post('/resolve', inScope, validateBody(Joi.object({
   breakdown_id: Joi.string()
     .required()
     .trim()

@@ -9,7 +9,7 @@
     "start:safe": "node --no-experimental-fetch --max-old-space-size=512 server.js",
     "start:script": "./start-server.sh",
     "dev": "nodemon --no-experimental-fetch server.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --test tests/*.test.js",
     "build:deploy": "bash scripts/build-deploy.sh"
   },
   "keywords": [

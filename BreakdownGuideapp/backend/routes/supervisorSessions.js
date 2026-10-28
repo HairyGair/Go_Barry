@@ -11,7 +11,15 @@ import express from 'express';
 import { from, insert, update, query } from '../utils/queryHelpers.js';
 import { verifyToken, authenticateAdmin, authenticateSupervisor } from '../middleware/authMiddleware.js';
 import webSocketHandler from './webSocketHandler.js';
-import { denyDemoWrite } from '../utils/demoFilter.js';
+import { denyDemoWrite, isDemoUser, DEMO_BADGE } from '../utils/demoFilter.js';
+
+// Demo isolation for supervisor_sessions: keyed on supervisor_id (always set), via the
+// supervisors table, so it does not depend on the later-added badge_number column.
+function demoSessionFilter(user, alias = '') {
+  const col = alias ? `${alias}.supervisor_id` : 'supervisor_id';
+  const sub = `SELECT id FROM supervisors WHERE badge_number = '${DEMO_BADGE}'`;
+  return isDemoUser(user) ? ` AND ${col} IN (${sub})` : ` AND ${col} NOT IN (${sub})`;
+}
 
 const router = express.Router();
 
@@ -20,7 +28,7 @@ const router = express.Router();
  * Get all currently online supervisors with active sessions
  * Used by Control Room Display to show live supervisor presence
  */
-router.get('/active', async (req, res) => {
+router.get('/active', authenticateSupervisor, async (req, res) => {
   try {
     console.log('📊 Fetching active supervisor sessions');
 
@@ -42,6 +50,7 @@ router.get('/active', async (req, res) => {
         TIMESTAMPDIFF(MINUTE, NOW(), ss.duty_end_time) as duty_minutes_remaining
       FROM supervisor_sessions ss
       WHERE ss.is_online = TRUE
+      ${demoSessionFilter(req.user, 'ss')}
       ORDER BY ss.depot, ss.supervisor_name
     `);
 
@@ -80,6 +89,7 @@ router.get('/all', authenticateAdmin, async (req, res) => {
       FROM supervisor_sessions ss
       WHERE 1=1
     `;
+    sql += demoSessionFilter(req.user, 'ss');
     const params = [];
 
     if (depot) {
@@ -397,6 +407,7 @@ router.get('/stats', authenticateAdmin, async (req, res) => {
         MAX(last_activity) as most_recent_activity
       FROM supervisor_sessions
       WHERE login_time >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
+      ${demoSessionFilter(req.user)}
     `);
 
     const dutyBreakdown = await query(`
@@ -405,6 +416,7 @@ router.get('/stats', authenticateAdmin, async (req, res) => {
         COUNT(*) as count
       FROM supervisor_sessions
       WHERE is_online = TRUE
+      ${demoSessionFilter(req.user)}
       GROUP BY current_duty
       ORDER BY count DESC
     `);

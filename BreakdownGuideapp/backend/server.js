@@ -41,6 +41,7 @@ import {
 } from './middleware/authMiddleware.js';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { denyDemoWrite } from './utils/demoFilter.js';
+import { requestContextMiddleware } from './utils/requestContext.js';
 
 // Load environment variables
 dotenv.config();
@@ -134,6 +135,10 @@ app.use((req, res, next) => (req.path.startsWith('/api/diversions') ? jsonDivers
 // HTTP-only cookie parser - must be after CORS and before routes
 // This enables secure session management via cookies instead of localStorage (XSS protection)
 app.use(cookieParser());
+
+// Per-request context (who is calling) for deep services, e.g. demo isolation in
+// the activity logger. Must run after the body parsers and before the routes.
+app.use(requestContextMiddleware);
 
 // SECURITY: CSRF protection configured in middleware/csrfProtection.js
 // Uses csrf-csrf (double-submit cookie pattern, replaces deprecated csurf)
@@ -670,8 +675,11 @@ app.use('/api/preferences', authenticateSupervisor, preferencesRoutes);
 app.use('/api/defects', authenticateSupervisor, defectsRoutes);
 app.use('/api/displays', authenticateSupervisor, displayRoutes); // Display control - requires auth
 app.use('/api/bug-reports', bugReportsRoutes); // Bug reports - no auth required for submission, auth for viewing
-app.use('/api/supervisors', supervisorRoutes); // Stats endpoint is read-only, no auth required
-app.use('/api/assessment', assessmentRoutes); // Assessment broadcasts - no auth required for real-time updates
+// SECURITY: the supervisor roster (names, emails, badges, depots, roles) and the
+// assessment broadcast fan-out both require a signed-in supervisor. Both were
+// previously unauthenticated.
+app.use('/api/supervisors', authenticateSupervisor, supervisorRoutes);
+app.use('/api/assessment', authenticateSupervisor, assessmentRoutes);
 app.use('/api/duty', authenticateSupervisor, dutyHandoverRoutes); // Duty handover routes
 app.use('/api/duty', authenticateSupervisor, dutyNotesRoutes); // Duty notes/log routes
 
@@ -686,7 +694,7 @@ app.use('/api/admin/duty', authenticateAdmin, denyDemoWrite, dutySchedulesRoutes
 app.use('/api/audit', authenticateAdmin, dutyAuditRoutes); // Duty audit trail (Phase 9.2)
 app.use('/api/breaks', authenticateSupervisor, dutyBreaksRoutes); // Break tracking (Phase 2.3)
 app.use('/api/extensions', authenticateSupervisor, dutyExtensionsRoutes); // Duty extensions (Phase 2.5)
-app.use('/api/settings', systemSettingsRoutes); // System settings (Phase 9.1) - compliance endpoint is public, others require admin
+app.use('/api/settings', systemSettingsRoutes); // System settings (Phase 9.1) - compliance endpoint is public, others use authenticateAdmin per route
 
 // GTFS Phase 1 Features - Live route status, coverage analysis, incident heatmap
 app.use('/api/gtfs', authenticateSupervisor, gtfsPhase1Routes);
@@ -698,7 +706,7 @@ app.use('/api/diversions', authenticateSupervisor, diversionRoutes); // Route di
 // SDC Dashboard API routes (requires SDC operator authentication and rate limiting)
 app.use('/api/sdc', rateLimitSDC, authenticateSDC, breakdownsAPIRoutes);
 
-// Supervisor session management (requires authentication)
+// Supervisor session management (auth applied per route in supervisorSessions.js)
 app.use('/api/supervisor-sessions', supervisorSessionsRoutes);
 
 // 404 handler - must be before error handler

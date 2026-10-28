@@ -12,8 +12,13 @@
 
 import express from 'express';
 import webSocketHandler from './webSocketHandler.js';
+import { denyDemoWrite } from '../utils/demoFilter.js';
 
 const router = express.Router();
+
+// Display control drives real yard and control-room screens over WebSocket. The
+// public demo account may read display state but never send commands to them.
+router.use((req, res, next) => (req.method === 'GET' ? next() : denyDemoWrite(req, res, next)));
 
 // =====================================================
 // DISPLAY INFORMATION ENDPOINTS

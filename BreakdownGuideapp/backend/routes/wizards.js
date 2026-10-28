@@ -6,15 +6,20 @@
 
 import express from 'express';
 import { from, query, insert, update } from '../utils/queryHelpers.js';
-import { isDemoUser } from '../utils/demoFilter.js';
+import { isDemoUser, breakdownScopeParam, requireBreakdownInScope, bodyBreakdownRef } from '../utils/demoFilter.js';
 import webSocketHandler from './webSocketHandler.js';
 
 const router = express.Router();
 
+// Demo isolation: wizard progress and completion are tied to one breakdown; refuse
+// breakdowns from the other world (demo vs real) with a 404.
+router.param('breakdownId', breakdownScopeParam);
+const inScope = requireBreakdownInScope(bodyBreakdownRef);
+
 /**
  * POST /api/wizards/progress - Log wizard progress step
  */
-router.post('/progress', async (req, res) => {
+router.post('/progress', inScope, async (req, res) => {
   try {
     const progressData = {
       ...req.body,
@@ -62,7 +67,7 @@ router.get('/progress/:breakdownId', async (req, res) => {
 /**
  * POST /api/wizards/complete - Complete wizard assessment
  */
-router.post('/complete', async (req, res) => {
+router.post('/complete', inScope, async (req, res) => {
   try {
     const {
       breakdown_id,

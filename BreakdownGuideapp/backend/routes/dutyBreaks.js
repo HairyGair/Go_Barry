@@ -13,8 +13,14 @@ import express from 'express';
 import { pool } from '../config/mysql.js';
 import { logAuditEvent, ACTION_TYPES } from './dutyAudit.js';
 import { activityLogger, ACTIVITY_TYPES, ACTOR_TYPES, ENTITY_TYPES, SEVERITY_LEVELS } from '../services/activityLogger.js';
+import { demoSqlFilter, isRowInDemoScope, demoSelfOnlyParam, demoSelfOnlyBody } from '../utils/demoFilter.js';
 
 const router = express.Router();
+
+// Demo isolation: a demo session may only act on and read its own records.
+router.param('supervisorId', demoSelfOnlyParam('id'));
+router.param('supervisorBadge', demoSelfOnlyParam('badge'));
+router.use(demoSelfOnlyBody);
 
 // Break type options
 const BREAK_TYPES = {
@@ -498,6 +504,7 @@ router.get('/active', async (req, res) => {
       LEFT JOIN supervisors s ON db.supervisor_id = s.id
       WHERE db.status = 'active'
         AND db.break_end IS NULL
+        ${demoSqlFilter(req.user, { alias: 'db' })}
       ORDER BY db.break_start ASC`
     );
 
@@ -543,6 +550,7 @@ router.get('/daily-summary', async (req, res) => {
       FROM duty_breaks
       WHERE shift_date = ?
         AND status = 'completed'
+        ${demoSqlFilter(req.user)}
       GROUP BY supervisor_badge, supervisor_name, duty_code
       ORDER BY supervisor_name`,
       [targetDate]

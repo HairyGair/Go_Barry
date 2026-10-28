@@ -9,7 +9,7 @@
 
 import express from 'express';
 import { query } from '../utils/queryHelpers.js';
-import { demoSqlFilter } from '../utils/demoFilter.js';
+import { demoSqlFilter, breakdownScopeParam } from '../utils/demoFilter.js';
 import {
   calculateMileageLost,
   calculateRouteDistance,
@@ -18,6 +18,9 @@ import {
 } from '../services/mileageCalculationService.js';
 
 const router = express.Router();
+
+// Demo isolation for routes that address one breakdown by URL (404 across worlds).
+router.param('breakdownId', breakdownScopeParam);
 
 /**
  * Calculate mileage lost for a specific breakdown
@@ -460,7 +463,8 @@ router.get('/report/summary', async (req, res) => {
 
     const result = await getMileageLostSummary(
       `${startDate} 00:00:00`,
-      `${endDate} 23:59:59`
+      `${endDate} 23:59:59`,
+      demoSqlFilter(req.user, { alias: 'b' })
     );
 
     return res.json(result);

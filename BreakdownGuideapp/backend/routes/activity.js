@@ -1,6 +1,7 @@
 import express from 'express';
 import { from, query } from '../utils/queryHelpers.js';
 import { activityLogger, ACTIVITY_TYPES, ACTOR_TYPES, SEVERITY_LEVELS } from '../services/activityLogger.js';
+import { demoSqlFilter } from '../utils/demoFilter.js';
 
 const router = express.Router();
 
@@ -821,7 +822,10 @@ router.get('/search', async (req, res) => {
       });
     }
 
-    const result = await activityLogger.searchActivities(searchTerm, parseInt(limit), parseInt(offset));
+    const result = await activityLogger.searchActivities(
+      searchTerm, parseInt(limit), parseInt(offset),
+      demoSqlFilter(req.user, { column: 'actor_id' })
+    );
 
     res.json({
       success: result.success,

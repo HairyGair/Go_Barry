@@ -547,7 +547,7 @@ async function calculateMileageLost(params) {
  * @param {string} endDate - End date (YYYY-MM-DD)
  * @returns {Promise<Object>} Summary of mileage lost
  */
-async function getMileageLostSummary(startDate, endDate) {
+async function getMileageLostSummary(startDate, endDate, demoFilterSql = '') {
   try {
     const results = await query(`
       SELECT
@@ -562,6 +562,7 @@ async function getMileageLostSummary(startDate, endDate) {
       LEFT JOIN gtfs_routes r ON b.route_id = r.route_id OR b.route_id = r.route_short_name
       WHERE b.created_at BETWEEN ? AND ?
       AND b.route_id IS NOT NULL
+      ${demoFilterSql}
       GROUP BY b.route_id, r.route_short_name, r.route_long_name, b.depot
       ORDER BY total_mileage_lost DESC
     `, [startDate, endDate]);

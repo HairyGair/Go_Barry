@@ -23,6 +23,7 @@
 import express from 'express';
 import { query } from '../config/mysql.js';
 import { authenticateAdmin, verifyToken } from '../middleware/authMiddleware.js';
+import { denyDemoWrite } from '../utils/demoFilter.js';
 
 const router = express.Router();
 
@@ -202,7 +203,7 @@ router.post('/log-logout', async (req, res) => {
  * - Most active users
  * - Hourly login distribution
  */
-router.get('/dashboard', authenticateAdmin, async (req, res) => {
+router.get('/dashboard', authenticateAdmin, denyDemoWrite, async (req, res) => {
   try {
     const { period = 'today' } = req.query;
 
@@ -339,7 +340,7 @@ router.get('/dashboard', authenticateAdmin, async (req, res) => {
  * - limit: number (default: 50)
  * - email: string (optional - filter by specific email)
  */
-router.get('/failed-logins', authenticateAdmin, async (req, res) => {
+router.get('/failed-logins', authenticateAdmin, denyDemoWrite, async (req, res) => {
   try {
     const { limit = 50, email } = req.query;
 
@@ -403,7 +404,7 @@ router.get('/failed-logins', authenticateAdmin, async (req, res) => {
  * Query params:
  * - limit: number (default: 50)
  */
-router.get('/user/:email', authenticateAdmin, async (req, res) => {
+router.get('/user/:email', authenticateAdmin, denyDemoWrite, async (req, res) => {
   try {
     const { email } = req.params;
     const { limit = 50 } = req.query;
@@ -462,7 +463,7 @@ router.get('/user/:email', authenticateAdmin, async (req, res) => {
  * GET /api/analytics/active-sessions
  * Get currently active sessions (logged in but not logged out) (Admin only)
  */
-router.get('/active-sessions', authenticateAdmin, async (req, res) => {
+router.get('/active-sessions', authenticateAdmin, denyDemoWrite, async (req, res) => {
   try {
     console.log('📊 Fetching active sessions');
 
@@ -506,7 +507,7 @@ router.get('/active-sessions', authenticateAdmin, async (req, res) => {
  * - Multiple failed attempts for same email
  * - Unusual activity patterns
  */
-router.get('/security-summary', authenticateAdmin, async (req, res) => {
+router.get('/security-summary', authenticateAdmin, denyDemoWrite, async (req, res) => {
   try {
     console.log('📊 Fetching security summary');
 

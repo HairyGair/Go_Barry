@@ -13,6 +13,7 @@
 import express from 'express';
 import { query, insert } from '../utils/queryHelpers.js';
 import { activityLogger, ACTIVITY_TYPES, ACTOR_TYPES, SEVERITY_LEVELS } from '../services/activityLogger.js';
+import { demoSqlFilter, isDemoUser, isRowInDemoScope } from '../utils/demoFilter.js';
 
 const router = express.Router();
 
@@ -138,7 +139,7 @@ router.get('/notes', async (req, res) => {
       offset = 0
     } = req.query;
 
-    let sql = 'SELECT * FROM duty_notes WHERE 1=1';
+    let sql = `SELECT * FROM duty_notes WHERE 1=1${demoSqlFilter(req.user)}`;
     const params = [];
 
     // Apply filters
@@ -184,7 +185,7 @@ router.get('/notes', async (req, res) => {
     const notes = await query(sql, params);
 
     // Get count for pagination
-    let countSql = 'SELECT COUNT(*) as total FROM duty_notes WHERE 1=1';
+    let countSql = `SELECT COUNT(*) as total FROM duty_notes WHERE 1=1${demoSqlFilter(req.user)}`;
     const countParams = [];
 
     if (supervisor_badge) {
@@ -283,7 +284,7 @@ router.get('/notes/:id', async (req, res) => {
       [id]
     );
 
-    if (!notes || notes.length === 0) {
+    if (!notes || notes.length === 0 || !isRowInDemoScope(notes[0], req.user)) {
       return res.status(404).json({
         success: false,
         message: 'Note not found'
@@ -411,7 +412,8 @@ router.delete('/notes/:id', async (req, res) => {
     const existingNote = existingNotes[0];
 
     // Check ownership (allow admins to delete any)
-    const isAdmin = req.user?.role === 'admin';
+    // The demo account has the admin role but must never delete real notes
+    const isAdmin = req.user?.role === 'admin' && !isDemoUser(req.user);
     if (existingNote.supervisor_badge !== supervisorBadge && !isAdmin) {
       return res.status(403).json({
         success: false,
@@ -454,6 +456,7 @@ router.get('/notes/search', async (req, res) => {
     let sql = `
       SELECT * FROM duty_notes
       WHERE note LIKE ?
+      ${demoSqlFilter(req.user)}
     `;
     const params = [`%${q}%`];
 
@@ -502,6 +505,7 @@ router.get('/notes/handover/:supervisorBadge', async (req, res) => {
       SELECT * FROM duty_notes
       WHERE supervisor_badge = ?
         AND created_at >= DATE_SUB(NOW(), INTERVAL ? HOUR)
+        ${demoSqlFilter(req.user)}
     `;
     const params = [supervisorBadge, parseInt(hours_back)];
 

@@ -371,9 +371,10 @@ class BreakdownAssignmentService {
 
   /**
    * Get assignment statistics for dashboard
+   * @param {string} [demoFilterSql] - demoSqlFilter(req.user) fragment (" AND ...")
    * @returns {Promise<Object>} Assignment stats
    */
-  async getAssignmentStats() {
+  async getAssignmentStats(demoFilterSql = '') {
     try {
       const stats = await query(`
         SELECT
@@ -382,6 +383,7 @@ class BreakdownAssignmentService {
           COUNT(*) - COUNT(assigned_supervisor_id) as unassigned
         FROM breakdowns
         WHERE status NOT IN ('resolved', 'cleared', 'completed')
+        ${demoFilterSql}
       `);
 
       const bySuper = await query(`
@@ -392,6 +394,7 @@ class BreakdownAssignmentService {
         FROM breakdowns
         WHERE status NOT IN ('resolved', 'cleared', 'completed')
           AND assigned_supervisor_id IS NOT NULL
+          ${demoFilterSql}
         GROUP BY assigned_supervisor_id, assigned_supervisor_name, assigned_supervisor_badge
         ORDER BY count DESC
       `);

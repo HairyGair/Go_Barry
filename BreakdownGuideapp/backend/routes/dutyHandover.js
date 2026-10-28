@@ -12,6 +12,7 @@
 import express from 'express';
 import { query, insert } from '../utils/queryHelpers.js';
 import { activityLogger, ACTIVITY_TYPES, ACTOR_TYPES, SEVERITY_LEVELS } from '../services/activityLogger.js';
+import { demoSqlFilter, isDemoUser, isRowInDemoScope, DEMO_BADGE } from '../utils/demoFilter.js';
 
 const router = express.Router();
 
@@ -40,6 +41,13 @@ router.post('/handover', async (req, res) => {
         success: false,
         message: 'Outgoing supervisor information is required'
       });
+    }
+
+    // Demo sessions may only hand over between demo identities, never to or from
+    // real supervisors (whose pending-handover inbox is shared production data).
+    if (isDemoUser(req.user) && (outgoing_supervisor.badge !== DEMO_BADGE ||
+        (incoming_supervisor?.badge && incoming_supervisor.badge !== DEMO_BADGE))) {
+      return res.status(403).json({ success: false, message: 'Not available in demo' });
     }
 
     // Create handover record
@@ -83,7 +91,7 @@ router.post('/handover', async (req, res) => {
               handover_time = ?,
               handover_notes = ?,
               updated_at = NOW()
-            WHERE breakdown_id = ? OR id = ?
+            WHERE (breakdown_id = ? OR id = ?)${demoSqlFilter(req.user)}
           `, [
             outgoing_supervisor.badge,
             incoming_supervisor.badge,
@@ -192,7 +200,7 @@ router.get('/handover/:id', async (req, res) => {
       [id]
     );
 
-    if (!handovers || handovers.length === 0) {
+    if (!handovers || handovers.length === 0 || !isRowInDemoScope(handovers[0], req.user, 'outgoing_supervisor_badge')) {
       return res.status(404).json({
         success: false,
         message: 'Handover not found'
@@ -239,7 +247,7 @@ router.get('/handovers', async (req, res) => {
       offset = 0
     } = req.query;
 
-    let sql = 'SELECT * FROM duty_handovers WHERE 1=1';
+    let sql = `SELECT * FROM duty_handovers WHERE 1=1${demoSqlFilter(req.user, { column: 'outgoing_supervisor_badge' })}`;
     const params = [];
 
     if (supervisor_badge) {
@@ -264,7 +272,7 @@ router.get('/handovers', async (req, res) => {
     const handovers = await query(sql, params);
 
     // Get count for pagination
-    let countSql = 'SELECT COUNT(*) as total FROM duty_handovers WHERE 1=1';
+    let countSql = `SELECT COUNT(*) as total FROM duty_handovers WHERE 1=1${demoSqlFilter(req.user, { column: 'outgoing_supervisor_badge' })}`;
     const countParams = [];
 
     if (supervisor_badge) {

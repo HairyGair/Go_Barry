@@ -13,16 +13,17 @@ import express from 'express';
 import pool from '../config/mysql.js';
 import { activityLogger, ACTIVITY_TYPES, ACTOR_TYPES, ENTITY_TYPES, SEVERITY_LEVELS } from '../services/activityLogger.js';
 import { denyDemoWrite } from '../utils/demoFilter.js';
+import { authenticateAdmin } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
 // =====================================================
 // GET ALL SETTINGS (Admin Only)
 // =====================================================
-router.get('/', async (req, res) => {
+router.get('/', authenticateAdmin, async (req, res) => {
     try {
         // Check admin access
-        const userRole = req.user?.role || req.headers['x-user-role'];
+        const userRole = req.user?.role;
         if (userRole !== 'admin') {
             return res.status(403).json({
                 success: false,
@@ -113,7 +114,7 @@ router.get('/compliance/status', async (req, res) => {
 // =====================================================
 // GET SINGLE SETTING
 // =====================================================
-router.get('/:key', async (req, res) => {
+router.get('/:key', authenticateAdmin, async (req, res) => {
     try {
         const { key } = req.params;
 
@@ -157,12 +158,12 @@ router.get('/:key', async (req, res) => {
 // =====================================================
 // UPDATE SETTING (Admin Only)
 // =====================================================
-router.put('/:key', async (req, res) => {
+router.put('/:key', authenticateAdmin, async (req, res) => {
     if (denyDemoWrite(req, res)) return;
     try {
         // Check admin access
-        const userRole = req.user?.role || req.headers['x-user-role'];
-        const userBadge = req.user?.badge_number || req.headers['x-user-badge'] || 'unknown';
+        const userRole = req.user?.role;
+        const userBadge = req.user?.badge_number || 'unknown';
 
         if (userRole !== 'admin') {
             return res.status(403).json({
@@ -281,12 +282,12 @@ router.put('/:key', async (req, res) => {
 // =====================================================
 // BULK UPDATE SETTINGS (Admin Only)
 // =====================================================
-router.put('/', async (req, res) => {
+router.put('/', authenticateAdmin, async (req, res) => {
     if (denyDemoWrite(req, res)) return;
     try {
         // Check admin access
-        const userRole = req.user?.role || req.headers['x-user-role'];
-        const userBadge = req.user?.badge_number || req.headers['x-user-badge'] || 'unknown';
+        const userRole = req.user?.role;
+        const userBadge = req.user?.badge_number || 'unknown';
 
         if (userRole !== 'admin') {
             return res.status(403).json({

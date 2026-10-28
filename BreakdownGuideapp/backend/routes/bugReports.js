@@ -6,6 +6,7 @@
 import express from 'express';
 import db from '../config/mysql.js';
 import { verifyToken } from '../middleware/authMiddleware.js';
+import { denyDemoWrite } from '../utils/demoFilter.js';
 import { sendFeedbackNotification } from '../services/emailService.js';
 
 const router = express.Router();
@@ -155,7 +156,7 @@ router.post('/', async (req, res) => {
  * Get all bug reports with optional filters
  * Query params: status, severity, type, limit, offset
  */
-router.get('/', verifyToken, async (req, res) => {
+router.get('/', verifyToken, denyDemoWrite, async (req, res) => {
   try {
     const {
       status,
@@ -245,7 +246,7 @@ router.get('/', verifyToken, async (req, res) => {
  * GET /api/bug-reports/:id
  * Get a specific bug report with comments
  */
-router.get('/:id', verifyToken, async (req, res) => {
+router.get('/:id', verifyToken, denyDemoWrite, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -305,7 +306,7 @@ router.get('/:id', verifyToken, async (req, res) => {
  * PUT /api/bug-reports/:id
  * Update bug report status, severity, or details
  */
-router.put('/:id', verifyToken, async (req, res) => {
+router.put('/:id', verifyToken, denyDemoWrite, async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -387,7 +388,7 @@ router.put('/:id', verifyToken, async (req, res) => {
  * POST /api/bug-reports/:id/comments
  * Add a comment to a bug report
  */
-router.post('/:id/comments', verifyToken, async (req, res) => {
+router.post('/:id/comments', verifyToken, denyDemoWrite, async (req, res) => {
   try {
     const { id } = req.params;
     const { comment, isInternal = false } = req.body;
@@ -427,7 +428,7 @@ router.post('/:id/comments', verifyToken, async (req, res) => {
  * GET /api/bug-reports/stats/overview
  * Get overview statistics for admin dashboard
  */
-router.get('/stats/overview', verifyToken, async (req, res) => {
+router.get('/stats/overview', verifyToken, denyDemoWrite, async (req, res) => {
   try {
     // Total counts
     const totalsResult = await db.query(`
@@ -489,7 +490,7 @@ router.get('/stats/overview', verifyToken, async (req, res) => {
  * DELETE /api/bug-reports/:id
  * Delete a bug report (admin only)
  */
-router.delete('/:id', verifyToken, async (req, res) => {
+router.delete('/:id', verifyToken, denyDemoWrite, async (req, res) => {
   try {
     // Check if user is admin
     if (req.user.role !== 'admin') {

@@ -11,6 +11,10 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import { query } from '../config/mysql.js';
+import { demoSqlFilter, isRowInDemoScope } from '../utils/demoFilter.js';
+
+// Auth: mounted behind authenticateSupervisor in server.js. Every query below is
+// demo-scoped on badge_number (demo sessions see only DEMO01, everyone else never sees it).
 
 // Load environment variables
 dotenv.config();
@@ -56,6 +60,8 @@ router.get('/', async (req, res) => {
       sql += ` AND role = ?`;
       params.push(role);
     }
+
+    sql += demoSqlFilter(req.user, { column: 'badge_number' });
 
     // Order by name
     sql += ` ORDER BY name ASC`;
@@ -120,7 +126,7 @@ router.get('/:id/stats', async (req, res) => {
     const supervisorResults = await query(supervisorSql, [id, id, id]);
     const supervisor = supervisorResults[0];
 
-    if (!supervisor) {
+    if (!supervisor || !isRowInDemoScope(supervisor, req.user, 'badge_number')) {
       return res.status(404).json({
         success: false,
         error: 'Supervisor not found'
@@ -227,7 +233,7 @@ router.get('/by-badge/:badge', async (req, res) => {
     const results = await query(sql, [badge]);
     const supervisor = results[0];
 
-    if (!supervisor) {
+    if (!supervisor || !isRowInDemoScope(supervisor, req.user, 'badge_number')) {
       return res.status(404).json({
         success: false,
         error: 'Supervisor not found with this badge number'
@@ -267,6 +273,7 @@ router.get('/depot/:depot', async (req, res) => {
       sql += ` AND is_active = 1`;
     }
 
+    sql += demoSqlFilter(req.user, { column: 'badge_number' });
     sql += ` ORDER BY name ASC`;
 
     const supervisors = await query(sql, params);
@@ -317,6 +324,7 @@ router.get('/search', async (req, res) => {
         badge_number LIKE ?
       )
       AND is_active = true
+      ${demoSqlFilter(req.user, { column: 'badge_number' })}
       ORDER BY name ASC
       LIMIT ${parseInt(limit) || 20}
     `;
@@ -367,6 +375,7 @@ router.get('/role/:role', async (req, res) => {
       sql += ` AND is_active = 1`;
     }
 
+    sql += demoSqlFilter(req.user, { column: 'badge_number' });
     sql += ` ORDER BY name ASC`;
 
     const supervisors = await query(sql, params);
@@ -394,10 +403,14 @@ router.get('/role/:role', async (req, res) => {
  */
 router.get('/pending', async (req, res) => {
   try {
+    if (req.user?.role !== 'admin') {
+      return res.status(403).json({ success: false, error: 'Admin privileges required' });
+    }
     const sql = `
       SELECT id, email, name, badge_number, depot, role, signup_date, created_at
       FROM supervisors
       WHERE pending_approval = 1 AND is_active = 0
+      ${demoSqlFilter(req.user, { column: 'badge_number' })}
       ORDER BY signup_date DESC
     `;
     const supervisors = await query(sql);
@@ -440,7 +453,7 @@ router.get('/:id', async (req, res) => {
     const results = await query(sql, [id, id, id]);
     const supervisor = results[0];
 
-    if (!supervisor) {
+    if (!supervisor || !isRowInDemoScope(supervisor, req.user, 'badge_number')) {
       return res.status(404).json({
         success: false,
         error: 'Supervisor not found'

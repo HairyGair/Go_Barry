@@ -312,6 +312,26 @@ class WebSocketHandler {
     const client = this.clients.get(clientId);
     if (!client) return;
 
+    // SECURITY: the protected channels are only checked on connect, so a client
+    // that connected to a public channel (or 'general') without a token could
+    // previously just subscribe to them here and receive live breakdown data.
+    // Apply the same rules as handleConnection.
+    if (typeof channel !== 'string' || channel.length === 0 || channel.length > 100) {
+      return;
+    }
+    const needsAuth = ['sdc-dashboard', 'breakdowns', 'assessment-progress'].includes(channel);
+    if (needsAuth && (!client.authenticated || (channel === 'sdc-dashboard' && !client.supervisor))) {
+      console.warn(`❌ Refused unauthenticated subscription by ${clientId} to channel: ${channel}`);
+      this.sendToClient(clientId, {
+        type: 'error',
+        error: 'Authentication required for this channel',
+        code: 'WS_AUTH_REQUIRED',
+        channel,
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+
     if (!this.channels.has(channel)) {
       this.channels.set(channel, new Set());
     }

@@ -7,6 +7,8 @@
  */
 
 import { from, query, insert as dbInsert } from '../utils/queryHelpers.js';
+import { isDemoUser, DEMO_BADGE } from '../utils/demoFilter.js';
+import { currentRequestUser } from '../utils/requestContext.js';
 
 // Activity type constants
 export const ACTIVITY_TYPES = {
@@ -178,6 +180,14 @@ class ActivityLoggerService {
       throw new Error('Missing required fields: activityType, action, actorType');
     }
 
+    // Demo isolation: anything logged while serving a demo session belongs to the
+    // demo world (the feeds filter on actor_id = DEMO01), whatever actorId the call
+    // site passed (often a client-supplied badge or a UUID).
+    const demoSession = isDemoUser(currentRequestUser());
+    if (demoSession) {
+      actorId = DEMO_BADGE;
+    }
+
     const activity = {
       activity_type: activityType,
       action,
@@ -222,8 +232,9 @@ class ActivityLoggerService {
 
       console.log(`📝 Activity logged: ${activityType} by ${actorName || actorId}`);
 
-      // Broadcast activity via WebSocket
-      if (this.webSocketHandler && data) {
+      // Broadcast activity via WebSocket (never for demo sessions: the live
+      // channels are shared with real operators' screens)
+      if (this.webSocketHandler && data && !demoSession) {
         this.broadcastActivity(data);
       }
 
@@ -697,7 +708,7 @@ class ActivityLoggerService {
   /**
    * Search activities
    */
-  async searchActivities(searchTerm, limit = 20, offset = 0) {
+  async searchActivities(searchTerm, limit = 20, offset = 0, demoFilterSql = '') {
     try {
       // MySQL full-text search using LIKE for now
       // For production, consider adding FULLTEXT indexes
@@ -705,7 +716,7 @@ class ActivityLoggerService {
       const safeOffset = parseInt(offset) || 0;
       const searchSql = `
         SELECT * FROM activities
-        WHERE message LIKE ? OR action LIKE ? OR actor_name LIKE ?
+        WHERE (message LIKE ? OR action LIKE ? OR actor_name LIKE ?)${demoFilterSql}
         ORDER BY created_at DESC
         LIMIT ${safeLimit} OFFSET ${safeOffset}
       `;

@@ -20,7 +20,7 @@
 import express from 'express';
 import { query } from '../config/mysql.js';
 import { from } from '../utils/queryHelpers.js';
-import { demoSqlFilter, isDemoUser, DEMO_ENGINEER_PREFIX } from '../utils/demoFilter.js';
+import { demoSqlFilter, demoBreakdownRefFilter, isDemoUser, DEMO_ENGINEER_PREFIX } from '../utils/demoFilter.js';
 import { DEMO_DEPOTS } from '../data/demoDepots.js';
 import { DEMO_FLEET } from '../data/demoFleet.js';
 import { validate } from '../middleware/validationMiddleware.js';
@@ -702,12 +702,12 @@ router.get('/tracerit', async (req, res) => {
     let breakdowns;
     if (depot) {
       breakdowns = await query(
-        'SELECT * FROM breakdowns WHERE created_at >= ? AND created_at <= ? AND depot = ? ORDER BY created_at DESC',
+        `SELECT * FROM breakdowns WHERE created_at >= ? AND created_at <= ? AND depot = ?${demoSqlFilter(req.user)} ORDER BY created_at DESC`,
         [startDate, endDate, depot]
       );
     } else {
       breakdowns = await query(
-        'SELECT * FROM breakdowns WHERE created_at >= ? AND created_at <= ? ORDER BY created_at DESC',
+        `SELECT * FROM breakdowns WHERE created_at >= ? AND created_at <= ?${demoSqlFilter(req.user)} ORDER BY created_at DESC`,
         [startDate, endDate]
       );
     }
@@ -1940,9 +1940,12 @@ router.get('/lost-trips', async (req, res) => {
         startDate.setHours(0, 0, 0, 0);
     }
 
+    // Demo isolation via the parent breakdown (lost trips carry breakdown_id)
+    const lostDemo = demoBreakdownRefFilter(req.user);
+
     // Total count
     const totalRows = await query(
-      'SELECT COUNT(*) as total FROM breakdown_lost_trips WHERE created_at >= ?',
+      `SELECT COUNT(*) as total FROM breakdown_lost_trips WHERE created_at >= ?${lostDemo}`,
       [startDate]
     );
     const total = totalRows[0]?.total || 0;
@@ -1951,7 +1954,7 @@ router.get('/lost-trips', async (req, res) => {
     const byRoute = await query(
       `SELECT route_id, COUNT(*) as lost_count
        FROM breakdown_lost_trips
-       WHERE created_at >= ? AND route_id IS NOT NULL
+       WHERE created_at >= ? AND route_id IS NOT NULL${lostDemo}
        GROUP BY route_id
        ORDER BY lost_count DESC
        LIMIT 20`,
@@ -1962,7 +1965,7 @@ router.get('/lost-trips', async (req, res) => {
     const byDepot = await query(
       `SELECT depot, COUNT(*) as lost_count
        FROM breakdown_lost_trips
-       WHERE created_at >= ? AND depot IS NOT NULL
+       WHERE created_at >= ? AND depot IS NOT NULL${lostDemo}
        GROUP BY depot
        ORDER BY lost_count DESC`,
       [startDate]
@@ -1971,7 +1974,7 @@ router.get('/lost-trips', async (req, res) => {
     // Recent lost trips (last 20)
     const recent = await query(
       `SELECT * FROM breakdown_lost_trips
-       WHERE created_at >= ?
+       WHERE created_at >= ?${lostDemo}
        ORDER BY created_at DESC
        LIMIT 20`,
       [startDate]

@@ -6,13 +6,16 @@
 
 import express from 'express';
 import webSocketHandler from './webSocketHandler.js';
+import { isDemoUser } from '../utils/demoFilter.js';
 
 const router = express.Router();
 
 /**
  * POST /api/assessment/broadcast
  * Broadcasts assessment progress to all connected clients
- * No authentication required - assessment updates are public broadcasts
+ * Requires a signed-in supervisor (authenticateSupervisor at the mount in server.js).
+ * Demo sessions are acknowledged but never fanned out: the sdc-dashboard and
+ * control-room channels are shared with real operators' screens.
  */
 router.post('/broadcast', (req, res) => {
   try {
@@ -74,6 +77,14 @@ router.post('/broadcast', (req, res) => {
         delete broadcastData[key];
       }
     });
+
+    if (isDemoUser(req.user)) {
+      return res.json({
+        success: true,
+        message: 'Broadcast sent',
+        clients: { sdc: 0, control: 0, total: 0 }
+      });
+    }
 
     // Broadcast to SDC Dashboard
     const sdcCount = webSocketHandler.broadcast('sdc-dashboard', {

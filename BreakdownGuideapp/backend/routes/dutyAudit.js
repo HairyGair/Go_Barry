@@ -11,6 +11,7 @@
 
 import express from 'express';
 import { pool } from '../config/mysql.js';
+import { demoSqlFilter, isDemoUser, DEMO_BADGE } from '../utils/demoFilter.js';
 
 const router = express.Router();
 
@@ -136,6 +137,8 @@ router.post('/log', async (req, res) => {
   try {
     const eventId = await logAuditEvent({
       ...req.body,
+      // Demo sessions can only write audit events as themselves
+      ...(isDemoUser(req.user) ? { supervisorId: req.user.id, supervisorBadge: DEMO_BADGE } : {}),
       ipAddress: req.ip || req.connection.remoteAddress,
       userAgent: req.get('User-Agent')
     });
@@ -173,6 +176,7 @@ router.get('/recent', async (req, res) => {
         TIMESTAMPDIFF(MINUTE, created_at, NOW()) as minutes_ago
       FROM duty_audit_log
       WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? HOUR)
+        ${demoSqlFilter(req.user)}
       ORDER BY created_at DESC
       LIMIT ${parseInt(limit) || 100}`,
       [parseInt(hours)]
@@ -213,6 +217,7 @@ router.get('/supervisor/:badge', async (req, res) => {
         created_at
       FROM duty_audit_log
       WHERE supervisor_badge = ?
+        ${demoSqlFilter(req.user)}
         AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
       ORDER BY created_at DESC
       LIMIT ${parseInt(limit) || 500}`,
@@ -264,6 +269,7 @@ router.get('/daily-summary', async (req, res) => {
         SUM(overtime_minutes) as total_overtime_minutes
       FROM duty_audit_log
       WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+        ${demoSqlFilter(req.user)}
       GROUP BY DATE(created_at)
       ORDER BY audit_date DESC`,
       [parseInt(days)]
@@ -302,6 +308,7 @@ router.get('/overtime-report', async (req, res) => {
         created_at as logged_at
       FROM duty_audit_log
       WHERE action_type IN ('OVERTIME_START', 'OVERTIME_ALERT', 'DUTY_END')
+        ${demoSqlFilter(req.user)}
         AND overtime_minutes > 0
         AND created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
       ORDER BY created_at DESC`,
@@ -367,6 +374,7 @@ router.get('/search', async (req, res) => {
         created_at
       FROM duty_audit_log
       WHERE 1=1
+        ${demoSqlFilter(req.user)}
     `;
     const params = [];
 
@@ -438,6 +446,7 @@ router.get('/export', async (req, res) => {
         created_at
       FROM duty_audit_log
       WHERE created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)
+        ${demoSqlFilter(req.user)}
       ORDER BY created_at DESC`,
       [parseInt(days)]
     );

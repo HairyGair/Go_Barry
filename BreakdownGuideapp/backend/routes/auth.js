@@ -16,7 +16,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import { from, insert, update, remove, query } from '../utils/queryHelpers.js';
-import { authenticateAdmin, rateLimitLogin, clearLoginAttempts, verifyToken } from '../middleware/authMiddleware.js';
+import { authenticateAdmin, authenticateSupervisor, rateLimitLogin, clearLoginAttempts, verifyToken } from '../middleware/authMiddleware.js';
 import { activityLogger, ACTIVITY_TYPES, ACTOR_TYPES, SEVERITY_LEVELS } from '../services/activityLogger.js';
 import dutyManager from '../services/dutyManager.js';
 import { validate } from '../middleware/validationMiddleware.js';
@@ -24,7 +24,19 @@ import { authSchemas } from '../validation/schemas.js';
 import webSocketHandler from './webSocketHandler.js';
 import { logAuditEvent, ACTION_TYPES as AUDIT_ACTIONS } from './dutyAudit.js';
 import { seedDemoData } from '../services/demoDataService.js';
-import { denyDemoWrite, isDemoUser } from '../utils/demoFilter.js';
+import { denyDemoWrite, isDemoUser, isRowInDemoScope, applyDemoFilter } from '../utils/demoFilter.js';
+
+// Supervisor columns that are safe to return to the client. Never select('*') from
+// supervisors into a response: the row carries password_hash.
+const SAFE_SUPERVISOR_COLUMNS = 'id, name, email, role, depot, is_active, badge_number, pending_approval, signup_date, approved_date, created_at, updated_at';
+
+// Which supervisor a shift action targets. Supervisors act on themselves; a real
+// (non-demo) admin may name another supervisor. Returns null when not allowed.
+function resolveShiftTarget(req, requestedId) {
+  if (!requestedId || requestedId === req.user?.id) return req.user?.id || null;
+  if (req.user?.role === 'admin' && !isDemoUser(req.user)) return requestedId;
+  return null;
+}
 import { DEMO_DEPOTS, getDemoDepotNames } from '../data/demoDepots.js';
 
 // Load environment variables
@@ -68,10 +80,10 @@ function generateToken(supervisor) {
 }
 
 // GET /api/auth/supervisors - Get all active supervisors
-router.get('/supervisors', async (req, res) => {
+router.get('/supervisors', authenticateSupervisor, async (req, res) => {
   try {
     // Demo sessions see only the demo supervisor; everyone else excludes it.
-    // Demo is signalled by ?demo=true (this GET has no auth token) or by req.user.
+    // Demo is signalled by req.user (authenticated); ?demo=true is still honoured.
     const demo = req.query.demo === 'true' || req.user?.badge_number === 'DEMO01';
     let supervisorQuery = from('supervisors')
       .select('id, name, email, role, depot, is_active, badge_number')
@@ -109,7 +121,7 @@ router.get('/supervisors', async (req, res) => {
 });
 
 // GET /api/auth/user/:id - Get specific user
-router.get('/user/:id', async (req, res) => {
+router.get('/user/:id', authenticateSupervisor, async (req, res) => {
   try {
     const { data, error } = await from('supervisors')
       .select('id, name, email, role, depot, is_active, badge_number')
@@ -118,7 +130,7 @@ router.get('/user/:id', async (req, res) => {
 
     if (error) throw error;
 
-    if (!data) {
+    if (!data || !isRowInDemoScope(data, req.user, 'badge_number')) {
       return res.status(404).json({ error: 'User not found' });
     }
 
@@ -139,16 +151,16 @@ router.get('/user/:id', async (req, res) => {
 });
 
 // GET /api/auth/supervisor/:username - Get supervisor by username
-router.get('/supervisor/:username', async (req, res) => {
+router.get('/supervisor/:username', authenticateAdmin, async (req, res) => {
   try {
     const { data, error } = await from('supervisors')
-      .select('*')
+      .select(SAFE_SUPERVISOR_COLUMNS)
       .eq('name', req.params.username)
       .single();
 
     if (error) throw error;
 
-    if (!data) {
+    if (!data || !isRowInDemoScope(data, req.user, 'badge_number')) {
       return res.status(404).json({ error: 'Supervisor not found' });
     }
 
@@ -921,7 +933,7 @@ router.post('/logout', verifyToken, validate(authSchemas.logout), async (req, re
 });
 
 // POST /api/auth/verify - Verify session (alias for validate)
-router.post('/verify', async (req, res) => {
+router.post('/verify', authenticateSupervisor, async (req, res) => {
   try {
     const { session_token, username } = req.body;
 
@@ -936,7 +948,7 @@ router.post('/verify', async (req, res) => {
       .eq('is_active', true)
       .single();
 
-    if (error || !supervisor) {
+    if (error || !supervisor || !isRowInDemoScope(supervisor, req.user, 'badge_number')) {
       return res.status(401).json({
         valid: false,
         error: 'Invalid session'
@@ -999,10 +1011,10 @@ router.get('/validate', async (req, res) => {
 });
 
 // GET /api/auth/depots - Get list of depots
-router.get('/depots', async (req, res) => {
+router.get('/depots', authenticateSupervisor, async (req, res) => {
   try {
     // Demo sessions must never see the real depot roster. Demo is signalled by
-    // ?demo=true (this GET has no auth token most of the time) or by req.user.
+    // req.user (authenticated); ?demo=true is still honoured.
     const demo = req.query.demo === 'true' || isDemoUser(req.user);
     if (demo) {
       return res.json(getDemoDepotNames());
@@ -1026,13 +1038,13 @@ router.get('/depots', async (req, res) => {
 });
 
 // GET /api/auth/recent-sessions - Get recent authentication sessions
-router.get('/recent-sessions', async (req, res) => {
+router.get('/recent-sessions', authenticateAdmin, async (req, res) => {
   try {
     const { limit = 10 } = req.query;
 
-    const { data, error } = await from('supervisors')
+    const { data, error } = await applyDemoFilter(from('supervisors')
       .select('id, name, email, depot, badge_number')
-      .eq('is_active', true)
+      .eq('is_active', true), req.user, 'badge_number')
       .limit(parseInt(limit))
       .execute();
 
@@ -1055,9 +1067,11 @@ router.get('/recent-sessions', async (req, res) => {
 
 // GET /api/auth/pending-signups - Get all pending supervisor signups (Admin only)
 router.get('/pending-signups', authenticateAdmin, async (req, res) => {
+  // Real staff sign-ups: never visible to the public demo account.
+  if (denyDemoWrite(req, res)) return;
   try {
     const { data, error } = await from('supervisors')
-      .select('*')
+      .select(SAFE_SUPERVISOR_COLUMNS)
       .eq('pending_approval', true)
       .order('signup_date', 'DESC')
       .execute();
@@ -1303,7 +1317,7 @@ router.post('/change-password', verifyToken, validate(authSchemas.changePassword
 });
 
 // GET /api/supervisors/:id/stats - Get supervisor-specific statistics
-router.get('/supervisors/:id/stats', async (req, res) => {
+router.get('/supervisors/:id/stats', authenticateSupervisor, async (req, res) => {
   try {
     const supervisorId = req.params.id;
 
@@ -1314,7 +1328,7 @@ router.get('/supervisors/:id/stats', async (req, res) => {
       .or(`badge_number.eq.${supervisorId}`)
       .single();
 
-    if (supervisorError || !supervisor) {
+    if (supervisorError || !supervisor || !isRowInDemoScope(supervisor, req.user, 'badge_number')) {
       console.log(`Supervisor not found: ${supervisorId}`);
       return res.status(404).json({
         error: 'Supervisor not found',
@@ -1495,14 +1509,14 @@ router.get('/duties', async (req, res) => {
 });
 
 // GET /api/auth/shift-warning - Check if supervisor should see shift ending warning
-router.get('/shift-warning', async (req, res) => {
+router.get('/shift-warning', authenticateSupervisor, async (req, res) => {
   try {
-    const supervisorId = req.user?.id || req.query.supervisorId;
+    const supervisorId = resolveShiftTarget(req, req.query.supervisorId);
 
     if (!supervisorId) {
-      return res.status(400).json({
+      return res.status(403).json({
         success: false,
-        error: 'Supervisor ID required'
+        error: 'Not allowed to act on another supervisor'
       });
     }
 
@@ -1522,14 +1536,14 @@ router.get('/shift-warning', async (req, res) => {
 });
 
 // POST /api/auth/end-shift - End supervisor's current shift
-router.post('/end-shift', async (req, res) => {
+router.post('/end-shift', authenticateSupervisor, async (req, res) => {
   try {
-    const supervisorId = req.user?.id || req.body.supervisorId;
+    const supervisorId = resolveShiftTarget(req, req.body.supervisorId);
 
     if (!supervisorId) {
-      return res.status(400).json({
+      return res.status(403).json({
         success: false,
-        error: 'Supervisor ID required'
+        error: 'Not allowed to act on another supervisor'
       });
     }
 
@@ -1590,10 +1604,11 @@ router.post('/end-shift', async (req, res) => {
 });
 
 // GET /api/auth/active-supervisors - Get supervisors currently on shift
-router.get('/active-supervisors', async (req, res) => {
+router.get('/active-supervisors', authenticateSupervisor, async (req, res) => {
   try {
     const { duty } = req.query;
-    const supervisors = await dutyManager.getActiveSupervisors(duty);
+    const supervisors = (await dutyManager.getActiveSupervisors(duty))
+      .filter(s => isRowInDemoScope(s, req.user, 'badge_number'));
 
     res.json({
       success: true,
@@ -1610,7 +1625,8 @@ router.get('/active-supervisors', async (req, res) => {
 });
 
 // GET /api/auth/shift-history - Get shift history for reporting
-router.get('/shift-history', async (req, res) => {
+router.get('/shift-history', authenticateAdmin, async (req, res) => {
+  if (denyDemoWrite(req, res)) return;
   try {
     const filters = {
       supervisorId: req.query.supervisorId,
@@ -2009,7 +2025,7 @@ router.get('/supervisors/:id/history', authenticateAdmin, async (req, res) => {
       [id]
     );
 
-    if (supervisorResult.length === 0) {
+    if (supervisorResult.length === 0 || !isRowInDemoScope(supervisorResult[0], req.user, 'badge_number')) {
       return res.status(404).json({
         success: false,
         error: 'Supervisor not found'

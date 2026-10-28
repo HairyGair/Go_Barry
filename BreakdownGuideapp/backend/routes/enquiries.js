@@ -6,6 +6,7 @@
 
 import express from 'express';
 import { query } from '../utils/queryHelpers.js';
+import { isDemoUser, denyDemoWrite } from '../utils/demoFilter.js';
 
 const router = express.Router();
 
@@ -17,6 +18,11 @@ const parseFeatures = (v) => {
 
 // GET /api/admin/enquiries - list enquiries (newest first), optional ?status=
 router.get('/', async (req, res) => {
+  // Enquiries are real prospects' contact details: the public demo account (which
+  // has the admin role) gets an empty inbox, never the real one.
+  if (isDemoUser(req.user)) {
+    return res.json({ success: true, enquiries: [], counts: { new: 0, contacted: 0, archived: 0, total: 0 } });
+  }
   try {
     const { status } = req.query;
     const allowed = ['new', 'contacted', 'archived'];
@@ -44,7 +50,7 @@ router.get('/', async (req, res) => {
 });
 
 // PATCH /api/admin/enquiries/:id - update status
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', denyDemoWrite, async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body || {};
